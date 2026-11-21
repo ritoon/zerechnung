@@ -300,6 +300,10 @@ func ProfileFromZUGFeRD1URN(urn string) Profile {
 // recognizes spellings found in older or non-conforming invoices such as
 // "urn:cen.eu:en16931:2017:compliant:factur-x.eu:1p0:basic". Use it to read
 // invoices; validators report such identifiers with ProfileFromURN.
+//
+// The profile is the one of the data set, whatever the edition of
+// EN 16931-1 that the identifier names: urn:cen.eu:en16931:2026 gives
+// EN 16931, as urn:cen.eu:en16931:2017 does. EditionOf tells the edition.
 func DetectProfile(urn string) Profile {
 	if p := ProfileFromURN(urn); p != ProfileUnknown {
 		return p

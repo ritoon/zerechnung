@@ -338,6 +338,7 @@ The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11
 - ZUGFeRD 1.0 is read only, and written back as Factur-X.
 - FatturaPA, the national XML format of the Italian SDI, is not read nor written. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry; the rules of the Italian extensions (BR-IT-DE-*) are not checked.
 - For EXTENDED-CTC-FR, only the CII syntax rules of the FNFE schematron are applied, not its business rules (BR-FREXT).
+- Only EN 16931-1:2017 is supported. An invoice whose specification identifier (BT-24) names EN 16931-1:2026, such as `urn:cen.eu:en16931:2026`, gets the error `EN16931-EDITION-01` and no other rule, since the 2026 validation artefacts are not published yet. Force a profile (`Options.Profile`, `-profile`) to apply the 2017 rules anyway. `Create` and `embed` do not write this edition.
 - The rules are rewritten in Go from the official artefacts, so a new version of an artefact needs a code update.
 
 The full list is on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy#limitations).
