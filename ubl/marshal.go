@@ -35,8 +35,9 @@ type LossError struct {
 	// the EN 16931 data set and "EXT <Role>.<Field>" for party data. An
 	// extension (see invoice.Extension) is reported as "EXT " followed by its
 	// entry in Invoice.Unmodeled. The data of the national blocks that UBL
-	// does not carry (the FatturaPA data of invoice.Italy…) follows, as
-	// listed by invoice.Invoice.NationalData: "EXT Italy.Withholdings".
+	// does not carry (the FatturaPA data of invoice.Italy, the Facturae data
+	// of invoice.Spain) follows, as listed by invoice.Invoice.NationalData:
+	// "EXT Italy.Withholdings".
 	Terms []string
 }
 

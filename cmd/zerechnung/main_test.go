@@ -339,3 +339,42 @@ func TestValidateFatturaPA(t *testing.T) {
 		t.Errorf("validate of a FatturaPA document with an unknown tax regime: code %d, rules %v", code, got)
 	}
 }
+
+// TestFacturae reads a Facturae invoice with json, and checks it with
+// validate: the schema of its version passes, FE-02 says that the EN 16931
+// rules are not checked, and an invalid value is reported.
+func TestFacturae(t *testing.T) {
+	const name = "../../facturae/testdata/b2g.xml"
+	var out bytes.Buffer
+	if err := jsonCmd([]string{name}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var inv struct {
+		Number string
+		Spain  struct{ SeriesCode string }
+		Buyer  struct {
+			Spain struct{ Centres []struct{ Code string } }
+		}
+	}
+	if err := json.Unmarshal(out.Bytes(), &inv); err != nil || inv.Number != "A0042" || inv.Spain.SeriesCode != "A" ||
+		len(inv.Buyer.Spain.Centres) != 3 {
+		t.Errorf("json %s: %+v, %v", name, inv, err)
+	}
+
+	code, got := runValidate(t, name)
+	if code != 0 || len(got) != 1 || !got["FE-02"] {
+		t.Errorf("validate %s: code %d, findings %v", name, code, got)
+	}
+	out.Reset()
+	if code, err := validateCmd([]string{name}, &out); err != nil || code != 0 || !strings.HasPrefix(out.String(), "Format: Facturae 3.2.2\n") {
+		t.Errorf("validate %s: code %d, %v\n%s", name, code, err, out.String())
+	}
+	bad := mutated(t, name, "<InvoiceClass>OO</InvoiceClass>", "<InvoiceClass>XX</InvoiceClass>")
+	if code, got := runValidate(t, bad); code != 1 || !got["XSD-TYPE"] || !got["FE-02"] {
+		t.Errorf("validate of an invalid class: code %d, findings %v", code, got)
+	}
+	bad = mutated(t, name, "<IssueDate>2026-11-02</IssueDate>", "<IssueDate>02/11/2026</IssueDate>")
+	if code, got := runValidate(t, bad); code != 1 || !got["FE-01"] {
+		t.Errorf("validate of an unreadable date: code %d, findings %v", code, got)
+	}
+}

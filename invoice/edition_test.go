@@ -27,6 +27,8 @@ func TestEditionOf(t *testing.T) {
 		"":                                                                           EditionNone,
 		"urn:example:urn:cen.eu:en16931:2026":                                        EditionNone,
 		"urn:cen.eu:en16931:2026#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0#conformant": Edition2026,
+		// The Spanish B2B invoice (SPFE, draft of the AEAT).
+		"urn:cen.eu:en16931:2026#conformant#urn:aeat.es:spfe:1.0.0:extended": Edition2026,
 	} {
 		if got := EditionOf(urn); got != want {
 			t.Errorf("EditionOf(%q) = %d, want %d", urn, got, want)
