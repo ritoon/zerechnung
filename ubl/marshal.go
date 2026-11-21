@@ -123,13 +123,13 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 func customizationID(inv *invoice.Invoice) string {
 	if inv.SpecificationID != "" {
 		switch invoice.DetectProfile(inv.SpecificationID) {
-		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
+		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
 			return strings.TrimSpace(inv.SpecificationID)
 		}
 	}
 	switch inv.Profile {
-	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileExtendedCTCFR:
-		return inv.Profile.URN()
+	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileExtendedCTCFR:
+		return inv.Profile.URNFor(inv.Seller.Address.CountryCode)
 	}
 	return invoice.URNEN16931
 }

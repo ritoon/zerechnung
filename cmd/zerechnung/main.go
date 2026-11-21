@@ -4,10 +4,10 @@
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
-//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
+//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
 //	zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-o out.pdf] input.pdf
 //	zerechnung json invoice.pdf|invoice.xml
-//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl]
+//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it]
 //
 // validate exits with status 1 when the invoice has errors.
 package main
@@ -38,13 +38,13 @@ validate and json also accept an XML invoice in CII or UBL 2.1 syntax.
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
   zerechnung info invoice.pdf
-  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
+  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
   zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-convert-pdfa] [-o out.pdf] input.pdf
   zerechnung pdfa [-o out.pdf] input.pdf
   zerechnung json invoice.pdf|invoice.xml
-  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl]
+  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it]
 
-Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius.
+Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it.
 `
 
 func main() {
@@ -181,6 +181,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	engagementRequired := fs.Bool("engagement-required", false, "with -choruspro: the public buyer requires an engagement number (BT-13)")
 	pep := fs.Bool("peppol", false, "apply the Peppol BIS Billing 3.0 rules (applied anyway when BT-24 is the Peppol identifier)")
 	nl := fs.Bool("nl", false, "apply the Dutch rules BR-NL of NLCIUS (applied anyway when BT-24 is the NLCIUS identifier)")
+	ita := fs.Bool("it", false, "apply the Italian rules BR-IT of the CIUS-IT (applied anyway when BT-24 is a CIUS-IT identifier)")
 	profile := fs.String("profile", "", "validate against this profile instead of BT-24")
 	hybrid := fs.Bool("hybrid", false, "the XML is the invoice of a Factur-X PDF: check an EN 16931 invoice against the Factur-X schematron (always the case for a PDF)")
 	asJSON := fs.Bool("json", false, "print the report as JSON")
@@ -194,7 +195,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 			return 0, fmt.Errorf("unknown profile %q", *profile)
 		}
 	}
-	if *fr || *de || *cpro || *pep || *nl {
+	if *fr || *de || *cpro || *pep || *nl || *ita {
 		opts.Rules = validate.Default
 		if *fr {
 			opts.Rules |= validate.France
@@ -210,6 +211,9 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		}
 		if *nl {
 			opts.Rules |= validate.Netherlands
+		}
+		if *ita {
+			opts.Rules |= validate.Italy
 		}
 	}
 	opts.PublicBuyer = validate.PublicBuyer{ServiceCodeRequired: *serviceRequired, EngagementRequired: *engagementRequired}
@@ -371,6 +375,7 @@ func rulesCmd(args []string) error {
 	cpro := fs.Bool("choruspro", false, "include the Chorus Pro checks")
 	pep := fs.Bool("peppol", false, "include the Peppol BIS Billing 3.0 rules")
 	nl := fs.Bool("nl", false, "include the Dutch rules of NLCIUS")
+	ita := fs.Bool("it", false, "include the Italian rules of the CIUS-IT")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -389,6 +394,9 @@ func rulesCmd(args []string) error {
 	}
 	if *nl {
 		set |= validate.Netherlands
+	}
+	if *ita {
+		set |= validate.Italy
 	}
 	for _, r := range validate.Catalog(set) {
 		fmt.Printf("%-28s %-8s %s\n", r.ID, r.Severity, strings.TrimSpace(r.Description))

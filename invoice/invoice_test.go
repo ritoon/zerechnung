@@ -109,7 +109,7 @@ func TestProfile(t *testing.T) {
 		if got := ParseProfile(p.String()); got != p {
 			t.Errorf("ParseProfile(%q) = %s", p.String(), got)
 		}
-		if p != ProfileExtendedCTCFR && p != ProfilePeppol && p != ProfileNLCIUS {
+		if p != ProfileExtendedCTCFR && p != ProfilePeppol && p != ProfileNLCIUS && p != ProfileCIUSIT {
 			if got := ProfileFromConformanceLevel(p.ConformanceLevel()); got != p {
 				t.Errorf("ProfileFromConformanceLevel(%q) = %s", p.ConformanceLevel(), got)
 			}
@@ -128,7 +128,11 @@ func TestProfile(t *testing.T) {
 		"urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0":                                         ProfileNLCIUS,
 		"urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0#conformant#urn:fdc:nen.nl:gaccount:v1.0": ProfileNLCIUS,
 		"urn:fdc:nen.nl:nlcius:v1.0": ProfileUnknown,
-		"urn:example":                ProfileUnknown,
+		"urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:2.0.0":                                              ProfileCIUSIT,
+		"urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:2.0.0#conformant#urn:fatturapa.gov.it:EXT-IT:1.0.0": ProfileCIUSIT,
+		" urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:1.0.0.20170801 ":                                   ProfileCIUSIT,
+		"urn:fatturapa.gov.it:CIUS-IT:2.0.0":                                                                                ProfileUnknown,
+		"urn:example":                                                                                                       ProfileUnknown,
 	} {
 		if got := ProfileFromURN(urn); got != want {
 			t.Errorf("ProfileFromURN(%q) = %s, want %s", urn, got, want)
@@ -166,6 +170,16 @@ func TestProfile(t *testing.T) {
 		!ProfileNLCIUS.AtLeast(ProfileEN16931) || ProfileNLCIUS.AtLeast(ProfileExtendedCTCFR) || !ProfileNLCIUS.EN16931() ||
 		DetectProfile("urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius") != ProfileNLCIUS {
 		t.Error("NLCIUS profile")
+	}
+	if ProfileCIUSIT.ConformanceLevel() != "EN 16931" || ProfileCIUSIT.Filename() != "factur-x.xml" || ProfileCIUSIT.String() != "CIUS-IT" ||
+		!ProfileCIUSIT.AtLeast(ProfileEN16931) || ProfileCIUSIT.AtLeast(ProfileExtendedCTCFR) || !ProfileCIUSIT.EN16931() ||
+		ParseProfile("cius-it") != ProfileCIUSIT || ParseProfile("CIUSIT") != ProfileCIUSIT || ProfileFromConformanceLevel("CIUS-IT") != ProfileUnknown ||
+		DetectProfile("urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:cius-it") != ProfileCIUSIT {
+		t.Error("CIUS-IT profile")
+	}
+	if ProfileCIUSIT.URNFor(" it ") != URNCIUSIT+ItalianExtension || ProfileCIUSIT.URNFor("FR") != URNCIUSIT ||
+		ProfileCIUSIT.URNFor("") != URNCIUSIT || ProfilePeppol.URNFor("IT") != URNPeppol {
+		t.Error("URNFor")
 	}
 	if ProfilePeppol.ConformanceLevel() != "EN 16931" || ProfilePeppol.Filename() != "factur-x.xml" || ProfilePeppol.AFRelationship() != "Alternative" {
 		t.Error("Peppol XMP values")
