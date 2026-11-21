@@ -305,8 +305,8 @@ func TestMarshalCIIDetails(t *testing.T) {
 	if n := strings.Count(out, "currencyID"); n != 2 {
 		t.Errorf("%d currencyID attributes, want 2 (TaxTotalAmount only)", n)
 	}
-	if n := strings.Count(out, "<ram:TaxPointDate>"); n != 2 {
-		t.Errorf("BT-7 written %d times, want once per VAT breakdown (2)", n)
+	if n := strings.Count(out, "<ram:TaxPointDate>"); n != 1 {
+		t.Errorf("BT-7 written %d times, want once (CII-SR-461)", n)
 	}
 }
 

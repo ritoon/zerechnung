@@ -122,6 +122,9 @@ type Invoice struct {
 	// Italy is the national block of the Italian FatturaPA format (see
 	// Italy), read and written by package fatturapa only.
 	Italy *Italy
+	// Spain is the national block of the Spanish Facturae format (see
+	// Spain), read and written by package facturae only.
+	Spain *Spain
 
 	// Extensions are the elements and attributes of the document that the
 	// other fields do not carry, outside the values that have Extensions of
@@ -178,6 +181,7 @@ type Party struct {
 	TaxRegistrationID string // BT-32 Seller tax registration identifier (CII scheme FC)
 
 	Italy *ItalyParty // FatturaPA data of the party (package fatturapa, see Italy)
+	Spain *SpainParty // Facturae data of the party (package facturae, see Spain)
 
 	// Extensions hold, for instance, the role code, the contacts after the
 	// first one, or the fax number of the contact (EXT, see Extension).
@@ -189,7 +193,7 @@ func (p *Party) IsZero() bool {
 	return p == nil || (len(p.IDs) == 0 && p.Name == "" && p.Description == "" &&
 		p.LegalRegistration.IsZero() && p.TradingName == "" && p.Contact == nil &&
 		p.Address.IsZero() && p.ElectronicAddress.IsZero() && p.VATID == "" && p.TaxRegistrationID == "" &&
-		p.Italy == nil && len(p.Extensions) == 0)
+		p.Italy == nil && p.Spain == nil && len(p.Extensions) == 0)
 }
 
 // Contact is a contact point (BG-6, BG-9).
@@ -257,6 +261,8 @@ type AdditionalDocument struct {
 	ReferenceTypeCode string // BT-18-1 Scheme identifier of the invoiced object (UNTDID 1153)
 	IssueDate         Date   // Document date (EXT)
 
+	Spain *SpainAttachment // Facturae data of the attachment (package facturae, see Spain)
+
 	Extensions []Extension // see Extension
 }
 
@@ -306,6 +312,7 @@ type PaymentMeans struct {
 	PayerBIC         string // BT-215 Debited account payment service provider identifier (EXTENDED)
 
 	Italy *ItalyPayment // FatturaPA payment detail (package fatturapa, see Italy)
+	Spain *SpainPayment // Facturae installment (package facturae, see Spain)
 
 	Extensions []Extension // see Extension
 }
@@ -408,6 +415,7 @@ type VATBreakdown struct {
 	ExemptionReasonCode string  // BT-121 VAT exemption reason code (VATEX)
 
 	Italy *ItalyVAT // FatturaPA data of the VAT summary (package fatturapa, see Italy)
+	Spain *SpainVAT // Facturae data of the tax (package facturae, see Spain)
 
 	Extensions []Extension // see Extension
 }
@@ -477,6 +485,7 @@ type Line struct {
 	AccountingReference string             // BT-133 Invoice line Buyer accounting reference
 
 	Italy *ItalyLine // FatturaPA data of the line (package fatturapa, see Italy)
+	Spain *SpainLine // Facturae data of the line (package facturae, see Spain)
 
 	// Extensions are the elements and attributes of the line that the
 	// other fields do not carry, such as the brand name of the item or the

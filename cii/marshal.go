@@ -51,8 +51,9 @@ type LossError struct {
 	// from the root element:
 	// "EXT SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/QuotationReferencedDocument".
 	// The data of the national blocks that CII does not carry (the
-	// FatturaPA data of invoice.Italy…) follows, as listed by
-	// invoice.Invoice.NationalData: "EXT Italy.Withholdings".
+	// FatturaPA data of invoice.Italy, the Facturae data of invoice.Spain)
+	// follows, as listed by invoice.Invoice.NationalData:
+	// "EXT Italy.Withholdings".
 	Terms []string
 }
 
@@ -918,7 +919,8 @@ func (w *writer) paymentMeans(pm *invoice.PaymentMeans) {
 	w.end("ram:SpecifiedTradeSettlementPaymentMeans")
 }
 
-// vatBreakdown writes the BG-23 entries, each carrying BT-7 and BT-8.
+// vatBreakdown writes the BG-23 entries, each carrying BT-8. BT-7 goes in
+// the first one only: CII-SR-461 allows a single TaxPointDate.
 func (w *writer) vatBreakdown(inv *invoice.Invoice) {
 	if len(inv.VATBreakdown) == 0 || w.lvl < lvlBasicWL {
 		if len(inv.VATBreakdown) > 0 {
@@ -947,7 +949,7 @@ func (w *writer) vatBreakdown(inv *invoice.Invoice) {
 		w.dec("ram:BasisAmount", v.TaxableAmount)
 		w.leafReq("ram:CategoryCode", v.CategoryCode)
 		w.leaf("ram:ExemptionReasonCode", v.ExemptionReasonCode)
-		if taxPoint {
+		if taxPoint && i == 0 {
 			w.dateIn("ram:TaxPointDate", "udt:DateString", inv.TaxPointDate)
 		}
 		w.leaf("ram:DueDateTypeCode", inv.TaxPointDateCode)

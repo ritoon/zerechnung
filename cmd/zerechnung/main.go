@@ -1,7 +1,8 @@
 // Command zerechnung reads, validates and creates Factur-X / ZUGFeRD /
 // XRechnung invoices. validate and json also accept a CII or UBL 2.1 XML
-// invoice and a FatturaPA document, whose syntax is detected from the root
-// element; validate checks a FatturaPA document against its XML schema.
+// invoice, a FatturaPA document (Italy) and a Facturae document (Spain),
+// whose syntax is detected from the root element; validate checks a
+// FatturaPA or Facturae document against its XML schema.
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
@@ -27,6 +28,7 @@ import (
 
 	"github.com/ritoon/zerechnung"
 	"github.com/ritoon/zerechnung/cii"
+	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/fatturapa"
 	"github.com/ritoon/zerechnung/internal/xmltree"
 	"github.com/ritoon/zerechnung/invoice"
@@ -35,9 +37,9 @@ import (
 )
 
 const usage = `zerechnung reads, validates and creates Factur-X / ZUGFeRD / XRechnung invoices.
-validate and json also accept an XML invoice in CII or UBL 2.1 syntax, and a
-FatturaPA document: validate checks it against its XML schema, json gives an
-array when it holds several invoices.
+validate and json also accept an XML invoice in CII or UBL 2.1 syntax, a
+FatturaPA document and a Facturae document: validate checks them against
+their XML schema, json gives an array when one holds several invoices.
 
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
@@ -226,7 +228,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	}
 	opts.PublicBuyer = validate.PublicBuyer{ServiceCodeRequired: *serviceRequired, EngagementRequired: *engagementRequired}
 	var r *validate.Report
-	var format string // the FatturaPA format, FPA12 or FPR12, of a FatturaPA document
+	var format string // the format of a FatturaPA (FPA12 or FPR12) or Facturae (3.2, 3.2.1 or 3.2.2) document
 	if isPDF(data) {
 		r, _, err = zerechnung.Check(data, opts)
 		if err != nil {
@@ -236,6 +238,8 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		r = validate.XML(data, opts)
 		if root, perr := xmltree.Parse(data); perr == nil && fatturapa.IsFatturaPA(root) {
 			format = strings.TrimSpace("FatturaPA " + root.Attr("versione"))
+		} else if perr == nil && facturae.IsFacturae(root) {
+			format = "Facturae " + facturae.Version(root)
 		}
 	}
 	if *asJSON {
@@ -380,13 +384,16 @@ func jsonCmd(args []string, w io.Writer) error {
 	return enc.Encode(invs)
 }
 
-// parseInvoices reads a CII, UBL or FatturaPA document, detected from the
-// root element. A FatturaPA document may hold several invoices.
+// parseInvoices reads a CII, UBL, FatturaPA or Facturae document, detected
+// from the root element. A FatturaPA or Facturae document may hold several
+// invoices.
 func parseInvoices(data []byte) ([]*invoice.Invoice, error) {
 	var inv *invoice.Invoice
 	var err error
 	if root, perr := xmltree.Parse(data); perr == nil && fatturapa.IsFatturaPA(root) {
 		return fatturapa.ParseAll(data)
+	} else if perr == nil && facturae.IsFacturae(root) {
+		return facturae.ParseAll(data)
 	} else if perr == nil && ubl.IsUBL(root) {
 		inv, err = ubl.Parse(data)
 	} else {

@@ -2,8 +2,9 @@
 // schema: the schemas of the Factur-X profiles (CII), the complete UN/CEFACT
 // CII schemas used by the reference validators of XRechnung (D16B) and of
 // the French EXTENDED-CTC-FR profile (D22B), the OASIS UBL 2.1 schemas of
-// the Invoice and CreditNote documents, and the FatturaPA 1.2 schema of the
-// Agenzia delle Entrate.
+// the Invoice and CreditNote documents, the FatturaPA 1.2 schema of the
+// Agenzia delle Entrate and the Facturae 3.2, 3.2.1 and 3.2.2 schemas of
+// facturae.gob.es.
 //
 // Usage:
 //
@@ -11,6 +12,7 @@
 //	go run ./gen -cii D16B|D22B [-src path] [-o cii_d16b_tables_gen.go]
 //	go run ./gen -ubl [-zip UBL-2.1.zip] [-o ubl_tables_gen.go]
 //	go run ./gen -fatturapa [-src Schema_VFPA12_v1.2.4.xsd] [-o fatturapa_tables_gen.go]
+//	go run ./gen -facturae [-src dir] [-o facturae_tables_gen.go]
 //
 // In the first form, dir is searched recursively for the main schema of each
 // Factur-X profile: a file whose name ends in _MINIMUM.xsd, _BASICWL.xsd (or
@@ -75,6 +77,16 @@
 //     FatturaPA schema imports from www.w3.org, is compiled as an element
 //     whose attributes and content are not checked: the signature schema is
 //     never read.
+//
+// With -facturae, gen reads the Facturae schemas 3.2, 3.2.1 and 3.2.2, from
+// a local directory (-src) or downloaded from facturae.gob.es, checks their
+// SHA-256 and compiles them into one set, with one root per version. Beyond
+// the constructs of FatturaPA (nested choices, here of single elements and
+// possibly optional, and ds:Signature), the schemas use xs:double, complex
+// content extensions that add nothing (compiled as their base type), and
+// xs:any processContents="strict" in the Extensions elements, compiled as
+// skip: the schemas that would define their content are those of the
+// sender.
 //
 // Only the subset of XML Schema used by these schemas is supported: named
 // and anonymous complex types holding one sequence or one choice of element
@@ -145,6 +157,19 @@ const (
 	fpaVersion = "1.2.4"
 	nsFPA      = "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
 	nsDS       = "http://www.w3.org/2000/09/xmldsig#"
+)
+
+// The Facturae schemas compiled with -facturae, from the oldest version, and
+// the URL they are published at.
+var facturaeFiles = []struct{ version, ns, name, sum string }{
+	{"3.2", "http://www.facturae.es/Facturae/2009/v3.2/Facturae", "Facturaev3_2.xml", "05f390ac7e2fd36da6567185cd0e420764e304b6ba491af51a8a100b07283396"},
+	{"3.2.1", "http://www.facturae.es/Facturae/2014/v3.2.1/Facturae", "Facturaev3_2_1.xml", "f0f24f27729db91fdd90b715a5dc16f2d779612b4e9e9f193c2903f0e67dc6a6"},
+	{"3.2.2", "http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml", "Facturaev3_2_2.xml", "b4bbcd587f5fb0a8a906336cca09b0a40d06ffaa78c6a62f6e438c4e6ea86e07"},
+}
+
+const (
+	facturaeURL  = "https://www.facturae.gob.es/content/dam/facturae/formato/versiones/"
+	facturaeRoot = "Facturae"
 )
 
 // rootDoc is a document of a single schema set: its main schema and its
@@ -224,6 +249,10 @@ var prefixes = map[string]string{
 
 	nsFPA: "p",
 	nsDS:  "ds",
+
+	"http://www.facturae.es/Facturae/2009/v3.2/Facturae":              "fe32",
+	"http://www.facturae.es/Facturae/2014/v3.2.1/Facturae":            "fe321",
+	"http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml": "fe322",
 }
 
 func main() {
@@ -231,13 +260,15 @@ func main() {
 	ubl := flag.Bool("ubl", false, "compile the OASIS UBL 2.1 schemas of Invoice and CreditNote")
 	zipPath := flag.String("zip", "", "with -ubl: path of "+ublArchive+" (downloaded from "+ublURL+" when empty)")
 	cii := flag.String("cii", "", "compile the complete UN/CEFACT CII schema of this version (D16B or D22B)")
-	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files; with -fatturapa: the schema file (downloaded when empty)")
+	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files; with -fatturapa: the schema file; with -facturae: a directory holding the schema files (downloaded when empty)")
 	fpa := flag.Bool("fatturapa", false, "compile the FatturaPA "+fpaVersion+" schema")
+	facturae := flag.Bool("facturae", false, "compile the Facturae 3.2, 3.2.1 and 3.2.2 schemas")
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "usage: gen [-o tables_gen.go] <directory of the Factur-X XSD files>")
 		fmt.Fprintln(os.Stderr, "       gen -cii D16B|D22B [-src path] [-o cii_d16b_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -ubl [-zip "+ublArchive+"] [-o ubl_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -fatturapa [-src "+fpaFile+"] [-o fatturapa_tables_gen.go]")
+		fmt.Fprintln(os.Stderr, "       gen -facturae [-src dir] [-o facturae_tables_gen.go]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -246,22 +277,27 @@ func main() {
 		err error
 	)
 	switch {
-	case *fpa && *cii == "" && !*ubl && *zipPath == "" && flag.NArg() == 0:
+	case *facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && flag.NArg() == 0:
+		if *out == "" {
+			*out = "facturae_tables_gen.go"
+		}
+		src, err = generateFacturae(*srcPath)
+	case *fpa && !*facturae && *cii == "" && !*ubl && *zipPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "fatturapa_tables_gen.go"
 		}
 		src, err = generateFatturaPA(*srcPath)
-	case *cii != "" && !*ubl && !*fpa && *zipPath == "" && flag.NArg() == 0:
+	case *cii != "" && !*ubl && !*fpa && !*facturae && *zipPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "cii_" + strings.ToLower(*cii) + "_tables_gen.go"
 		}
 		src, err = generateCII(*cii, *srcPath)
-	case *ubl && *cii == "" && !*fpa && *srcPath == "" && flag.NArg() == 0:
+	case *ubl && *cii == "" && !*fpa && !*facturae && *srcPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "ubl_tables_gen.go"
 		}
 		src, err = generateUBLArchive(*zipPath)
-	case !*ubl && !*fpa && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "":
+	case !*ubl && !*fpa && !*facturae && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "":
 		if *out == "" {
 			*out = "tables_gen.go"
 		}
@@ -465,6 +501,65 @@ func compileFatturaPA(fsys fs.FS, name, version string) ([]byte, error) {
 	})
 }
 
+// generateFacturae compiles the Facturae schemas, read from the directory
+// src or downloaded from facturae.gob.es when src is empty; every file must
+// have the SHA-256 recorded in facturaeFiles.
+func generateFacturae(src string) ([]byte, error) {
+	files := fstest.MapFS{}
+	for _, f := range facturaeFiles {
+		var (
+			data []byte
+			err  error
+		)
+		if src != "" {
+			data, err = os.ReadFile(filepath.Join(src, f.name))
+		} else {
+			data, err = download(facturaeURL + f.name)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("facturae %s: %w", f.version, err)
+		}
+		h := sha256.Sum256(data)
+		if got := hex.EncodeToString(h[:]); got != f.sum {
+			return nil, fmt.Errorf("facturae %s: %s: SHA-256 %s, want %s", f.version, f.name, got, f.sum)
+		}
+		files[f.name] = &fstest.MapFile{Data: data}
+	}
+	return compileFacturae(files)
+}
+
+// compileFacturae compiles the Facturae schemas of facturaeFiles, read from
+// fsys, into one schema set with one root per version. The children of the
+// root element are not qualified (the schemas have no elementFormDefault).
+// The XML signature (ds:Signature) is an element whose content is not
+// checked, the xmldsig schema being never read, and the content of the
+// Extensions elements (xs:any namespace="##other" processContents="strict")
+// is not checked either: the schemas that would define it are those of the
+// sender.
+func compileFacturae(fsys fs.FS) ([]byte, error) {
+	c := newCompiler(true)
+	c.skip = map[string]bool{nsDS: true}
+	c.strictAsSkip = true
+	docs := make([]rootDoc, len(facturaeFiles))
+	versions := make([]string, len(facturaeFiles))
+	for i, f := range facturaeFiles {
+		docs[i] = rootDoc{f.name, f.ns, facturaeRoot}
+		versions[i] = f.version
+	}
+	if err := c.compileSingle(fsys, docs); err != nil {
+		return nil, fmt.Errorf("facturae: %w", err)
+	}
+	return c.emit(facturaeFiles[len(facturaeFiles)-1].version, &setInfo{
+		prefix: "facturae",
+		title:  "Facturae " + strings.Join(versions, ", "),
+		source: "Source: facturae.gob.es,\n// " + facturaeURL + "<file> (SHA-256 of the first 8 bytes below).\n" +
+			"// Origen de los datos: Ministerio de Hacienda y Administraciones Públicas - Ministerio de Industria, Energía y Turismo.\n" +
+			"// Reused under Ley 37/2007 and Real Decreto 1495/2011; the schemas give no date of update.",
+		schemas: "latest Facturae schema",
+		roots:   "the root element of each version: " + strings.Join(versions, ", "),
+	})
+}
+
 // findMains returns the main schema of each profile.
 func findMains(fsys fs.FS, dir string) ([]string, string, error) {
 	mains := make([]string, len(profiles))
@@ -636,7 +731,7 @@ func (ps *profileSchemas) load(name string) (*schemaDoc, error) {
 		return nil, err
 	}
 	var root xnode
-	if err := xml.Unmarshal(data, &root); err != nil {
+	if err := xml.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &root); err != nil {
 		return nil, fmt.Errorf("%s: %w", name, err)
 	}
 	if !root.is("schema") {
@@ -750,6 +845,7 @@ const (
 	kDate     = "kDate"
 	kTime     = "kTime"
 	kDateTime = "kDateTime"
+	kDouble   = "kDouble"
 )
 
 // builtins maps the supported built-in types to their kind. The string-like
@@ -766,6 +862,7 @@ var builtins = map[string]string{
 	"date":         kDate,
 	"time":         kTime,
 	"dateTime":     kDateTime,
+	"double":       kDouble, "float": kDouble,
 }
 
 // builtinPatterns gives the pattern facet of the built-in string types whose
@@ -776,7 +873,8 @@ var builtinPatterns = map[string]string{
 
 // collapsing reports whether white space is collapsed for the built-in type
 // (it matters for enumeration and length facets).
-var collapsing = map[string]bool{"token": true, "NMTOKEN": true, "Name": true, "NCName": true, "language": true, "ID": true, "anyURI": true}
+var collapsing = map[string]bool{"token": true, "NMTOKEN": true, "Name": true, "NCName": true, "language": true, "ID": true, "anyURI": true,
+	"double": true, "float": true}
 
 // facets of a simple type.
 type gFacets struct {
@@ -869,6 +967,11 @@ type compiler struct {
 	// skip lists the namespaces whose schemas are not read: a reference to
 	// one of their elements compiles to an element that is not checked.
 	skip map[string]bool
+	// strictAsSkip compiles a wildcard of processContents strict as skip:
+	// the elements of the other namespaces are accepted unchecked, the
+	// schemas that would define them not being part of the set (the
+	// Extensions of Facturae).
+	strictAsSkip bool
 }
 
 func newCompiler(single bool) *compiler {
@@ -1148,6 +1251,11 @@ func (pc *profileCompiler) namedComplex(q qname, d decl) (*gType, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", q, err)
 	}
+	if base == (qname{}) {
+		if base, err = pc.plainComplexExtension(d.doc, d.node); err != nil {
+			return nil, fmt.Errorf("%s: %w", q, err)
+		}
+	}
 	if base != (qname{}) {
 		return pc.typeByName(base)
 	}
@@ -1200,9 +1308,61 @@ func (pc *profileCompiler) plainExtension(d decl) (qname, error) {
 	return base, nil
 }
 
+// plainComplexExtension returns the base of the complex type n when n is a
+// complex content extension of a named complex type that adds nothing (no
+// particle, no attribute), the zero qname otherwise: such a type is its
+// base, as the anonymous type of the Tax of a Facturae invoice line is
+// TaxOutputType.
+func (pc *profileCompiler) plainComplexExtension(doc *schemaDoc, n *xnode) (qname, error) {
+	var ext *xnode
+	for _, c := range n.Children {
+		switch {
+		case c.is("annotation"):
+		case c.is("complexContent") && ext == nil:
+			if c.attr("mixed") == "true" {
+				return qname{}, nil
+			}
+			for _, e := range c.Children {
+				switch {
+				case e.is("annotation"):
+				case e.is("extension") && ext == nil:
+					ext = e
+				default:
+					return qname{}, nil
+				}
+			}
+		default:
+			return qname{}, nil
+		}
+	}
+	if ext == nil || n.attr("mixed") == "true" {
+		return qname{}, nil
+	}
+	for _, a := range ext.Children {
+		if !a.is("annotation") {
+			return qname{}, fmt.Errorf("complex content extension of %s that adds content is not supported", ext.attr("base"))
+		}
+	}
+	base, err := pc.ref(doc, ext.attr("base"))
+	if err != nil {
+		return qname{}, err
+	}
+	if _, ok := pc.ps.complex[base]; !ok {
+		return qname{}, fmt.Errorf("complex content extension of %s, which is not a complex type", base)
+	}
+	return base, nil
+}
+
 // complexType compiles a complex type definition, shared with the
 // structurally identical ones.
 func (pc *profileCompiler) complexType(doc *schemaDoc, n *xnode, name string) (*gType, error) {
+	base, err := pc.plainComplexExtension(doc, n)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	if base != (qname{}) {
+		return pc.typeByName(base)
+	}
 	t := &gType{name: name, content: contentEmpty, min: 1, max: 1}
 	if err := pc.complexBody(doc, n, t); err != nil {
 		return nil, err
@@ -1327,10 +1487,19 @@ func (pc *profileCompiler) group(doc *schemaDoc, g *xnode, t *gType) error {
 // alternatives are sequences of elements or single elements (the choice
 // between Denominazione, and Nome and Cognome, of FatturaPA): the elements
 // are added optional, and each alternative is recorded in t.alts with the
-// elements it requires.
+// elements it requires. A choice that may be absent (minOccurs 0, as the
+// branch address of a Facturae account) gets an empty alternative; a
+// repeated choice is not supported.
 func (pc *profileCompiler) nestedChoice(doc *schemaDoc, ch *xnode, t *gType, group int, add func(gPart) error) error {
-	if err := ch.checkAttrs(); err != nil {
+	if err := ch.checkAttrs("minOccurs", "maxOccurs"); err != nil {
 		return fmt.Errorf("nested xs:choice: %w", err)
+	}
+	minOcc, maxOcc, err := occurs(ch)
+	if err != nil {
+		return fmt.Errorf("nested xs:choice: %w", err)
+	}
+	if maxOcc != 1 {
+		return errors.New("repeated nested xs:choice is not supported")
 	}
 	alts := 0
 	for _, c := range ch.Children {
@@ -1365,6 +1534,9 @@ func (pc *profileCompiler) nestedChoice(doc *schemaDoc, ch *xnode, t *gType, gro
 			if err != nil {
 				return err
 			}
+			if part.min > 1 {
+				return fmt.Errorf("element %s of a nested xs:choice with minOccurs %d is not supported", part.name, part.min)
+			}
 			if part.min > 0 {
 				a.need |= 1 << i
 			}
@@ -1379,12 +1551,16 @@ func (pc *profileCompiler) nestedChoice(doc *schemaDoc, ch *xnode, t *gType, gro
 	if alts < 2 {
 		return errors.New("a nested xs:choice needs two alternatives")
 	}
+	if minOcc == 0 {
+		t.alts = append(t.alts, gAlt{group: group, first: len(t.parts)})
+	}
 	return nil
 }
 
 // wildcard compiles a sequence made of a single xs:any. Only the namespace
 // constraint ##other is supported, and the content of the element is not
-// checked: processContents lax is compiled as skip.
+// checked: processContents lax is compiled as skip, and so is strict when
+// the compiler has strictAsSkip.
 func (pc *profileCompiler) wildcard(doc *schemaDoc, n *xnode, t *gType) error {
 	if err := n.checkAttrs("namespace", "processContents", "minOccurs", "maxOccurs"); err != nil {
 		return err
@@ -1395,8 +1571,9 @@ func (pc *profileCompiler) wildcard(doc *schemaDoc, n *xnode, t *gType) error {
 	if doc.tns == "" {
 		return errors.New("xs:any namespace=\"##other\" in a schema without target namespace is not supported")
 	}
-	switch p := n.attr("processContents"); p {
-	case "lax", "skip":
+	switch p := n.attr("processContents"); {
+	case p == "lax", p == "skip":
+	case pc.c.strictAsSkip && (p == "" || p == "strict"):
 	default:
 		return fmt.Errorf("xs:any processContents=%q is not supported (only lax and skip)", p)
 	}

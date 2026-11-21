@@ -147,6 +147,17 @@ Schema_VFPA12_v1.2.4.xsd  29728f77e2739e150131258279218936287630e95566cab360cf66
 xmldsig-core-schema.xsd   35cf8197da812c85e40d57891b35c94187569ed474a2dac813ce5090dafcd35c  https://www.w3.org/TR/2002/REC-xmldsig-core-20020212/xmldsig-core-schema.xsd
 EOF
 
+# Facturae 3.2, 3.2.1 and 3.2.2 XML schemas of facturae.gob.es
+# (FX_FACTURAE_XSD); internal/schema/gen checks the same sums.
+FACTURAE=https://www.facturae.gob.es/content/dam/facturae/formato/versiones
+while read -r name sum; do
+	fetch_file "$DEST/facturae-xsd/$name" "$FACTURAE/$name" "$sum"
+done <<EOF
+Facturaev3_2.xml    05f390ac7e2fd36da6567185cd0e420764e304b6ba491af51a8a100b07283396
+Facturaev3_2_1.xml  f0f24f27729db91fdd90b715a5dc16f2d779612b4e9e9f193c2903f0e67dc6a6
+Facturaev3_2_2.xml  b4bbcd587f5fb0a8a906336cca09b0a40d06ffaa78c6a62f6e438c4e6ea86e07
+EOF
+
 # Reference XML of the valid PDFs of the corpus (FX_CORPUS_XML), extracted by
 # pdfdetach: the attachment named factur-x.xml, xrechnung.xml or
 # zugferd-invoice.xml (any case), else the only XML attachment. Each file has
@@ -187,5 +198,6 @@ vars=(
 	"FX_VERAPDF=$DEST/verapdf-corpus"
 	"FX_FATTURAPA=$DEST/fatturapa"
 	"FX_FATTURAPA_XSD=$DEST/fatturapa-xsd"
+	"FX_FACTURAE_XSD=$DEST/facturae-xsd"
 )
 export_vars "${vars[@]}"

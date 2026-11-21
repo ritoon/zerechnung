@@ -33,7 +33,8 @@ type LossError struct {
 	// "BG-14"…, "EXT <Field>" for the data of the model outside EN 16931
 	// and "EXT <Role>.<Field>" for party data. An extension (see
 	// invoice.Extension) is reported as "EXT " followed by its entry in
-	// Invoice.Unmodeled.
+	// Invoice.Unmodeled, the data of the national blocks of other countries
+	// as listed by invoice.Invoice.NationalData: "EXT Spain.Withholdings".
 	Terms []string
 }
 
@@ -127,6 +128,13 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 	w.unwritten()
 	for _, e := range inv.Unmodeled() {
 		w.lose("EXT " + e)
+	}
+	// The national blocks of other countries (the Facturae data of
+	// invoice.Spain…).
+	for _, e := range inv.NationalData() {
+		if !strings.Contains(e, "Italy.") {
+			w.lose(e)
+		}
 	}
 	if o.Strict && len(w.losses) > 0 {
 		return nil, &LossError{Terms: w.losses}

@@ -1,7 +1,8 @@
 // Package schema checks the structure of an invoice against its XML schema:
 // a CII invoice against the schema of its profile, a UBL invoice against the
 // OASIS UBL 2.1 schema of its document (Invoice or CreditNote), a FatturaPA
-// document against the FatturaPA 1.2 schema. It checks the allowed
+// document against the FatturaPA 1.2 schema, a Facturae document against
+// the Facturae schema of its version. It checks the allowed
 // elements, their order, cardinalities, attributes, namespaces and simple
 // types.
 //
@@ -31,6 +32,10 @@
 //     differs from the schema 1.2.3, in force until 10/01/2027, only by the
 //     tax regime RF21. The content of the XML signature (ds:Signature) is
 //     not checked.
+//   - facturae_tables_gen.go holds the schemas of the Spanish Facturae
+//     format, versions 3.2, 3.2.1 and 3.2.2, against which CheckFacturae
+//     checks a Facturae document. The XML signature (ds:Signature) and the
+//     content of the Extensions elements are not checked.
 //
 // EXTENDED-CTC-FR invoices keep the Factur-X EXTENDED schema although the
 // FNFE-MPE package validates them against the complete CII D22B schema: the
@@ -46,6 +51,7 @@ package schema
 //go:generate go run ./gen -cii D22B -o cii_d22b_tables_gen_test.go
 //go:generate go run ./gen -ubl -o ubl_tables_gen.go
 //go:generate go run ./gen -fatturapa -o fatturapa_tables_gen.go
+//go:generate go run ./gen -facturae -o facturae_tables_gen.go
 
 import (
 	"regexp"
@@ -75,15 +81,15 @@ const (
 // Catalog lists the rules implemented by this package.
 var Catalog = []rules.RuleInfo{
 	{ID: RuleProfile, Severity: rules.Warning, Description: "The profile (BT-24) is unknown: the structure is checked against the EXTENDED schema, the most permissive."},
-	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), or p:FatturaElettronica (FatturaPA)."},
-	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL; none below the root in FatturaPA)."},
+	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), p:FatturaElettronica (FatturaPA), or Facturae in the namespace of Facturae 3.2, 3.2.1 or 3.2.2."},
+	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL; none below the root in FatturaPA and Facturae)."},
 	{ID: RuleUnexpected, Severity: rules.Error, Description: "Each element shall be allowed in its parent by the schema (for CII, the schema of the profile; the CII D16B schema for XRECHNUNG)."},
 	{ID: RuleOrder, Severity: rules.Error, Description: "Child elements shall appear in the order defined by the schema."},
 	{ID: RuleMissing, Severity: rules.Error, Description: "Elements required by the schema (minOccurs > 0) shall be present."},
 	{ID: RuleCount, Severity: rules.Error, Description: "An element shall not occur more often than allowed by the schema (maxOccurs)."},
 	{ID: RuleAttribute, Severity: rules.Error, Description: "Only the attributes declared by the schema are allowed."},
 	{ID: RuleAttributeMissing, Severity: rules.Error, Description: "Attributes required by the schema shall be present."},
-	{ID: RuleType, Severity: rules.Error, Description: "Element and attribute values shall match their simple type (xs:decimal, xs:boolean, xs:base64Binary, xs:date, xs:time, xs:dateTime, xs:language, enumerations, fixed values, lengths, patterns, bounds)."},
+	{ID: RuleType, Severity: rules.Error, Description: "Element and attribute values shall match their simple type (xs:decimal, xs:double, xs:boolean, xs:base64Binary, xs:date, xs:time, xs:dateTime, xs:language, enumerations, fixed values, lengths, patterns, bounds)."},
 	{ID: RuleText, Severity: rules.Error, Description: "Elements whose content is made of elements shall not contain text."},
 }
 
@@ -99,6 +105,7 @@ const (
 	kDate                       // xs:date
 	kTime                       // xs:time
 	kDateTime                   // xs:dateTime
+	kDouble                     // xs:double and xs:float
 )
 
 // contentKind is the content model of a complex type.
@@ -216,6 +223,11 @@ var (
 		t.alts = fpaAlternatives[:]
 		return t
 	}()
+	facturaeTables = func() *tables {
+		t := newTables(facturaeNamespaces[:], facturaeTypes[:], facturaeParticles[:], facturaeAttributes[:], facturaeFacetTable[:], false)
+		t.alts = facturaeAlternatives[:]
+		return t
+	}()
 )
 
 // profileIndex returns the Factur-X schema used for an invoice profile. The
@@ -287,6 +299,42 @@ func CheckFatturaPA(c *rules.Checker, root *xmltree.Node) {
 		return
 	}
 	v.element(root, &fpaTypes[r.typ])
+}
+
+// FacturaeVersion returns the latest version of the Facturae schemas the
+// tables were generated from ("3.2.2"); the tables also hold the earlier
+// versions 3.2 and 3.2.1.
+func FacturaeVersion() string { return facturaeSchemaVersion }
+
+// FacturaeVersions lists the namespaces of the Facturae versions the tables
+// hold, with their version: 3.2, 3.2.1 and 3.2.2.
+func FacturaeVersions() map[string]string {
+	return map[string]string{
+		facturaeNamespaces[facturaeRoots[0].ns]: "3.2",
+		facturaeNamespaces[facturaeRoots[1].ns]: "3.2.1",
+		facturaeNamespaces[facturaeRoots[2].ns]: "3.2.2",
+	}
+}
+
+// CheckFacturae validates the structure of a Facturae document against the
+// schema of its version, given by the namespace of its root element
+// (Facturae 3.2, 3.2.1 or 3.2.2), and records the findings in c.Report. The
+// XML signature (ds:Signature) and the content of the Extensions elements
+// are not checked.
+func CheckFacturae(c *rules.Checker, root *xmltree.Node) {
+	if root == nil {
+		return
+	}
+	v := validator{c: c, t: facturaeTables}
+	for i := range facturaeRoots {
+		r := &facturaeRoots[i]
+		if root.Name == r.name && root.Space == facturaeNamespaces[r.ns] {
+			v.element(root, &facturaeTypes[r.typ])
+			return
+		}
+	}
+	c.Fail(RuleRoot, rules.Error, root, "the root element is %s in namespace %q, expected Facturae in the namespace of Facturae 3.2, 3.2.1 or 3.2.2 (%q)",
+		display(root), root.Space, facturaeNamespaces[facturaeRoots[len(facturaeRoots)-1].ns])
 }
 
 // Check validates the structure of c.Doc and records the findings in
@@ -488,8 +536,15 @@ func (v *validator) alternatives(n *xmltree.Node, ps []particle, alts []alternat
 		group := alts[i:j]
 		var names []string
 		chosen := -1
+		optional := false
 		for k := range group {
 			a := &group[k]
+			if a.need == 0 {
+				// An alternative whose particles are all optional (or the
+				// empty alternative of a choice that may be absent): the
+				// group may be absent.
+				optional = true
+			}
 			var seq []string
 			for p := int(a.first); p < int(a.first+a.n); p++ {
 				seq = append(seq, v.t.display(&ps[p]))
@@ -510,7 +565,7 @@ func (v *validator) alternatives(n *xmltree.Node, ps []particle, alts []alternat
 				}
 			}
 		}
-		if chosen < 0 {
+		if chosen < 0 && !optional {
 			v.fail(RuleMissing, n, "%s is missing in %s", orList(names), display(n))
 		}
 		i = j
@@ -796,6 +851,8 @@ func typeLabel(name string, k simpleKind) string {
 		return "xs:time"
 	case kDateTime:
 		return "xs:dateTime"
+	case kDouble:
+		return "xs:double"
 	}
 	return "xs:string"
 }
@@ -861,6 +918,8 @@ func (t *tables) checkValue(s string, k simpleKind, fi uint16) string {
 		ok = validTime(trim(s))
 	case kDateTime:
 		ok = validDateTime(trim(s))
+	case kDouble:
+		ok = validDouble(trim(s))
 	}
 	if !ok {
 		return "is not a valid"
@@ -1106,4 +1165,18 @@ func validTime(s string) bool {
 		return false
 	}
 	return validTZ(rest)
+}
+
+// validDouble reports whether s is an xs:double (or xs:float) lexical value
+// of XML Schema 1.0: a decimal mantissa with an optional exponent, INF, -INF
+// or NaN.
+func validDouble(s string) bool {
+	switch s {
+	case "INF", "-INF", "NaN":
+		return true
+	}
+	if i := strings.IndexAny(s, "eE"); i >= 0 {
+		return validDecimal(s[:i]) && validInteger(s[i+1:])
+	}
+	return validDecimal(s)
 }

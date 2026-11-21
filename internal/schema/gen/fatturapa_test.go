@@ -146,7 +146,7 @@ func TestUnsupportedFatturaPA(t *testing.T) {
           <xs:element name="Nome" type="LatinType"/>
           <xs:element name="Cognome" type="LatinType"/>
         </xs:sequence>`, ``}, "two alternatives"},
-		{"optional choice", []string{`<xs:choice>`, `<xs:choice minOccurs="0">`}, "minOccurs"},
+		{"repeated choice", []string{`<xs:choice>`, `<xs:choice maxOccurs="2">`}, "repeated nested xs:choice"},
 		{"wildcard in a choice", []string{`<xs:element name="Denominazione" type="LatinType"/>`, `<xs:any namespace="##other" processContents="lax"/>`}, "xs:any"},
 		{"name twice", []string{`<xs:element name="Titolo" type="LatinType" minOccurs="0"/>`, `<xs:element name="Nome" type="LatinType" minOccurs="0"/>`}, "used twice"},
 		{"default on a complex type", []string{`<xs:element name="Anagrafica" type="AnagraficaType"/>`, `<xs:element name="Anagrafica" type="AnagraficaType" default="x"/>`}, "default value"},
