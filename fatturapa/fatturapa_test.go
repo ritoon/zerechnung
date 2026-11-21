@@ -50,8 +50,18 @@ func parse(t *testing.T, name string) *invoice.Invoice {
 	return inv
 }
 
+// checkSchema checks that a document written by Marshal is valid against
+// the FatturaPA schema.
+func checkSchema(t *testing.T, name string, out []byte) {
+	t.Helper()
+	if r := validate.XML(out, nil); len(r.Findings) > 0 {
+		t.Errorf("%s: the document written is not valid against the FatturaPA schema:\n%s\n%s", name, r, out)
+	}
+}
+
 // TestRoundTrip reads the test invoices and writes them back: Marshal gives
-// the same document, without loss, and reading it gives the same invoice.
+// the same document, without loss, valid against the schema, and reading it
+// gives the same invoice.
 func TestRoundTrip(t *testing.T) {
 	for _, name := range []string{privateInvoice, paInvoice} {
 		data := read(t, name)
@@ -63,6 +73,7 @@ func TestRoundTrip(t *testing.T) {
 		if !bytes.Equal(out, data) {
 			t.Errorf("%s: Marshal differs from the source:\n%s", name, out)
 		}
+		checkSchema(t, name, out)
 		back, err := Parse(out)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
@@ -282,6 +293,7 @@ func TestCIUSIT(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	checkSchema(t, ciusitInvoice, out)
 	inv, err := Parse(out)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -364,6 +376,7 @@ func TestMarshalEN(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	checkSchema(t, germanInvoice, out)
 	for _, s := range []string{
 		`versione="FPR12"`,
 		"<IdPaese>DE</IdPaese>\n          <IdCodice>123456789</IdCodice>",
@@ -503,6 +516,7 @@ func TestOfficialExamples(t *testing.T) {
 				t.Errorf("%s #%d: %v", name, i, err)
 				continue
 			}
+			checkSchema(t, fmt.Sprintf("%s #%d", name, i), out)
 			back, err := Parse(out)
 			if err != nil {
 				t.Errorf("%s #%d: %v", name, i, err)
