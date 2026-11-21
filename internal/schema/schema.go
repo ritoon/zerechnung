@@ -262,6 +262,19 @@ func UBLVersion() string { return ublSchemaVersion }
 // were generated from.
 func FatturaPAVersion() string { return fpaSchemaVersion }
 
+// FatturaPAEnumeration returns the values of the simple type name of the
+// FatturaPA schema ("TipoDocumentoType"), or nil when the schema has no
+// such type or the type is not an enumeration. The caller owns the slice.
+func FatturaPAEnumeration(name string) []string {
+	for i := range fpaTypes {
+		t := &fpaTypes[i]
+		if t.name == "p:"+name && t.content == contentSimple && t.facets != 0 {
+			return append([]string(nil), fpaFacetTable[t.facets].enum...)
+		}
+	}
+	return nil
+}
+
 // CheckFatturaPA validates the structure of root, a FatturaPA document,
 // against the FatturaPA 1.2 schema and records the findings in c.Report.
 // c.Doc may be nil.

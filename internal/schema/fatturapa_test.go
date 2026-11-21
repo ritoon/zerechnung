@@ -146,6 +146,32 @@ func TestFatturaPATables(t *testing.T) {
 	}
 }
 
+func TestFatturaPAEnumeration(t *testing.T) {
+	for name, want := range map[string]string{
+		"SoggettoEmittenteType":        "CC TZ",
+		"TipoRitenutaType":             "RT01 RT02 RT03 RT04 RT05 RT06",
+		"Art73Type":                    "SI",
+		"FatturaElettronicaHeaderType": "",
+		"NoSuchType":                   "",
+	} {
+		if got := strings.Join(FatturaPAEnumeration(name), " "); got != want {
+			t.Errorf("FatturaPAEnumeration(%q) = %q, want %q", name, got, want)
+		}
+	}
+	td := FatturaPAEnumeration("TipoDocumentoType")
+	if len(td) != 20 || td[0] != "TD01" || td[19] != "TD29" {
+		t.Errorf("TipoDocumentoType: %q", td)
+	}
+	rf := FatturaPAEnumeration("RegimeFiscaleType")
+	if len(rf) != 20 || rf[0] != "RF01" || rf[19] != "RF21" {
+		t.Errorf("RegimeFiscaleType: %q", rf)
+	}
+	td[0] = "XX"
+	if FatturaPAEnumeration("TipoDocumentoType")[0] != "TD01" {
+		t.Error("FatturaPAEnumeration shares the tables")
+	}
+}
+
 // TestFatturaPAExamples checks the official examples of FatturaPA 1.2
 // (FX_FATTURAPA, see package fatturapa) against the schema. The example
 // FPR02 is not valid: its ContattiTrasmittente follows PECDestinatario

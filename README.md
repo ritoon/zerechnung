@@ -306,7 +306,7 @@ Since `validate` exits with code 1 when it finds errors, you can drop it into a 
 | FatturaPA 1.2, Italy (FPA12 and FPR12) | yes | yes | XSD 1.2.4; CIUS-IT rules through CII |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
 
-Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules (BR-IT, technical rules 2.7), the Chorus Pro checks and 72 checks of the PDF container. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
+Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Chorus Pro checks and 72 checks of the PDF container. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
 
 ## How accurate is it?
 
@@ -342,7 +342,7 @@ The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11
 - PDF/A levels A and U are not checked. Factur-X and ZUGFeRD only need level B (basic), which is what `ConvertPDFA` writes; a PDF that declares level A or U is checked as level B, without its logical structure (tags) or the Unicode mapping of its text.
 - Encrypted PDFs are detected, not decrypted.
 - ZUGFeRD 1.0 is read only, and written back as Factur-X.
-- FatturaPA is validated against its XSD schema 1.2.4 (the content of the XML signature excepted), not against the SDI checks: convert it to CII to apply the CIUS-IT rules. Signed files (.p7m) are not opened, and `Marshal` writes one invoice per file. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry; the rules of the Italian extensions (BR-IT-DE-*) are not checked.
+- FatturaPA is validated against its XSD schema 1.2.4 (the content of the XML signature excepted), not against the SDI checks: convert it to CII to apply the CIUS-IT rules. Signed files (.p7m) are not opened, and `Marshal` writes one invoice per file. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry, and against the 45 rules of the Italian extensions of appendix 3 (BR-IT-DE-*, EXT-IT) when the seller is in Italy: on the UBL extensions and elements of the domestic invoice, which only UBL carries (BR-IT-DE-052 also applies to CII).
 - For EXTENDED-CTC-FR, only the CII syntax rules of the FNFE schematron are applied, not its business rules (BR-FREXT).
 - Only EN 16931-1:2017 is supported. An invoice whose specification identifier (BT-24) names EN 16931-1:2026, such as `urn:cen.eu:en16931:2026`, gets the error `EN16931-EDITION-01` and no other rule, since the 2026 validation artefacts are not published yet. Force a profile (`Options.Profile`, `-profile`) to apply the 2017 rules anyway. `Create` and `embed` do not write this edition.
 - The rules are rewritten in Go from the official artefacts, so a new version of an artefact needs a code update.
