@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/ritoon/zerechnung"
+	"github.com/ritoon/zerechnung/fatturapa"
+	"github.com/ritoon/zerechnung/internal/sigtest"
 )
 
 // mutated writes to a temporary file the invoice name with old replaced by
@@ -272,6 +275,40 @@ func TestJSONFatturaPA(t *testing.T) {
 	var invs []struct{ Number string }
 	if err := json.Unmarshal(out.Bytes(), &invs); err != nil || len(invs) != 2 || invs[1].Number != "FT-2026/0042" {
 		t.Errorf("json of a lotto: %+v, %v", invs, err)
+	}
+}
+
+// TestJSONSignedFatturaPA checks that json opens a FatturaPA file signed in
+// CAdES, and refuses one whose signature does not verify.
+func TestJSONSignedFatturaPA(t *testing.T) {
+	doc, err := os.ReadFile("../../fatturapa/testdata/fpr12.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := sigtest.New(t)
+	cert, key := p.Leaf(t, sigtest.LeafOptions{QC: sigtest.QcSignature})
+	p7m, err := fatturapa.SignCAdES(doc, &fatturapa.SignOptions{Signer: key, Chain: []*x509.Certificate{cert, p.Intermediate}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(t.TempDir(), "IT01234567890_FPR01.xml.p7m")
+	if err := os.WriteFile(name, p7m, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := jsonCmd([]string{name}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var inv struct{ Number string }
+	if err := json.Unmarshal(out.Bytes(), &inv); err != nil || inv.Number != "FT-2026/0042" {
+		t.Errorf("json of a .xml.p7m: %+v, %v", inv, err)
+	}
+	tampered := bytes.Replace(p7m, []byte("FT-2026/0042"), []byte("FT-2026/0043"), 1)
+	if err := os.WriteFile(name, tampered, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := jsonCmd([]string{name}, &out); err == nil {
+		t.Error("json read a file whose signature does not verify")
 	}
 }
 

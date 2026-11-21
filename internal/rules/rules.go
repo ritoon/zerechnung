@@ -60,6 +60,7 @@ const (
 	SourcePeppol    = "Peppol"     // Peppol BIS Billing 3.0 rules
 	SourceNL        = "BR-NL"      // Dutch rules (NLCIUS, SI-UBL 2.0)
 	SourceIT        = "BR-IT"      // Italian rules (CIUS-IT)
+	SourceSDI       = "SDI"        // checks of the Italian SDI on a signed FatturaPA file
 )
 
 // Finding is a rule violation.

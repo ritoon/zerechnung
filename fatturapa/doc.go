@@ -29,7 +29,30 @@
 //
 // Package validate checks a FatturaPA document against the FatturaPA schema
 // 1.2.4 (validate.XML); the documents that Marshal writes are valid against
-// it. Neither package applies the checks of the SDI. This package does not
-// read signed documents (.p7m envelopes), and the XAdES signature of a
-// document is not kept.
+// it. Neither package applies the checks of the SDI on the content of a
+// document.
+//
+// # Signatures
+//
+// The SDI accepts a file signed in CAdES (a .xml.p7m envelope) or in XAdES
+// (an enveloped ds:Signature, the last child of FatturaElettronica), and
+// requires a signature for an invoice to a public administration (FPA12)
+// (technical specifications 1.8.4, §2.1). SignCAdES and SignXAdES sign a
+// document in CAdES or XAdES Baseline B with a crypto.Signer, so that the
+// key may stay in a smart card, an HSM or a remote signing service, and
+// FileName names the result (§2.2). Unwrap opens a signed file, a .p7m in
+// DER, BER or base64 included, checks every signature against the document
+// and returns the document; Parse reads a document signed in XAdES as an
+// unsigned one, without keeping the signature in the invoice read.
+// VerifySignature checks a signed file as the SDI does on reception
+// (§5.1.1) and reports each problem under the error code of the SDI: the
+// trust in the certificate and its revocation are checked against the
+// roots, CRLs and OCSP responses the caller gives, since the package does
+// not access the network. CMS, BER, XML canonicalization and XML signatures
+// are written in Go, without dependencies. A signature that no signing tool
+// writes is refused before any digest is computed, so that a small file
+// cannot keep a verifier busy: more than 8 references in an XML signature,
+// 16 SignerInfos or 64 certificates in a CMS one. So is an XML start tag
+// that repeats an attribute or a namespace declaration, which another
+// reader could resolve otherwise than the signature verification.
 package fatturapa

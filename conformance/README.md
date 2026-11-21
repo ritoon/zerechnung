@@ -10,6 +10,8 @@ Ce dossier mesure l'exactitude du package sur les artefacts officiels, à chaque
 | [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, et les XSLT de la NPa sur les factures NLCIUS, puis compare leurs règles à celles du package |
 | [`parity/`](parity) | Outil Go de comparaison (module séparé) et lanceurs Java de Mustang et des XSLT de la NPa |
 | [`parity/known.txt`](parity/known.txt) | Écarts connus et justifiés, et assertions NLCIUS qu'aucune facture ne déclenche ; tout autre écart fait échouer le job |
+| [`signature.sh`](signature.sh) | Fait vérifier par OpenSSL, xmlsec1 et EU DSS les signatures CAdES et XAdES du package `fatturapa`, et fait vérifier par le package les fichiers que ces outils signent |
+| [`signature/`](signature) | Projet Maven d'EU DSS 6.5.1 et son lanceur [`DssCheck.java`](signature/DssCheck.java), qui valide et signe |
 
 ## Artefacts
 
@@ -142,6 +144,20 @@ Sur chacun des 290 fichiers, le package et les XSLT lèvent les mêmes règles B
 
 Les 5 autres arrêts sont rendus à l'identique : BR-NL-7 sur un code de type `38O`, BR-GA-3 sur un montant `3.025E2` ou répété, BR-CO-16 sur un montant dû `1e3`, en CII comme en UBL. Les 8 assertions NLCIUS qu'aucun fichier ne déclenche sont celles qu'écarte l'ordre des règles, que le package n'écrit pas : BR-NL-9 et BR-NL-31 en CII ; en UBL, BR-NL-32-2, BR-NL-32-3 et les trois assertions au message de BR-NL-34 ; et SI-INV-R000, qui vérifie que la racine est une `Invoice` ou une `CreditNote`, les seuls documents qu'un validateur donne à la XSLT SI-UBL 2.0.
 
+## Interopérabilité des signatures FatturaPA
+
+Le job *Interopérabilité des signatures FatturaPA* exécute [`signature.sh`](signature.sh), qui croise les signatures du package `fatturapa` (`SignCAdES`, `SignXAdES`, `Unwrap`, `VerifySignature`) avec trois implémentations de référence, dans les deux sens. Aucun certificat réel n'intervient : `TestWriteInteropFiles`, avec `FX_SIG_OUT`, génère une PKI de test (racine, autorité intermédiaire, certificats de signature qualifiés RSA et ECDSA) valide à la date du jour.
+
+| Outil | Vérifie les fichiers du package | Signe des fichiers que le package vérifie |
+|---|---|---|
+| OpenSSL 3.5 (runner Ubuntu 26.04) | `openssl cms -verify -cades`, qui exige l'attribut signing-certificate-v2 ; contenu identique à la facture signée | `openssl cms -sign` avec et sans `-cades`, RSA, RSA-PSS (sel maximal, en PEM), ECDSA en BER (`-stream`) |
+| xmlsec1 1.3.9 (paquet Ubuntu) | `xmlsec1 --verify`, RSA, RSA-PSS et ECDSA (xmlsec1 1.2 ne connaît pas RSA-PSS : le script passe alors ce fichier) | `xmlsec1 --sign` : C14N exclusive, C14N 1.1 avec ECDSA, transformation XPath et C14N avec commentaires |
+| EU DSS 6.5.1 (Maven Central) | `DssCheck.java verify` : format CAdES-BASELINE-B ou XAdES-BASELINE-B, structure XSD, condensats, valeur de signature, référence signée au certificat, chaîne jusqu'à la racine de test, blocs FC, ISC, VCI, CV et SAV de la validation ETSI EN 319 102-1 à PASSED | `DssCheck.java sign` : XAdES Baseline B enveloppée (transformation XPath Filter 2.0) et CAdES Baseline B enveloppante, RSA, RSA-PSS et ECDSA |
+
+La conclusion de DSS reste INDETERMINATE, faute de données de révocation pour la PKI de test : seule la validation du certificat (bloc XCV) en dépend, et le script ne la contrôle pas.
+
+`TestForeignSignatures`, avec `FX_SIG_FOREIGN`, vérifie enfin chacun des 13 fichiers signés par les outils : `Unwrap` doit rendre la facture (à l'octet près en CAdES, à l'identique une fois lue en XAdES, que les outils réécrivent) et `VerifySignature` ne lever que les règles attendues de l'outil (`foreignExpect` dans [`interop_test.go`](../fatturapa/interop_test.go)) : aucune pour DSS et `openssl cms -sign -cades`, IT-SIG-06 pour une signature CMS sans signing-certificate-v2 ou une signature XML sans propriétés XAdES, 00103 pour une signature sans heure de signature (riferimento temporale). Tous lèvent IT-SIG-05, faute de données de révocation.
+
 ## En local
 
 ```bash
@@ -153,4 +169,8 @@ go test ./...
 conformance/parity.sh
 ```
 
-`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang et les XSLT de la NPa. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.
+```bash
+conformance/signature.sh
+```
+
+`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang et les XSLT de la NPa ; `signature.sh` demande Go, OpenSSL 3, xmlsec1, Java 21 et Maven. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.
