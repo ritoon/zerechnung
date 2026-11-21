@@ -13,7 +13,8 @@
 # runs every test; under GitHub Actions it also appends them to $GITHUB_ENV.
 # It needs git, curl and pdfdetach (poppler-utils), which extracts the
 # reference XML of the corpus PDFs (FX_CORPUS_XML) independently of this
-# package.
+# package. The tests also need xmllint (libxml2-utils), which checks the
+# FatturaPA documents against FX_FATTURAPA_XSD.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -132,6 +133,20 @@ IT01234567890_FPR02.xml  f75334471b7411f4dbd9c05c403e6c6c06cbeb5f4d0d832851bc84a
 IT01234567890_FPR03.xml  3a9001230c6a7a0d76004a7eacecb025589ee3a3369d6d995b06eda165b6f358
 EOF
 
+# FatturaPA XML schemas (FX_FATTURAPA_XSD): 1.2.4, from which
+# internal/schema/fatturapa_tables_gen.go is generated, 1.2.3, in force until
+# 10/01/2027, which differs from it only by the tax regime RF21, and the
+# schema of xmldsig that they import, with which xmllint checks the same
+# documents as the package. The schemas of the Agenzia delle Entrate are not
+# copied into the repository.
+while read -r name sum url; do
+	fetch_file "$DEST/fatturapa-xsd/$name" "$url" "$sum"
+done <<EOF
+Schema_VFPA12_V1.2.3.xsd  152944f6eef9f5d69ef6e955ee173b32142b00a8c1c5222fc97dfab5910e8a8c  https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPA12_V1.2.3.xsd
+Schema_VFPA12_v1.2.4.xsd  29728f77e2739e150131258279218936287630e95566cab360cf66d53fc8f338  https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.5/Schema_VFPA12_v1.2.4.xsd
+xmldsig-core-schema.xsd   35cf8197da812c85e40d57891b35c94187569ed474a2dac813ce5090dafcd35c  https://www.w3.org/TR/2002/REC-xmldsig-core-20020212/xmldsig-core-schema.xsd
+EOF
+
 # Reference XML of the valid PDFs of the corpus (FX_CORPUS_XML), extracted by
 # pdfdetach: the attachment named factur-x.xml, xrechnung.xml or
 # zugferd-invoice.xml (any case), else the only XML attachment. Each file has
@@ -171,5 +186,6 @@ vars=(
 	"FX_FACTURX_SCH=$DEST/facturx-sch"
 	"FX_VERAPDF=$DEST/verapdf-corpus"
 	"FX_FATTURAPA=$DEST/fatturapa"
+	"FX_FATTURAPA_XSD=$DEST/fatturapa-xsd"
 )
 export_vars "${vars[@]}"

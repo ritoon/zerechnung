@@ -39,9 +39,18 @@
 // rules, as the KoSIT validator does. See packages internal/rules/en16931
 // and internal/rules/facturx.
 //
+// A FatturaPA document, the national format of the Italian SDI, is checked
+// against the FatturaPA 1.2 schema (the Schema rule set, with the same XSD-*
+// rules), which accepts the FPA12 and FPR12 documents. The other rule sets
+// are written for EN 16931 invoices and do not apply; the controls of the
+// SDI are not made. To apply the CIUS-IT rules to the data of a FatturaPA
+// invoice, read it with package fatturapa and validate the CII that
+// cii.Marshal writes.
+//
 // Validation never stops at the first problem: every finding is collected in
 // a Report. A document that is not well-formed XML, or neither a CII, a
-// ZUGFeRD 1.0 nor a UBL invoice, gives a report with a single syntax error.
+// ZUGFeRD 1.0, a UBL nor a FatturaPA invoice, gives a report with a single
+// syntax error.
 package validate
 
 import (
@@ -101,7 +110,7 @@ type RuleSet uint
 
 // Rule sets.
 const (
-	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL); minimal structural check of ZUGFeRD 1.0
+	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4; minimal structural check of ZUGFeRD 1.0
 	EN16931                            // CEN business rules and code lists, and the UBL syntax rules for UBL
 	FacturX                            // Factur-X / ZUGFeRD profile rules (CII only)
 	France                             // French rules BR-FR (2026 reform) and the profiles the reform admits (FR-PROFILE-*)
@@ -110,7 +119,7 @@ const (
 	ChorusPro                          // French B2G checks for Chorus Pro (CPRO-*), see Options.PublicBuyer
 	Peppol                             // Peppol BIS Billing 3.0 rules (PEPPOL-*) and their national rules (NO, DK, IT, SE, NL; for UBL also GR, IS, DE)
 	Netherlands                        // Dutch rules of NLCIUS (BR-NL), and for UBL the SI-UBL 2.0 version check (SI-V20-INV-R000) and the rules of the G-account extension (BR-GA)
-	Italy                              // Italian rules of the CIUS-IT (BR-IT), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
+	Italy                              // Italian rules of the CIUS-IT (BR-IT) and of its extensions (BR-IT-DE), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
 
 	// Default is the set used when Options.Rules is zero: schema, EN 16931
 	// and profile rules. Whatever the rule sets, the German rules apply to
@@ -175,7 +184,8 @@ type PublicBuyer struct {
 	EngagementRequired bool
 }
 
-// XML validates a CII or UBL invoice, or a ZUGFeRD 1.0 invoice.
+// XML validates a CII or UBL invoice, a ZUGFeRD 1.0 invoice or a FatturaPA
+// document.
 func XML(data []byte, opts *Options) *Report {
 	if opts == nil {
 		opts = &Options{}
@@ -189,8 +199,8 @@ func XML(data []byte, opts *Options) *Report {
 	return Tree(root, opts)
 }
 
-// Tree validates an already parsed CII or UBL invoice, or a ZUGFeRD 1.0
-// invoice.
+// Tree validates an already parsed CII or UBL invoice, a ZUGFeRD 1.0
+// invoice or a FatturaPA document.
 func Tree(root *xmltree.Node, opts *Options) *Report {
 	if opts == nil {
 		opts = &Options{}
@@ -206,10 +216,15 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	case cii.IsZUGFeRD1(root):
 		checkZUGFeRD1(root, opts, r)
 		return r
+	case isFatturaPA(root):
+		if set := opts.Rules; set == 0 || set&Schema != 0 {
+			schema.CheckFatturaPA(&rules.Checker{Report: r, Source: SourceSyntax}, root)
+		}
+		return r
 	default:
 		r.Add(Finding{Rule: "CII", Severity: Error, Source: SourceSyntax, Path: "/" + root.Name, Line: root.Line,
 			Message: "the root element is neither rsm:CrossIndustryInvoice in namespace " + rules.NSRsm +
-				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, nor a UBL 2.1 Invoice or CreditNote"})
+				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, a UBL 2.1 Invoice or CreditNote, nor a FatturaPA FatturaElettronica"})
 		return r
 	}
 	r.Profile = doc.Profile
@@ -256,9 +271,20 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	// schematron, also checked on the UBL document.
 	run(Netherlands, SourceNL, nl.Check)
 	// The CIUS-IT has no schematron of its own: its rules are checked on the
-	// CII view of a UBL invoice, and located in the UBL document.
+	// CII view of a UBL invoice, and located in the UBL document; the rules
+	// of the Italian extensions (BR-IT-DE) read the UBL document itself.
 	run(Italy, SourceIT, it.Check)
 	return r
+}
+
+// nsFatturaPA is the namespace of the root element of FatturaPA 1.2 (see
+// package fatturapa, which this package does not import).
+const nsFatturaPA = "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
+
+// isFatturaPA reports whether root is the root element of a FatturaPA
+// document, p:FatturaElettronica.
+func isFatturaPA(root *xmltree.Node) bool {
+	return root != nil && root.Name == "FatturaElettronica" && root.Space == nsFatturaPA
 }
 
 // RulesFor returns the rule sets that apply to doc with opts: opts.Rules

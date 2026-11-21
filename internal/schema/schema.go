@@ -1,8 +1,9 @@
 // Package schema checks the structure of an invoice against its XML schema:
 // a CII invoice against the schema of its profile, a UBL invoice against the
-// OASIS UBL 2.1 schema of its document (Invoice or CreditNote). It checks
-// the allowed elements, their order, cardinalities, attributes, namespaces
-// and simple types.
+// OASIS UBL 2.1 schema of its document (Invoice or CreditNote), a FatturaPA
+// document against the FatturaPA 1.2 schema. It checks the allowed
+// elements, their order, cardinalities, attributes, namespaces and simple
+// types.
 //
 // The schemas are compiled ahead of time by the generator in ./gen, so
 // validation needs no schema engine and does not allocate while the document
@@ -25,6 +26,11 @@
 //     (the runtime schemas of the OASIS package). The content of the UBL
 //     extensions (ext:ExtensionContent, a lax wildcard) is not checked: only
 //     the namespace and the number of its elements are.
+//   - fatturapa_tables_gen.go holds the FatturaPA 1.2.4 schema of the
+//     Agenzia delle Entrate, which accepts the FPA12 and FPR12 documents. It
+//     differs from the schema 1.2.3, in force until 10/01/2027, only by the
+//     tax regime RF21. The content of the XML signature (ds:Signature) is
+//     not checked.
 //
 // EXTENDED-CTC-FR invoices keep the Factur-X EXTENDED schema although the
 // FNFE-MPE package validates them against the complete CII D22B schema: the
@@ -39,6 +45,7 @@ package schema
 //go:generate go run ./gen -cii D16B -o cii_d16b_tables_gen.go
 //go:generate go run ./gen -cii D22B -o cii_d22b_tables_gen_test.go
 //go:generate go run ./gen -ubl -o ubl_tables_gen.go
+//go:generate go run ./gen -fatturapa -o fatturapa_tables_gen.go
 
 import (
 	"regexp"
@@ -68,15 +75,15 @@ const (
 // Catalog lists the rules implemented by this package.
 var Catalog = []rules.RuleInfo{
 	{ID: RuleProfile, Severity: rules.Warning, Description: "The profile (BT-24) is unknown: the structure is checked against the EXTENDED schema, the most permissive."},
-	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), or Invoice or CreditNote (UBL 2.1)."},
-	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL)."},
+	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), or p:FatturaElettronica (FatturaPA)."},
+	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL; none below the root in FatturaPA)."},
 	{ID: RuleUnexpected, Severity: rules.Error, Description: "Each element shall be allowed in its parent by the schema (for CII, the schema of the profile; the CII D16B schema for XRECHNUNG)."},
 	{ID: RuleOrder, Severity: rules.Error, Description: "Child elements shall appear in the order defined by the schema."},
 	{ID: RuleMissing, Severity: rules.Error, Description: "Elements required by the schema (minOccurs > 0) shall be present."},
 	{ID: RuleCount, Severity: rules.Error, Description: "An element shall not occur more often than allowed by the schema (maxOccurs)."},
 	{ID: RuleAttribute, Severity: rules.Error, Description: "Only the attributes declared by the schema are allowed."},
 	{ID: RuleAttributeMissing, Severity: rules.Error, Description: "Attributes required by the schema shall be present."},
-	{ID: RuleType, Severity: rules.Error, Description: "Element and attribute values shall match their simple type (xs:decimal, xs:boolean, xs:base64Binary, xs:date, xs:time, xs:dateTime, xs:language, enumerations, fixed values, lengths, patterns)."},
+	{ID: RuleType, Severity: rules.Error, Description: "Element and attribute values shall match their simple type (xs:decimal, xs:boolean, xs:base64Binary, xs:date, xs:time, xs:dateTime, xs:language, enumerations, fixed values, lengths, patterns, bounds)."},
 	{ID: RuleText, Severity: rules.Error, Description: "Elements whose content is made of elements shall not contain text."},
 }
 
@@ -102,6 +109,7 @@ const (
 	contentElements                    // a sequence or a choice of elements
 	contentSimple                      // text of a simple type, with attributes
 	contentAny                         // elements matching a wildcard (xs:any), content not checked
+	contentSkip                        // element of a schema that is not compiled (ds:Signature): attributes and content not checked
 )
 
 // unbounded is the maxOccurs value meaning "unbounded".
@@ -132,6 +140,20 @@ type ctype struct {
 	first, n   uint16 // particles[first : first+n]
 	afirst, an uint16 // attributes[afirst : afirst+an]
 	profiles   uint8  // bit mask of the profiles using this type
+	// alternatives[altFirst : altFirst+altN] are the choices of sequences
+	// that the generator flattened into the sequence of the type.
+	altFirst, altN uint16
+	def            string // default value of the element, checked when it is empty
+}
+
+// alternative is one sequence of a choice nested in the sequence of a type
+// (xs:choice of xs:sequence, as in the Anagrafica of FatturaPA:
+// Denominazione, or Nome and Cognome). Its particles, first to first+n-1
+// in the particles of the type, are flattened into the sequence with
+// minOccurs 0; need has the bit i set when particle first+i is required in
+// the alternative. Exactly one alternative of each group must be present.
+type alternative struct {
+	group, first, n, need uint8
 }
 
 // particle is a child element of a type.
@@ -156,6 +178,9 @@ type facets struct {
 	patterns       []string
 	minLen, maxLen int // -1 = none
 	collapse       bool
+	// minIncl and maxIncl are the inclusive bounds of a decimal, integer or
+	// date type ("" = none).
+	minIncl, maxIncl string
 }
 
 // tables is a compiled schema set: the Factur-X profiles or UBL 2.1.
@@ -167,6 +192,8 @@ type tables struct {
 	facetTable []facets
 	regexps    [][]*regexp.Regexp // compiled patterns of facetTable
 	profiles   bool               // types carry the profiles using them (Factur-X)
+	// alternatives of the choices nested in sequences (FatturaPA).
+	alts []alternative
 }
 
 func newTables(ns []string, ts []ctype, ps []particle, as []attribute, fs []facets, profiles bool) *tables {
@@ -184,6 +211,11 @@ var (
 	ciiTables  = newTables(namespaces[:], types[:], particles[:], attributes[:], facetTable[:], true)
 	d16bTables = newTables(d16bNamespaces[:], d16bTypes[:], d16bParticles[:], d16bAttributes[:], d16bFacetTable[:], false)
 	ublTables  = newTables(ublNamespaces[:], ublTypes[:], ublParticles[:], ublAttributes[:], ublFacetTable[:], false)
+	fpaTables  = func() *tables {
+		t := newTables(fpaNamespaces[:], fpaTypes[:], fpaParticles[:], fpaAttributes[:], fpaFacetTable[:], false)
+		t.alts = fpaAlternatives[:]
+		return t
+	}()
 )
 
 // profileIndex returns the Factur-X schema used for an invoice profile. The
@@ -225,6 +257,37 @@ func D16BVersion() string { return d16bSchemaVersion }
 // UBLVersion returns the version of the UBL schemas the tables were
 // generated from.
 func UBLVersion() string { return ublSchemaVersion }
+
+// FatturaPAVersion returns the version of the FatturaPA schema the tables
+// were generated from.
+func FatturaPAVersion() string { return fpaSchemaVersion }
+
+// FatturaPAEnumeration returns the values of the simple type name of the
+// FatturaPA schema ("TipoDocumentoType"), or nil when the schema has no
+// such type or the type is not an enumeration. The caller owns the slice.
+func FatturaPAEnumeration(name string) []string {
+	for i := range fpaTypes {
+		t := &fpaTypes[i]
+		if t.name == "p:"+name && t.content == contentSimple && t.facets != 0 {
+			return append([]string(nil), fpaFacetTable[t.facets].enum...)
+		}
+	}
+	return nil
+}
+
+// CheckFatturaPA validates the structure of root, a FatturaPA document,
+// against the FatturaPA 1.2 schema and records the findings in c.Report.
+// c.Doc may be nil.
+func CheckFatturaPA(c *rules.Checker, root *xmltree.Node) {
+	v := validator{c: c, t: fpaTables}
+	r := &fpaRoots[0]
+	if root.Name != r.name || root.Space != fpaNamespaces[r.ns] {
+		c.Fail(RuleRoot, rules.Error, root, "the root element is %s in namespace %q, expected FatturaElettronica in namespace %q",
+			display(root), root.Space, fpaNamespaces[r.ns])
+		return
+	}
+	v.element(root, &fpaTypes[r.typ])
+}
 
 // Check validates the structure of c.Doc and records the findings in
 // c.Report: a CII invoice against the schema of c.Doc.Profile, a UBL invoice
@@ -287,6 +350,9 @@ func (v *validator) fail(rule string, n *xmltree.Node, format string, args ...an
 
 // element validates n, an element of type t.
 func (v *validator) element(n *xmltree.Node, t *ctype) {
+	if t.content == contentSkip {
+		return
+	}
 	if len(n.Attrs) > 0 || t.an > 0 {
 		v.attributes(n, t)
 	}
@@ -294,9 +360,13 @@ func (v *validator) element(n *xmltree.Node, t *ctype) {
 		if len(n.Children) > 0 {
 			v.fail(RuleUnexpected, n.Children[0], "%s is not allowed: %s holds a value, not elements", display(n.Children[0]), display(n))
 		}
+		text := n.Text
+		if text == "" && len(n.Children) == 0 && t.def != "" {
+			text = t.def // the value of an empty element with a default
+		}
 		if t.simple != kString || t.facets != 0 {
-			if msg := v.t.checkValue(n.Text, t.simple, t.facets); msg != "" {
-				v.fail(RuleType, n, "%s: value %q %s %s", display(n), short(n.Text), msg, typeLabel(t.simpleName, t.simple))
+			if msg := v.t.checkValue(text, t.simple, t.facets); msg != "" {
+				v.fail(RuleType, n, "%s: value %q %s %s", display(n), short(text), msg, typeLabel(t.simpleName, t.simple))
 			}
 		}
 		return
@@ -402,6 +472,59 @@ func (v *validator) sequence(n *xmltree.Node, t *ctype) {
 			v.fail(RuleMissing, n, "%s is missing in %s", v.t.display(&ps[s]), display(n))
 		}
 	}
+	if t.altN > 0 {
+		v.alternatives(n, ps, v.t.alts[t.altFirst:t.altFirst+t.altN])
+	}
+}
+
+// alternatives checks the choices of sequences flattened into the sequence
+// ps of n: exactly one alternative of each group is present, complete.
+func (v *validator) alternatives(n *xmltree.Node, ps []particle, alts []alternative) {
+	for i := 0; i < len(alts); {
+		j := i
+		for j < len(alts) && alts[j].group == alts[i].group {
+			j++
+		}
+		group := alts[i:j]
+		var names []string
+		chosen := -1
+		for k := range group {
+			a := &group[k]
+			var seq []string
+			for p := int(a.first); p < int(a.first+a.n); p++ {
+				seq = append(seq, v.t.display(&ps[p]))
+			}
+			names = append(names, strings.Join(seq, " and "))
+			first := firstChild(n.Children, ps[a.first:a.first+a.n])
+			if first == nil {
+				continue
+			}
+			if chosen >= 0 {
+				v.fail(RuleUnexpected, first, "%s is not allowed in %s with %s: they are alternatives", display(first), display(n), names[chosen])
+				continue
+			}
+			chosen = k
+			for p := 0; p < int(a.n); p++ {
+				if a.need&(1<<p) != 0 && !hasChild(n.Children, ps[int(a.first)+p].name) {
+					v.fail(RuleMissing, n, "%s is missing in %s (with %s)", v.t.display(&ps[int(a.first)+p]), display(n), display(first))
+				}
+			}
+		}
+		if chosen < 0 {
+			v.fail(RuleMissing, n, "%s is missing in %s", orList(names), display(n))
+		}
+		i = j
+	}
+}
+
+// firstChild returns the first of kids named like one of ps, or nil.
+func firstChild(kids []*xmltree.Node, ps []particle) *xmltree.Node {
+	for _, k := range kids {
+		if find(ps, k.Name) >= 0 {
+			return k
+		}
+	}
+	return nil
 }
 
 // choice validates the children of n against the choice of t. Consecutive
@@ -566,6 +689,8 @@ func nsPrefix(ns string) string {
 		return "cbc"
 	case nsExt:
 		return "ext"
+	case nsFatturaPA:
+		return "p"
 	}
 	return ""
 }
@@ -578,6 +703,10 @@ const (
 	nsCbc = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 	nsExt = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
 )
+
+// nsFatturaPA is the namespace of the root element of FatturaPA; the other
+// elements have none.
+const nsFatturaPA = "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
 
 // expected lists the elements that may come next in a sequence, the current
 // particle being pi with cnt occurrences.
@@ -739,7 +868,35 @@ func (t *tables) checkValue(s string, k simpleKind, fi uint16) string {
 	if fi == 0 {
 		return ""
 	}
-	return t.facetTable[fi].check(s, t.regexps[fi])
+	if k != kString && k != kBase64 {
+		// White space is collapsed in the values of these types.
+		s = trim(s)
+	}
+	f := &t.facetTable[fi]
+	if msg := f.check(s, t.regexps[fi]); msg != "" {
+		return msg
+	}
+	if f.minIncl != "" && compare(s, f.minIncl, k) < 0 {
+		return "is less than " + f.minIncl + ", the minimum of"
+	}
+	if f.maxIncl != "" && compare(s, f.maxIncl, k) > 0 {
+		return "is greater than " + f.maxIncl + ", the maximum of"
+	}
+	return ""
+}
+
+// compare compares two valid values of kind k (decimal, integer or date):
+// -1, 0 or +1. Dates are compared by their year, month and day.
+func compare(a, b string, k simpleKind) int {
+	if k == kDate {
+		return strings.Compare(a[:min(len(a), 10)], b[:min(len(b), 10)])
+	}
+	x, err1 := invoice.ParseDecimal(a)
+	y, err2 := invoice.ParseDecimal(b)
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	return x.Cmp(y)
 }
 
 // check checks s against the facets; res are the compiled patterns. It

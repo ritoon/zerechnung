@@ -400,7 +400,7 @@ type AllowanceCharge struct {
 
 // VATBreakdown is one VAT breakdown entry (BG-23).
 type VATBreakdown struct {
-	CategoryCode        string  // BT-118 VAT category code (UNTDID 5305: S, Z, E, AE, K, G, O, L, M)
+	CategoryCode        string  // BT-118 VAT category code (UNTDID 5305: S, Z, E, AE, K, G, O, L, M, B)
 	Rate                Decimal // BT-119 VAT category rate (absent for category O)
 	TaxableAmount       Decimal // BT-116 VAT category taxable amount
 	TaxAmount           Decimal // BT-117 VAT category tax amount
@@ -579,6 +579,7 @@ const (
 	VATOutOfScope      = "O"
 	VATCanaryIslands   = "L"
 	VATCeutaAndMelilla = "M"
+	VATSplitPayment    = "B" // Italian split payment (scissione dei pagamenti, art. 17-ter DPR 633/1972)
 
 	// Payment means codes (BT-81, UNTDID 4461).
 	PaymentCash               = "10"

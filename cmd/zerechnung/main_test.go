@@ -311,3 +311,31 @@ func TestJSONSignedFatturaPA(t *testing.T) {
 		t.Error("json read a file whose signature does not verify")
 	}
 }
+
+// TestValidateFatturaPA checks that validate names the format of a FatturaPA
+// document and reports the findings of its schema.
+func TestValidateFatturaPA(t *testing.T) {
+	const name = "../../fatturapa/testdata/fpr12.xml"
+	var out bytes.Buffer
+	code, err := validateCmd([]string{name}, &out)
+	if err != nil || code != 0 || !strings.HasPrefix(out.String(), "Format: FatturaPA FPR12\n") {
+		t.Errorf("validate %s: code %d, %v\n%s", name, code, err, out.String())
+	}
+	out.Reset()
+	if code, err = validateCmd([]string{"-json", "-it", name}, &out); err != nil || code != 0 {
+		t.Fatalf("validate -json -it %s: code %d, %v", name, code, err)
+	}
+	var report struct {
+		Format string
+		Valid  bool
+	}
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil || report.Format != "FatturaPA FPR12" || !report.Valid {
+		t.Errorf("validate -json %s: %+v, %v\n%s", name, report, err, out.Bytes())
+	}
+
+	bad := mutated(t, name, "<RegimeFiscale>RF01</RegimeFiscale>", "<RegimeFiscale>RF99</RegimeFiscale>")
+	code, got := runValidate(t, bad)
+	if code != 1 || !got["XSD-TYPE"] || len(got) != 1 {
+		t.Errorf("validate of a FatturaPA document with an unknown tax regime: code %d, rules %v", code, got)
+	}
+}

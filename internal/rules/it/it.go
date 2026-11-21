@@ -45,9 +45,40 @@
 // mentions split payment; the exact wording the rule quotes is not
 // required.
 //
-// The rules of the Italian extensions (appendix 3, BR-IT-DE-*) are not
-// implemented: they check the content of UBL extensions (EXT-IT), which
-// packages ubl and validate do not read.
+// # Italian extensions
+//
+// The 45 rules of appendix 3 (BR-IT-DE-*, unchanged since version 2.5 but
+// for the legal reference of BR-IT-DE-004) check the Italian extensions of
+// the domestic invoice (EXT-IT), whose UBL layout appendix 4.2 gives: UBL
+// extensions (ext:UBLExtension) that carry FatturaPA data no business term
+// holds, and UBL elements outside EN 16931 (cac:WithholdingTaxTotal, the
+// permanent establishment and the third-party intermediary of the seller,
+// cac:AgentParty and cac:ServiceProviderParty, the carrier, pickup and
+// shipment of the delivery, the transport document references of the
+// lines...). They apply when the seller is in Italy, and only to a UBL
+// invoice, the only syntax appendix 4.2 extends; BR-IT-DE-052, written with
+// business terms (BT-13, BT-132), applies to both syntaxes. The code lists
+// of BR-IT-DE-001 to 003 and BR-IT-DE-017 are those of the FatturaPA 1.2.4
+// schema (package schema).
+//
+// The technical rules do not give the URIs of the extensions
+// (ext:ExtensionURI): Check recognizes those of the AgID documentation of
+// the domestic invoice, urn:fdc:agid.gov.it:fatturapa: followed by
+// SoggettoEmittente, TipoDocumento, TipoRitenuta, Art73,
+// RiepilogoIVA:Arrotondamento or ScontoMaggiorazione, then possibly "::"
+// and an index (TipoRitenuta::2 gives the type of the second withholding,
+// which BR-IT-DE-013 requires). That documentation adds rules that appendix
+// 3 does not have (BR-IT-DE-043 to 049 among them): they are not checked.
+// A third-party intermediary is Italian (BR-IT-DE-050) when its VAT
+// identifier begins with IT.
+//
+// Two points of appendix 3 do not agree with the rest of the technical
+// rules or with UBL. The extension ScontoMaggiorazione holds one or more
+// cac:AllowanceCharge (BR-IT-DE-006), but the UBL 2.1 schema admits a
+// single element in an ext:ExtensionContent: an extension with several
+// discounts breaks the schema (XSD-COUNT). The reference to a transport
+// document line (BR-IT-DE-040) must be NA, where the mapping table of
+// appendix 4.2 says 0: Check follows the rule.
 //
 // # Identifiers
 //
@@ -118,6 +149,12 @@ func Check(c *rules.Checker) {
 	}
 	k.splitPayment()
 	k.profile()
+	if k.domestic {
+		k.orderLines()
+		if d.UBL != nil {
+			k.italianExtensions()
+		}
+	}
 }
 
 // fail records a finding of rule id at n, with the description of the rule

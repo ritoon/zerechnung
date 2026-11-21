@@ -3,6 +3,7 @@ package validate
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/internal/rules"
@@ -14,6 +15,7 @@ import (
 const (
 	ciusitInvoice    = "../internal/rules/it/testdata/ciusit.xml"     // domestic CIUS-IT, seller in Italy
 	ciusitUBLInvoice = "../internal/rules/it/testdata/ciusit.ubl.xml" // ciusitInvoice in UBL 2.1
+	extitInvoice     = "../internal/rules/it/testdata/extit.ubl.xml"  // ciusitUBLInvoice with the Italian extensions
 )
 
 // TestCIUSIT checks the CIUS-IT invoices of internal/rules/it with every
@@ -89,18 +91,54 @@ func TestRulesForCIUSIT(t *testing.T) {
 	}
 }
 
+// TestEXTIT checks the domestic invoice with the Italian extensions
+// (EXT-IT): no error, only the warnings of the EN 16931 UBL syntax rules
+// (UBL-CR) on the extensions and the UBL elements outside EN 16931 that
+// EXT-IT uses. A broken extension breaks its rule; an extension
+// ScontoMaggiorazione with two discounts breaks the UBL schema, which
+// admits one element in an ext:ExtensionContent.
+func TestEXTIT(t *testing.T) {
+	doc := readXML(t, extitInvoice)
+	r := XML([]byte(doc), &Options{Auto: true})
+	if r.Profile != invoice.ProfileCIUSIT || len(r.Findings) != 16 {
+		t.Errorf("profile %s, %d findings\n%s", r.Profile, len(r.Findings), r)
+	}
+	for _, f := range r.Findings {
+		if f.Severity != Warning || !strings.HasPrefix(f.Rule, "UBL-CR-") {
+			t.Errorf("finding %+v", f)
+		}
+	}
+
+	bad := strings.Replace(doc, "<cbc:TypeCode>TZ</cbc:TypeCode>", "<cbc:TypeCode>XX</cbc:TypeCode>", 1)
+	r = XML([]byte(bad), nil)
+	if f := findings(r, "BR-IT-DE-"); len(f) != 1 || f[0].Rule != "BR-IT-DE-001" || f[0].Severity != Error || f[0].Source != SourceIT ||
+		!strings.HasSuffix(f[0].Path, "/ext:ExtensionContent/cbc:TypeCode") {
+		t.Errorf("SoggettoEmittente XX:\n%s", r)
+	}
+
+	discount := "<cac:AllowanceCharge>\n          <cbc:ChargeIndicator>false</cbc:ChargeIndicator>"
+	if !strings.Contains(doc, discount) {
+		t.Fatal("ScontoMaggiorazione not found")
+	}
+	two := strings.Replace(doc, discount, "<cac:AllowanceCharge><cbc:ChargeIndicator>true</cbc:ChargeIndicator><cbc:Amount currencyID=\"EUR\">5.00</cbc:Amount></cac:AllowanceCharge>"+discount, 1)
+	r = XML([]byte(two), nil)
+	if f := findings(r, "XSD-"); len(f) != 1 || f[0].Rule != "XSD-COUNT" || findings(r, "BR-IT-") != nil {
+		t.Errorf("two discounts in ScontoMaggiorazione:\n%s", r)
+	}
+}
+
 func TestCatalogIT(t *testing.T) {
 	ids := map[string]int{}
 	for _, r := range Catalog(Italy) {
 		ids[r.ID]++
 	}
-	for _, id := range []string{"BR-IT-010", "BR-IT-DC-510", "BR-IT-530", "IT-PROFILE-01", "IT-PIVA-02", "IT-CF-02"} {
+	for _, id := range []string{"BR-IT-010", "BR-IT-DC-510", "BR-IT-530", "BR-IT-DE-001", "BR-IT-DE-052", "IT-PROFILE-01", "IT-PIVA-02", "IT-CF-02"} {
 		if ids[id] != 1 {
 			t.Errorf("Catalog(Italy) lists %s %d times", id, ids[id])
 		}
 	}
-	if len(ids) != 64 {
-		t.Errorf("Catalog(Italy): %d rules, want 64", len(ids))
+	if len(ids) != 109 {
+		t.Errorf("Catalog(Italy): %d rules, want 109", len(ids))
 	}
 	// The Italian national rules of Peppol (IT-R-*) are Peppol rules.
 	for _, r := range Catalog(Default | Peppol | Netherlands) {
@@ -143,5 +181,79 @@ func TestCIUSITRoundTrip(t *testing.T) {
 				t.Errorf("%s: profile %s\n%s\n%s", file, r.Profile, r, out)
 			}
 		}
+	}
+}
+
+// TestCIUSITSplitPayment builds a domestic CIUS-IT invoice in split payment
+// (VAT category B) addressed to an Italian public administration, lets
+// Calculate fill in its amounts and writes it in both syntaxes: the results
+// pass every rule, BR-CO-17 and BR-IT-DC-510 included.
+func TestCIUSITSplitPayment(t *testing.T) {
+	d := invoice.MustDecimal
+	address := func(street, number, postCode string) invoice.Address {
+		return invoice.Address{Line1: street, Line2: number, City: "Roma", PostCode: postCode, CountrySubdivision: "RM", CountryCode: "IT"}
+	}
+	inv := &invoice.Invoice{
+		Profile:   invoice.ProfileCIUSIT,
+		Number:    "FT-2026/0057",
+		TypeCode:  "380",
+		IssueDate: invoice.NewDate(2026, time.November, 20),
+		Currency:  "EUR",
+		Seller: invoice.Party{
+			Name:              "Esempio Reti S.r.l.",
+			LegalRegistration: invoice.Identifier{ID: "12345678903", Scheme: "0210"},
+			Address:           address("Via Nazionale", "12", "00184"),
+			ElectronicAddress: invoice.Identifier{ID: "12345678903", Scheme: "0211"},
+			VATID:             "IT12345678903",
+		},
+		Buyer: invoice.Party{
+			Name:              "Comune di Esempio",
+			LegalRegistration: invoice.Identifier{ID: "80012345676", Scheme: "0210"},
+			Address:           address("Piazza del Municipio", "1", "00100"),
+			ElectronicAddress: invoice.Identifier{ID: "UFABCD", Scheme: "0201"},
+		},
+		PaymentMeans: []invoice.PaymentMeans{{TypeCode: invoice.PaymentSEPACreditTransfer, PayeeIBAN: "IT60X0542811101000000123456"}},
+		PaymentTerms: []invoice.PaymentTerms{{
+			Description: "The total is without the VAT amount due to Split payment (ex art.17-ter del DPR 633/1972)",
+			DueDate:     invoice.NewDate(2026, time.December, 20),
+		}},
+		Lines: []invoice.Line{{
+			ID:              "1",
+			Item:            invoice.Item{Name: "Manutenzione della rete"},
+			Quantity:        d("40"),
+			UnitCode:        "HUR",
+			NetPrice:        d("80.00"),
+			VATCategoryCode: invoice.VATSplitPayment,
+			VATRate:         d("22"),
+		}},
+	}
+	inv.Calculate()
+	if tt := inv.Totals; tt.TaxTotal.String() != "704.00" || tt.GrandTotal.String() != "3904.00" || tt.DuePayable.String() != "3904.00" {
+		t.Fatalf("totals: %+v", tt)
+	}
+	ciiData, err := cii.Marshal(inv, &cii.MarshalOptions{Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ublData, err := ublsyntax.Marshal(inv, &ublsyntax.MarshalOptions{Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, out := range [][]byte{ciiData, ublData} {
+		if r := XML(out, nil); r.Profile != invoice.ProfileCIUSIT || len(r.Findings) > 0 {
+			t.Errorf("profile %s\n%s\n%s", r.Profile, r, out)
+		}
+	}
+
+	// Without the mention of split payment in the payment terms, the
+	// invoice breaks BR-IT-DC-510.
+	inv.PaymentTerms[0].Description = "Bonifico a 30 giorni data fattura"
+	ciiData, err = cii.Marshal(inv, &cii.MarshalOptions{Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := XML(ciiData, nil)
+	if f := findings(r, "BR-IT-DC-510"); len(f) != 1 || len(r.Findings) != 1 {
+		t.Errorf("without the mention of split payment:\n%s", r)
 	}
 }

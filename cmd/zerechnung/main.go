@@ -1,7 +1,8 @@
 // Command zerechnung reads, validates and creates Factur-X / ZUGFeRD /
 // XRechnung invoices. validate and json also accept a CII or UBL 2.1 XML
-// invoice, and json a FatturaPA document, signed in CAdES (.xml.p7m) or
-// not, whose syntax is detected from the root element.
+// invoice and a FatturaPA document, whose syntax is detected from the root
+// element; validate checks a FatturaPA document against its XML schema, and
+// json also opens a FatturaPA file signed in CAdES (.xml.p7m).
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
@@ -35,9 +36,10 @@ import (
 )
 
 const usage = `zerechnung reads, validates and creates Factur-X / ZUGFeRD / XRechnung invoices.
-validate and json also accept an XML invoice in CII or UBL 2.1 syntax,
-json also a FatturaPA document (an array when it holds several invoices),
-signed in CAdES (.xml.p7m) or not.
+validate and json also accept an XML invoice in CII or UBL 2.1 syntax, and a
+FatturaPA document: validate checks it against its XML schema, json gives an
+array when it holds several invoices and also opens a FatturaPA file signed
+in CAdES (.xml.p7m).
 
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
@@ -226,6 +228,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	}
 	opts.PublicBuyer = validate.PublicBuyer{ServiceCodeRequired: *serviceRequired, EngagementRequired: *engagementRequired}
 	var r *validate.Report
+	var format string // the FatturaPA format, FPA12 or FPR12, of a FatturaPA document
 	if isPDF(data) {
 		r, _, err = zerechnung.Check(data, opts)
 		if err != nil {
@@ -233,15 +236,19 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		}
 	} else {
 		r = validate.XML(data, opts)
+		if root, perr := xmltree.Parse(data); perr == nil && fatturapa.IsFatturaPA(root) {
+			format = strings.TrimSpace("FatturaPA " + root.Attr("versione"))
+		}
 	}
 	if *asJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		out := struct {
 			Profile  string             `json:"profile"`
+			Format   string             `json:"format,omitempty"`
 			Valid    bool               `json:"valid"`
 			Findings []validate.Finding `json:"findings"`
-		}{r.Profile.String(), r.Valid(), r.Findings}
+		}{r.Profile.String(), format, r.Valid(), r.Findings}
 		if out.Findings == nil {
 			out.Findings = []validate.Finding{}
 		}
@@ -249,7 +256,11 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 			return 0, err
 		}
 	} else {
-		fmt.Fprintf(w, "Profile: %s\n", r.Profile)
+		if format != "" {
+			fmt.Fprintf(w, "Format: %s\n", format)
+		} else {
+			fmt.Fprintf(w, "Profile: %s\n", r.Profile)
+		}
 		for _, f := range r.Findings {
 			fmt.Fprintln(w, f)
 		}

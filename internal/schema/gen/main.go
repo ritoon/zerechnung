@@ -1,14 +1,16 @@
 // Command gen compiles XML schemas into the compact Go tables used by package
 // schema: the schemas of the Factur-X profiles (CII), the complete UN/CEFACT
 // CII schemas used by the reference validators of XRechnung (D16B) and of
-// the French EXTENDED-CTC-FR profile (D22B), and the OASIS UBL 2.1 schemas
-// of the Invoice and CreditNote documents.
+// the French EXTENDED-CTC-FR profile (D22B), the OASIS UBL 2.1 schemas of
+// the Invoice and CreditNote documents, and the FatturaPA 1.2 schema of the
+// Agenzia delle Entrate.
 //
 // Usage:
 //
 //	go run ./gen [-o tables_gen.go] <dir>
 //	go run ./gen -cii D16B|D22B [-src path] [-o cii_d16b_tables_gen.go]
 //	go run ./gen -ubl [-zip UBL-2.1.zip] [-o ubl_tables_gen.go]
+//	go run ./gen -fatturapa [-src Schema_VFPA12_v1.2.4.xsd] [-o fatturapa_tables_gen.go]
 //
 // In the first form, dir is searched recursively for the main schema of each
 // Factur-X profile: a file whose name ends in _MINIMUM.xsd, _BASICWL.xsd (or
@@ -56,11 +58,30 @@
 //     UBL-ExtensionContentDataType-2.1.xsd imports for lax validation
 //     (xmldsig, XAdES) are therefore never read.
 //
+// With -fatturapa, gen reads the FatturaPA schema 1.2.4, from a local file
+// (-src) or downloaded from www.fatturapa.gov.it, checks its SHA-256 and
+// compiles it. The schema accepts both FPA12 and FPR12 documents (the files
+// published for each are identical). Three of its constructs need more than
+// the UN/CEFACT and UBL schemas:
+//
+//   - the choice between Denominazione, and Nome and Cognome, is a choice of
+//     sequences inside a sequence: its elements are flattened into the
+//     sequence, optional, and the alternatives are recorded so that package
+//     schema checks that exactly one of them is present, complete;
+//   - its patterns use the XML Schema block escapes \p{IsBasicLatin} and
+//     \p{IsLatin-1Supplement}, which package regexp does not know: they are
+//     rewritten as the character ranges of the blocks;
+//   - the reference to ds:Signature, of the XML signature schema the
+//     FatturaPA schema imports from www.w3.org, is compiled as an element
+//     whose attributes and content are not checked: the signature schema is
+//     never read.
+//
 // Only the subset of XML Schema used by these schemas is supported: named
 // and anonymous complex types holding one sequence or one choice of element
 // particles (local elements or references to global elements), simple
 // content extensions and restrictions with attributes, simple types
-// restricting a built-in type with enumeration, pattern and length facets,
+// restricting a built-in type with enumeration, pattern, length and
+// inclusive bound facets,
 // attributes of a string type with a fixed value, and a sequence made of a
 // single xsd:any of namespace ##other. Anything else stops the generator
 // with an error, so that a new version of the schemas never compiles
@@ -113,6 +134,17 @@ const (
 	ublURL     = "https://docs.oasis-open.org/ubl/os-UBL-2.1/" + ublArchive
 	ublSum     = "60b80d76394a8a2add90723ecb8e0e2e9d826775de9749df37a72d60703f86ed"
 	ublVersion = "2.1"
+)
+
+// The FatturaPA 1.2.4 schema. Schema_VFPR12_v1.2.4.xsd, published for the
+// invoices between private parties, is the same file.
+const (
+	fpaURL     = "https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.5/" + fpaFile
+	fpaFile    = "Schema_VFPA12_v1.2.4.xsd"
+	fpaSum     = "29728f77e2739e150131258279218936287630e95566cab360cf66d53fc8f338"
+	fpaVersion = "1.2.4"
+	nsFPA      = "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
+	nsDS       = "http://www.w3.org/2000/09/xmldsig#"
 )
 
 // rootDoc is a document of a single schema set: its main schema and its
@@ -189,6 +221,9 @@ var prefixes = map[string]string{
 	"urn:oasis:names:specification:ubl:schema:xsd:UnqualifiedDataTypes-2":      "udt",
 	"urn:oasis:names:specification:ubl:schema:xsd:QualifiedDataTypes-2":        "qdt",
 	"urn:un:unece:uncefact:data:specification:CoreComponentTypeSchemaModule:2": "ccts-cct",
+
+	nsFPA: "p",
+	nsDS:  "ds",
 }
 
 func main() {
@@ -196,11 +231,13 @@ func main() {
 	ubl := flag.Bool("ubl", false, "compile the OASIS UBL 2.1 schemas of Invoice and CreditNote")
 	zipPath := flag.String("zip", "", "with -ubl: path of "+ublArchive+" (downloaded from "+ublURL+" when empty)")
 	cii := flag.String("cii", "", "compile the complete UN/CEFACT CII schema of this version (D16B or D22B)")
-	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files (downloaded when empty)")
+	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files; with -fatturapa: the schema file (downloaded when empty)")
+	fpa := flag.Bool("fatturapa", false, "compile the FatturaPA "+fpaVersion+" schema")
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "usage: gen [-o tables_gen.go] <directory of the Factur-X XSD files>")
 		fmt.Fprintln(os.Stderr, "       gen -cii D16B|D22B [-src path] [-o cii_d16b_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -ubl [-zip "+ublArchive+"] [-o ubl_tables_gen.go]")
+		fmt.Fprintln(os.Stderr, "       gen -fatturapa [-src "+fpaFile+"] [-o fatturapa_tables_gen.go]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -209,17 +246,22 @@ func main() {
 		err error
 	)
 	switch {
-	case *cii != "" && !*ubl && *zipPath == "" && flag.NArg() == 0:
+	case *fpa && *cii == "" && !*ubl && *zipPath == "" && flag.NArg() == 0:
+		if *out == "" {
+			*out = "fatturapa_tables_gen.go"
+		}
+		src, err = generateFatturaPA(*srcPath)
+	case *cii != "" && !*ubl && !*fpa && *zipPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "cii_" + strings.ToLower(*cii) + "_tables_gen.go"
 		}
 		src, err = generateCII(*cii, *srcPath)
-	case *ubl && *cii == "" && *srcPath == "" && flag.NArg() == 0:
+	case *ubl && *cii == "" && !*fpa && *srcPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "ubl_tables_gen.go"
 		}
 		src, err = generateUBLArchive(*zipPath)
-	case !*ubl && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "":
+	case !*ubl && !*fpa && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "":
 		if *out == "" {
 			*out = "tables_gen.go"
 		}
@@ -381,6 +423,45 @@ func generateUBL(fsys fs.FS) ([]byte, error) {
 		source:  fmt.Sprintf("Source: %s (SHA-256 %s),\n// the runtime schemas of Invoice and CreditNote (SHA-256 of each file):", ublURL, ublSum),
 		schemas: "UBL schemas",
 		roots:   "the root element of each UBL document",
+	})
+}
+
+// generateFatturaPA reads the FatturaPA schema from path, or downloads it
+// when path is empty, checks its SHA-256 and compiles it.
+func generateFatturaPA(path string) ([]byte, error) {
+	var (
+		data []byte
+		err  error
+	)
+	if path != "" {
+		data, err = os.ReadFile(path)
+	} else {
+		data, err = download(fpaURL)
+	}
+	if err != nil {
+		return nil, err
+	}
+	h := sha256.Sum256(data)
+	if got := hex.EncodeToString(h[:]); got != fpaSum {
+		return nil, fmt.Errorf("%s: SHA-256 %s, want %s", fpaFile, got, fpaSum)
+	}
+	return compileFatturaPA(fstest.MapFS{fpaFile: &fstest.MapFile{Data: data}}, fpaFile, fpaVersion)
+}
+
+// compileFatturaPA compiles the FatturaPA schema file name of fsys, of the
+// given version.
+func compileFatturaPA(fsys fs.FS, name, version string) ([]byte, error) {
+	c := newCompiler(true)
+	c.skip = map[string]bool{nsDS: true}
+	if err := c.compileSingle(fsys, []rootDoc{{name, nsFPA, "FatturaElettronica"}}); err != nil {
+		return nil, fmt.Errorf("FatturaPA: %w", err)
+	}
+	return c.emit(version, &setInfo{
+		prefix:  "fpa",
+		title:   "FatturaPA " + version,
+		source:  fmt.Sprintf("Source: %s (SHA-256 %s),\n// the FatturaPA schema of the Agenzia delle Entrate, also published as\n// Schema_VFPR12_v1.2.4.xsd (SHA-256 of the file):", fpaURL, fpaSum),
+		schemas: "FatturaPA schema",
+		roots:   "the root element of a FatturaPA document",
 	})
 }
 
@@ -699,21 +780,26 @@ var collapsing = map[string]bool{"token": true, "NMTOKEN": true, "Name": true, "
 
 // facets of a simple type.
 type gFacets struct {
-	enum     []string
-	pattern  []string
-	min, max int // lengths; -1 = none
-	collapse bool
+	enum             []string
+	pattern          []string
+	min, max         int // lengths; -1 = none
+	collapse         bool
+	minIncl, maxIncl string // inclusive bounds; "" = none
 }
 
 func (f *gFacets) empty() bool {
-	return f == nil || (len(f.enum) == 0 && len(f.pattern) == 0 && f.min < 0 && f.max < 0)
+	return f == nil || (len(f.enum) == 0 && len(f.pattern) == 0 && f.min < 0 && f.max < 0 && f.minIncl == "" && f.maxIncl == "")
 }
 
 func (f *gFacets) key() string {
 	if f.empty() {
 		return ""
 	}
-	return fmt.Sprintf("%q/%q/%d/%d/%t", f.enum, f.pattern, f.min, f.max, f.collapse)
+	k := fmt.Sprintf("%q/%q/%d/%d/%t", f.enum, f.pattern, f.min, f.max, f.collapse)
+	if f.minIncl != "" || f.maxIncl != "" {
+		k += fmt.Sprintf("/%q/%q", f.minIncl, f.maxIncl)
+	}
+	return k
 }
 
 // gSimple is a resolved simple type.
@@ -729,7 +815,15 @@ const (
 	contentElements = "contentElements"
 	contentSimple   = "contentSimple"
 	contentAny      = "contentAny"
+	contentSkip     = "contentSkip"
 )
+
+// gAlt is one sequence of a choice flattened into the sequence of a type
+// (see alternative in package schema).
+type gAlt struct {
+	group, first, n int
+	need            uint8
+}
 
 type gPart struct {
 	name     string
@@ -753,6 +847,8 @@ type gType struct {
 	simple   gSimple
 	parts    []gPart
 	attrs    []gAttr
+	alts     []gAlt
+	def      string // default value of the element (simple content)
 	profiles uint8
 	id       int
 	key      string
@@ -770,6 +866,9 @@ type compiler struct {
 	files      [][]*schemaDoc // per profile
 	namespaces []string
 	inProgress map[string]bool
+	// skip lists the namespaces whose schemas are not read: a reference to
+	// one of their elements compiles to an element that is not checked.
+	skip map[string]bool
 }
 
 func newCompiler(single bool) *compiler {
@@ -839,6 +938,9 @@ func (pc *profileCompiler) ref(doc *schemaDoc, s string) (qname, error) {
 func (pc *profileCompiler) intern(t *gType) *gType {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s|%s|%t|%d|%d|%s|%s|%s", t.name, t.content, t.choice, t.min, t.max, t.simple.kind, t.simple.name, t.simple.facets.key())
+	if t.def != "" {
+		fmt.Fprintf(&b, "|default:%q", t.def)
+	}
 	if t.content == contentAny {
 		fmt.Fprintf(&b, "|any:%s", t.other)
 	}
@@ -847,6 +949,9 @@ func (pc *profileCompiler) intern(t *gType) *gType {
 	}
 	for _, p := range t.parts {
 		fmt.Fprintf(&b, "|%s{%s}#%d:%d:%d", p.name, p.ns, p.typ.id, p.min, p.max)
+	}
+	for _, a := range t.alts {
+		fmt.Fprintf(&b, "|alt%d:%d:%d:%d", a.group, a.first, a.n, a.need)
 	}
 	t.key = b.String()
 	if s, ok := pc.c.byKey[t.key]; ok {
@@ -901,6 +1006,13 @@ func (pc *profileCompiler) element(doc *schemaDoc, n *xnode, global bool) (gPart
 		if err := n.checkAttrs("ref", "minOccurs", "maxOccurs"); err != nil {
 			return gPart{}, fmt.Errorf("%s: element %s: %w", doc.path, ref, err)
 		}
+		if q, err := doc.resolve(ref); err == nil && pc.c.skip[q.space] {
+			pc.addNamespace(q.space)
+			part := gPart{name: q.local, ns: q.space}
+			part.typ = pc.intern(&gType{name: q.String() + " (not checked)", content: contentSkip})
+			part.min, part.max, err = occurs(n)
+			return part, err
+		}
 		q, err := pc.ref(doc, ref)
 		if err != nil {
 			return gPart{}, err
@@ -920,7 +1032,7 @@ func (pc *profileCompiler) element(doc *schemaDoc, n *xnode, global bool) (gPart
 	if name == "" {
 		return gPart{}, fmt.Errorf("%s: element without name", doc.path)
 	}
-	allowed := []string{"name", "type", "minOccurs", "maxOccurs", "form"}
+	allowed := []string{"name", "type", "minOccurs", "maxOccurs", "form", "default"}
 	if global {
 		allowed = allowed[:2]
 	}
@@ -953,7 +1065,20 @@ func (pc *profileCompiler) element(doc *schemaDoc, n *xnode, global bool) (gPart
 		if err != nil {
 			return gPart{}, fmt.Errorf("element %s: %w", display, err)
 		}
+		if def, ok := n.lookupAttr("default"); ok {
+			// The default value is the value of the element when it is
+			// empty.
+			if part.typ.content != contentSimple || len(part.typ.attrs) > 0 {
+				return gPart{}, fmt.Errorf("element %s: a default value is only supported for a simple type", display)
+			}
+			d := *part.typ
+			d.def = def
+			part.typ = pc.intern(&d)
+		}
 		return part, nil
+	}
+	if _, ok := n.lookupAttr("default"); ok {
+		return gPart{}, fmt.Errorf("element %s: a default value is only supported with a named type", display)
 	}
 	for _, c := range n.Children {
 		switch {
@@ -1151,12 +1276,22 @@ func (pc *profileCompiler) group(doc *schemaDoc, g *xnode, t *gType) error {
 	}
 	t.min, t.max = min, max
 	seen := map[string]bool{}
+	add := func(part gPart) error {
+		if seen[part.name] {
+			// Children are matched by local name at run time.
+			return fmt.Errorf("element name %s used twice in one content model", part.name)
+		}
+		seen[part.name] = true
+		t.parts = append(t.parts, part)
+		return nil
+	}
 	nParticles := 0
 	for _, c := range g.Children {
 		if !c.is("annotation") {
 			nParticles++
 		}
 	}
+	groups := 0
 	for _, c := range g.Children {
 		switch {
 		case c.is("annotation"):
@@ -1165,12 +1300,14 @@ func (pc *profileCompiler) group(doc *schemaDoc, g *xnode, t *gType) error {
 			if err != nil {
 				return err
 			}
-			if seen[part.name] {
-				// Children are matched by local name at run time.
-				return fmt.Errorf("element name %s used twice in one content model", part.name)
+			if err := add(part); err != nil {
+				return err
 			}
-			seen[part.name] = true
-			t.parts = append(t.parts, part)
+		case c.is("choice") && !t.choice && pc.c.single:
+			groups++
+			if err := pc.nestedChoice(doc, c, t, groups, add); err != nil {
+				return err
+			}
 		case c.is("any"):
 			if t.choice || nParticles != 1 {
 				return errors.New("xs:any is only supported alone in a sequence")
@@ -1182,6 +1319,65 @@ func (pc *profileCompiler) group(doc *schemaDoc, g *xnode, t *gType) error {
 	}
 	if len(t.parts) > 0 {
 		t.content = contentElements
+	}
+	return nil
+}
+
+// nestedChoice flattens into the sequence of t a choice it holds, whose
+// alternatives are sequences of elements or single elements (the choice
+// between Denominazione, and Nome and Cognome, of FatturaPA): the elements
+// are added optional, and each alternative is recorded in t.alts with the
+// elements it requires.
+func (pc *profileCompiler) nestedChoice(doc *schemaDoc, ch *xnode, t *gType, group int, add func(gPart) error) error {
+	if err := ch.checkAttrs(); err != nil {
+		return fmt.Errorf("nested xs:choice: %w", err)
+	}
+	alts := 0
+	for _, c := range ch.Children {
+		var elems []*xnode
+		switch {
+		case c.is("annotation"):
+			continue
+		case c.is("element"):
+			elems = []*xnode{c}
+		case c.is("sequence"):
+			if err := c.checkAttrs(); err != nil {
+				return fmt.Errorf("sequence in a nested xs:choice: %w", err)
+			}
+			for _, e := range c.Children {
+				switch {
+				case e.is("annotation"):
+				case e.is("element"):
+					elems = append(elems, e)
+				default:
+					return fmt.Errorf("xs:%s in a sequence of a nested xs:choice is not supported", e.XMLName.Local)
+				}
+			}
+		default:
+			return fmt.Errorf("xs:%s in a nested xs:choice is not supported", c.XMLName.Local)
+		}
+		if len(elems) == 0 || len(elems) > 8 {
+			return fmt.Errorf("an alternative of a nested xs:choice has %d elements (1 to 8 supported)", len(elems))
+		}
+		a := gAlt{group: group, first: len(t.parts), n: len(elems)}
+		for i, e := range elems {
+			part, err := pc.element(doc, e, false)
+			if err != nil {
+				return err
+			}
+			if part.min > 0 {
+				a.need |= 1 << i
+			}
+			part.min = 0
+			if err := add(part); err != nil {
+				return err
+			}
+		}
+		t.alts = append(t.alts, a)
+		alts++
+	}
+	if alts < 2 {
+		return errors.New("a nested xs:choice needs two alternatives")
 	}
 	return nil
 }
@@ -1462,10 +1658,23 @@ func (pc *profileCompiler) simpleType(doc *schemaDoc, n *xnode, name string) (gS
 					if strings.Contains(v, `\i`) || strings.Contains(v, `\c`) || strings.Contains(v, `\I`) || strings.Contains(v, `\C`) {
 						return gSimple{}, fmt.Errorf("%s: pattern %q uses XML Schema name escapes", name, v)
 					}
-					if _, err := regexp.Compile("^(?:" + v + ")$"); err != nil {
+					re, err := goPattern(v)
+					if err != nil {
 						return gSimple{}, fmt.Errorf("%s: pattern %q: %w", name, v, err)
 					}
-					f.pattern = append(f.pattern, v)
+					if _, err := regexp.Compile("^(?:" + re + ")$"); err != nil {
+						return gSimple{}, fmt.Errorf("%s: pattern %q: %w", name, v, err)
+					}
+					f.pattern = append(f.pattern, re)
+				case fc.is("minInclusive"), fc.is("maxInclusive"):
+					if err := checkBound(bs.kind, v); err != nil {
+						return gSimple{}, fmt.Errorf("%s: %s %q: %w", name, fc.XMLName.Local, v, err)
+					}
+					if fc.is("minInclusive") {
+						f.minIncl = v
+					} else {
+						f.maxIncl = v
+					}
 				case fc.is("length"), fc.is("minLength"), fc.is("maxLength"):
 					l, err := strconv.Atoi(v)
 					if err != nil || l < 0 {
@@ -1492,6 +1701,73 @@ func (pc *profileCompiler) simpleType(doc *schemaDoc, n *xnode, name string) (gS
 		}
 	}
 	return gSimple{}, fmt.Errorf("%s: simple type without restriction", name)
+}
+
+// blocks gives the character ranges of the Unicode blocks that the
+// patterns name with \p{IsBlock}.
+var blocks = map[string]string{
+	"BasicLatin":        `\x{0}-\x{7F}`,
+	"Latin-1Supplement": `\x{80}-\x{FF}`,
+}
+
+// goPattern rewrites an XML Schema pattern for package regexp: the block
+// escapes \p{IsBlock} of the blocks listed in blocks become their ranges,
+// inside a character class or as a class of their own.
+func goPattern(p string) (string, error) {
+	var b strings.Builder
+	class := false
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		switch {
+		case c == '\\' && strings.HasPrefix(p[i:], `\p{Is`):
+			end := strings.IndexByte(p[i:], '}')
+			if end < 0 {
+				return "", errors.New("unterminated \\p{")
+			}
+			r, ok := blocks[p[i+len(`\p{Is`):i+end]]
+			if !ok {
+				return "", fmt.Errorf("unsupported block escape %s", p[i:i+end+1])
+			}
+			if class {
+				b.WriteString(r)
+			} else {
+				b.WriteString("[" + r + "]")
+			}
+			i += end
+		case c == '\\' && i+1 < len(p):
+			b.WriteString(p[i : i+2])
+			i++
+		case c == '[' && !class:
+			class = true
+			b.WriteByte(c)
+		case c == ']' && class:
+			class = false
+			b.WriteByte(c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String(), nil
+}
+
+// checkBound checks that an inclusive bound is a value of the kind of its
+// type: decimal, integer or date.
+func checkBound(kind, v string) error {
+	var re string
+	switch kind {
+	case kDecimal:
+		re = `[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)`
+	case kInteger:
+		re = `[+-]?[0-9]+`
+	case kDate:
+		re = `[0-9]{4}-[0-9]{2}-[0-9]{2}`
+	default:
+		return fmt.Errorf("bounds of a %s type are not supported", kind)
+	}
+	if !regexp.MustCompile("^" + re + "$").MatchString(v) {
+		return fmt.Errorf("not a %s value", kind)
+	}
+	return nil
 }
 
 // setInfo describes a single schema set for emit.
@@ -1550,8 +1826,10 @@ func (c *compiler) emit(version string, info *setInfo) ([]byte, error) {
 		b         bytes.Buffer
 		parts     bytes.Buffer
 		attrs     bytes.Buffer
+		alts      bytes.Buffer
 		nParts    int
 		nAttrs    int
+		nAlts     int
 		maxOccurs = func(m int) string {
 			if m < 0 {
 				return "unbounded"
@@ -1625,12 +1903,22 @@ func (c *compiler) emit(version string, info *setInfo) ([]byte, error) {
 			if t.simple.kind != kString {
 				fmt.Fprintf(&b, ", simpleName: %q", t.simple.name)
 			}
+			if t.def != "" {
+				fmt.Fprintf(&b, ", def: %q", t.def)
+			}
 		}
 		if len(t.parts) > 0 {
 			fmt.Fprintf(&b, ", first: %d, n: %d", firstPart, len(t.parts))
 		}
 		if len(t.attrs) > 0 {
 			fmt.Fprintf(&b, ", afirst: %d, an: %d", firstAttr, len(t.attrs))
+		}
+		if len(t.alts) > 0 {
+			fmt.Fprintf(&b, ", altFirst: %d, altN: %d", nAlts, len(t.alts))
+			for _, a := range t.alts {
+				fmt.Fprintf(&alts, "{%d, %d, %d, %#02x}, // %s\n", a.group, a.first, a.n, a.need, t.name)
+				nAlts++
+			}
 		}
 		if info != nil {
 			fmt.Fprintf(&b, "}, // %d\n", i)
@@ -1657,9 +1945,22 @@ func (c *compiler) emit(version string, info *setInfo) ([]byte, error) {
 		if len(f.pattern) > 0 {
 			fmt.Fprintf(&b, "patterns: %#v, ", f.pattern)
 		}
-		fmt.Fprintf(&b, "minLen: %d, maxLen: %d, collapse: %t},\n", f.min, f.max, f.collapse)
+		fmt.Fprintf(&b, "minLen: %d, maxLen: %d, collapse: %t", f.min, f.max, f.collapse)
+		if f.minIncl != "" {
+			fmt.Fprintf(&b, ", minIncl: %q", f.minIncl)
+		}
+		if f.maxIncl != "" {
+			fmt.Fprintf(&b, ", maxIncl: %q", f.maxIncl)
+		}
+		b.WriteString("},\n")
 	}
 	b.WriteString("}\n\n")
+	if nAlts > 0 {
+		fmt.Fprintf(&b, "// %s lists the alternatives of the choices flattened into sequences: group, first particle, number of particles, required particles.\n", v("alternatives"))
+		fmt.Fprintf(&b, "var %s = [...]alternative{\n", v("alternatives"))
+		b.Write(alts.Bytes())
+		b.WriteString("}\n\n")
+	}
 	if info != nil {
 		fmt.Fprintf(&b, "// %s holds %s.\n", v("roots"), info.roots)
 		fmt.Fprintf(&b, "var %s = [...]particle{\n", v("roots"))

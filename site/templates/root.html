@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{template "head" .}}
+<script>
+// Send the visitor to the language they picked last time, or else to the
+// first language of their browser that the site has. The list below stays
+// usable without JavaScript.
+(function () {
+  var codes = {{.Codes}};
+  var pick = null;
+  try {
+    var saved = localStorage.getItem("lang");
+    if (codes.indexOf(saved) >= 0) pick = saved;
+  } catch (e) {}
+  if (!pick) {
+    var prefs = navigator.languages || [navigator.language || ""];
+    for (var i = 0; i < prefs.length && !pick; i++) {
+      var c = String(prefs[i]).toLowerCase().split("-")[0];
+      if (codes.indexOf(c) >= 0) pick = c;
+    }
+  }
+  if (pick) location.replace(pick + "/");
+})();
+</script>
+</head>
+<body>
+<main class="chooser">
+  <div>
+    <img src="{{.Asset "gopher.webp"}}" width="720" height="679" alt="{{.P.gopher_alt}}">
+    <h1>ZeRechnung</h1>
+    <p class="chooser-sub">Go package for Factur-X, ZUGFeRD and XRechnung e-invoices</p>
+    <ul>{{range .Langs}}<li><a href="{{$.Href .}}" lang="{{.Code}}" hreflang="{{.Code}}" data-lang="{{.Code}}">{{.Name}}</a></li>{{end}}</ul>
+    <p class="chooser-gh"><a href="{{.Repo}}">github.com/ritoon/zerechnung</a></p>
+  </div>
+</main>
+<script>
+document.querySelectorAll("a[data-lang]").forEach(function (a) {
+  a.addEventListener("click", function () {
+    try { localStorage.setItem("lang", a.getAttribute("data-lang")); } catch (e) {}
+  });
+});
+</script>
+</body>
+</html>
