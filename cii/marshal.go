@@ -50,6 +50,9 @@ type LossError struct {
 	// (see invoice.Extension) is reported as "EXT " followed by its location
 	// from the root element:
 	// "EXT SupplyChainTradeTransaction/ApplicableHeaderTradeAgreement/QuotationReferencedDocument".
+	// The data of the national blocks that CII does not carry (the
+	// FatturaPA data of invoice.Italy…) follows, as listed by
+	// invoice.Invoice.NationalData: "EXT Italy.Withholdings".
 	Terms []string
 }
 
@@ -124,6 +127,9 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 	w.document(inv, target)
 	if o.Indent {
 		w.b = append(w.b, '\n')
+	}
+	if o.Strict {
+		w.losses = append(w.losses, inv.NationalData()...)
 	}
 	if o.Strict && len(w.losses) > 0 {
 		return nil, &LossError{Profile: target, Terms: w.losses}
