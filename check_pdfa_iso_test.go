@@ -144,7 +144,7 @@ func TestCheckContainerISO19005(t *testing.T) {
 			return "", fmt.Sprintf("/Contents %d 0 R", b.AddStream("<< /Filter /Crypt /DecodeParms << /Name /StdCF >> >>", []byte("data")))
 		}), "PDF-38"},
 		{"Identity Crypt filter", extra(func(b *pdftest.Builder) (string, string) {
-			return "", fmt.Sprintf("/Contents %d 0 R", b.AddStream("<< /Filter /Crypt /DecodeParms << /Name /Identity >> >>", []byte("data")))
+			return "", fmt.Sprintf("/Contents %d 0 R", b.AddStream("<< /Filter /Crypt /DecodeParms << /Name /Identity >> >>", []byte("q Q")))
 		}), ""},
 		{"non-standard filter", extra(func(b *pdftest.Builder) (string, string) {
 			return "", fmt.Sprintf("/Contents %d 0 R", b.AddStream("<< /Filter [/FlateDecode /BrotliDecode] >>", []byte("data")))

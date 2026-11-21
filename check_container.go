@@ -100,6 +100,7 @@ var ContainerCatalog = []rules.RuleInfo{
 	{ID: "PDF-68", Severity: rules.Error, Description: "The optional content configurations have a unique /Name, no /AS entry, and an /Order array, when present, that lists every optional content group (6.9)."},
 	{ID: "PDF-69", Severity: rules.Error, Description: "The document has no alternate presentations (/AlternatePresentations in the catalog /Names), no presentation steps (/PresSteps of a page) and no /Requirements entry in the catalog (6.10, 6.11)."},
 	{ID: "PDF-70", Severity: rules.Error, Description: "A document that declares PDF/A-4 has no document information dictionary (/Info in the trailer) unless the catalog has a /PieceInfo entry, and then one holding ModDate alone (ISO 19005-4, 6.1.3): PDF 2.0 deprecates /Info in favour of the XMP metadata. Not checked for the other parts, whose /Info PDF-35 compares with the XMP metadata."},
+	{ID: "PDF-71", Severity: rules.Error, Description: "The content streams (of the pages, the form XObjects, tiling patterns and soft masks they use, the glyphs of the Type 3 fonts they show and the annotation appearances) use only the operators of ISO 32000-1, even between BX and EX, and take their named resources from their own resource dictionary: not from the page tree for the content of a page, not from the page for another stream (6.2.2)."},
 }
 
 // countries holds the countries whose usage of the container applies to an
@@ -274,6 +275,9 @@ func (k *containerCheck) document(c *container) *xmp.Info {
 		k.add("PDF-08", "trailer /ID", "the trailer has no file identifier (/ID array of two strings)")
 	} else if last, _ := c.r.Resolve(id[1]).(pdf.String); len(last) == 0 {
 		k.add("PDF-08", "trailer /ID", "the file identifier is empty")
+	} else if !c.r.NewestTrailer().Has("ID") {
+		// veraPDF reads the identifier of the newest trailer alone (6.1.3).
+		k.add("PDF-08", "trailer /ID", "the newest trailer of the file (the first-page trailer of a linearized file, or the trailer of the last incremental update) has no file identifier; only an older trailer has one")
 	}
 	return info
 }

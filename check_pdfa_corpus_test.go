@@ -18,7 +18,7 @@ import (
 var clauseRules = map[string]string{
 	"6-1-2": "PDF-41", "6-1-3": "PDF-01 PDF-08 PDF-42", "6-1-4": "PDF-43", "6-1-6": "PDF-44",
 	"6-1-7-1": "PDF-45", "6-1-8": "PDF-46", "6-1-9": "PDF-47", "6-1-10": "PDF-38", "6-1-12": "PDF-48",
-	"6-1-13": "PDF-49", "6-2-2": "", "6-2-3": "PDF-06 PDF-07 PDF-50", "6-2-4-2": "PDF-51",
+	"6-1-13": "PDF-49", "6-2-2": "PDF-55 PDF-71", "6-2-3": "PDF-06 PDF-07 PDF-50", "6-2-4-2": "PDF-51",
 	"6-2-4-3": "PDF-52", "6-2-4-4": "PDF-49 PDF-52 PDF-53", "6-2-4-5": "PDF-51 PDF-52",
 	"6-2-5": "PDF-54 PDF-55", "6-2-6": "PDF-55", "6-2-8": "PDF-55 PDF-56", "6-2-9": "PDF-57",
 	"6-2-10": "PDF-52 PDF-58", "6-2-11-3": "PDF-59", "6-2-11-4": "PDF-31 PDF-59", "6-2-11-5": "PDF-59",
@@ -36,7 +36,7 @@ var clauseRules = map[string]string{
 var pdfaRules = strings.Fields(`PDF-01 PDF-02 PDF-03 PDF-06 PDF-07 PDF-08 PDF-31 PDF-32 PDF-33 PDF-34
 	PDF-35 PDF-36 PDF-37 PDF-38 PDF-39 PDF-41 PDF-42 PDF-43 PDF-44 PDF-45 PDF-46 PDF-47 PDF-48 PDF-49
 	PDF-50 PDF-51 PDF-52 PDF-53 PDF-54 PDF-55 PDF-56 PDF-57 PDF-58 PDF-59 PDF-60 PDF-61 PDF-62 PDF-63
-	PDF-64 PDF-65 PDF-66 PDF-67 PDF-68 PDF-69 PDF-70`)
+	PDF-64 PDF-65 PDF-66 PDF-67 PDF-68 PDF-69 PDF-70 PDF-71`)
 
 // veraPDFUncovered lists the invalid files of the corpus that CheckContainer
 // does not report, by reason. A listed file that gets reported fails the
@@ -44,30 +44,6 @@ var pdfaRules = strings.Fields(`PDF-01 PDF-02 PDF-03 PDF-06 PDF-07 PDF-08 PDF-31
 var veraPDFUncovered = func() map[string]string {
 	m := map[string]string{}
 	for reason, files := range map[string]string{
-		"a token of a content stream, which is not parsed": `6-1-6-t01-fail-a 6-1-6-t02-fail-a 6-1-13-t01-fail-b
-			6-1-13-t03-fail-a`,
-		"an inline image of a content stream": `6-1-10-t01-fail-a 6-1-10-t01-fail-b 6-2-6-t01-fail-a
-			6-2-8-1-t02-fail-b`,
-		"the CID values of a CMap or of the text":                                             `6-1-13-t08-fail-b 6-1-13-t10-fail-a`,
-		"a linearized file whose first-page trailer has no /ID: the trailers are read merged": `6-1-3-t01-fail-c`,
-		"the operators of a content stream, or the resources a content stream uses": `6-2-2-t01-fail-a
-			6-2-2-t01-fail-b 6-2-2-t01-fail-c 6-2-2-t02-fail-a 6-2-2-t04-fail-d 6-2-2-t04-fail-e 6-2-2-t04-fail-f`,
-		"the overprint mode set when the content uses an ICCBased CMYK colour space": `6-2-4-2-t02-fail-a
-			6-2-4-2-t02-fail-b 6-2-4-2-t02-fail-c`,
-		"a device colour space set by a colour operator of a content stream or an inline image": `6-2-4-3-t01-fail-a
-			6-2-4-3-t01-fail-b 6-2-4-3-t01-fail-e 6-2-4-3-t01-fail-f 6-2-4-3-t01-fail-h 6-2-4-3-t01-fail-i
-			6-2-4-3-t01-fail-j 6-2-4-3-t01-fail-m 6-2-4-3-t01-fail-n 6-2-4-3-t01-fail-o 6-2-4-3-t01-fail-p
-			6-2-4-3-t01-fail-q 6-2-4-3-t01-fail-r 6-2-4-3-t01-fail-s 6-2-4-3-t01-fail-t 6-2-4-3-t02-fail-a
-			6-2-4-3-t02-fail-b 6-2-4-3-t02-fail-c 6-2-4-3-t02-fail-f 6-2-4-3-t02-fail-g 6-2-4-3-t02-fail-h
-			6-2-4-3-t03-fail-a 6-2-4-3-t03-fail-c 6-2-4-3-t03-fail-d`,
-		"JPEG 2000 image data": `6-2-8-3-t01-fail-b 6-2-8-3-t02-fail-a 6-2-8-3-t03-fail-a 6-2-8-3-t04-fail-a
-			6-2-8-3-t05-fail-a`,
-		"transparency used by the content without a PDF/A output intent nor a page group colour space": `6-2-10-t01-fail-a
-			6-2-10-t01-fail-b 6-2-10-t01-fail-c 6-2-10-t01-fail-e 6-2-10-t03-fail-a 6-2-10-t03-fail-b
-			6-2-10-t03-fail-c 6-2-10-t03-fail-f 6-2-10-t04-fail-a 6-2-10-t04-fail-b 6-2-10-t04-fail-c
-			6-2-10-t04-fail-f 6-2-10-t04-fail-i 6-2-10-t05-fail-a 6-2-10-t05-fail-b 6-2-10-t05-fail-c
-			6-2-10-t05-fail-e 6-2-10-t05-fail-f 6-2-10-t06-fail-a 6-2-10-t06-fail-b 6-2-10-t06-fail-c
-			6-2-10-t06-fail-e 6-2-10-t07-fail-a 6-2-10-t07-fail-b 6-2-10-t07-fail-d 6-2-10-t07-fail-e`,
 		"the glyphs of a font program, their widths, or the glyphs the text uses": `6-2-11-4-1-t02-fail-a
 			6-2-11-4-1-t02-fail-b 6-2-11-4-1-t02-fail-c 6-2-11-4-1-t02-fail-d 6-2-11-4-1-t02-fail-e
 			6-2-11-4-2-t01-fail-a 6-2-11-4-2-t02-fail-a 6-2-11-5-t01-fail-a 6-2-11-5-t01-fail-b 6-2-11-5-t01-fail-c

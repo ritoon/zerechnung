@@ -120,6 +120,16 @@ func (r *Reader) Version() string { return r.version }
 // Root, Info and ID entries of older ones when missing).
 func (r *Reader) Trailer() Dict { return r.trailer }
 
+// NewestTrailer returns the newest trailer dictionary as written, without
+// the entries of older ones: the trailer of the last incremental update, or
+// the first-page trailer of a linearized file.
+func (r *Reader) NewestTrailer() Dict {
+	if len(r.sections) == 0 {
+		return r.trailer
+	}
+	return r.sections[0].trailer
+}
+
 // Catalog returns the document catalog.
 func (r *Reader) Catalog() Dict {
 	d, _ := r.Resolve(r.trailer.Get("Root")).(Dict)

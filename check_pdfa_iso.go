@@ -993,6 +993,9 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 					s.report("PDF-59", ew+" /WMode", "the CMap dictionary has /WMode %d but the CMap program %s", dictWMode, m[1])
 				}
 			}
+			if cid := cmapMaxCID(data); cid > 65535 {
+				s.report("PDF-49", ew, "the CMap maps a code to the CID %d; PDF/A admits CIDs up to 65535 (6.1.13)", cid)
+			}
 			for _, m := range useCMapOp.FindAllSubmatch(data, -1) {
 				if _, ok := predefinedCMaps[string(m[1])]; !ok {
 					s.report("PDF-59", ew, "the CMap uses the CMap %s, which is not one of the predefined CMaps", m[1])
@@ -1008,6 +1011,89 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 			s.report("PDF-59", ew+" /UseCMap", "the CMap uses an embedded CMap; PDF/A only admits the predefined CMaps")
 		}
 	}
+}
+
+// cmapMaxCID returns the largest CID the cidrange, cidchar and notdefrange
+// mappings of a CMap program map a code to: a cidrange maps its codes to
+// consecutive CIDs, a notdefrange all its codes to one.
+func cmapMaxCID(data []byte) int64 {
+	var maxCID int64
+	for _, sec := range []struct {
+		begin, end string
+		n          int  // tokens of a mapping
+		span       bool // the CIDs of a range follow each other from the first
+	}{{"begincidrange", "endcidrange", 3, true}, {"beginnotdefrange", "endnotdefrange", 3, false}, {"begincidchar", "endcidchar", 2, false}} {
+		rest := data
+		for {
+			i := bytes.Index(rest, []byte(sec.begin))
+			if i < 0 {
+				break
+			}
+			rest = rest[i+len(sec.begin):]
+			j := bytes.Index(rest, []byte(sec.end))
+			if j < 0 {
+				j = len(rest)
+			}
+			toks := cmapTokens(rest[:j])
+			rest = rest[j:]
+			for k := 0; k+sec.n <= len(toks); k += sec.n {
+				cid := toks[k+sec.n-1]
+				if sec.span && toks[k+1] > toks[k] {
+					cid += toks[k+1] - toks[k]
+				}
+				maxCID = max(maxCID, cid)
+			}
+		}
+	}
+	return maxCID
+}
+
+// cmapTokens returns the values of the hexadecimal strings and integers of
+// a section of a CMap program.
+func cmapTokens(b []byte) []int64 {
+	var toks []int64
+	for i := 0; i < len(b); {
+		switch c := b[i]; {
+		case c == '<':
+			j := bytes.IndexByte(b[i:], '>')
+			if j < 0 {
+				return toks
+			}
+			var v int64
+			for _, h := range b[i+1 : i+j] {
+				if d := unhex(h); d >= 0 && v < 1<<40 {
+					v = v<<4 | int64(d)
+				}
+			}
+			toks = append(toks, v)
+			i += j + 1
+		case c >= '0' && c <= '9':
+			var v int64
+			for i < len(b) && b[i] >= '0' && b[i] <= '9' {
+				if v < 1<<40 {
+					v = v*10 + int64(b[i]-'0')
+				}
+				i++
+			}
+			toks = append(toks, v)
+		default:
+			i++
+		}
+	}
+	return toks
+}
+
+// unhex returns the value of a hexadecimal digit, or -1.
+func unhex(c byte) int {
+	switch {
+	case c >= '0' && c <= '9':
+		return int(c - '0')
+	case c >= 'a' && c <= 'f':
+		return int(c-'a') + 10
+	case c >= 'A' && c <= 'F':
+		return int(c-'A') + 10
+	}
+	return -1
 }
 
 // trueType checks the encoding of a TrueType font and the cmap table of its
