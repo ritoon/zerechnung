@@ -4,7 +4,7 @@
   "reviewed": false,
   "text": {
     "meta_title": "ZeRechnung · Facturas electrónicas Factur-X, ZUGFeRD y XRechnung en Go",
-    "meta_description": "Paquete Go de código abierto para crear, leer y validar facturas electrónicas: Factur-X, ZUGFeRD, XRechnung, Peppol, UBL y FatturaPA. Go puro, solo la biblioteca estándar.",
+    "meta_description": "Paquete Go de código abierto para crear, leer y validar facturas electrónicas: Factur-X, ZUGFeRD, XRechnung, Peppol, UBL, FatturaPA y Facturae. Go puro, solo la biblioteca estándar.",
     "skip": "Ir al contenido",
     "nav_label": "Secciones",
     "nav_features": "Funciones",
@@ -34,7 +34,7 @@
     "f_validate_title": "Validar",
     "f_validate_text": "Comprueba los esquemas, las reglas EN 16931, las de los perfiles y las reglas nacionales de Francia, Alemania, los Países Bajos e Italia, además de Peppol. Cada hallazgo indica el identificador oficial de la regla y el XPath del elemento.",
     "f_convert_title": "Convertir",
-    "f_convert_text": "Convierte entre CII, UBL y FatturaPA, y reescribe un PDF como PDF/A-3 cuando no hace falta un motor PDF. Si hace falta, obtienes los motivos, página por página.",
+    "f_convert_text": "Convierte entre CII, UBL, FatturaPA y Facturae, y reescribe un PDF como PDF/A-3 cuando no hace falta un motor PDF. Si hace falta, obtienes los motivos, página por página.",
 
     "why_title": "Por qué ZeRechnung",
     "w_pure_title": "Go puro, solo la biblioteca estándar",
@@ -56,6 +56,7 @@
     "yes": "sí",
     "fmt_facturx_note": "perfiles de MINIMUM a EXTENDED, y EXTENDED-CTC-FR",
     "fmt_via_cii": "a través de CII (CIUS-IT)",
+    "fmt_xsd": "esquema XSD; EN 16931 a través de UBL o CII",
     "fmt_as_facturx": "como Factur-X",
     "fmt_minimal": "comprobaciones mínimas",
 

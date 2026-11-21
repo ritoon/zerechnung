@@ -28,6 +28,12 @@
 // follow them, do not apply, which the warning ZF1-04 says whatever the rule
 // sets.
 //
+// A Facturae document (the Spanish format, versions 3.2 to 3.2.2, see
+// package facturae) is checked against the XML schema of its version, part
+// of the Schema rule set, and for values that can be read (FE-01). Facturae
+// is not a syntax of EN 16931: the other rule sets do not apply, which the
+// warning FE-02 says whatever the rule sets.
+//
 // A CII invoice of the BASIC or EXTENDED profile is checked against the
 // Factur-X 1.09.2 schematron of its profile, the reference of these
 // profiles, which only exist in Factur-X and ZUGFeRD: the CEN rules it
@@ -49,12 +55,13 @@
 //
 // Validation never stops at the first problem: every finding is collected in
 // a Report. A document that is not well-formed XML, or neither a CII, a
-// ZUGFeRD 1.0, a UBL nor a FatturaPA invoice, gives a report with a single
-// syntax error.
+// ZUGFeRD 1.0, a UBL, a FatturaPA nor a Facturae invoice, gives a report
+// with a single syntax error.
 package validate
 
 import (
 	"github.com/ritoon/zerechnung/cii"
+	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/internal/rules/choruspro"
 	"github.com/ritoon/zerechnung/internal/rules/de"
@@ -109,7 +116,7 @@ type RuleSet uint
 
 // Rule sets.
 const (
-	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4; minimal structural check of ZUGFeRD 1.0
+	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4, Facturae of its version; minimal structural check of ZUGFeRD 1.0
 	EN16931                            // CEN business rules and code lists, and the UBL syntax rules for UBL
 	FacturX                            // Factur-X / ZUGFeRD profile rules (CII only)
 	France                             // French rules BR-FR (2026 reform) and the profiles the reform admits (FR-PROFILE-*)
@@ -183,8 +190,8 @@ type PublicBuyer struct {
 	EngagementRequired bool
 }
 
-// XML validates a CII or UBL invoice, a ZUGFeRD 1.0 invoice or a FatturaPA
-// document.
+// XML validates a CII or UBL invoice, a ZUGFeRD 1.0 invoice, a FatturaPA
+// document or a Facturae document.
 func XML(data []byte, opts *Options) *Report {
 	if opts == nil {
 		opts = &Options{}
@@ -199,7 +206,7 @@ func XML(data []byte, opts *Options) *Report {
 }
 
 // Tree validates an already parsed CII or UBL invoice, a ZUGFeRD 1.0
-// invoice or a FatturaPA document.
+// invoice, a FatturaPA document or a Facturae document.
 func Tree(root *xmltree.Node, opts *Options) *Report {
 	if opts == nil {
 		opts = &Options{}
@@ -220,10 +227,13 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 			schema.CheckFatturaPA(&rules.Checker{Report: r, Source: SourceSyntax}, root)
 		}
 		return r
+	case facturae.IsFacturae(root):
+		checkFacturae(root, opts, r)
+		return r
 	default:
 		r.Add(Finding{Rule: "CII", Severity: Error, Source: SourceSyntax, Path: "/" + root.Name, Line: root.Line,
 			Message: "the root element is neither rsm:CrossIndustryInvoice in namespace " + rules.NSRsm +
-				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, a UBL 2.1 Invoice or CreditNote, nor a FatturaPA FatturaElettronica"})
+				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, a UBL 2.1 Invoice or CreditNote, a FatturaPA FatturaElettronica nor a Facturae 3.2, 3.2.1 or 3.2.2 document"})
 		return r
 	}
 	r.Profile = doc.Profile
@@ -330,6 +340,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	}
 	add(Schema, schema.Catalog)
 	add(Schema, zugferd1Catalog)
+	add(Schema, facturaeCatalog)
 	add(EN16931, editionCatalog)
 	add(EN16931, en16931.Catalog)
 	add(EN16931, newRules(en16931.CTCFRCatalog, en16931.Catalog))
