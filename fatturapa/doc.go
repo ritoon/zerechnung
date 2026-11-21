@@ -27,7 +27,9 @@
 // FatturaPA cannot carry is dropped, or reported by a *LossError when
 // MarshalOptions.Strict is set.
 //
-// The package neither validates a document against the FatturaPA schema nor
-// applies the checks of the SDI; it does not read signed documents (.p7m
-// envelopes), and the XAdES signature of a document is not kept.
+// Package validate checks a FatturaPA document against the FatturaPA schema
+// 1.2.4 (validate.XML); the documents that Marshal writes are valid against
+// it. Neither package applies the checks of the SDI. This package does not
+// read signed documents (.p7m envelopes), and the XAdES signature of a
+// document is not kept.
 package fatturapa
