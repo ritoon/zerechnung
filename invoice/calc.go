@@ -198,10 +198,13 @@ func (inv *Invoice) computeBreakdown() []VATBreakdown {
 }
 
 // taxAmount returns base × rate ÷ 100 rounded to two decimals, or zero for
-// categories that carry no VAT.
+// categories that carry no VAT. The split payment (B) carries VAT that the
+// buyer pays to the treasury instead of the seller, but the invoice states
+// it and counts it in the totals like the standard rate: EN 16931 has no
+// other rule for it than BR-CO-17, BR-CO-15 and BR-CO-16.
 func taxAmount(category string, base, rate Decimal) Decimal {
 	switch category {
-	case VATStandard, VATCanaryIslands, VATCeutaAndMelilla:
+	case VATStandard, VATCanaryIslands, VATCeutaAndMelilla, VATSplitPayment:
 		return base.Mul(rate).Div(hundred, amountScale)
 	}
 	return NewDecimal(0, amountScale)

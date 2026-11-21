@@ -3,6 +3,7 @@ package validate
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/internal/rules"
@@ -143,5 +144,79 @@ func TestCIUSITRoundTrip(t *testing.T) {
 				t.Errorf("%s: profile %s\n%s\n%s", file, r.Profile, r, out)
 			}
 		}
+	}
+}
+
+// TestCIUSITSplitPayment builds a domestic CIUS-IT invoice in split payment
+// (VAT category B) addressed to an Italian public administration, lets
+// Calculate fill in its amounts and writes it in both syntaxes: the results
+// pass every rule, BR-CO-17 and BR-IT-DC-510 included.
+func TestCIUSITSplitPayment(t *testing.T) {
+	d := invoice.MustDecimal
+	address := func(street, number, postCode string) invoice.Address {
+		return invoice.Address{Line1: street, Line2: number, City: "Roma", PostCode: postCode, CountrySubdivision: "RM", CountryCode: "IT"}
+	}
+	inv := &invoice.Invoice{
+		Profile:   invoice.ProfileCIUSIT,
+		Number:    "FT-2026/0057",
+		TypeCode:  "380",
+		IssueDate: invoice.NewDate(2026, time.November, 20),
+		Currency:  "EUR",
+		Seller: invoice.Party{
+			Name:              "Esempio Reti S.r.l.",
+			LegalRegistration: invoice.Identifier{ID: "12345678903", Scheme: "0210"},
+			Address:           address("Via Nazionale", "12", "00184"),
+			ElectronicAddress: invoice.Identifier{ID: "12345678903", Scheme: "0211"},
+			VATID:             "IT12345678903",
+		},
+		Buyer: invoice.Party{
+			Name:              "Comune di Esempio",
+			LegalRegistration: invoice.Identifier{ID: "80012345676", Scheme: "0210"},
+			Address:           address("Piazza del Municipio", "1", "00100"),
+			ElectronicAddress: invoice.Identifier{ID: "UFABCD", Scheme: "0201"},
+		},
+		PaymentMeans: []invoice.PaymentMeans{{TypeCode: invoice.PaymentSEPACreditTransfer, PayeeIBAN: "IT60X0542811101000000123456"}},
+		PaymentTerms: []invoice.PaymentTerms{{
+			Description: "The total is without the VAT amount due to Split payment (ex art.17-ter del DPR 633/1972)",
+			DueDate:     invoice.NewDate(2026, time.December, 20),
+		}},
+		Lines: []invoice.Line{{
+			ID:              "1",
+			Item:            invoice.Item{Name: "Manutenzione della rete"},
+			Quantity:        d("40"),
+			UnitCode:        "HUR",
+			NetPrice:        d("80.00"),
+			VATCategoryCode: invoice.VATSplitPayment,
+			VATRate:         d("22"),
+		}},
+	}
+	inv.Calculate()
+	if tt := inv.Totals; tt.TaxTotal.String() != "704.00" || tt.GrandTotal.String() != "3904.00" || tt.DuePayable.String() != "3904.00" {
+		t.Fatalf("totals: %+v", tt)
+	}
+	ciiData, err := cii.Marshal(inv, &cii.MarshalOptions{Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ublData, err := ublsyntax.Marshal(inv, &ublsyntax.MarshalOptions{Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, out := range [][]byte{ciiData, ublData} {
+		if r := XML(out, nil); r.Profile != invoice.ProfileCIUSIT || len(r.Findings) > 0 {
+			t.Errorf("profile %s\n%s\n%s", r.Profile, r, out)
+		}
+	}
+
+	// Without the mention of split payment in the payment terms, the
+	// invoice breaks BR-IT-DC-510.
+	inv.PaymentTerms[0].Description = "Bonifico a 30 giorni data fattura"
+	ciiData, err = cii.Marshal(inv, &cii.MarshalOptions{Strict: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := XML(ciiData, nil)
+	if f := findings(r, "BR-IT-DC-510"); len(f) != 1 || len(r.Findings) != 1 {
+		t.Errorf("without the mention of split payment:\n%s", r)
 	}
 }
