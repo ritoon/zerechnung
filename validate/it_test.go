@@ -14,6 +14,7 @@ import (
 const (
 	ciusitInvoice    = "../internal/rules/it/testdata/ciusit.xml"     // domestic CIUS-IT, seller in Italy
 	ciusitUBLInvoice = "../internal/rules/it/testdata/ciusit.ubl.xml" // ciusitInvoice in UBL 2.1
+	extitInvoice     = "../internal/rules/it/testdata/extit.ubl.xml"  // ciusitUBLInvoice with the Italian extensions
 )
 
 // TestCIUSIT checks the CIUS-IT invoices of internal/rules/it with every
@@ -89,18 +90,54 @@ func TestRulesForCIUSIT(t *testing.T) {
 	}
 }
 
+// TestEXTIT checks the domestic invoice with the Italian extensions
+// (EXT-IT): no error, only the warnings of the EN 16931 UBL syntax rules
+// (UBL-CR) on the extensions and the UBL elements outside EN 16931 that
+// EXT-IT uses. A broken extension breaks its rule; an extension
+// ScontoMaggiorazione with two discounts breaks the UBL schema, which
+// admits one element in an ext:ExtensionContent.
+func TestEXTIT(t *testing.T) {
+	doc := readXML(t, extitInvoice)
+	r := XML([]byte(doc), &Options{Auto: true})
+	if r.Profile != invoice.ProfileCIUSIT || len(r.Findings) != 16 {
+		t.Errorf("profile %s, %d findings\n%s", r.Profile, len(r.Findings), r)
+	}
+	for _, f := range r.Findings {
+		if f.Severity != Warning || !strings.HasPrefix(f.Rule, "UBL-CR-") {
+			t.Errorf("finding %+v", f)
+		}
+	}
+
+	bad := strings.Replace(doc, "<cbc:TypeCode>TZ</cbc:TypeCode>", "<cbc:TypeCode>XX</cbc:TypeCode>", 1)
+	r = XML([]byte(bad), nil)
+	if f := findings(r, "BR-IT-DE-"); len(f) != 1 || f[0].Rule != "BR-IT-DE-001" || f[0].Severity != Error || f[0].Source != SourceIT ||
+		!strings.HasSuffix(f[0].Path, "/ext:ExtensionContent/cbc:TypeCode") {
+		t.Errorf("SoggettoEmittente XX:\n%s", r)
+	}
+
+	discount := "<cac:AllowanceCharge>\n          <cbc:ChargeIndicator>false</cbc:ChargeIndicator>"
+	if !strings.Contains(doc, discount) {
+		t.Fatal("ScontoMaggiorazione not found")
+	}
+	two := strings.Replace(doc, discount, "<cac:AllowanceCharge><cbc:ChargeIndicator>true</cbc:ChargeIndicator><cbc:Amount currencyID=\"EUR\">5.00</cbc:Amount></cac:AllowanceCharge>"+discount, 1)
+	r = XML([]byte(two), nil)
+	if f := findings(r, "XSD-"); len(f) != 1 || f[0].Rule != "XSD-COUNT" || findings(r, "BR-IT-") != nil {
+		t.Errorf("two discounts in ScontoMaggiorazione:\n%s", r)
+	}
+}
+
 func TestCatalogIT(t *testing.T) {
 	ids := map[string]int{}
 	for _, r := range Catalog(Italy) {
 		ids[r.ID]++
 	}
-	for _, id := range []string{"BR-IT-010", "BR-IT-DC-510", "BR-IT-530", "IT-PROFILE-01", "IT-PIVA-02", "IT-CF-02"} {
+	for _, id := range []string{"BR-IT-010", "BR-IT-DC-510", "BR-IT-530", "BR-IT-DE-001", "BR-IT-DE-052", "IT-PROFILE-01", "IT-PIVA-02", "IT-CF-02"} {
 		if ids[id] != 1 {
 			t.Errorf("Catalog(Italy) lists %s %d times", id, ids[id])
 		}
 	}
-	if len(ids) != 64 {
-		t.Errorf("Catalog(Italy): %d rules, want 64", len(ids))
+	if len(ids) != 109 {
+		t.Errorf("Catalog(Italy): %d rules, want 109", len(ids))
 	}
 	// The Italian national rules of Peppol (IT-R-*) are Peppol rules.
 	for _, r := range Catalog(Default | Peppol | Netherlands) {

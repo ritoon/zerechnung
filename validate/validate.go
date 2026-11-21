@@ -118,7 +118,7 @@ const (
 	ChorusPro                          // French B2G checks for Chorus Pro (CPRO-*), see Options.PublicBuyer
 	Peppol                             // Peppol BIS Billing 3.0 rules (PEPPOL-*) and their national rules (NO, DK, IT, SE, NL; for UBL also GR, IS, DE)
 	Netherlands                        // Dutch rules of NLCIUS (BR-NL), and for UBL the SI-UBL 2.0 version check (SI-V20-INV-R000) and the rules of the G-account extension (BR-GA)
-	Italy                              // Italian rules of the CIUS-IT (BR-IT), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
+	Italy                              // Italian rules of the CIUS-IT (BR-IT) and of its extensions (BR-IT-DE), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
 
 	// Default is the set used when Options.Rules is zero: schema, EN 16931
 	// and profile rules. Whatever the rule sets, the German rules apply to
@@ -270,7 +270,8 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	// schematron, also checked on the UBL document.
 	run(Netherlands, SourceNL, nl.Check)
 	// The CIUS-IT has no schematron of its own: its rules are checked on the
-	// CII view of a UBL invoice, and located in the UBL document.
+	// CII view of a UBL invoice, and located in the UBL document; the rules
+	// of the Italian extensions (BR-IT-DE) read the UBL document itself.
 	run(Italy, SourceIT, it.Check)
 	return r
 }

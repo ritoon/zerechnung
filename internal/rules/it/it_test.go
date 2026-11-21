@@ -1,6 +1,7 @@
 package it
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -17,6 +18,7 @@ import (
 const (
 	ciiBase = "testdata/ciusit.xml"     // domestic CIUS-IT CII invoice without finding
 	ublBase = "testdata/ciusit.ubl.xml" // the same invoice in UBL
+	extBase = "testdata/extit.ubl.xml"  // ublBase with the Italian extensions (EXT-IT)
 )
 
 func load(t testing.TB, name string) string {
@@ -116,6 +118,8 @@ const (
 	spec        = "urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:2.0.0#conformant#urn:fatturapa.gov.it:EXT-IT:1.0.0"
 	sellerIT    = "<ram:CountryID>IT</ram:CountryID>"
 	exemption   = "<ram:TypeCode>VAT</ram:TypeCode>\n        <ram:BasisAmount>998.00</ram:BasisAmount>"
+	orderDoc    = "<ram:BuyerOrderReferencedDocument>\n        <ram:IssuerAssignedID>ORD-2026-17</ram:IssuerAssignedID>\n      </ram:BuyerOrderReferencedDocument>"
+	orderLine   = "<ram:LineID>1</ram:LineID>\n        </ram:BuyerOrderReferencedDocument>"
 )
 
 // cases lists, for each rule of Catalog, mutations of the base invoice that
@@ -227,10 +231,21 @@ var cases = []struct {
 	{"IT-CF-01", []edit{rep(buyerLegal, `<ram:ID schemeID="0210">RSSMRA85Z10A562S</ram:ID>`)}, []string{"IT-CF-01"}, false},
 	{"IT-CF-01 identifier", []edit{before(sellerName, `<ram:GlobalID schemeID="0210">ABC</ram:GlobalID>`)}, []string{"IT-CF-01"}, false},
 	{"IT-CF-02 tax registration", []edit{rep(`<ram:ID schemeID="VA">IT12345678903</ram:ID>`, `<ram:ID schemeID="VA">IT12345678903</ram:ID></ram:SpecifiedTaxRegistration><ram:SpecifiedTaxRegistration><ram:ID schemeID="FC">RSSMRA85T10A562T</ram:ID>`)}, []string{"IT-CF-02"}, false},
+	{"BR-IT-DE-052", []edit{remove(orderDoc)}, []string{"BR-IT-DE-052"}, false},
+	{"BR-IT-DE-052 order in the line", []edit{remove(orderDoc), rep(orderLine, "<ram:LineID>1</ram:LineID><ram:IssuerAssignedID>ORD-2026-17</ram:IssuerAssignedID></ram:BuyerOrderReferencedDocument>")}, nil, true},
+	{"BR-IT-DE-052 cross-border", []edit{remove(orderDoc), rep(spec, invoice.URNCIUSIT), rep(sellerIT, "<ram:CountryID>FR</ram:CountryID>"), rep("IT12345678903", "FR32123456789"), rep("0612345678", "06")}, nil, false},
+}
+
+// ublWant lists the rules expected on the UBL conversion of a case when
+// they differ from those on the CII invoice: the UBL syntax carries the
+// Italian extensions, whose rules (BR-IT-DE-*) apply to it only.
+var ublWant = map[string][]string{
+	// BT-16 has no date: BR-IT-DE-016 requires one in UBL.
+	"BR-IT-060": {"BR-IT-060", "BR-IT-DE-016"},
 }
 
 func TestValid(t *testing.T) {
-	for _, name := range []string{ciiBase, ublBase} {
+	for _, name := range []string{ciiBase, ublBase, extBase} {
 		if r := run(t, []byte(load(t, name))); len(r.Findings) > 0 {
 			t.Errorf("%s:\n%s", name, r)
 		}
@@ -254,9 +269,13 @@ func TestRules(t *testing.T) {
 			if tc.ciiOnly {
 				return
 			}
+			want, ok := ublWant[tc.name]
+			if !ok {
+				want = tc.want
+			}
 			r = run(t, toUBL(t, doc))
-			if got := r.Rules(); !slices.Equal(got, tc.want) {
-				t.Errorf("UBL: rules %v, want %v\n%s", got, tc.want, r)
+			if got := r.Rules(); !slices.Equal(got, want) {
+				t.Errorf("UBL: rules %v, want %v\n%s", got, want, r)
 			}
 			for _, f := range r.Findings {
 				if !strings.HasPrefix(f.Path, "/Invoice") {
@@ -268,7 +287,7 @@ func TestRules(t *testing.T) {
 }
 
 // TestCatalog checks that every rule of Catalog is tested, and that Catalog
-// and the rules left out cover appendix 2 of the technical rules.
+// and the rules left out cover appendices 2 and 3 of the technical rules.
 func TestCatalog(t *testing.T) {
 	tested := map[string]bool{}
 	for _, tc := range cases {
@@ -276,7 +295,12 @@ func TestCatalog(t *testing.T) {
 			tested[r] = true
 		}
 	}
-	var ids []string
+	for _, tc := range extCases {
+		for _, r := range tc.want {
+			tested[r] = true
+		}
+	}
+	var ids, ext []string
 	for _, r := range Catalog {
 		if !tested[r.ID] {
 			t.Errorf("%s: no test case", r.ID)
@@ -284,7 +308,10 @@ func TestCatalog(t *testing.T) {
 		if r.Description == "" || r.Severity != rules.Error && r.Severity != rules.Warning {
 			t.Errorf("%s: %+v", r.ID, r)
 		}
-		if strings.HasPrefix(r.ID, "BR-IT-") {
+		switch {
+		case strings.HasPrefix(r.ID, "BR-IT-DE-"):
+			ext = append(ext, r.ID)
+		case strings.HasPrefix(r.ID, "BR-IT-"):
 			ids = append(ids, r.ID)
 		}
 	}
@@ -303,6 +330,15 @@ func TestCatalog(t *testing.T) {
 	slices.Sort(appendix2)
 	if len(appendix2) != 61 || !slices.Equal(ids, appendix2) {
 		t.Errorf("Catalog and the rules left out: %v\nappendix 2: %v", ids, appendix2)
+	}
+	// The 45 rules of appendix 3, technical rules 2.7, in their order.
+	var appendix3 []string
+	for i := 1; i <= 42; i++ {
+		appendix3 = append(appendix3, fmt.Sprintf("BR-IT-DE-%03d", i))
+	}
+	appendix3 = append(appendix3, "BR-IT-DE-050", "BR-IT-DE-051", "BR-IT-DE-052")
+	if !slices.Equal(ext, appendix3) {
+		t.Errorf("Catalog: %v\nappendix 3: %v", ext, appendix3)
 	}
 }
 
