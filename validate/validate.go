@@ -121,7 +121,10 @@ const (
 
 // Options tune a validation. The zero value is ready to use.
 type Options struct {
-	// Profile overrides the profile read from BT-24.
+	// Profile overrides the profile read from BT-24. When BT-24 names an
+	// edition of EN 16931-1 that the package does not support, such as
+	// EN 16931-1:2026, the rules (which implement EN 16931-1:2017) only
+	// apply if Profile is set; EN16931-EDITION-01 is reported in any case.
 	Profile invoice.Profile
 	// Rules selects the rule sets; zero means Default. The German rules for
 	// an XRECHNUNG invoice, the Peppol rules for a Peppol invoice, the
@@ -209,6 +212,9 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 		return r
 	}
 	r.Profile = doc.Profile
+	if checkEdition(doc, opts, r) {
+		return r
+	}
 	set := RulesFor(doc, opts)
 	isUBL := doc.UBL != nil
 	run := func(s RuleSet, source string, check func(*rules.Checker)) {
@@ -298,6 +304,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	}
 	add(Schema, schema.Catalog)
 	add(Schema, zugferd1Catalog)
+	add(EN16931, editionCatalog)
 	add(EN16931, en16931.Catalog)
 	add(EN16931, newRules(en16931.CTCFRCatalog, en16931.Catalog))
 	add(EN16931, ubl.Catalog)

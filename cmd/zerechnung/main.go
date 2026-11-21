@@ -160,7 +160,11 @@ func info(args []string) error {
 	if inv == nil {
 		return err
 	}
-	fmt.Fprintf(w, "Profile (BT-24):    %s\n", inv.Profile)
+	if e := invoice.EditionOf(inv.SpecificationID); !e.Supported() {
+		fmt.Fprintf(w, "Profile (BT-24):    %s, %s (edition not supported)\n", inv.Profile, e)
+	} else {
+		fmt.Fprintf(w, "Profile (BT-24):    %s\n", inv.Profile)
+	}
 	fmt.Fprintf(w, "Invoice:            %s, type %s, issued %s\n", inv.Number, inv.TypeCode, inv.IssueDate)
 	fmt.Fprintf(w, "Seller:             %s (%s)\n", inv.Seller.Name, inv.Seller.Address.CountryCode)
 	fmt.Fprintf(w, "Buyer:              %s (%s)\n", inv.Buyer.Name, inv.Buyer.Address.CountryCode)
