@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="{{.Lang.Code}}">
+<head>
+{{template "head" .}}
+<script src="{{.Asset "site.js"}}" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">{{.T.skip}}</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="./">{{template "boat"}}<span>ZeRechnung</span></a>
+    <nav class="nav" aria-label="{{.P.nav_label}}">
+      <a href="#features">{{.T.nav_features}}</a>
+      <a href="#formats">{{.T.nav_formats}}</a>
+      <a href="#accuracy">{{.T.nav_accuracy}}</a>
+      <a href="#start">{{.T.nav_start}}</a>
+    </nav>
+    <details class="lang">
+      <summary>{{template "icon-globe"}}<span class="sr">{{.T.lang_label}}:</span> <span>{{.Lang.Name}}</span></summary>
+      <ul style="--rows: {{.MenuRows}}">{{template "langlist" .}}</ul>
+    </details>
+    <a class="gh" href="{{.Repo}}" aria-label="GitHub">{{template "icon-github"}}</a>
+  </div>
+</header>
+
+{{if not .Lang.Reviewed}}<div class="notice" role="note">
+  <div class="wrap">{{.T.review_notice}} <a href="{{.EditURL .Lang}}">{{.T.review_link}}</a></div>
+</div>
+{{end}}
+<main id="main">
+  <section class="hero">
+    <div class="wrap hero-in">
+      <div class="hero-text">
+        <p class="kicker">{{.T.hero_kicker}}</p>
+        <h1>{{.T.hero_title}}</h1>
+        <p class="lead">{{.T.hero_lead}}</p>
+        <div class="install">
+          <pre><code>go get github.com/ritoon/zerechnung</code></pre>
+          <button class="copy" type="button" data-copy data-done="{{.P.copied}}" hidden>{{.T.copy}}</button>
+        </div>
+        <div class="cta">
+          <a class="btn primary" href="#start">{{.T.hero_cta_start}}</a>
+          <a class="btn" href="{{.Repo}}">{{template "icon-github"}}{{.T.hero_cta_github}}</a>
+        </div>
+        <p class="status">{{.T.hero_status}}</p>
+      </div>
+      <figure class="hero-art">
+        <img src="{{.Asset "gopher.webp"}}" width="720" height="679" alt="{{.P.gopher_alt}}" fetchpriority="high">
+      </figure>
+    </div>
+  </section>
+
+  <section id="features" class="alt">
+    <div class="wrap">
+      <h2>{{.T.features_title}}</h2>
+      <p class="section-lead">{{.T.features_lead}}</p>
+      <div class="cards">
+        <article class="card"><div class="icon">{{template "icon-create"}}</div><h3>{{.T.f_create_title}}</h3><p>{{.T.f_create_text}}</p></article>
+        <article class="card"><div class="icon">{{template "icon-read"}}</div><h3>{{.T.f_read_title}}</h3><p>{{.T.f_read_text}}</p></article>
+        <article class="card"><div class="icon">{{template "icon-validate"}}</div><h3>{{.T.f_validate_title}}</h3><p>{{.T.f_validate_text}}</p></article>
+        <article class="card"><div class="icon">{{template "icon-convert"}}</div><h3>{{.T.f_convert_title}}</h3><p>{{.T.f_convert_text}}</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <h2>{{.T.why_title}}</h2>
+      <ul class="why">
+        <li><span class="tick">{{template "icon-check"}}</span><h3>{{.T.w_pure_title}}</h3><p>{{.T.w_pure_text}}</p></li>
+        <li><span class="tick">{{template "icon-check"}}</span><h3>{{.T.w_accurate_title}}</h3><p>{{.T.w_accurate_text}}</p></li>
+        <li><span class="tick">{{template "icon-check"}}</span><h3>{{.T.w_fast_title}}</h3><p>{{.T.w_fast_text}}</p></li>
+        <li><span class="tick">{{template "icon-check"}}</span><h3>{{.T.w_intact_title}}</h3><p>{{.T.w_intact_text}}</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="formats" class="alt">
+    <div class="wrap">
+      <h2>{{.T.formats_title}}</h2>
+      <p class="section-lead">{{.T.formats_lead}}</p>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="{{.P.formats_title}}">
+        <table>
+          <thead>
+            <tr><th scope="col">{{.T.th_format}}</th><th scope="col">{{.T.th_countries}}</th><th scope="col" class="c">{{.T.th_read}}</th><th scope="col" class="c">{{.T.th_write}}</th><th scope="col" class="c">{{.T.th_validate}}</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><span class="fmt">Factur-X 1.0x / ZUGFeRD 2.x</span><span class="fmt-note">CII · {{.T.fmt_facturx_note}}</span></th><td><span class="cc">FR</span><span class="cc">DE</span></td>{{template "yes" .}}{{template "yes" .}}{{template "yes" .}}</tr>
+            <tr><th scope="row"><span class="fmt">XRechnung 3.0</span><span class="fmt-note">CII · UBL</span></th><td><span class="cc">DE</span></td>{{template "yes" .}}{{template "yes" .}}{{template "yes" .}}</tr>
+            <tr><th scope="row"><span class="fmt">Peppol BIS Billing 3.0</span><span class="fmt-note">CII · UBL</span></th><td><span class="cc">EU</span></td>{{template "yes" .}}{{template "yes" .}}{{template "yes" .}}</tr>
+            <tr><th scope="row"><span class="fmt">NLCIUS</span><span class="fmt-note">CII · UBL</span></th><td><span class="cc">NL</span></td>{{template "yes" .}}{{template "yes" .}}{{template "yes" .}}</tr>
+            <tr><th scope="row"><span class="fmt">CIUS-IT</span><span class="fmt-note">CII · UBL</span></th><td><span class="cc">IT</span></td>{{template "yes" .}}{{template "yes" .}}{{template "yes" .}}</tr>
+            <tr><th scope="row"><span class="fmt">UBL 2.1</span><span class="fmt-note">Invoice · CreditNote · EN 16931</span></th><td><span class="cc">EU</span></td>{{template "yes" .}}{{template "yes" .}}{{template "yes" .}}</tr>
+            <tr><th scope="row"><span class="fmt">FatturaPA 1.2</span><span class="fmt-note">FPA12 · FPR12</span></th><td><span class="cc">IT</span></td>{{template "yes" .}}{{template "yes" .}}<td class="c partial">{{.T.fmt_via_cii}}</td></tr>
+            <tr><th scope="row"><span class="fmt">ZUGFeRD 1.0</span><span class="fmt-note">CII</span></th><td><span class="cc">DE</span></td>{{template "yes" .}}<td class="c partial">{{.T.fmt_as_facturx}}</td><td class="c partial">{{.T.fmt_minimal}}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="accuracy">
+    <div class="wrap">
+      <h2>{{.T.accuracy_title}}</h2>
+      <p class="section-lead">{{.T.accuracy_lead}}</p>
+      <div class="stats">
+        <div class="stat"><p class="stat-num">128 <small>/ 128</small></p><p class="stat-tool">KoSIT</p><p>{{.T.acc_kosit}}</p></div>
+        <div class="stat"><p class="stat-num">241 <small>/ 282</small></p><p class="stat-tool">Mustang</p><p>{{.T.acc_mustang}}</p></div>
+        <div class="stat"><p class="stat-num">283 <small>/ 290</small></p><p class="stat-tool">NPa</p><p>{{.T.acc_npa}}</p></div>
+        <div class="stat"><p class="stat-num">609 <small>/ 614</small></p><p class="stat-tool">veraPDF</p><p>{{.T.acc_verapdf}}</p></div>
+      </div>
+      <p><a href="{{.Repo}}/wiki/Coverage-and-accuracy">{{.T.accuracy_link}}</a></p>
+    </div>
+  </section>
+
+  <section id="start" class="alt">
+    <div class="wrap">
+      <h2>{{.T.start_title}}</h2>
+      <ol class="steps">
+        <li>
+          <p>{{.T.start_install}}</p>
+          <div class="code"><div class="code-head"><span>Shell</span><button class="copy" type="button" data-copy data-done="{{.P.copied}}" hidden>{{.T.copy}}</button></div>
+<pre><code>go get github.com/ritoon/zerechnung</code></pre></div>
+        </li>
+        <li>
+          <p>{{.T.start_create}}</p>
+          <div class="code"><div class="code-head"><span>Go</span><button class="copy" type="button" data-copy data-done="{{.P.copied}}" hidden>{{.T.copy}}</button></div>
+<pre><code>pdf, err := zerechnung.Create(host, inv, &amp;zerechnung.CreateOptions{
+	Calculate: <span class="k">true</span>,                <span class="cm">// totals and VAT breakdown</span>
+	Validate:  &amp;validate.Options{}, <span class="cm">// refuse an invalid invoice</span>
+})</code></pre></div>
+        </li>
+        <li>
+          <p>{{.T.start_validate}}</p>
+          <div class="code"><div class="code-head"><span>Go</span><button class="copy" type="button" data-copy data-done="{{.P.copied}}" hidden>{{.T.copy}}</button></div>
+<pre><code>report, _, err := zerechnung.Check(pdf, &amp;validate.Options{Auto: <span class="k">true</span>})
+<span class="k">if</span> err != <span class="k">nil</span> {
+	log.Fatal(err)
+}
+<span class="k">for</span> _, f := <span class="k">range</span> report.Errors() {
+	fmt.Println(f)
+}</code></pre></div>
+        </li>
+        <li>
+          <p>{{.T.start_cli}}</p>
+          <div class="code"><div class="code-head"><span>Shell</span><button class="copy" type="button" data-copy data-done="{{.P.copied}}" hidden>{{.T.copy}}</button></div>
+<pre><code>go install github.com/ritoon/zerechnung/cmd/zerechnung@latest
+zerechnung validate -auto invoice.pdf</code></pre></div>
+        </li>
+      </ol>
+      <div class="links">
+        <a class="btn" href="{{.Repo}}#readme">{{.T.link_readme}}</a>
+        <a class="btn" href="https://pkg.go.dev/github.com/ritoon/zerechnung">{{.T.link_api}}</a>
+        <a class="btn" href="{{.Repo}}/wiki">{{.T.link_wiki}}</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="open">
+    <div class="wrap open">
+      <div>
+        <h2>{{.T.open_title}}</h2>
+        <p>{{.T.open_text}}</p>
+        <p><a class="btn" href="{{.Repo}}/issues/new/choose">{{.T.open_issues}}</a></p>
+      </div>
+      <div class="translate">
+        {{template "icon-globe"}}
+        <p>{{.T.translate_text}} <a href="{{.EditURL .Lang}}">{{.T.translate_link}}</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <p>ZeRechnung · {{.T.footer_license}}</p>
+    <nav aria-label="ZeRechnung">
+      <a href="{{.Repo}}">GitHub</a>
+      <a href="https://pkg.go.dev/github.com/ritoon/zerechnung">pkg.go.dev</a>
+      <a href="{{.Repo}}/wiki">Wiki</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
