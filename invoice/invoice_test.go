@@ -267,3 +267,50 @@ func TestCalculateWithoutLines(t *testing.T) {
 		t.Errorf("totals: %+v", inv.Totals)
 	}
 }
+
+// TestCalculateSplitPayment checks the VAT category B (Italian split
+// payment): the buyer pays the VAT to the treasury, but the invoice states
+// it and counts it in its totals like the standard rate (BR-CO-17, BR-CO-15,
+// BR-CO-16; EN 16931 has no other rule for it than BR-B-01 and BR-B-02).
+func TestCalculateSplitPayment(t *testing.T) {
+	d := MustDecimal
+	inv := &Invoice{
+		Profile: ProfileCIUSIT,
+		Lines: []Line{
+			{ID: "1", Quantity: d("40"), UnitCode: "HUR", NetPrice: d("80.00"), VATCategoryCode: VATSplitPayment, VATRate: d("22")},
+		},
+	}
+	inv.Calculate()
+	tt := inv.Totals
+	for name, c := range map[string][2]string{
+		"BT-106": {tt.LineTotal.String(), "3200.00"},
+		"BT-109": {tt.TaxBasisTotal.String(), "3200.00"},
+		"BT-110": {tt.TaxTotal.String(), "704.00"},
+		"BT-112": {tt.GrandTotal.String(), "3904.00"},
+		"BT-115": {tt.DuePayable.String(), "3904.00"},
+	} {
+		if c[0] != c[1] {
+			t.Errorf("%s = %s, want %s", name, c[0], c[1])
+		}
+	}
+	if len(inv.VATBreakdown) != 1 {
+		t.Fatalf("VAT breakdown has %d entries: %+v", len(inv.VATBreakdown), inv.VATBreakdown)
+	}
+	if b := inv.VATBreakdown[0]; b.CategoryCode != VATSplitPayment || b.Rate.String() != "22" ||
+		b.TaxableAmount.String() != "3200.00" || b.TaxAmount.String() != "704.00" {
+		t.Errorf("breakdown = %s %s %s %s, want B 22 3200.00 704.00", b.CategoryCode, b.Rate, b.TaxableAmount, b.TaxAmount)
+	}
+
+	// Without lines, the missing tax amount of a summary in split payment
+	// is computed too: 1040.00 at 22 % is 228.80, as in the FatturaPA
+	// sample fatturapa/testdata/fpa12.xml.
+	inv = &Invoice{
+		Profile:      ProfileCIUSIT,
+		VATBreakdown: []VATBreakdown{{CategoryCode: VATSplitPayment, Rate: d("22"), TaxableAmount: d("1040.00")}},
+	}
+	inv.Calculate()
+	if inv.VATBreakdown[0].TaxAmount.String() != "228.80" || inv.Totals.TaxTotal.String() != "228.80" ||
+		inv.Totals.GrandTotal.String() != "1268.80" || inv.Totals.DuePayable.String() != "1268.80" {
+		t.Errorf("without lines: breakdown %+v, totals %+v", inv.VATBreakdown, inv.Totals)
+	}
+}
