@@ -353,10 +353,14 @@ func TestNationalData(t *testing.T) {
 	if !errors.As(err, &ce) || !reflect.DeepEqual(ce.Terms, want) {
 		t.Errorf("cii.Marshal: %v", err)
 	}
+	// A domestic invoice in UBL carries the intermediary, the issuer and
+	// the withholdings in the Italian extensions (EXT-IT).
 	_, err = ubl.Marshal(inv, &ubl.MarshalOptions{Strict: true})
 	var ue *ubl.LossError
-	if !errors.As(err, &ue) || !reflect.DeepEqual(ue.Terms, want) {
-		t.Errorf("ubl.Marshal: %v", err)
+	inUBL := []string{"EXT Italy.Intermediary", "EXT Italy.Issuer", "EXT Italy.Withholdings"}
+	lost := slices.DeleteFunc(slices.Clone(want), func(term string) bool { return slices.Contains(inUBL, term) })
+	if !errors.As(err, &ue) || !reflect.DeepEqual(ue.Terms, lost) {
+		t.Errorf("ubl.Marshal: %v, want the loss of %q", err, lost)
 	}
 	inv.Italy, inv.Seller.Italy, inv.Lines[0].Italy, inv.VATBreakdown[0].Italy = nil, nil, nil, nil
 	inv.PaymentMeans[0].Italy, inv.AllowancesCharges[0].Italy = nil, nil

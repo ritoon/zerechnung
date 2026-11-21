@@ -82,6 +82,27 @@ func IsUBL(root *xmltree.Node) bool { return checkRoot(root) == nil }
 // PaymentTerms.PaymentMeansID and PartialAmount. In other invoices they are
 // kept as extensions.
 //
+// When the specification identifier declares the Italian extension of the
+// domestic invoice (see invoice.ItalianExtension), the UBL extensions and
+// elements that appendix 4.2 of the Italian technical rules adds to the
+// binding are read into the national blocks, as package fatturapa would read
+// the FatturaPA data they carry (see invoice.Italy): the seven extensions of
+// EXT-IT (urn:fdc:agid.gov.it:fatturapa:SistemaEmittente, SoggettoEmittente,
+// TipoDocumento, TipoRitenuta, Art73, RiepilogoIVA:Arrotondamento and
+// ScontoMaggiorazione, possibly followed by "::" and the ordinal of the
+// withholding, VAT breakdown or discount), the dates of the purchase order
+// and of the dispatch advice, the main invoice
+// (cac:BillingReference/cac:AdditionalDocumentReference), the tax regime
+// (cbc:TaxLevelCode), permanent establishment (cac:AgentParty) and
+// third-party intermediary (cac:ServiceProviderParty) of the seller, the tax
+// code of the tax representative, the carrier, pickup and shipment of the
+// delivery, the delivery terms, the withholdings (cac:WithholdingTaxTotal),
+// the discount for early payment and the penalty for late payment, and the
+// order and dispatch advice references of each line. A document type that
+// BT-3 implies, the tax regime RF01 and the identifiers NA that the
+// technical rules give to identifiers FatturaPA lacks are not kept. In
+// other invoices these elements are kept as extensions.
+//
 // Nothing is dropped: the elements and attributes outside the binding are kept
 // as extensions (see invoice.Extension) in the Extensions field of the value
 // that encloses them, with paths made of the conventional cac, cbc and ext
@@ -171,6 +192,10 @@ type reader struct {
 	inv    *invoice.Invoice
 	issues []Issue
 	credit bool // the document is a CreditNote
+	// extIT is set when the specification identifier declares the Italian
+	// extension (EXT-IT): the elements of the domestic invoice are read into
+	// the national blocks (see italy.go).
+	extIT bool
 
 	ext  *[]invoice.Extension
 	path []string
@@ -184,6 +209,8 @@ type reader struct {
 	dueDate invoice.Date
 	terms   []invoice.PaymentTerms
 	mandate string
+
+	orderDate invoice.Date // date of the purchase order (BT-13) under EXT-IT
 
 	buf []byte
 }
@@ -466,9 +493,16 @@ func splitNote(s string) (code, content string) {
 func (r *reader) document(root *xmltree.Node) {
 	inv := r.inv
 	r.cur, r.taxCur = textOf(child(root, "DocumentCurrencyCode")), textOf(child(root, "TaxCurrencyCode"))
+	r.extIT = strings.Contains(textOf(child(root, "CustomizationID")), invoice.ItalianExtension)
 	h := r.hold(root, &inv.Extensions)
 	var period, delivery bool
+	var extensions *xmltree.Node // ext:UBLExtensions, read last under EXT-IT
+	extAt := 0
 	for _, c := range root.Children {
+		if r.extIT && extensions == nil && c.Space == NamespaceEXT && c.Name == "UBLExtensions" {
+			extensions, extAt = c, len(inv.Extensions)
+			continue
+		}
 		if c.Space != NamespaceCBC && c.Space != NamespaceCAC {
 			r.unread(c)
 			continue
@@ -531,7 +565,7 @@ func (r *reader) document(root *xmltree.Node) {
 		case "BillingReference":
 			r.billingReference(c)
 		case "DespatchDocumentReference":
-			r.docID(c, &inv.DespatchAdviceReference)
+			r.despatchDocument(c)
 		case "ReceiptDocumentReference":
 			r.docID(c, &inv.ReceivingAdviceReference)
 		case "ContractDocumentReference":
@@ -575,6 +609,10 @@ func (r *reader) document(root *xmltree.Node) {
 			}
 			delivery = true
 			r.delivery(c)
+		case "DeliveryTerms":
+			if !r.extIT || !r.deliveryTerms(c) {
+				r.unread(c)
+			}
 		case "PaymentMeans":
 			r.paymentMeans(c)
 		case "PaymentTerms":
@@ -583,6 +621,12 @@ func (r *reader) document(root *xmltree.Node) {
 			inv.AllowancesCharges = append(inv.AllowancesCharges, r.allowanceCharge(c, true))
 		case "TaxTotal":
 			r.taxTotal(c)
+		case "WithholdingTaxTotal":
+			if !r.extIT {
+				r.unread(c)
+				continue
+			}
+			r.withholdingTaxTotal(c)
 		case "LegalMonetaryTotal":
 			r.totals(c)
 		case "InvoiceLine", "CreditNoteLine":
@@ -596,8 +640,14 @@ func (r *reader) document(root *xmltree.Node) {
 			r.unread(c)
 		}
 	}
+	if extensions != nil {
+		r.italianExtensions(extensions, extAt)
+	}
 	r.release(h)
 	r.finishTerms()
+	if r.extIT {
+		r.finishItaly()
+	}
 	inv.Profile = invoice.DetectProfile(inv.SpecificationID)
 }
 
@@ -652,6 +702,8 @@ func (r *reader) orderReference(n *xmltree.Node) {
 			inv.PurchaseOrderReference = r.text(c)
 		case c.Name == "SalesOrderID" && inv.SalesOrderReference == "":
 			inv.SalesOrderReference = r.text(c)
+		case c.Name == "IssueDate" && r.extIT && r.orderDate.IsZero():
+			r.orderDate = r.date(c)
 		default:
 			r.unread(c)
 		}
@@ -680,6 +732,9 @@ func (r *reader) docID(n *xmltree.Node, dst *string) {
 func (r *reader) billingReference(n *xmltree.Node) {
 	r.enter(n)
 	for _, c := range n.Children {
+		if c.Name == "AdditionalDocumentReference" && r.extIT && r.mainInvoice(c) {
+			continue
+		}
 		if c.Name != "InvoiceDocumentReference" {
 			r.unread(c)
 			continue
@@ -848,7 +903,7 @@ func (r *reader) party(n *xmltree.Node, p *invoice.Party, ro role) {
 			addrDone = true
 			p.Address = r.address(c)
 		case "PartyTaxScheme":
-			r.partyTaxScheme(c, p)
+			r.partyTaxScheme(c, p, ro == roleSeller && r.extIT)
 		case "PartyLegalEntity":
 			if legalDone {
 				r.unread(c)
@@ -863,6 +918,14 @@ func (r *reader) party(n *xmltree.Node, p *invoice.Party, ro role) {
 			}
 			contactDone = true
 			p.Contact = r.contact(c)
+		case "AgentParty":
+			if ro != roleSeller || !r.extIT || !r.establishment(c, p) {
+				r.unread(c)
+			}
+		case "ServiceProviderParty":
+			if ro != roleSeller || !r.extIT || !r.intermediary(c) {
+				r.unread(c)
+			}
 		default:
 			r.unread(c)
 		}
@@ -872,7 +935,9 @@ func (r *reader) party(n *xmltree.Node, p *invoice.Party, ro role) {
 
 // partyIdentification reads a party identifier (BT-29, BT-46, BT-60). The
 // SEPA identifier of the seller or the payee is the bank assigned creditor
-// identifier (BT-90).
+// identifier (BT-90). Under EXT-IT, the tax code (scheme 0210) of the tax
+// representative is its legal registration identifier, as package fatturapa
+// reads it.
 func (r *reader) partyIdentification(n *xmltree.Node, p *invoice.Party, ro role) {
 	r.enter(n)
 	done := false
@@ -887,12 +952,19 @@ func (r *reader) partyIdentification(n *xmltree.Node, p *invoice.Party, ro role)
 			r.inv.CreditorReferenceID = id.ID
 			continue
 		}
+		if ro == roleTaxRep && r.extIT && id.Scheme == schemeCF && p.LegalRegistration.IsZero() {
+			p.LegalRegistration = id
+			continue
+		}
 		p.IDs = append(p.IDs, id)
 	}
 	r.leave()
 }
 
-func (r *reader) partyTaxScheme(n *xmltree.Node, p *invoice.Party) {
+// partyTaxScheme reads a cac:PartyTaxScheme; with regime, the tax level code
+// of the VAT scheme is the tax regime of the seller (RegimeFiscale), RF01,
+// the ordinary regime, being implied as package fatturapa implies it.
+func (r *reader) partyTaxScheme(n *xmltree.Node, p *invoice.Party, regime bool) {
 	scheme := child(n, "TaxScheme")
 	vat := isVAT(scheme)
 	dst := &p.VATID
@@ -904,12 +976,17 @@ func (r *reader) partyTaxScheme(n *xmltree.Node, p *invoice.Party) {
 		return
 	}
 	r.enter(n)
-	var idDone, schemeDone bool
+	var idDone, schemeDone, levelDone bool
 	for _, c := range n.Children {
 		switch {
 		case c.Name == "CompanyID" && !idDone:
 			idDone = true
 			*dst = r.text(c)
+		case c.Name == "TaxLevelCode" && vat && regime && !levelDone:
+			levelDone = true
+			if s := r.text(c); s != "" && s != "RF01" {
+				partyItaly(p).TaxRegime = s
+			}
 		case c == scheme && !schemeDone:
 			schemeDone = true
 			// FC, the scheme of a tax registration in CII, is the one
@@ -1014,14 +1091,24 @@ func (r *reader) address(n *xmltree.Node) invoice.Address {
 }
 
 // delivery reads cac:Delivery: the actual delivery date (BT-72) and the
-// deliver-to party (BG-13).
+// deliver-to party (BG-13), and under EXT-IT the carrier, the pickup and
+// the shipment (DatiTrasporto).
 func (r *reader) delivery(n *xmltree.Node) {
 	inv := r.inv
 	ship := new(invoice.Party)
 	r.enter(n)
-	var locDone, partyDone bool
+	var locDone, partyDone, carrierDone, despatchDone, shipmentDone bool
 	for _, c := range n.Children {
 		switch {
+		case c.Name == "CarrierParty" && r.extIT && !carrierDone:
+			carrierDone = true
+			r.carrier(c)
+		case c.Name == "Despatch" && r.extIT && !despatchDone:
+			despatchDone = true
+			r.despatch(c)
+		case c.Name == "Shipment" && r.extIT && !shipmentDone:
+			shipmentDone = true
+			r.shipment(c)
 		case c.Name == "ActualDeliveryDate" && inv.DeliveryDate.IsZero():
 			inv.DeliveryDate = r.date(c)
 		case c.Name == "DeliveryLocation" && !locDone:
@@ -1193,6 +1280,7 @@ func (r *reader) paymentTerms(n *xmltree.Node) {
 		case c.Name == "Amount" && !amountDone && gaccount:
 			amountDone = true
 			t.PartialAmount = r.decimal(c)
+		case r.earlyPayment(c):
 		default:
 			r.unread(c)
 		}
@@ -1418,15 +1506,11 @@ func (r *reader) line(n *xmltree.Node, l *invoice.Line) {
 				continue
 			}
 			orderDone = true
-			r.enter(c)
-			for _, k := range c.Children {
-				if k.Name == "LineID" && l.OrderLineReference == "" {
-					l.OrderLineReference = r.text(k)
-					continue
-				}
-				r.unread(k)
+			r.orderLine(c, l)
+		case "DespatchLineReference":
+			if !r.extIT || !r.despatchLine(c, l) {
+				r.unread(c)
 			}
-			r.leave()
 		case "DocumentReference":
 			// The binding uses the line document reference for the invoice
 			// line object identifier (BT-128) only, with the type code 130

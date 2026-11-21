@@ -11,8 +11,10 @@ import (
 // of the model do not carry. It is the national block of the invoice;
 // Party.Italy, Line.Italy, VATBreakdown.Italy, PaymentMeans.Italy and
 // AllowanceCharge.Italy hold the FatturaPA data of these values. Package
-// fatturapa reads and writes these blocks; packages cii and ubl do not carry
-// them (see NationalData).
+// fatturapa reads and writes these blocks. Package ubl carries the part that
+// the Italian extension of the domestic invoice binds to UBL (EXT-IT, see
+// ItalianExtension and ubl.Marshal); package cii does not carry them (see
+// NationalData).
 //
 // The FatturaPA data that EN 16931 carries goes to the other fields of the
 // model, as appendix 4 of the Italian technical rules (Regole tecniche, art.
@@ -420,7 +422,8 @@ func SplitItalianName(name string) (given, family string, ok bool) {
 // Line.Italy…, Spain, Party.Spain…) as "EXT <value>.<Field>" terms relative
 // to the invoice ("EXT Italy.Withholdings", "EXT Lines[0].Italy.Discounts",
 // "EXT Spain.Withholdings"): EN 16931 cannot carry it, and packages cii and
-// ubl report it as lost in strict mode.
+// ubl report it as lost in strict mode, but for the part that package ubl
+// writes in a domestic Italian invoice (EXT-IT).
 func (inv *Invoice) NationalData() []string {
 	var out []string
 	add := func(prefix string, v any) {

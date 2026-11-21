@@ -12,7 +12,9 @@
 // CIUS-IT, and the rest to the national blocks of the model (see
 // invoice.Italy): the invoice read has the CIUS-IT profile, and cii.Marshal
 // or ubl.Marshal write it as a CIUS-IT invoice, reporting the national data
-// as lost in strict mode. Reading is tolerant: any namespace prefix is
+// as lost in strict mode. ubl.Marshal writes the invoice of a seller in
+// Italy as a domestic invoice, with the part of the national data that the
+// Italian extensions (EXT-IT) carry, which ubl.Parse reads back. Reading is tolerant: any namespace prefix is
 // accepted (the namespace of the root element is checked), values are
 // trimmed, elements are recognized in any order, a value that cannot be
 // read is reported as an Issue while the rest of the document is still read,
