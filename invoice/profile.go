@@ -10,9 +10,10 @@ import (
 type Profile int
 
 // Profiles, from the smallest to the largest data set. XRECHNUNG, PEPPOL
-// (Peppol BIS Billing 3.0) and NLCIUS (the Dutch CIUS, SI-UBL 2.0 in UBL)
-// are CIUS of EN 16931 and sit at its level; EXTENDED-CTC-FR is the French
-// subset of EXTENDED.
+// (Peppol BIS Billing 3.0), NLCIUS (the Dutch CIUS, SI-UBL 2.0 in UBL) and
+// CIUS-IT (the Italian CIUS, for invoices to Italian public administrations
+// through the SDI) are CIUS of EN 16931 and sit at its level;
+// EXTENDED-CTC-FR is the French subset of EXTENDED.
 const (
 	ProfileUnknown Profile = iota
 	ProfileMinimum
@@ -22,6 +23,7 @@ const (
 	ProfileXRechnung
 	ProfilePeppol
 	ProfileNLCIUS
+	ProfileCIUSIT
 	ProfileExtendedCTCFR
 	ProfileExtended
 )
@@ -29,7 +31,7 @@ const (
 // Profiles lists the known profiles.
 var Profiles = []Profile{
 	ProfileMinimum, ProfileBasicWL, ProfileBasic, ProfileEN16931,
-	ProfileXRechnung, ProfilePeppol, ProfileNLCIUS, ProfileExtendedCTCFR, ProfileExtended,
+	ProfileXRechnung, ProfilePeppol, ProfileNLCIUS, ProfileCIUSIT, ProfileExtendedCTCFR, ProfileExtended,
 }
 
 // Specification identifiers (BT-24) written for each profile.
@@ -43,6 +45,8 @@ const (
 	URNExtendedCTCFR  = "urn:cen.eu:en16931:2017#conformant#urn.cpro.gouv.fr:1p0:extended-ctc-fr"
 	URNPeppol         = "urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0"
 	URNNLCIUS         = "urn:cen.eu:en16931:2017#compliant#urn:fdc:nen.nl:nlcius:v1.0"
+	URNCIUSIT         = "urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:2.0.0"
+	urnCIUSIT         = "urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:"
 	urnXRechnungOld   = "urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit:standard:xrechnung_"
 	urnXRechnungNew   = "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_"
 	urnExtendedCTCFR2 = "urn:cen.eu:en16931:2017#conformant#urn:cpro.gouv.fr:1p0:extended-ctc-fr"
@@ -57,6 +61,16 @@ const (
 // defines the extension for UBL only.
 const GAccountExtension = "#conformant#urn:fdc:nen.nl:gaccount:v1.0"
 
+// ItalianExtension ends the specification identifier (BT-24) of a domestic
+// CIUS-IT invoice, whose seller is in Italy (BT-40 is IT): URNCIUSIT
+// followed by it. The Italian technical rules (Regole tecniche, art. 3
+// d.lgs. 148/2018, 4.1.3.1) give the identifier from the countries of the
+// seller and of the buyer: URNCIUSIT for a cross-border invoice (the
+// seller is not in Italy, the buyer is), URNCIUSIT followed by this
+// extension for a domestic one, which may then carry the Italian
+// extensions (EXT-IT) and gets the domestic rules of the CIUS (BR-IT-DC).
+const ItalianExtension = "#conformant#urn:fatturapa.gov.it:EXT-IT:1.0.0"
+
 // Specification identifiers of ZUGFeRD 1.0, in the
 // rsm:CrossIndustryDocument syntax that predates CII D16B. They are read,
 // never written (see ProfileFromZUGFeRD1URN).
@@ -69,8 +83,8 @@ const (
 )
 
 // String returns the profile name as written in the XMP ConformanceLevel
-// ("BASIC WL", "EN 16931"), or "PEPPOL", "NLCIUS", "EXTENDED-CTC-FR" and
-// "UNKNOWN".
+// ("BASIC WL", "EN 16931"), or "PEPPOL", "NLCIUS", "CIUS-IT",
+// "EXTENDED-CTC-FR" and "UNKNOWN".
 func (p Profile) String() string {
 	switch p {
 	case ProfileMinimum:
@@ -87,6 +101,8 @@ func (p Profile) String() string {
 		return "PEPPOL"
 	case ProfileNLCIUS:
 		return "NLCIUS"
+	case ProfileCIUSIT:
+		return "CIUS-IT"
 	case ProfileExtendedCTCFR:
 		return "EXTENDED-CTC-FR"
 	case ProfileExtended:
@@ -95,7 +111,8 @@ func (p Profile) String() string {
 	return "UNKNOWN"
 }
 
-// URN returns the specification identifier (BT-24) of the profile.
+// URN returns the specification identifier (BT-24) of the profile. For
+// CIUS-IT it is the cross-border identifier; see URNFor.
 func (p Profile) URN() string {
 	switch p {
 	case ProfileMinimum:
@@ -112,6 +129,8 @@ func (p Profile) URN() string {
 		return URNPeppol
 	case ProfileNLCIUS:
 		return URNNLCIUS
+	case ProfileCIUSIT:
+		return URNCIUSIT
 	case ProfileExtendedCTCFR:
 		return URNExtendedCTCFR
 	case ProfileExtended:
@@ -120,15 +139,26 @@ func (p Profile) URN() string {
 	return ""
 }
 
+// URNFor returns the specification identifier (BT-24) of the profile for
+// an invoice whose seller is in country sellerCountry (BT-40): URN, except
+// for CIUS-IT and a seller in Italy, where it is the domestic identifier,
+// URNCIUSIT followed by ItalianExtension.
+func (p Profile) URNFor(sellerCountry string) string {
+	if p == ProfileCIUSIT && strings.EqualFold(strings.TrimSpace(sellerCountry), "IT") {
+		return URNCIUSIT + ItalianExtension
+	}
+	return p.URN()
+}
+
 // ConformanceLevel returns the value of fx:ConformanceLevel in the XMP
 // metadata of a Factur-X PDF. The Factur-X specification defines no value for
-// EXTENDED-CTC-FR, Peppol BIS Billing 3.0 nor NLCIUS: such invoices are
-// declared EXTENDED and EN 16931.
+// EXTENDED-CTC-FR, Peppol BIS Billing 3.0, NLCIUS nor CIUS-IT: such invoices
+// are declared EXTENDED and EN 16931.
 func (p Profile) ConformanceLevel() string {
 	switch p {
 	case ProfileExtendedCTCFR:
 		return "EXTENDED"
-	case ProfilePeppol, ProfileNLCIUS:
+	case ProfilePeppol, ProfileNLCIUS, ProfileCIUSIT:
 		return "EN 16931"
 	case ProfileUnknown:
 		return ""
@@ -164,11 +194,11 @@ func (p Profile) HasLines() bool { return p >= ProfileBasic }
 // invoices (BASIC and above). MINIMUM and BASIC WL are not.
 func (p Profile) EN16931() bool { return p >= ProfileBasic }
 
-// level orders profiles by data set: XRECHNUNG, PEPPOL and NLCIUS are at
-// the EN 16931 level, EXTENDED-CTC-FR below EXTENDED.
+// level orders profiles by data set: XRECHNUNG, PEPPOL, NLCIUS and CIUS-IT
+// are at the EN 16931 level, EXTENDED-CTC-FR below EXTENDED.
 func (p Profile) level() int {
 	switch p {
-	case ProfileXRechnung, ProfilePeppol, ProfileNLCIUS:
+	case ProfileXRechnung, ProfilePeppol, ProfileNLCIUS, ProfileCIUSIT:
 		return int(ProfileEN16931)
 	default:
 		return int(p)
@@ -201,10 +231,11 @@ func (p *Profile) UnmarshalText(b []byte) error {
 // (BT-24). It recognizes the Factur-X identifiers, the ZUGFeRD 2.x ones
 // (urn:zugferd.de:2p0:…), all XRechnung versions, both spellings of the
 // EXTENDED-CTC-FR identifier, the Peppol BIS Billing 3.0 identifier, alone
-// or followed by more text as rule PEPPOL-EN16931-R004 admits, and the
+// or followed by more text as rule PEPPOL-EN16931-R004 admits, the
 // NLCIUS identifier, alone or followed by an extension such as the G-account
-// one (…#conformant#urn:fdc:nen.nl:gaccount:v1.0). Surrounding white space
-// is ignored.
+// one (…#conformant#urn:fdc:nen.nl:gaccount:v1.0), and the CIUS-IT
+// identifiers of any version, cross-border or domestic (followed by
+// ItalianExtension). Surrounding white space is ignored.
 func ProfileFromURN(urn string) Profile {
 	u := strings.TrimSpace(urn)
 	switch u {
@@ -230,6 +261,9 @@ func ProfileFromURN(urn string) Profile {
 	}
 	if strings.HasPrefix(u, URNNLCIUS) {
 		return ProfileNLCIUS
+	}
+	if strings.HasPrefix(u, urnCIUSIT) {
+		return ProfileCIUSIT
 	}
 	return ProfileUnknown
 }
@@ -285,6 +319,8 @@ func DetectProfile(urn string) Profile {
 		return ProfileXRechnung
 	case strings.Contains(u, "nlcius"):
 		return ProfileNLCIUS
+	case strings.Contains(u, "cius-it"):
+		return ProfileCIUSIT
 	case strings.Contains(u, "basicwl"), strings.Contains(u, "basic-wl"):
 		return ProfileBasicWL
 	case strings.Contains(u, "basic"):
@@ -327,19 +363,21 @@ func ProfileFromConformanceLevel(level string) Profile {
 }
 
 // ParseProfile returns the profile named by s, which may be a profile name
-// ("en16931", "basic-wl", "extended-ctc-fr", "peppol", "nlcius") or a
-// specification identifier.
+// ("en16931", "basic-wl", "extended-ctc-fr", "peppol", "nlcius", "cius-it")
+// or a specification identifier.
 func ParseProfile(s string) Profile {
 	if p := ProfileFromURN(s); p != ProfileUnknown {
 		return p
 	}
-	// Not XMP ConformanceLevel values: Peppol and NLCIUS invoices are
-	// declared EN 16931.
+	// Not XMP ConformanceLevel values: Peppol, NLCIUS and CIUS-IT invoices
+	// are declared EN 16931.
 	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case "PEPPOL":
 		return ProfilePeppol
 	case "NLCIUS":
 		return ProfileNLCIUS
+	case "CIUS-IT", "CIUSIT", "CIUS_IT":
+		return ProfileCIUSIT
 	}
 	return ProfileFromConformanceLevel(s)
 }

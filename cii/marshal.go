@@ -216,7 +216,7 @@ func (w *writer) context(inv *invoice.Invoice, target invoice.Profile) {
 		w.leafReq("ram:ID", inv.BusinessProcess)
 		w.end("ram:BusinessProcessSpecifiedDocumentContextParameter")
 	}
-	spec := target.URN()
+	spec := target.URNFor(inv.Seller.Address.CountryCode)
 	if inv.SpecificationID != "" && !zugferd1URN(inv.SpecificationID) && detectProfile(inv.SpecificationID) == target {
 		spec = strings.TrimSpace(inv.SpecificationID)
 		// The G-account extension exists in UBL only.

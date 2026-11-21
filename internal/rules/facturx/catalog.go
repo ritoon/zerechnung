@@ -37,7 +37,7 @@ type rule struct {
 var table = []rule{
 	// Profile identification, all profiles.
 	{"FX-PROFILE-01", rules.Error, mAny, "", "The specification identifier (BT-24) is present, so that the Factur-X profile can be determined."},
-	{"FX-PROFILE-02", rules.Error, mAny, "", "The specification identifier (BT-24) is a known Factur-X, ZUGFeRD, XRechnung, Peppol or NLCIUS identifier."},
+	{"FX-PROFILE-02", rules.Error, mAny, "", "The specification identifier (BT-24) is a known Factur-X, ZUGFeRD, XRechnung, Peppol, NLCIUS or CIUS-IT identifier."},
 	{"FX-PROFILE-03", rules.Error, mAny, "", "The specification identifier (BT-24) uses an obsolete spelling of a known identifier: an error where the Factur-X schematron applies, whose code list of BT-24 holds the current identifiers only (FX-SCH-A-000493, 000556, 000636), a warning for an EN 16931 invoice checked against the CEN rules."},
 	{"FX-SCH-A-000026", rules.Error, mAny, "FX-SCH-A-000026", "The specification identifier (BT-24) is exactly an identifier of the profile the invoice is checked against."},
 

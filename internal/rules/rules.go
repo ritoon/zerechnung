@@ -5,7 +5,7 @@
 // Each rule set lives in its own package (internal/rules/en16931,
 // internal/rules/ubl, internal/rules/facturx, internal/rules/fr,
 // internal/rules/de, internal/rules/choruspro, internal/rules/peppol,
-// internal/rules/nl) and exports:
+// internal/rules/nl, internal/rules/it) and exports:
 //
 //	func Check(c *rules.Checker)  // runs every rule of the set
 //	var Catalog []rules.RuleInfo  // the rules the set implements
@@ -59,6 +59,7 @@ const (
 	SourceChorusPro = "Chorus Pro" // French B2G checks for Chorus Pro
 	SourcePeppol    = "Peppol"     // Peppol BIS Billing 3.0 rules
 	SourceNL        = "BR-NL"      // Dutch rules (NLCIUS, SI-UBL 2.0)
+	SourceIT        = "BR-IT"      // Italian rules (CIUS-IT)
 )
 
 // Finding is a rule violation.
