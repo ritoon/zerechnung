@@ -9,6 +9,7 @@ En participant au projet, vous acceptez de respecter son [code de conduite](CODE
 - **Bogue ou écart de validation** : ouvrez une [issue](https://github.com/ritoon/zerechnung/issues/new/choose) avec le modèle qui correspond. Une règle levée à tort ou manquée se démontre au mieux avec la sortie d'un validateur de référence (KoSIT, Mustang, schematron officiel exécuté par Saxon…).
 - **Changement important** (nouveau profil, nouveau jeu de règles, changement d'API) : ouvrez d'abord une issue pour en discuter. L'API est encore en v0 et peut changer, mais chaque changement se décide avant d'être écrit.
 - **Faille de sécurité** : pas d'issue publique, voir [SECURITY.md](SECURITY.md).
+- **Traduction du site** : le site de présentation est généré depuis [site/](site/), un fichier JSON par langue. Une langue s'ajoute ou se corrige sans toucher au package ; [site/README.md](site/README.md) explique comment.
 
 Les factures contiennent des données personnelles et commerciales. Dans une issue comme dans une pull request, joignez une facture fictive ou anonymisée, jamais une facture réelle.
 

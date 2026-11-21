@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{template "head" .}}
+<meta name="robots" content="noindex">
+</head>
+<body>
+<main class="chooser">
+  <div>
+    <img src="{{.Asset "gopher.webp"}}" width="720" height="679" alt="{{.P.gopher_alt}}">
+    <h1>404</h1>
+    <p class="chooser-sub">This page does not exist. ZeRechnung is presented in these languages:</p>
+    <ul>{{range .Langs}}<li><a href="{{$.Href .}}" lang="{{.Code}}" hreflang="{{.Code}}">{{.Name}}</a></li>{{end}}</ul>
+  </div>
+</main>
+</body>
+</html>
