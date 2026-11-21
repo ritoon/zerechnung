@@ -81,15 +81,15 @@ const (
 // Catalog lists the rules implemented by this package.
 var Catalog = []rules.RuleInfo{
 	{ID: RuleProfile, Severity: rules.Warning, Description: "The profile (BT-24) is unknown: the structure is checked against the EXTENDED schema, the most permissive."},
-	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), or p:FatturaElettronica (FatturaPA)."},
-	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL; none below the root in FatturaPA)."},
+	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), p:FatturaElettronica (FatturaPA), or Facturae in the namespace of Facturae 3.2, 3.2.1 or 3.2.2."},
+	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL; none below the root in FatturaPA and Facturae)."},
 	{ID: RuleUnexpected, Severity: rules.Error, Description: "Each element shall be allowed in its parent by the schema (for CII, the schema of the profile; the CII D16B schema for XRECHNUNG)."},
 	{ID: RuleOrder, Severity: rules.Error, Description: "Child elements shall appear in the order defined by the schema."},
 	{ID: RuleMissing, Severity: rules.Error, Description: "Elements required by the schema (minOccurs > 0) shall be present."},
 	{ID: RuleCount, Severity: rules.Error, Description: "An element shall not occur more often than allowed by the schema (maxOccurs)."},
 	{ID: RuleAttribute, Severity: rules.Error, Description: "Only the attributes declared by the schema are allowed."},
 	{ID: RuleAttributeMissing, Severity: rules.Error, Description: "Attributes required by the schema shall be present."},
-	{ID: RuleType, Severity: rules.Error, Description: "Element and attribute values shall match their simple type (xs:decimal, xs:boolean, xs:base64Binary, xs:date, xs:time, xs:dateTime, xs:language, enumerations, fixed values, lengths, patterns, bounds)."},
+	{ID: RuleType, Severity: rules.Error, Description: "Element and attribute values shall match their simple type (xs:decimal, xs:double, xs:boolean, xs:base64Binary, xs:date, xs:time, xs:dateTime, xs:language, enumerations, fixed values, lengths, patterns, bounds)."},
 	{ID: RuleText, Severity: rules.Error, Description: "Elements whose content is made of elements shall not contain text."},
 }
 
