@@ -1,13 +1,13 @@
 // Command zerechnung reads, validates and creates Factur-X / ZUGFeRD /
 // XRechnung invoices. validate and json also accept a CII or UBL 2.1 XML
-// invoice, and json a FatturaPA document, whose syntax is detected from the
-// root element.
+// invoice, and json a FatturaPA document, signed in CAdES (.xml.p7m) or
+// not, whose syntax is detected from the root element.
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
 //	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
 //	zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-o out.pdf] input.pdf
-//	zerechnung json invoice.pdf|invoice.xml
+//	zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
 //	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it]
 //
 // validate exits with status 1 when the invoice has errors.
@@ -36,7 +36,8 @@ import (
 
 const usage = `zerechnung reads, validates and creates Factur-X / ZUGFeRD / XRechnung invoices.
 validate and json also accept an XML invoice in CII or UBL 2.1 syntax,
-json also a FatturaPA document (an array when it holds several invoices).
+json also a FatturaPA document (an array when it holds several invoices),
+signed in CAdES (.xml.p7m) or not.
 
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
@@ -44,7 +45,7 @@ Usage:
   zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
   zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-convert-pdfa] [-o out.pdf] input.pdf
   zerechnung pdfa [-o out.pdf] input.pdf
-  zerechnung json invoice.pdf|invoice.xml
+  zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
   zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it]
 
 Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it.
@@ -348,12 +349,21 @@ func jsonCmd(args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if isPDF(data) {
+	switch {
+	case isPDF(data):
 		att, err := zerechnung.Extract(data)
 		if err != nil {
 			return err
 		}
 		data = att.XML
+	case !looksXML(data):
+		// A FatturaPA file signed in CAdES: the document it signs, once
+		// the signature verifies.
+		doc, _, err := fatturapa.Unwrap(data)
+		if err != nil {
+			return err
+		}
+		data = doc
 	}
 	invs, err := parseInvoices(data)
 	if len(invs) == 0 {
@@ -368,6 +378,12 @@ func jsonCmd(args []string, w io.Writer) error {
 		return enc.Encode(invs[0])
 	}
 	return enc.Encode(invs)
+}
+
+// looksXML reports whether data starts like an XML document.
+func looksXML(data []byte) bool {
+	d := bytes.TrimLeft(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), " \t\r\n")
+	return len(d) > 0 && d[0] == '<'
 }
 
 // parseInvoices reads a CII, UBL or FatturaPA document, detected from the

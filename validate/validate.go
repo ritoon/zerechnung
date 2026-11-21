@@ -93,6 +93,7 @@ const (
 	SourcePeppol    = rules.SourcePeppol
 	SourceNL        = rules.SourceNL
 	SourceIT        = rules.SourceIT
+	SourceSDI       = rules.SourceSDI
 )
 
 // RuleSet selects groups of rules.
