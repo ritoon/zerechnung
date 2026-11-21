@@ -149,8 +149,8 @@ Le job *Interopérabilité des signatures FatturaPA* exécute [`signature.sh`](s
 
 | Outil | Vérifie les fichiers du package | Signe des fichiers que le package vérifie |
 |---|---|---|
-| OpenSSL 3.0 (runner Ubuntu 24.04) | `openssl cms -verify -cades`, qui exige l'attribut signing-certificate-v2 ; contenu identique à la facture signée | `openssl cms -sign` avec et sans `-cades`, RSA, RSA-PSS (sel maximal, en PEM), ECDSA en BER (`-stream`) |
-| xmlsec1 1.2.39 (paquet Ubuntu) | `xmlsec1 --verify`, RSA et ECDSA (xmlsec1 1.2 ne connaît pas RSA-PSS) | `xmlsec1 --sign` : C14N exclusive, C14N 1.1 avec ECDSA, transformation XPath et C14N avec commentaires |
+| OpenSSL 3.5 (runner Ubuntu 26.04) | `openssl cms -verify -cades`, qui exige l'attribut signing-certificate-v2 ; contenu identique à la facture signée | `openssl cms -sign` avec et sans `-cades`, RSA, RSA-PSS (sel maximal, en PEM), ECDSA en BER (`-stream`) |
+| xmlsec1 1.3.9 (paquet Ubuntu) | `xmlsec1 --verify`, RSA, RSA-PSS et ECDSA (xmlsec1 1.2 ne connaît pas RSA-PSS : le script passe alors ce fichier) | `xmlsec1 --sign` : C14N exclusive, C14N 1.1 avec ECDSA, transformation XPath et C14N avec commentaires |
 | EU DSS 6.5.1 (Maven Central) | `DssCheck.java verify` : format CAdES-BASELINE-B ou XAdES-BASELINE-B, structure XSD, condensats, valeur de signature, référence signée au certificat, chaîne jusqu'à la racine de test, blocs FC, ISC, VCI, CV et SAV de la validation ETSI EN 319 102-1 à PASSED | `DssCheck.java sign` : XAdES Baseline B enveloppée (transformation XPath Filter 2.0) et CAdES Baseline B enveloppante, RSA, RSA-PSS et ECDSA |
 
 La conclusion de DSS reste INDETERMINATE, faute de données de révocation pour la PKI de test : seule la validation du certificat (bloc XCV) en dépend, et le script ne la contrôle pas.

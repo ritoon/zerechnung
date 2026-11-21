@@ -10,9 +10,10 @@
 #  1. writes a test PKI and the files that SignCAdES and SignXAdES produce
 #     with RSA, RSA-PSS and ECDSA keys (TestWriteInteropFiles, FX_SIG_OUT);
 #  2. verifies them with openssl cms -verify -cades (which requires the
-#     signing-certificate-v2 attribute), xmlsec1 --verify (RSA-PSS aside:
-#     xmlsec1 1.2 does not know it) and DSS (conformance/signature/
-#     DssCheck.java), which must find each file a Baseline B signature;
+#     signing-certificate-v2 attribute), xmlsec1 --verify (RSA-PSS from
+#     xmlsec1 1.3 only: xmlsec1 1.2 does not know it) and DSS
+#     (conformance/signature/DssCheck.java), which must find each file a
+#     Baseline B signature;
 #  3. signs the same document with the same keys: openssl cms -sign (with
 #     and without -cades, RSA-PSS, BER streaming, PEM), xmlsec1 --sign
 #     (exclusive C14N, C14N 1.1 with ECDSA, the XPath transform with
@@ -59,9 +60,14 @@ for f in "$OURS"/cades-*.xml.p7m; do
 	echo "PASS ${f##*/}"
 done
 
+# xmlsec1 1.3 knows RSA-PSS and has --lax-key-search; xmlsec1 1.2 has neither.
+xmlsec13=false
+if xmlsec1 --help-sign 2>&1 | grep -q -- --lax-key-search; then
+	xmlsec13=true
+fi
 log "$(xmlsec1 --version) verifies the XAdES files"
 for f in "$OURS"/xades-*.xml; do
-	case $f in *-pss.xml) continue ;; esac
+	case $f in *-pss.xml) $xmlsec13 || { echo "SKIP ${f##*/}: $(xmlsec1 --version) does not know RSA-PSS"; continue; } ;; esac
 	xmlsec1 --verify --trusted-pem "$OURS/root.pem" --id-attr:Id "http://uri.etsi.org/01903/v1.3.2#:SignedProperties" \
 		"$f" >"$WORK/xmlsec1.log" 2>&1 || { cat "$WORK/xmlsec1.log" >&2; die "xmlsec1: ${f##*/} does not verify"; }
 	echo "PASS ${f##*/}"
@@ -84,6 +90,12 @@ sign_openssl openssl-cades-ec-stream.xml.p7m ec -cades -stream -outform DER
 sign_openssl openssl-plain-rsa.xml.p7m rsa -outform DER
 
 log "xmlsec1 signs"
+# xmlsec1 1.3 looks for the signing key by the name in <ds:KeyInfo> only,
+# unless --lax-key-search.
+lax=()
+if $xmlsec13; then
+	lax=(--lax-key-search)
+fi
 # sign_xmlsec1 out key c14n signature-method transform: fpa12.xml with a
 # signature template as the last child of the root, signed by xmlsec1.
 sign_xmlsec1() {
@@ -99,7 +111,7 @@ sign_xmlsec1() {
 			print "<ds:KeyInfo><ds:X509Data><ds:X509Certificate/></ds:X509Data></ds:KeyInfo></ds:Signature>"
 		}
 		{ print }' "$doc" >"$WORK/template.xml"
-	xmlsec1 --sign --privkey-pem "$KEYS/signer-$key.key,$OURS/signer-$key.pem" --output "$FOREIGN/$out" "$WORK/template.xml"
+	xmlsec1 --sign "${lax[@]}" --privkey-pem "$KEYS/signer-$key.key,$OURS/signer-$key.pem" --output "$FOREIGN/$out" "$WORK/template.xml"
 	echo "wrote $out"
 }
 enveloped='<ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>'
