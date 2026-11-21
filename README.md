@@ -178,9 +178,10 @@ xml, err := cii.Marshal(inv, &cii.MarshalOptions{Profile: invoice.ProfileBasic})
 fromUBL, err := ubl.Parse(ublXML)
 ciiXML, err := cii.Marshal(fromUBL, nil)
 
-// Convert a FatturaPA invoice to CII, and a CII invoice to FatturaPA.
+// Convert a FatturaPA invoice to UBL, with its Italian data in the
+// extensions of a domestic invoice (EXT-IT), and a CII invoice to FatturaPA.
 fromSDI, err := fatturapa.Parse(sdiXML)
-ciiXML, err = cii.Marshal(fromSDI, nil)
+ublXML, err = ubl.Marshal(fromSDI, nil)
 sdiXML, err = fatturapa.Marshal(inv, nil)
 
 // Convert a Facturae invoice to UBL, and a UBL invoice to Facturae 3.2.2.
@@ -322,9 +323,9 @@ Since `validate` exits with code 1 when it finds errors, you can drop it into a 
 | XRechnung (CII and UBL) | yes | yes | yes |
 | Peppol BIS Billing 3.0 (CII and UBL) | yes | yes | yes |
 | NLCIUS, the Netherlands (CII and UBL) | yes | yes | yes |
-| CIUS-IT, Italy (CII and UBL) | yes | yes | yes |
+| CIUS-IT, Italy (CII and UBL), with its extensions EXT-IT in UBL | yes | yes | yes |
 | UBL 2.1 Invoice and CreditNote (EN 16931) | yes | yes | yes |
-| FatturaPA 1.2, Italy (FPA12 and FPR12) | yes | yes | XSD 1.2.4; CIUS-IT rules through CII |
+| FatturaPA 1.2, Italy (FPA12 and FPR12) | yes | yes | XSD 1.2.4; CIUS-IT and EXT-IT rules through UBL |
 | FatturaPA signatures, CAdES (`.xml.p7m`) and XAdES | yes | yes, Baseline B | the SDI checks (§5.1.1) |
 | Facturae 3.2, 3.2.1 and 3.2.2, Spain | yes | yes (3.2.2) | XSD of its version; EN 16931 rules through CII or UBL |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
@@ -366,7 +367,7 @@ The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11
 - PDF/A levels A and U are not checked. Factur-X and ZUGFeRD only need level B (basic), which is what `ConvertPDFA` writes; a PDF that declares level A or U is checked as level B, without its logical structure (tags) or the Unicode mapping of its text.
 - Encrypted PDFs are detected, not decrypted.
 - ZUGFeRD 1.0 is read only, and written back as Factur-X.
-- FatturaPA is validated against its XSD schema 1.2.4 (the content of the XML signature excepted), not against the SDI checks: convert it to CII to apply the CIUS-IT rules. `Marshal` writes one invoice per file. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry, and against the 45 rules of the Italian extensions of appendix 3 (BR-IT-DE-*, EXT-IT) when the seller is in Italy: on the UBL extensions and elements of the domestic invoice, which only UBL carries (BR-IT-DE-052 also applies to CII).
+- FatturaPA is validated against its XSD schema 1.2.4 (the content of the XML signature excepted), not against the SDI checks: convert it to UBL to apply the CIUS-IT rules and those of its extensions. `Marshal` writes one invoice per file. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry, and against the 45 rules of the Italian extensions of appendix 3 (BR-IT-DE-*, EXT-IT) when the seller is in Italy: on the UBL extensions and elements of the domestic invoice, which only UBL carries (BR-IT-DE-052 also applies to CII). `ubl.Parse` and `ubl.Marshal` map them to the FatturaPA data of the model (appendix 4.2) when the specification identifier declares the extension, so FatturaPA converted to UBL and back keeps what they carry; the rest, such as the bank details of FatturaPA or a CIG, is reported by strict mode. CII carries none of it.
 - FatturaPA signatures are written in Baseline B, without timestamps (B-T and above). `VerifySignature` fetches nothing: it checks trust against the roots you pass (the list of qualified authorities the SDI accepts is not embedded) and revocation against the CRLs and OCSP responses you pass.
 - Facturae is validated against the XSD schema of its version (the content of the XML signature and of the extensions excepted): no official mapping to EN 16931 is published, so the `facturae` package follows its own, described in its documentation, and the EN 16931 rules apply once the invoice is converted to UBL or CII. The XAdES signature is neither created nor verified. Spain has published no Schematron nor NIF check for its B2B invoices, so there is no Spanish rule set.
 - For EXTENDED-CTC-FR, only the CII syntax rules of the FNFE schematron are applied, not its business rules (BR-FREXT).

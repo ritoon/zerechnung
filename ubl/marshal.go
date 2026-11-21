@@ -37,7 +37,9 @@ type LossError struct {
 	// entry in Invoice.Unmodeled. The data of the national blocks that UBL
 	// does not carry (the FatturaPA data of invoice.Italy, the Facturae data
 	// of invoice.Spain) follows, as listed by invoice.Invoice.NationalData:
-	// "EXT Italy.Withholdings".
+	// "EXT Italy.Withholdings". A domestic Italian invoice carries part of
+	// the FatturaPA data (see Marshal); a field carried in part only is
+	// reported.
 	Terms []string
 }
 
@@ -80,6 +82,22 @@ func IsCreditNote(typeCode string) bool {
 // these fields of the model are not part of the binding, nor are the payment
 // terms after the first.
 //
+// When the specification identifier written declares the Italian extension
+// of the domestic invoice (see invoice.ItalianExtension), the national data
+// that appendix 4.2 of the Italian technical rules binds to UBL is written
+// too, as Parse reads it: the UBL extensions of EXT-IT (issuing system,
+// issuer, document type, types of the withholdings, Art. 73, rounding of each
+// VAT breakdown, discounts and surcharges on the total), the date of the
+// purchase order, the main invoice (in the first cac:BillingReference, which
+// a preceding invoice must open), the dated transport documents, the tax
+// regime, the permanent establishment and the third-party intermediary of the
+// seller, the tax code and the EORI code of the tax representative, the
+// carrier, the pickup and the shipment of the delivery, the delivery terms,
+// the withholdings (cac:WithholdingTaxTotal), the discount for early payment
+// and the penalty for late payment of the first payment means, and the
+// purchase orders and transport documents of each line. The rest of the
+// national blocks has no place in UBL.
+//
 // Mandatory elements of the binding are always written, empty when the
 // invoice has no value for them, so that a validator reports the missing
 // value. Amounts are written with the number of decimals they hold.
@@ -109,6 +127,7 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 		spec = customizationID(inv)
 	}
 	w.gaccount = strings.Contains(spec, invoice.GAccountExtension)
+	w.italy = strings.Contains(spec, invoice.ItalianExtension)
 	w.document(inv, spec)
 	if o.Indent {
 		w.b = append(w.b, '\n')
@@ -117,7 +136,11 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 		w.lose("EXT " + u)
 	}
 	if o.Strict {
-		w.losses = append(w.losses, inv.NationalData()...)
+		for _, t := range inv.NationalData() {
+			if !w.carried[t] {
+				w.losses = append(w.losses, t)
+			}
+		}
 	}
 	if o.Strict && len(w.losses) > 0 {
 		return nil, &LossError{Terms: w.losses}
@@ -145,9 +168,21 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 	if w.credit {
 		root, ns, typeName, lineName = "CreditNote", NamespaceCreditNote, "cbc:CreditNoteTypeCode", "cac:CreditNoteLine"
 	}
+	ext := false
+	if w.italy {
+		w.prepareItaly(inv)
+		ext = w.hasItalianExtensions(inv)
+	}
 	w.newline()
-	w.b = append(w.b, `<`+root+` xmlns="`+ns+`" xmlns:cac="`+NamespaceCAC+`" xmlns:cbc="`+NamespaceCBC+`">`...)
+	w.b = append(w.b, `<`+root+` xmlns="`+ns+`" xmlns:cac="`+NamespaceCAC+`" xmlns:cbc="`+NamespaceCBC+`"`...)
+	if ext {
+		w.b = append(w.b, ` xmlns:ext="`+NamespaceEXT+`"`...)
+	}
+	w.b = append(w.b, '>')
 	w.depth++
+	if ext {
+		w.italianExtensions(inv)
+	}
 
 	w.loseIf(inv.TestIndicator, "EXT TestIndicator")
 	w.loseIf(inv.CopyIndicator, "EXT CopyIndicator")
@@ -199,10 +234,15 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 	}
 	w.loseText(inv.InvoicingPeriod.Description, "EXT InvoicingPeriod.Description")
 
-	if inv.PurchaseOrderReference != "" || inv.SalesOrderReference != "" {
+	orderID, orderDate := inv.PurchaseOrderReference, invoice.Date{}
+	if w.italy {
+		orderID, orderDate = w.headerOrder(inv)
+	}
+	if orderID != "" || inv.SalesOrderReference != "" {
 		w.start("cac:OrderReference")
-		w.leafReq("cbc:ID", inv.PurchaseOrderReference)
+		w.leafReq("cbc:ID", orderID)
 		w.leaf("cbc:SalesOrderID", inv.SalesOrderReference)
+		w.date("cbc:IssueDate", orderDate)
 		w.end("cac:OrderReference")
 	}
 	for i := range inv.PrecedingInvoices {
@@ -212,11 +252,23 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 		w.leafReq("cbc:ID", d.ID)
 		w.date("cbc:IssueDate", d.IssueDate)
 		w.end("cac:InvoiceDocumentReference")
+		if i == 0 && w.italy && w.it != nil && w.it.MainInvoice != nil {
+			w.mainInvoice()
+		}
 		w.end("cac:BillingReference")
 		w.loseText(d.TypeCode, "EXT PrecedingInvoices.TypeCode")
 		w.loseText(d.LineID, "EXT PrecedingInvoices.LineID")
 	}
-	w.docRef("cac:DespatchDocumentReference", inv.DespatchAdviceReference)
+	despatch, despatchDate := inv.DespatchAdviceReference, invoice.Date{}
+	if w.italy {
+		despatch, despatchDate = w.headerDespatch(inv)
+	}
+	if despatch != "" {
+		w.start("cac:DespatchDocumentReference")
+		w.leafReq("cbc:ID", despatch)
+		w.date("cbc:IssueDate", despatchDate)
+		w.end("cac:DespatchDocumentReference")
+	}
 	w.docRef("cac:ReceiptDocumentReference", inv.ReceivingAdviceReference)
 	tender := inv.TenderReference()
 	if !w.credit {
@@ -274,8 +326,15 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 	w.loseIf(inv.CurrencyExchange != nil, "EXT CurrencyExchange")
 	w.loseIf(len(inv.ThirdPartyCharges) > 0, "BG-34")
 
-	if !inv.DeliveryDate.IsZero() || !inv.ShipTo.IsZero() {
-		w.delivery(inv.DeliveryDate, inv.ShipTo)
+	var transport *invoice.Transport
+	if w.italy {
+		transport = w.deliveryTransport()
+	}
+	if !inv.DeliveryDate.IsZero() || !inv.ShipTo.IsZero() || transport != nil {
+		w.delivery(inv.DeliveryDate, inv.ShipTo, transport)
+	}
+	if w.italy {
+		w.deliveryTermsIT()
 	}
 	w.paymentMeans(inv, terms)
 	w.paymentTerms(inv, terms)
@@ -290,6 +349,9 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 		}, true)
 	}
 	w.taxTotals(inv)
+	if w.italy && w.it != nil && len(w.it.Withholdings) > 0 && !w.credit {
+		w.withholdings(w.it.Withholdings)
+	}
 	w.totals(&inv.Totals)
 
 	if len(inv.Lines) == 0 {
@@ -406,6 +468,7 @@ func (w *writer) party(name string, p *invoice.Party, ro role, sepa string) {
 		}
 	}
 	ids := p.IDs
+	italianRep := ro == roleTaxRep && w.italy // carries its tax code and its EORI code
 	switch ro {
 	case roleBuyer, rolePayee:
 		if len(ids) > 1 {
@@ -413,9 +476,17 @@ func (w *writer) party(name string, p *invoice.Party, ro role, sepa string) {
 			ids = ids[:1]
 		}
 	case roleTaxRep:
-		if len(ids) > 0 {
-			w.lose(terms[fIDs])
-			ids = nil
+		var eori []invoice.Identifier
+		for _, id := range ids {
+			if italianRep && id.Scheme == "" && strings.HasPrefix(id.ID, "EORI:") {
+				eori = append(eori, id)
+			} else {
+				w.lose(terms[fIDs])
+			}
+		}
+		ids = eori
+		if italianRep && p.LegalRegistration.Scheme == schemeCF && p.LegalRegistration.ID != "" {
+			ids = append([]invoice.Identifier{p.LegalRegistration}, ids...)
 		}
 	}
 	for _, id := range ids {
@@ -445,21 +516,28 @@ func (w *writer) party(name string, p *invoice.Party, ro role, sepa string) {
 	}
 	if p.VATID != "" {
 		if ro != rolePayee {
-			w.taxScheme(p.VATID, "VAT")
+			level := ""
+			if ro == roleSeller && w.italy && p.Italy != nil && p.Italy.TaxRegime != "" {
+				level = p.Italy.TaxRegime
+				w.carry("Seller.Italy.TaxRegime")
+			}
+			w.taxScheme(p.VATID, "VAT", level)
 		} else {
 			w.lose(terms[fVAT])
 		}
 	}
 	if p.TaxRegistrationID != "" {
 		if ro == roleSeller {
-			w.taxScheme(p.TaxRegistrationID, "FC")
+			w.taxScheme(p.TaxRegistrationID, "FC", "")
 		} else {
 			w.lose(terms[fFC])
 		}
 	}
 	legal := !p.LegalRegistration.IsZero()
 	if legal && ro == roleTaxRep {
-		w.lose(terms[fLegal])
+		if !italianRep || p.LegalRegistration.Scheme != schemeCF || p.LegalRegistration.ID == "" {
+			w.lose(terms[fLegal])
+		}
 		legal = false
 	}
 	desc := p.Description != ""
@@ -497,12 +575,18 @@ func (w *writer) party(name string, p *invoice.Party, ro role, sepa string) {
 			w.lose(terms[fContact])
 		}
 	}
+	if ro == roleSeller && w.italy {
+		w.sellerItaly(p)
+	}
 	w.end(name)
 }
 
-func (w *writer) taxScheme(id, scheme string) {
+// taxScheme writes a cac:PartyTaxScheme with its tax level code, the tax
+// regime of an Italian seller.
+func (w *writer) taxScheme(id, scheme, level string) {
 	w.start("cac:PartyTaxScheme")
 	w.leafReq("cbc:CompanyID", id)
+	w.leaf("cbc:TaxLevelCode", level)
 	w.start("cac:TaxScheme")
 	w.leafReq("cbc:ID", scheme)
 	w.end("cac:TaxScheme")
@@ -530,12 +614,13 @@ func (w *writer) address(name string, a *invoice.Address) {
 }
 
 // delivery writes cac:Delivery: the actual delivery date (BT-72) and the
-// deliver-to party (BG-13).
-func (w *writer) delivery(date invoice.Date, ship *invoice.Party) {
+// deliver-to party (BG-13), and under EXT-IT the carrier, the pickup and the
+// shipment of t when it is not nil.
+func (w *writer) delivery(date invoice.Date, ship *invoice.Party, t *invoice.Transport) {
 	w.start("cac:Delivery")
 	w.date("cbc:ActualDeliveryDate", date)
+	terms := &partyTerms[roleShipTo]
 	if !ship.IsZero() {
-		terms := &partyTerms[roleShipTo]
 		ids := ship.IDs
 		if len(ids) > 1 {
 			w.lose(terms[fIDs])
@@ -551,6 +636,11 @@ func (w *writer) delivery(date invoice.Date, ship *invoice.Party) {
 			}
 			w.end("cac:DeliveryLocation")
 		}
+	}
+	if t != nil {
+		w.carrier(t)
+	}
+	if !ship.IsZero() {
 		if ship.Name != "" {
 			w.start("cac:DeliveryParty")
 			w.start("cac:PartyName")
@@ -565,6 +655,9 @@ func (w *writer) delivery(date invoice.Date, ship *invoice.Party) {
 		w.loseIf(!ship.ElectronicAddress.IsZero(), terms[fURI])
 		w.loseText(ship.VATID, terms[fVAT])
 		w.loseText(ship.TaxRegistrationID, terms[fFC])
+	}
+	if t != nil {
+		w.despatch(t)
 	}
 	w.end("cac:Delivery")
 }
@@ -673,12 +766,18 @@ func (w *writer) paymentMeans(inv *invoice.Invoice, terms *invoice.PaymentTerms)
 // means reference and its amount.
 func (w *writer) paymentTerms(inv *invoice.Invoice, first *invoice.PaymentTerms) {
 	if !w.gaccount {
-		if first != nil {
-			if first.Description != "" {
-				w.start("cac:PaymentTerms")
-				w.leafReq("cbc:Note", first.Description)
-				w.end("cac:PaymentTerms")
+		pit := w.earlyPaymentOf(inv)
+		if first != nil && first.Description != "" || pit != nil {
+			w.start("cac:PaymentTerms")
+			if first != nil {
+				w.leaf("cbc:Note", first.Description)
 			}
+			if pit != nil {
+				w.earlyPayment(pit)
+			}
+			w.end("cac:PaymentTerms")
+		}
+		if first != nil {
 			w.loseText(first.PaymentMeansID, "EXT PaymentTerms.PaymentMeansID")
 			w.loseIf(first.PartialAmount.IsSet(), "EXT PaymentTerms.PartialAmount")
 		}
@@ -805,11 +904,7 @@ func (w *writer) line(name string, l *invoice.Line) {
 		w.end("cac:InvoicePeriod")
 	}
 	w.loseText(l.Period.Description, "EXT Line.Period.Description")
-	if l.OrderLineReference != "" {
-		w.start("cac:OrderLineReference")
-		w.leafReq("cbc:LineID", l.OrderLineReference)
-		w.end("cac:OrderLineReference")
-	}
+	w.lineReferences(l)
 	if !l.ObjectIdentifier.IsZero() {
 		w.start("cac:DocumentReference")
 		w.leafAttr("cbc:ID", "schemeID", l.ObjectIdentifier.Scheme, l.ObjectIdentifier.ID)

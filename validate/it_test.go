@@ -127,6 +127,44 @@ func TestEXTIT(t *testing.T) {
 	}
 }
 
+// TestEXTITRoundTrip reads the invoice with the Italian extensions and
+// writes it back in UBL, with three withholdings, two discounts and a
+// second transport document beside: the results pass the rules of EXT-IT
+// and only warn of the elements that EN 16931 does not use (UBL-CR).
+func TestEXTITRoundTrip(t *testing.T) {
+	inv, err := ublsyntax.Parse([]byte(readXML(t, extitInvoice)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(name string) {
+		t.Helper()
+		out, err := ublsyntax.Marshal(inv, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := XML(out, nil)
+		if r.Profile != invoice.ProfileCIUSIT || len(r.Findings) == 0 {
+			t.Errorf("%s: profile %s\n%s", name, r.Profile, r)
+		}
+		for _, f := range r.Findings {
+			if f.Severity != Warning || !strings.HasPrefix(f.Rule, "UBL-CR-") {
+				t.Errorf("%s: finding %+v\n%s", name, f, out)
+			}
+		}
+	}
+	check("fixture")
+
+	d := invoice.MustDecimal
+	it := inv.Italy
+	it.Withholdings = append(it.Withholdings,
+		invoice.Withholding{Type: "RT04", Amount: d("7.50"), Rate: d("1.00"), Reason: "ZO"},
+		invoice.Withholding{Type: "RT01", Amount: d("2.00"), Rate: d("4.00"), Reason: "A"})
+	it.Discounts = append(it.Discounts, invoice.Discount{Type: "MG", Amount: d("5.00")})
+	it.TransportDocuments = append(it.TransportDocuments, invoice.TransportDocument{Number: "DDT-2026/119", Date: invoice.NewDate(2026, time.October, 31), Lines: []string{"1"}})
+	it.Transport.PickupTime = "2026-10-29T09:15:00"
+	check("lists")
+}
+
 func TestCatalogIT(t *testing.T) {
 	ids := map[string]int{}
 	for _, r := range Catalog(Italy) {

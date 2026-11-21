@@ -17,4 +17,11 @@
 // order of the UBL 2.1 schema; data that the binding cannot carry (the
 // EXTENDED fields of the model, extensions) is dropped, or reported as a
 // *LossError when MarshalOptions.Strict is set.
+//
+// Two extensions of the binding are read and written when the specification
+// identifier declares them: the Dutch G-account extension
+// (invoice.GAccountExtension), and the Italian extension of the domestic
+// invoice (invoice.ItalianExtension, EXT-IT), whose UBL extensions and
+// elements carry FatturaPA data into the national blocks of the model
+// (invoice.Italy).
 package ubl

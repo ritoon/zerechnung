@@ -120,7 +120,8 @@ type Invoice struct {
 	Lines []Line // BG-25 Invoice lines
 
 	// Italy is the national block of the Italian FatturaPA format (see
-	// Italy), read and written by package fatturapa only.
+	// Italy), read and written by package fatturapa, and in part by package
+	// ubl in a domestic Italian invoice (EXT-IT).
 	Italy *Italy
 	// Spain is the national block of the Spanish Facturae format (see
 	// Spain), read and written by package facturae only.

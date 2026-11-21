@@ -67,6 +67,16 @@ type writer struct {
 	// the Dutch G-account extension, which adds payment means identifiers
 	// and several payment terms to the binding.
 	gaccount bool
+	// italy is set when the specification identifier written declares the
+	// Italian extension (EXT-IT): the national data that appendix 4.2 of the
+	// Italian technical rules binds to UBL is written (see italy.go).
+	italy     bool
+	it        *invoice.Italy
+	orderAt   int              // index in it.PurchaseOrders of the order of the document, or -1
+	ddtAt     int              // index in it.TransportDocuments of the transport document of the document, or -1
+	lineOrder map[string]int   // index in it.PurchaseOrders of the order of each invoice line, by line identifier
+	lineDDT   map[string][]int // indexes in it.TransportDocuments of the transport documents of each invoice line
+	carried   map[string]bool  // national data written in full (see carry)
 
 	losses []string
 }
