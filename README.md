@@ -217,7 +217,7 @@ if errors.As(err, &ce) { // wraps zerechnung.ErrNotConvertible
 }
 ```
 
-`ConvertPDFA` (or `EmbedOptions.ConvertPDFA`, for a host that does not declare PDF/A) rewrites a PDF 1.x file as PDF/A-3, in pure Go and without rendering it. It adds a PDF/A output intent (an sRGB ICC profile computed by the package, unless the PDF has one), declares PDF/A-3 in the XMP metadata, removes JavaScript, forbidden actions and other entries PDF/A does not allow, re-encodes LZW streams with Flate, cleans graphics states, images and annotations, and completes the embedded files. It refuses, with every reason and where it was found, what it cannot fix without a PDF engine: a font that shows visible text without being embedded, DeviceCMYK without a CMYK profile, a hidden annotation or one without an appearance, a signed document, PDF 2.0. The converted file must then pass the PDF/A checks of `Check`, and the CI runs veraPDF on the converted files (see [How accurate is it?](#how-accurate-is-it)).
+`ConvertPDFA` (or `EmbedOptions.ConvertPDFA`, for a host that does not declare PDF/A) rewrites a PDF 1.x file as PDF/A-3, in pure Go and without rendering it. It adds a PDF/A output intent (an sRGB ICC profile computed by the package, unless the PDF has one), declares PDF/A-3 in the XMP metadata, removes JavaScript, forbidden actions and other entries PDF/A does not allow, re-encodes LZW streams with Flate, cleans graphics states, images and annotations, and completes the embedded files. It refuses, with every reason and where it was found, what it cannot fix without a PDF engine: a font that shows visible text without being embedded, a glyph its font program lacks or whose width differs, DeviceCMYK without a CMYK profile, a JPEG 2000 image PDF/A does not allow, a hidden annotation or one without an appearance, a signed document, PDF 2.0. The converted file must then pass the PDF/A checks of `Check`, and the CI runs veraPDF on the converted files (see [How accurate is it?](#how-accurate-is-it)).
 
 ### Show what is wrong when Create refuses an invoice
 
@@ -298,7 +298,7 @@ Since `validate` exits with code 1 when it finds errors, you can drop it into a 
 | UBL 2.1 Invoice and CreditNote (EN 16931) | yes | yes | yes |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
 
-Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Chorus Pro checks and 70 checks of the PDF container. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
+Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Chorus Pro checks and 72 checks of the PDF container. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
 
 ## How accurate is it?
 
@@ -307,7 +307,8 @@ Every pull request runs the reference validators on the official test corpora an
 - KoSIT validator (XRechnung): the same errors on all 128 invoices.
 - Mustang: the same errors on 241 of 282 invoices. Each of the 41 differences comes from the references themselves and is explained in [known.txt](conformance/parity/known.txt).
 - Dutch NPa validators (NLCIUS): the same rules on 283 of 290 files, with the 7 differences justified.
-- veraPDF on the files `ConvertPDFA` writes: of the 998 PDF/A-2b and PDF/A-3b test files of the veraPDF corpus, 859 are converted and 835 of them pass; the 24 others are known failures (font programs, CID values, JPEG 2000 data, an XMP value type), listed in [convert_corpus_test.go](convert_corpus_test.go). The non-conforming PDFs the tests generate all pass once converted.
+- veraPDF corpus, PDF/A-2b and PDF/A-3b: `Check` reports 609 of the 614 invalid test files under a rule of the right clause, and no PDF/A error on the 384 valid ones. The 5 files it misses are listed with their reason in [check_pdfa_corpus_test.go](check_pdfa_corpus_test.go).
+- veraPDF on the files `ConvertPDFA` writes: of the 998 test files of the same corpus, 836 are converted and 835 of them pass; the other one is a known failure (a value type of an XMP extension schema), listed in [convert_corpus_test.go](convert_corpus_test.go). The non-conforming PDFs the tests generate all pass once converted.
 
 A new difference fails the build. The method is described on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy#measured-accuracy).
 
@@ -322,11 +323,15 @@ Measured on an Apple M4 Pro with Go 1.26.4 (v0.1.0), against the fastest other G
 | Embed the XML in a PDF | 89 µs | 522 µs |
 | Check a 149 KB hybrid PDF | 74 µs | 1.14 ms |
 
+Since v0.1.0, `Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included. These checks are always on, since they catch what veraPDF would reject. Checking the same 149 KB PDF now takes about 0.8 ms, 0.2 ms of it for the content streams and the fonts.
+
 The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11-17/tables.md), and a comparison with 32 TypeScript, Python and Rust libraries is in [bench/polyglot](bench/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
 
 ## Limitations
 
-- PDF/A conversion is partial. `ConvertPDFA` does not embed fonts, convert CMYK colours, create annotation appearances or write PDF/A-4, and it does not read font programs or JPEG 2000 data: such PDFs are refused or, for what is not read, left to veraPDF. Without conversion, your PDF must already meet PDF/A-2, PDF/A-3 or PDF/A-4. `Check` reports many PDF/A problems, but it does not replace a full validator such as veraPDF.
+- PDF/A conversion is partial. `ConvertPDFA` does not embed fonts, convert CMYK colours, create annotation appearances or write PDF/A-4: such PDFs are refused, with the reasons. Without conversion, your PDF must already meet PDF/A-2, PDF/A-3 or PDF/A-4.
+- `Check` reports most PDF/A problems, those of the text and its fonts included, but it does not replace a full validator such as veraPDF: it does not read Type 1 font programs (CFF, TrueType and OpenType ones are read) or the value types of XMP extension schemas, and it applies only part of the PDF/A-4 requirements.
+- PDF/A levels A and U are not checked. Factur-X and ZUGFeRD only need level B (basic), which is what `ConvertPDFA` writes; a PDF that declares level A or U is checked as level B, without its logical structure (tags) or the Unicode mapping of its text.
 - Encrypted PDFs are detected, not decrypted.
 - ZUGFeRD 1.0 is read only, and written back as Factur-X.
 - For EXTENDED-CTC-FR, only the CII syntax rules of the FNFE schematron are applied, not its business rules (BR-FREXT).

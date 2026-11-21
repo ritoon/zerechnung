@@ -117,8 +117,8 @@ func TestCheckContainerContent(t *testing.T) {
 		{"DeviceCMYK under DefaultCMYK", content("0 0 0 1 k 0 0 10 10 re f", func(b *pdftest.Builder) string {
 			return fmt.Sprintf("/ColorSpace << /DefaultCMYK [/ICCBased %d 0 R] >>", iccCMYK(b))
 		}), ""},
-		{"Type 3 glyph in DeviceCMYK", content("BT /F1 1 Tf (a) Tj ET", type3("0 0 d0 0 0 0 1 k 0 0 10 10 re f")), "PDF-52"},
-		{"Type 3 glyph in DeviceCMYK after d1", content("BT /F1 1 Tf (a) Tj ET", type3("0 0 0 0 10 10 d1 0 0 0 1 k 0 0 10 10 re f")), ""},
+		{"Type 3 glyph in DeviceCMYK", content("BT /F1 1 Tf (a) Tj ET", type3("10 0 d0 0 0 0 1 k 0 0 10 10 re f")), "PDF-52"},
+		{"Type 3 glyph in DeviceCMYK after d1", content("BT /F1 1 Tf (a) Tj ET", type3("10 0 0 0 10 10 d1 0 0 0 1 k 0 0 10 10 re f")), ""},
 		{"coloured tiling pattern in DeviceCMYK", content("/CS0 cs 1 0 0 /P0 scn 0 0 10 10 re f", pattern(1)), "PDF-52"},
 		{"uncoloured tiling pattern", content("/CS0 cs 1 0 0 /P0 scn 0 0 10 10 re f", pattern(2)), ""},
 
@@ -200,10 +200,10 @@ func colr(meth, approx byte, enum uint32) []byte {
 	return b
 }
 
-func TestCMapMaxCID(t *testing.T) {
+func TestParseCMap(t *testing.T) {
 	for _, tc := range []struct {
 		cmap string
-		want int64
+		want uint32
 	}{
 		{"1 begincidrange <0000> <ffff> 0 endcidrange", 65535},
 		{"2 begincidrange <0000> <00ff> 0 <0100> <01ff> 65500 endcidrange", 65755},
@@ -211,8 +211,36 @@ func TestCMapMaxCID(t *testing.T) {
 		{"1 beginnotdefrange <00> <1f> 1 endnotdefrange 1 begincidchar <20> 3 endcidchar", 3},
 		{"/CMapName /X def", 0},
 	} {
-		if got := cmapMaxCID([]byte(tc.cmap)); got != tc.want {
+		if got := parseCMap([]byte(tc.cmap)).maxCID(); got != tc.want {
 			t.Errorf("%q: %d, want %d", tc.cmap, got, tc.want)
 		}
+	}
+
+	// Codes of one byte from 00 to 80, of two bytes from 8140 to 9FFC.
+	m := parseCMap([]byte(`2 begincodespacerange <00> <80> <8140> <9ffc> endcodespacerange
+		1 begincidrange <8140> <817e> 633 endcidrange
+		1 begincidchar <41> 34 endcidchar
+		1 beginnotdefrange <00> <1f> 1 endnotdefrange`))
+	type code struct {
+		code uint32
+		size int
+		cid  uint32
+		ok   bool
+	}
+	var got []code
+	for s := []byte("\x41\x81\x42\x05\x9f\x20\xa0\x81"); len(s) > 0; {
+		c, n := m.next(s)
+		cid, ok := m.cid(c)
+		got = append(got, code{c, n, cid, ok})
+		s = s[min(n, len(s)):]
+	}
+	// 9F 20 lies in no range, A0 starts none, and the last byte, 81, reads
+	// as 81FF, in no range: all three read as the code 0.
+	want := []code{{0x41, 1, 34, true}, {0x8142, 2, 635, true}, {0x05, 1, 1, false}, {0, 2, 1, false}, {0, 1, 1, false}, {0, 2, 1, false}}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("codes %v, want %v", got, want)
+	}
+	if c, n := identityCMap.next([]byte{0x12}); c != 0x12ff || n != 2 {
+		t.Errorf("identity, one byte: %x %d", c, n)
 	}
 }

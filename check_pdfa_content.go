@@ -16,9 +16,10 @@ import "github.com/ritoon/zerechnung/internal/pdf"
 // operators (PDF-49, 6.1.13), the inline images (PDF-38, 6.1.10; PDF-56,
 // 6.2.8; PDF-55, 6.2.6), the device colour spaces the colour and painting
 // operators use (PDF-52, 6.2.4.3), overprinting with an ICCBased CMYK
-// colour space (PDF-51, 6.2.4.2), the ri operator (PDF-55, 6.2.6) and the
+// colour space (PDF-51, 6.2.4.2), the ri operator (PDF-55, 6.2.6), the
 // transparency of a page without a group colour space nor a PDF/A output
-// intent (PDF-58, 6.2.10).
+// intent (PDF-58, 6.2.10) and the glyphs the text shows (PDF-72, 6.2.11,
+// check_pdfa_glyphs.go).
 
 // maxContentBytes bounds the decoded content the scan reads; the streams
 // beyond are not read.
@@ -53,6 +54,8 @@ const (
 type contentState struct {
 	done      map[contentKey]uint8      // streams read, with their result
 	encodings map[string]*[256]pdf.Name // glyph names of the Type 3 fonts, by font
+	fonts     map[string]*glyphFont     // the fonts the text shows, by font (check_pdfa_glyphs.go)
+	programs  map[string]*fontProgram   // the font programs read, by stream
 	bytes     int                       // decoded content read
 }
 
@@ -103,11 +106,14 @@ type streamScan struct {
 	stack       []gstate
 	flags       map[string]bool // findings already made for the stream
 	transparent bool
+	fontRef     pdf.Ref    // the last font of the text, by reference,
+	font        *glyphFont // and its glyph model (check_pdfa_glyphs.go)
 }
 
 func (s *pdfaScan) contentState() *contentState {
 	if s.content == nil {
-		s.content = &contentState{done: map[contentKey]uint8{}, encodings: map[string]*[256]pdf.Name{}}
+		s.content = &contentState{done: map[contentKey]uint8{}, encodings: map[string]*[256]pdf.Name{},
+			fonts: map[string]*glyphFont{}, programs: map[string]*fontProgram{}}
 	}
 	return s.content
 }
@@ -507,7 +513,8 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 	case "Tj", "'", "\"":
 		if len(args) > 0 {
 			s, _ := args[len(args)-1].(pdf.String)
-			sc.text([]pdf.String{s})
+			// veraPDF reads no glyph from ", whose first operand is a number.
+			sc.text([]pdf.String{s}, op != "\"")
 		}
 	case "TJ":
 		if len(args) > 0 {
@@ -518,7 +525,7 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 					strs = append(strs, s)
 				}
 			}
-			sc.text(strs)
+			sc.text(strs, true)
 		}
 	case "d1":
 		if sc.x.glyph {
@@ -627,8 +634,9 @@ func (sc *streamScan) xobject(name pdf.Name) {
 }
 
 // text paints the strings of a text-showing operator, according to the
-// text rendering mode, and reads the glyphs they show of a Type 3 font.
-func (sc *streamScan) text(strs []pdf.String) {
+// text rendering mode, reads the glyphs they show of a Type 3 font and,
+// with glyphs, checks those glyphs (check_pdfa_glyphs.go).
+func (sc *streamScan) text(strs []pdf.String, glyphs bool) {
 	g := &sc.cur
 	var fill, stroke bool
 	switch g.tr {
@@ -640,6 +648,9 @@ func (sc *streamScan) text(strs []pdf.String) {
 		fill, stroke = true, true
 	}
 	sc.paint(fill, stroke, true)
+	if glyphs {
+		sc.showGlyphs(strs)
+	}
 	if t := sc.type3(strs); t && (fill || stroke) {
 		sc.transparent = true
 	}

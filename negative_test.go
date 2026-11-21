@@ -108,8 +108,7 @@ var negativeCases = map[string]negativeCase{
 		rules: []string{"BR-S-02", "FX-SCH-A-000612", "FX-SCH-A-000613"}, ref: "Mustang : BR-S-02, FX-SCH-A-000612 et 000613 (unités)",
 	},
 	"ZUGFeRDv2/fail/ZUGFeRD_2_fully_compliant_complete.pdf": {
-		ref:   "Mustang : PDF/A (veraPDF, ISO 19005-3 6.2.11.4.2), XML valide",
-		valid: "the CIDSet of an embedded font does not list all its glyphs (ISO 19005-3 6.2.11.4.2), which only veraPDF checks",
+		rules: []string{"PDF-72"}, ref: "Mustang : PDF/A (veraPDF, ISO 19005-3 6.2.11.4.2, CIDSet incomplet), XML valide",
 	},
 	"ZUGFeRDv2/fail/python-factur-x/python-factur-x.pdf": {
 		rules: []string{"FX-PROFILE-03", "PDF-28", "XSD-UNEXPECTED"}, ref: "Mustang : FX-SCH-A-000493 (BT-24), SCHEMA",

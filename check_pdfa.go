@@ -53,7 +53,9 @@ const (
 // outlines, the form fields and the page tree with the resources of the
 // pages, form XObjects, patterns, soft masks, Type 3 fonts and annotation
 // appearances, and the structure tree when an embedded file is not found in
-// another /AF array. The content streams are not parsed.
+// another /AF array. For PDF/A-2 and PDF/A-3, it also reads the content
+// streams of the pages (check_pdfa_content.go) and the glyphs their text
+// shows (check_pdfa_glyphs.go).
 type pdfaScan struct {
 	c      *container
 	k      *containerCheck
@@ -77,7 +79,7 @@ type pdfaScan struct {
 // pdfa runs the PDF/A scan. invoice is the file specification of the
 // invoice attachment, checked by CheckContainer itself; it may be nil. info
 // is the XMP metadata, or nil: the requirements of ISO 19005-2 and 19005-3
-// (PDF-41 to PDF-69) apply unless it declares PDF/A-4.
+// (PDF-41 to PDF-69, PDF-71 and PDF-72) apply unless it declares PDF/A-4.
 func (k *containerCheck) pdfa(c *container, invoice *fileSpec, info *xmp.Info) {
 	// fonts, afRefs and counts, rarely needed, are made on first use.
 	s := &pdfaScan{c: c, k: k, seen: map[pdf.Ref]uint16{}}

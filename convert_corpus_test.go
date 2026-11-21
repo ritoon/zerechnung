@@ -24,15 +24,6 @@ var convertRefusedValid = map[string]string{
 var convertKnownFailures = func() map[string]string {
 	m := map[string]string{}
 	for reason, files := range map[string]string{
-		"the CID values of a CMap or of the text (6.1.13)": `6-1-13-t08-fail-b 6-1-13-t10-fail-a`,
-		"the glyphs of a font program, their widths, or the glyphs the text uses (6.2.11.4.1, 6.2.11.5, 6.2.11.8)": `
-			6-2-11-4-1-t02-fail-a 6-2-11-4-1-t02-fail-b 6-2-11-4-1-t02-fail-c 6-2-11-4-1-t02-fail-d
-			6-2-11-4-1-t02-fail-e 6-2-11-5-t01-fail-a 6-2-11-5-t01-fail-b 6-2-11-5-t01-fail-c 6-2-11-5-t01-fail-d
-			6-2-11-5-t01-fail-e 6-2-11-5-t01-fail-f 6-2-11-8-t01-fail-a 6-2-11-8-t01-fail-b 6-2-11-8-t01-fail-c
-			6-2-11-8-t01-fail-d`,
-		"the glyph names of a Differences array and the cmap table of a TrueType font program (6.2.11.6)": `6-2-11-6-t02-fail-d`,
-		"JPEG 2000 image data (6.2.8.3)": `6-2-8-3-t01-fail-b 6-2-8-3-t02-fail-a 6-2-8-3-t03-fail-a 6-2-8-3-t04-fail-a
-			6-2-8-3-t05-fail-a`,
 		"a value type of an XMP extension schema without pdfaType:field (6.6.2.3)": `6-6-2-3-3-t03-fail-b`,
 	} {
 		for _, f := range strings.Fields(files) {

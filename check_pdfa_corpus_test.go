@@ -21,8 +21,8 @@ var clauseRules = map[string]string{
 	"6-1-13": "PDF-49", "6-2-2": "PDF-55 PDF-71", "6-2-3": "PDF-06 PDF-07 PDF-50", "6-2-4-2": "PDF-51",
 	"6-2-4-3": "PDF-52", "6-2-4-4": "PDF-49 PDF-52 PDF-53", "6-2-4-5": "PDF-51 PDF-52",
 	"6-2-5": "PDF-54 PDF-55", "6-2-6": "PDF-55", "6-2-8": "PDF-55 PDF-56", "6-2-9": "PDF-57",
-	"6-2-10": "PDF-52 PDF-58", "6-2-11-3": "PDF-59", "6-2-11-4": "PDF-31 PDF-59", "6-2-11-5": "PDF-59",
-	"6-2-11-6": "PDF-60", "6-2-11-8": "PDF-31", "6-3-1": "PDF-61", "6-3-2": "PDF-62", "6-3-3": "PDF-63",
+	"6-2-10": "PDF-52 PDF-58", "6-2-11-3": "PDF-59", "6-2-11-4": "PDF-31 PDF-59 PDF-72", "6-2-11-5": "PDF-59 PDF-72",
+	"6-2-11-6": "PDF-60", "6-2-11-8": "PDF-31 PDF-72", "6-3-1": "PDF-61", "6-3-2": "PDF-62", "6-3-3": "PDF-63",
 	"6-4-1": "PDF-34 PDF-64", "6-4-2": "PDF-64", "6-5-1": "PDF-33", "6-5-2": "PDF-34",
 	"6-6-2-1": "PDF-02 PDF-03 PDF-65", "6-6-2-3": "PDF-66 PDF-67", "6-6-4": "PDF-66", "6-6-6": "PDF-66 PDF-67",
 	"6-8": "PDF-20 PDF-36 PDF-37 PDF-39", "6-9": "PDF-68",
@@ -36,7 +36,7 @@ var clauseRules = map[string]string{
 var pdfaRules = strings.Fields(`PDF-01 PDF-02 PDF-03 PDF-06 PDF-07 PDF-08 PDF-31 PDF-32 PDF-33 PDF-34
 	PDF-35 PDF-36 PDF-37 PDF-38 PDF-39 PDF-41 PDF-42 PDF-43 PDF-44 PDF-45 PDF-46 PDF-47 PDF-48 PDF-49
 	PDF-50 PDF-51 PDF-52 PDF-53 PDF-54 PDF-55 PDF-56 PDF-57 PDF-58 PDF-59 PDF-60 PDF-61 PDF-62 PDF-63
-	PDF-64 PDF-65 PDF-66 PDF-67 PDF-68 PDF-69 PDF-70 PDF-71`)
+	PDF-64 PDF-65 PDF-66 PDF-67 PDF-68 PDF-69 PDF-70 PDF-71 PDF-72`)
 
 // veraPDFUncovered lists the invalid files of the corpus that CheckContainer
 // does not report, by reason. A listed file that gets reported fails the
@@ -44,12 +44,6 @@ var pdfaRules = strings.Fields(`PDF-01 PDF-02 PDF-03 PDF-06 PDF-07 PDF-08 PDF-31
 var veraPDFUncovered = func() map[string]string {
 	m := map[string]string{}
 	for reason, files := range map[string]string{
-		"the glyphs of a font program, their widths, or the glyphs the text uses": `6-2-11-4-1-t02-fail-a
-			6-2-11-4-1-t02-fail-b 6-2-11-4-1-t02-fail-c 6-2-11-4-1-t02-fail-d 6-2-11-4-1-t02-fail-e
-			6-2-11-4-2-t01-fail-a 6-2-11-4-2-t02-fail-a 6-2-11-5-t01-fail-a 6-2-11-5-t01-fail-b 6-2-11-5-t01-fail-c
-			6-2-11-5-t01-fail-d 6-2-11-5-t01-fail-e 6-2-11-5-t01-fail-f 6-2-11-8-t01-fail-a 6-2-11-8-t01-fail-b
-			6-2-11-8-t01-fail-c 6-2-11-8-t01-fail-d`,
-		"the glyph names of a Differences array, checked against the Adobe Glyph List":    `6-2-11-6-t02-fail-d`,
 		"a value type without pdfaType:field, which the veraPDF profile does not require": `6-6-2-3-3-t03-fail-b`,
 		"the PDF/A identification: PDF-04 and PDF-05 expect PDF/A-3 or PDF/A-4 and report every file of the corpus": `6-6-4-t01-fail-c
 			6-6-4-t01-fail-d 6-6-4-t01-fail-e 6-6-4-t01-fail-f`,

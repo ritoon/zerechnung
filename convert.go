@@ -109,16 +109,17 @@ const maxNesting = 28
 // refuses PDF 2.0 files (PDF/A-4 is not written), signed documents
 // (rewriting the file would invalidate the signatures) and dynamic XFA
 // forms. Last, it checks the converted file with the PDF/A rules of
-// CheckContainer (PDF-01 to PDF-08 and PDF-31 to PDF-69, the warnings
+// CheckContainer (PDF-01 to PDF-08 and PDF-31 to PDF-72, the warnings
 // PDF-53, PDF-59 and PDF-60 included): any error left is a reason to
-// refuse.
+// refuse, such as a glyph the font program lacks or JPEG 2000 data PDF/A
+// does not admit.
 //
 // The error is a *ConversionError, which wraps ErrNotConvertible and lists
 // every reason found, or ErrEncrypted, or an error reading the PDF. A
 // converted file is not proof of PDF/A conformance: what CheckContainer
-// does not read (font programs and glyphs, JPEG 2000 data, the value types
-// of XMP extension schemas, the requirements of levels A and U) is not
-// converted either. The CI checks the converted files with veraPDF.
+// does not read (Type 1 font programs, the value types of XMP extension
+// schemas, the requirements of levels A and U) is not converted either.
+// The CI checks the converted files with veraPDF.
 func ConvertPDFA(pdfData []byte, opts *ConvertOptions) ([]byte, error) {
 	var o ConvertOptions
 	if opts != nil {
