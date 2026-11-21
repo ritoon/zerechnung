@@ -6,6 +6,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 //go:generate go run ./gen -o ints_gen.go
@@ -159,8 +160,25 @@ func (p *parser) object() (Object, error) {
 		p.pos++
 		return nil, errSyntax
 	}
+	if k, ok := keywords[string(w)]; ok {
+		return k, nil
+	}
 	return keyword(w), nil
 }
+
+// keywords are the keywords of the file structure and the operators of the
+// content streams (ISO 32000-1, Annex A), boxed once so that reading them
+// does not allocate.
+var keywords = func() map[string]Object {
+	m := map[string]Object{}
+	for _, k := range strings.Fields(`obj endobj stream endstream R xref trailer startxref
+		b B b* B* BDC BI BMC BT BX c cm CS cs d d0 d1 Do DP EI EMC ET EX f F f* G g gs h i ID
+		j J K k l m M MP n q Q re RG rg ri s S SC sc SCN scn sh T* Tc Td TD Tf TJ Tj TL Tm Tr
+		Ts Tw Tz v w W W* y ' "`) {
+		m[k] = keyword(k)
+	}
+	return m
+}()
 
 // name reads a name after the slash.
 func (p *parser) name() Name {

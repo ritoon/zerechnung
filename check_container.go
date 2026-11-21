@@ -17,18 +17,18 @@ import (
 // Factur-X specification (and ZUGFeRD, XRechnung hybrids) requires from the
 // PDF container — the invoice attachment, its file specification and the
 // XMP metadata — and the PDF/A requirements a reader can verify without
-// rendering the pages nor parsing their content streams. PDF-41 to PDF-69
-// follow ISO 19005-2 and 19005-3 clause by clause, as the veraPDF
-// validation profiles for PDF/A-2b and PDF/A-3b number them: file
-// structure, colour spaces, graphics states, images, fonts, annotations,
-// forms, XMP metadata, optional content. They are not applied to a document
-// that declares PDF/A-4. PDF-70 applies to that document alone, in place of
-// PDF-35: ISO 19005-4 restricts the document information dictionary
-// (6.1.3), as rules 6.1.3-4 and 6.1.3-5 of the veraPDF profile for PDF/A-4
-// check it. The checks do not replace a PDF/A validator: the content streams
-// (colour operators, inline images, text rendering), the font programs and
-// the glyphs they define, and the level A and U requirements (structure,
-// Unicode mapping) are not checked.
+// rendering the pages. PDF-41 to PDF-69, PDF-71 and PDF-72 follow ISO
+// 19005-2 and 19005-3 clause by clause, as the veraPDF validation profiles
+// for PDF/A-2b and PDF/A-3b number them: file structure, colour spaces,
+// graphics states, images, fonts, annotations, forms, XMP metadata,
+// optional content, and what the content streams of the pages use
+// (operators, resources, colours, inline images, transparency, glyphs).
+// They are not applied to a document that declares PDF/A-4. PDF-70 applies
+// to that document alone, in place of PDF-35: ISO 19005-4 restricts the
+// document information dictionary (6.1.3), as rules 6.1.3-4 and 6.1.3-5 of
+// the veraPDF profile for PDF/A-4 check it. The checks do not replace a
+// PDF/A validator: Type 1 font programs are not read, and the level A and
+// U requirements (logical structure, Unicode mapping) are not checked.
 var ContainerCatalog = []rules.RuleInfo{
 	{ID: "PDF-01", Severity: rules.Error, Description: "The PDF is not encrypted (PDF/A forbids encryption; the attachment cannot be read)."},
 	{ID: "PDF-02", Severity: rules.Error, Description: "The document catalog has an XMP metadata stream (/Metadata)."},
@@ -67,29 +67,29 @@ var ContainerCatalog = []rules.RuleInfo{
 	{ID: "PDF-35", Severity: rules.Warning, Description: "The entries of the document information dictionary (/Info) that have an XMP equivalent (Title, Author, Subject, Keywords, Creator, Producer, CreationDate, ModDate) have the same value in the XMP metadata. ISO 19005-1 required it (6.7.3); ISO 19005-2 and 19005-3 no longer do (6.1.5), but a reader may show either value. Not checked for PDF/A-4, which only admits a document information dictionary holding ModDate alone (6.1.3)."},
 	{ID: "PDF-36", Severity: rules.Error, Description: "Every embedded file besides the invoice has an /AFRelationship entry (PDF/A-3 associated file)."},
 	{ID: "PDF-37", Severity: rules.Error, Description: "Every embedded file besides the invoice has a MIME type (/Subtype of the embedded file stream), as PDF/A-3 requires."},
-	{ID: "PDF-38", Severity: rules.Error, Description: "No stream uses a filter PDF/A forbids: LZWDecode, Crypt with a crypt filter other than Identity, or a filter ISO 32000-1 does not define (ISO 19005-3, 6.1.7.2). The streams of the pages, their resources, the annotation appearances, the font programs, the embedded files and the metadata are checked, then every other stream of the file. Inline images of the page content are not checked."},
+	{ID: "PDF-38", Severity: rules.Error, Description: "No stream uses a filter PDF/A forbids: LZWDecode, Crypt with a crypt filter other than Identity, or a filter ISO 32000-1 does not define (ISO 19005-3, 6.1.7.2). The streams of the pages, their resources, the annotation appearances, the font programs, the embedded files and the metadata are checked, then every other stream of the file. The filters of the inline images of the content streams are checked too."},
 	{ID: "PDF-39", Severity: rules.Error, Description: "Every embedded file besides the invoice is an associated file, listed in an /AF array (of the document catalog, a page, an annotation, a form or image XObject, a marked-content property list of the resources or a structure element), as PDF/A-3 requires. Files associated otherwise (property lists inside the page content, document parts) are not found."},
 	{ID: "PDF-40", Severity: rules.Error, Description: "Where the German rules apply, the /AFRelationship of a BASIC, EN 16931, EXTENDED or XRECHNUNG invoice is Alternative: Germany admits no other value (Factur-X 1.09, 5.3 and 6.2.2). They apply to XRECHNUNG invoices; Check also applies them when validate.Options selects the German rule sets (Germany, GermanyProfile, or Auto for a seller in Germany)."},
 	{ID: "PDF-41", Severity: rules.Error, Description: "The file header is %PDF-1.n (n from 0 to 7) at byte zero, followed by a single end-of-line marker and a comment of at least four bytes above 127 (6.1.2)."},
 	{ID: "PDF-42", Severity: rules.Error, Description: "Nothing follows the last end-of-file marker (%%EOF) but an optional single end-of-line marker (6.1.3)."},
 	{ID: "PDF-43", Severity: rules.Error, Description: "In every cross-reference table, the xref keyword and the subsection header are separated by a single end-of-line marker (6.1.4)."},
-	{ID: "PDF-44", Severity: rules.Error, Description: "Hexadecimal strings hold an even number of hexadecimal digits and no other character than white space (6.1.6)."},
+	{ID: "PDF-44", Severity: rules.Error, Description: "Hexadecimal strings, of the objects and of the content streams, hold an even number of hexadecimal digits and no other character than white space (6.1.6)."},
 	{ID: "PDF-45", Severity: rules.Error, Description: "Streams are well formed (6.1.7.1): the stream keyword is followed by CR LF or LF, endstream is preceded by an end-of-line marker, /Length is the number of bytes of the data, and no stream dictionary has an /F, /FFilter or /FDecodeParms entry (external data)."},
 	{ID: "PDF-46", Severity: rules.Error, Description: "Font names, colourant names of Separation and DeviceN colour spaces and structure type names are valid UTF-8 (6.1.8)."},
 	{ID: "PDF-47", Severity: rules.Error, Description: "Indirect objects are well formed (6.1.9): object number, generation number and obj keyword separated by single white-space characters, the object number and the endobj keyword preceded by an end-of-line marker, obj and endobj followed by one."},
 	{ID: "PDF-48", Severity: rules.Error, Description: "The permissions dictionary of the catalog (/Perms) has only UR3 and DocMDP entries, and the signature references of DocMDP have no /DigestLocation, /DigestMethod or /DigestValue (6.1.12)."},
-	{ID: "PDF-49", Severity: rules.Error, Description: "The implementation limits of PDF/A are respected (6.1.13): integers within 32 bits, real numbers within ±3.403 × 10^38 and not closer to zero than ±1.175 × 10^-38, strings of at most 32767 bytes, names of at most 127 bytes, at most 8388607 indirect objects, at most 32 DeviceN colourants, page boundaries of 3 to 14400 units. The limits of the content streams (nesting of q operators, CID values) are not checked."},
+	{ID: "PDF-49", Severity: rules.Error, Description: "The implementation limits of PDF/A are respected (6.1.13): integers within 32 bits, real numbers within ±3.403 × 10^38 and not closer to zero than ±1.175 × 10^-38, strings of at most 32767 bytes, names of at most 127 bytes, at most 8388607 indirect objects, at most 32 DeviceN colourants, page boundaries of 3 to 14400 units. In the content streams: at most 28 nested q operators, and the limits of the numbers and strings; a CMap maps no code to a CID above 65535."},
 	{ID: "PDF-50", Severity: rules.Error, Description: "The output intents agree (6.2.3): every /DestOutputProfile is the same indirect object, an output (prtr) or monitor (mntr) ICC profile of version 4 at most in GRAY, RGB or CMYK, and a PDF/X output intent has no /DestOutputProfileRef."},
-	{ID: "PDF-51", Severity: rules.Error, Description: "The ICC profiles of the ICCBased colour spaces of the resources, images and transparency groups are input, output, monitor or colour space profiles (scnr, prtr, mntr, spac) of version 4 at most, in GRAY, RGB, CMYK or Lab (6.2.4.2)."},
-	{ID: "PDF-52", Severity: rules.Warning, Description: "DeviceRGB, DeviceCMYK and DeviceGray, where a colour space of the resources, an image or a transparency group uses them, are covered by a default colour space (DefaultRGB, DefaultCMYK, DefaultGray) or by a PDF/A output intent of the same colour model, any output intent for DeviceGray (6.2.4.3). Whether the content streams use the colour spaces of the resources is not analysed, nor are their colour operators (rg, k, g) and inline images."},
+	{ID: "PDF-51", Severity: rules.Error, Description: "The ICC profiles of the ICCBased colour spaces of the resources, images and transparency groups are input, output, monitor or colour space profiles (scnr, prtr, mntr, spac) of version 4 at most, in GRAY, RGB, CMYK or Lab, and the content does not paint in an ICCBased CMYK colour space with overprinting on and the overprint mode 1 (6.2.4.2)."},
+	{ID: "PDF-52", Severity: rules.Warning, Description: "DeviceRGB, DeviceCMYK and DeviceGray, where a colour space of the resources, an image or a transparency group uses them, are covered by a default colour space (DefaultRGB, DefaultCMYK, DefaultGray) or by a PDF/A output intent of the same colour model, any output intent for DeviceGray (6.2.4.3). The content streams are read: their colour operators (rg, k, g, cs…), the colour spaces they select, their inline images and the painting of uncoloured patterns and Type 3 glyphs."},
 	{ID: "PDF-53", Severity: rules.Warning, Description: "The spot colours of DeviceN colour spaces have an entry in the Colorants dictionary, and the Separation colour spaces of the same name have the same alternate space and tint transform (6.2.4.4)."},
 	{ID: "PDF-54", Severity: rules.Error, Description: "No graphics state has a transfer function (/TR, /TR2 other than Default) or an /HTP entry, and the halftones are of type 1 or 5, without /HalftoneName, with a transfer function only for the non-primary colourants (6.2.5)."},
-	{ID: "PDF-55", Severity: rules.Error, Description: "The rendering intents of the graphics states and images are RelativeColorimetric, AbsoluteColorimetric, Perceptual or Saturation (6.2.6). The ri operator of the content streams is not analysed."},
-	{ID: "PDF-56", Severity: rules.Error, Description: "Images have no /Alternates or /OPI entry, Interpolate is not true, and BitsPerComponent is 1, 2, 4, 8 or 16, 1 for an image mask (6.2.8). Inline images and JPEG 2000 data are not checked."},
+	{ID: "PDF-55", Severity: rules.Error, Description: "The rendering intents of the graphics states and images are RelativeColorimetric, AbsoluteColorimetric, Perceptual or Saturation (6.2.6). So are the ri operator and the inline images of the content streams."},
+	{ID: "PDF-56", Severity: rules.Error, Description: "Images have no /Alternates or /OPI entry, Interpolate is not true, and BitsPerComponent is 1, 2, 4, 8 or 16, 1 for an image mask (6.2.8). The inline images of the content streams are checked as well, and JPEG 2000 data (6.2.8.3) is a JP2 file of 1, 3 or 4 components of 1 to 38 bits, without a bits per component box and, for an image without /ColorSpace, with one colour specification of method 1 to 3 that is not CIELab (enumerated colour space 19)."},
 	{ID: "PDF-57", Severity: rules.Error, Description: "No form XObject has an /OPI entry, a /Subtype2 /PS or /PS entry, or is a reference XObject (/Ref), and no XObject is a PostScript XObject (6.2.9)."},
-	{ID: "PDF-58", Severity: rules.Error, Description: "Graphics states use the blend modes of ISO 32000-1 only (6.2.10)."},
-	{ID: "PDF-59", Severity: rules.Warning, Description: "The font dictionaries are well formed (6.2.11.2, 6.2.11.3): Type, Subtype and BaseFont; FirstChar, LastChar and a Widths array of LastChar - FirstChar + 1 entries for a simple font other than an unembedded standard font; for a Type 0 font, a CIDFont whose CIDSystemInfo matches the CMap, a predefined or embedded CMap with a consistent WMode that uses only predefined CMaps, a CIDToGIDMap for an embedded Type 2 CIDFont; a FontFile3 of subtype Type1C, CIDFontType0C or OpenType. The font programs and the glyphs they define are not analysed."},
-	{ID: "PDF-60", Severity: rules.Warning, Description: "TrueType fonts are encoded as 6.2.11.6 requires: a non-symbolic font has MacRomanEncoding or WinAnsiEncoding (as /Encoding or /BaseEncoding) and a non-symbolic cmap encoding in its program; a symbolic font has no /Encoding and a cmap table with a single encoding or a Microsoft Symbol (3,0) encoding."},
+	{ID: "PDF-58", Severity: rules.Error, Description: "Graphics states and annotations use the blend modes of ISO 32000-1 only, and a page whose content uses transparency (a soft mask, a constant alpha below 1, a blend mode other than Normal, a transparency group) has a group colour space when the document has no PDF/A output intent (6.2.10)."},
+	{ID: "PDF-59", Severity: rules.Warning, Description: "The font dictionaries are well formed (6.2.11.2, 6.2.11.3): Type, Subtype and BaseFont; FirstChar, LastChar and a Widths array of LastChar - FirstChar + 1 entries for a simple font other than an unembedded standard font; for a Type 0 font, a CIDFont whose CIDSystemInfo matches the CMap, a predefined or embedded CMap with a consistent WMode that uses only predefined CMaps, a CIDToGIDMap for an embedded Type 2 CIDFont; a FontFile3 of subtype Type1C, CIDFontType0C or OpenType. The glyphs of the font programs are checked by PDF-72."},
+	{ID: "PDF-60", Severity: rules.Warning, Description: "TrueType fonts are encoded as 6.2.11.6 requires: a non-symbolic font has MacRomanEncoding or WinAnsiEncoding (as /Encoding or /BaseEncoding) and a non-symbolic cmap encoding in its program; the glyph names of the Differences of a non-symbolic font are in the Adobe Glyph List, and its program has a Microsoft Unicode (3,1) cmap encoding to look them up; a symbolic font has no /Encoding and a cmap table with a single encoding or a Microsoft Symbol (3,0) encoding."},
 	{ID: "PDF-61", Severity: rules.Error, Description: "The annotations are of a type of ISO 32000-1 PDF/A admits: neither 3D, Sound, Screen or Movie, nor a type ISO 32000-1 does not define (6.3.1)."},
 	{ID: "PDF-62", Severity: rules.Error, Description: "The annotations other than Popup have flags (/F), with Print set and Invisible, Hidden, NoView and ToggleNoView clear (6.3.2)."},
 	{ID: "PDF-63", Severity: rules.Error, Description: "The annotations have an appearance dictionary with a normal appearance (N) only: a stream, or a subdictionary for a button widget. Popup and Link annotations and those of zero size need none (6.3.3)."},
@@ -100,6 +100,8 @@ var ContainerCatalog = []rules.RuleInfo{
 	{ID: "PDF-68", Severity: rules.Error, Description: "The optional content configurations have a unique /Name, no /AS entry, and an /Order array, when present, that lists every optional content group (6.9)."},
 	{ID: "PDF-69", Severity: rules.Error, Description: "The document has no alternate presentations (/AlternatePresentations in the catalog /Names), no presentation steps (/PresSteps of a page) and no /Requirements entry in the catalog (6.10, 6.11)."},
 	{ID: "PDF-70", Severity: rules.Error, Description: "A document that declares PDF/A-4 has no document information dictionary (/Info in the trailer) unless the catalog has a /PieceInfo entry, and then one holding ModDate alone (ISO 19005-4, 6.1.3): PDF 2.0 deprecates /Info in favour of the XMP metadata. Not checked for the other parts, whose /Info PDF-35 compares with the XMP metadata."},
+	{ID: "PDF-71", Severity: rules.Error, Description: "The content streams (of the pages, the form XObjects, tiling patterns and soft masks they use, the glyphs of the Type 3 fonts they show and the annotation appearances) use only the operators of ISO 32000-1, even between BX and EX, and take their named resources from their own resource dictionary: not from the page tree for the content of a page, not from the page for another stream (6.2.2)."},
+	{ID: "PDF-72", Severity: rules.Error, Description: "The glyphs the text of the content streams shows are defined by the embedded font program (6.2.11.4.1) with the widths of the font dictionary, to one unit in a thousand (6.2.11.5), and none is the .notdef glyph (6.2.11.8); the CharSet of a subset Type 1 font and the CIDSet of a subset CIDFont list the glyphs of the program, no more and no fewer (6.2.11.4.2). Codes are mapped to glyphs as veraPDF does. The TrueType and CFF programs and the glyph descriptions of Type 3 fonts are read; Type 1 programs, the glyphs and widths of invisible text (rendering mode 3) and the Type 0 fonts whose CMap is predefined but not Identity are not checked."},
 }
 
 // countries holds the countries whose usage of the container applies to an
@@ -274,6 +276,9 @@ func (k *containerCheck) document(c *container) *xmp.Info {
 		k.add("PDF-08", "trailer /ID", "the trailer has no file identifier (/ID array of two strings)")
 	} else if last, _ := c.r.Resolve(id[1]).(pdf.String); len(last) == 0 {
 		k.add("PDF-08", "trailer /ID", "the file identifier is empty")
+	} else if !c.r.NewestTrailer().Has("ID") {
+		// veraPDF reads the identifier of the newest trailer alone (6.1.3).
+		k.add("PDF-08", "trailer /ID", "the newest trailer of the file (the first-page trailer of a linearized file, or the trailer of the last incremental update) has no file identifier; only an older trailer has one")
 	}
 	return info
 }

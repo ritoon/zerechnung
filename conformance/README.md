@@ -58,12 +58,12 @@ Le job *veraPDF sur les PDF convertis* exécute [`verapdf.sh`](verapdf.sh), qui 
 
 | Fichiers | Convertis | Refusés | Convertis qui passent veraPDF | Échecs connus |
 |---|---|---|---|---|
-| Corpus veraPDF, PDF/A-2b et PDF/A-3b (998) | 859 | 139 | 835 | 24 |
+| Corpus veraPDF, PDF/A-2b et PDF/A-3b (998) | 836 | 162 | 835 | 1 |
 | PDF non conformes générés par les tests (10) | 10 | — | 10 | 0 |
 
-Des 139 refus, un seul porte sur un fichier valide du corpus : un document signé, que la réécriture invaliderait (`convertRefusedValid`). Les autres sont des fichiers invalides que la conversion ne sait pas réparer sans moteur PDF : police non incorporée, DeviceCMYK sans profil CMYK, annotation masquée ou sans apparence, opérateur inconnu, profil ICC de l'intention de sortie inutilisable, chiffrement…
+Des 162 refus, un seul porte sur un fichier valide du corpus : un document signé, que la réécriture invaliderait (`convertRefusedValid`). Les autres sont des fichiers invalides que la conversion ne sait pas réparer sans moteur PDF : police non incorporée, glyphe absent du programme de police ou de largeur différente, glyphe `.notdef`, nom de glyphe hors de l'Adobe Glyph List, valeur de CID hors limites, données JPEG 2000 refusées par PDF/A, DeviceCMYK sans profil CMYK, annotation masquée ou sans apparence, opérateur inconnu, profil ICC de l'intention de sortie inutilisable, chiffrement…
 
-Les 24 échecs connus portent sur ce que la conversion ne lit pas : les programmes de polices (glyphes définis, largeurs, glyphe `.notdef`, table `cmap` et noms de glyphes d'un tableau `Differences`), les valeurs de CID au-delà de 65535, les données JPEG 2000 et un type de valeur d'un schéma d'extension XMP sans `pdfaType:field`.
+Le seul échec connu porte sur ce que la conversion ne lit pas : un type de valeur d'un schéma d'extension XMP sans `pdfaType:field`.
 
 ## Parité avec KoSIT et Mustang
 
@@ -105,7 +105,7 @@ Le package applique les schematrons Factur-X 1.09.2 comme Mustang à BASIC, à E
 
 Le tableau *Cas négatifs officiels* du rapport donne, pour chaque facture invalide à dessein du corpus, les erreurs levées par le package et par chaque référence. La suite de tests KoSIT ne contient que des factures valides.
 
-Le test `TestOfficialNegativeCases` ([`negative_test.go`](../negative_test.go)), exécuté par le job *Tests sur les artefacts officiels*, fige ces verdicts : chacune des 24 factures de `ZUGFeRDv2/fail` et des 2 exemples `not_validating` doit lever les règles que lèvent les références (sous le même identifiant ou, pour le même défaut, sous celui du package). Trois n'ont pas d'erreur, pour une raison donnée dans le test : un défaut de police PDF/A que seul veraPDF voit, un prix net incohérent qu'aucune règle EN 16931 ne contrôle, et un exemple où aucune référence ne trouve d'erreur non plus.
+Le test `TestOfficialNegativeCases` ([`negative_test.go`](../negative_test.go)), exécuté par le job *Tests sur les artefacts officiels*, fige ces verdicts : chacune des 24 factures de `ZUGFeRDv2/fail` et des 2 exemples `not_validating` doit lever les règles que lèvent les références (sous le même identifiant ou, pour le même défaut, sous celui du package). Le défaut PDF/A que Mustang relève avec veraPDF sur `ZUGFeRD_2_fully_compliant_complete.pdf`, un CIDSet de police incomplet, est relevé par PDF-72. Sept factures n'ont pas d'erreur, pour une raison donnée dans le test : les cinq exemples FNFE-MPE que le corpus a déplacés sans dire ce qui est faux, où Mustang ne trouve pas d'erreur non plus, un prix net incohérent qu'aucune règle EN 16931 ne contrôle, et un exemple où aucune référence ne trouve d'erreur.
 
 ## Parité NLCIUS avec les XSLT de la NPa
 

@@ -53,7 +53,9 @@ const (
 // outlines, the form fields and the page tree with the resources of the
 // pages, form XObjects, patterns, soft masks, Type 3 fonts and annotation
 // appearances, and the structure tree when an embedded file is not found in
-// another /AF array. The content streams are not parsed.
+// another /AF array. For PDF/A-2 and PDF/A-3, it also reads the content
+// streams of the pages (check_pdfa_content.go) and the glyphs their text
+// shows (check_pdfa_glyphs.go).
 type pdfaScan struct {
 	c      *container
 	k      *containerCheck
@@ -70,12 +72,14 @@ type pdfaScan struct {
 	iccs  map[pdf.Ref]iccHeader      // ICC profiles read
 	seps  map[pdf.Name][2]pdf.Object // alternate space and tint transform of the Separation colour spaces
 	xmp   xmp.Declared               // properties described by the extension schemas of the document metadata
+
+	content *contentState // the content streams read (check_pdfa_content.go)
 }
 
 // pdfa runs the PDF/A scan. invoice is the file specification of the
 // invoice attachment, checked by CheckContainer itself; it may be nil. info
 // is the XMP metadata, or nil: the requirements of ISO 19005-2 and 19005-3
-// (PDF-41 to PDF-69) apply unless it declares PDF/A-4.
+// (PDF-41 to PDF-69, PDF-71 and PDF-72) apply unless it declares PDF/A-4.
 func (k *containerCheck) pdfa(c *container, invoice *fileSpec, info *xmp.Info) {
 	// fonts, afRefs and counts, rarely needed, are made on first use.
 	s := &pdfaScan{c: c, k: k, seen: map[pdf.Ref]uint16{}}
@@ -311,10 +315,22 @@ func (s *pdfaScan) pages() {
 			}
 		}
 		s.resources(res, where+" /Resources", 0, 0)
+		var pc *pageContent
+		transparent := false
+		if s.iso {
+			pc, transparent = s.pageContent(d, res, def, where)
+		}
 		if annots, ok := r.Resolve(d.Get("Annots")).(pdf.Array); ok {
 			for i, a := range annots {
-				s.annotation(a, fmt.Sprintf("%s /Annots [%d]", where, i))
+				path := fmt.Sprintf("%s /Annots [%d]", where, i)
+				s.annotation(a, path)
+				if s.iso {
+					transparent = s.appearances(a, pc, path) || transparent
+				}
 			}
+		}
+		if transparent && s.outCS == "" {
+			s.pageTransparency(d, where)
 		}
 	}
 	walk(s.c.catalog.Get("Pages"), nil, 0)
@@ -460,6 +476,7 @@ func (s *pdfaScan) xobject(o pdf.Object, where string, depth int, def uint8) {
 	case "Image":
 		if s.iso {
 			s.image(st.Dict, where, def, imageXObject)
+			s.jpx(st, where)
 		}
 		for _, m := range []struct {
 			key  pdf.Name

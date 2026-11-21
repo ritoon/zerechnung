@@ -2,22 +2,24 @@ package zerechnung
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ritoon/zerechnung/internal/font"
 	"github.com/ritoon/zerechnung/internal/pdf"
 	"github.com/ritoon/zerechnung/internal/xmp"
 )
 
 // This file holds the PDF/A requirements of ISO 19005-2 and 19005-3 that
-// a reader can verify without rendering the pages nor parsing their content
-// streams (PDF-41 to PDF-69), with the numbering of the veraPDF validation
-// profiles for PDF/A-2b and PDF/A-3b. They are not applied to a document
-// that declares PDF/A-4, whose requirements differ (ISO 19005-4).
+// bear on the objects of the file rather than on the content streams
+// (PDF-41 to PDF-69), with the numbering of the veraPDF validation
+// profiles for PDF/A-2b and PDF/A-3b. The content streams are read by
+// check_pdfa_content.go, their glyphs by check_pdfa_glyphs.go. They are not
+// applied to a document that declares PDF/A-4, whose requirements differ
+// (ISO 19005-4).
 
 // Default colour spaces set in a resource dictionary (ISO 32000-1, 8.6.5.6).
 const (
@@ -890,6 +892,9 @@ func (s *pdfaScan) fontDict(d pdf.Dict, where string) {
 	}
 	fd, _ := r.Dict(d.Get("FontDescriptor"))
 	s.fontDescriptor(fd, where)
+	if fd != nil && (sub == "Type1" || sub == "MMType1") {
+		s.charSet(d, fd, where)
+	}
 	embedded := fd != nil && (fd.Has("FontFile") || fd.Has("FontFile2") || fd.Has("FontFile3"))
 	if sub == "Type3" || !standard14[string(base)] || embedded {
 		first, ok1 := pdf.AsInt(r.Resolve(d.Get("FirstChar")))
@@ -950,6 +955,9 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 	s.unicodeName(s.name(cid, "BaseFont"), cw+" /BaseFont", "font")
 	fd, _ := r.Dict(cid.Get("FontDescriptor"))
 	s.fontDescriptor(fd, cw)
+	if fd != nil {
+		s.cidSet(cid, fd, cw)
+	}
 	if sub == "CIDFontType2" && fd != nil && fd.Has("FontFile2") {
 		switch m := r.Resolve(cid.Get("CIDToGIDMap")).(type) {
 		case nil:
@@ -993,6 +1001,9 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 					s.report("PDF-59", ew+" /WMode", "the CMap dictionary has /WMode %d but the CMap program %s", dictWMode, m[1])
 				}
 			}
+			if cid := parseCMap(data).maxCID(); cid > 65535 {
+				s.report("PDF-49", ew, "the CMap maps a code to the CID %d; PDF/A admits CIDs up to 65535 (6.1.13)", cid)
+			}
 			for _, m := range useCMapOp.FindAllSubmatch(data, -1) {
 				if _, ok := predefinedCMaps[string(m[1])]; !ok {
 					s.report("PDF-59", ew, "the CMap uses the CMap %s, which is not one of the predefined CMaps", m[1])
@@ -1020,6 +1031,7 @@ func (s *pdfaScan) trueType(d, fd pdf.Dict, where string) {
 	flags, _ := pdf.AsInt(r.Resolve(fd.Get("Flags")))
 	symbolic := flags&4 != 0
 	enc := r.Resolve(d.Get("Encoding"))
+	var diffs pdf.Array
 	if symbolic {
 		if enc != nil {
 			s.report("PDF-60", where+" /Encoding", "the symbolic TrueType font has an /Encoding entry, which PDF/A forbids")
@@ -1031,63 +1043,38 @@ func (s *pdfaScan) trueType(d, fd pdf.Dict, where string) {
 			name = e
 		case pdf.Dict:
 			name = s.name(e, "BaseEncoding")
+			diffs, _ = r.Resolve(e.Get("Differences")).(pdf.Array)
 		}
 		if name != "MacRomanEncoding" && name != "WinAnsiEncoding" {
 			s.report("PDF-60", where+" /Encoding", "the non-symbolic TrueType font has neither MacRomanEncoding nor WinAnsiEncoding as encoding (or base encoding)")
 		}
 	}
-	st, ok := r.Resolve(fd.Get("FontFile2")).(*pdf.Stream)
-	if !ok {
+	tt := s.program(fd).tt
+	if tt == nil || s.program(fd).key != "FontFile2" {
 		return
 	}
-	data, err := r.Decode(st)
-	if err != nil {
-		return
-	}
-	n, has30, ok := cmapEncodings(data)
-	if !ok {
-		return
-	}
+	ms, sym := font.CmapID{Platform: 3, Encoding: 1}, font.CmapID{Platform: 3, Encoding: 0}
+	n, has30 := len(tt.Cmaps()), tt.HasCmap(sym)
+	ff := where + " /FontDescriptor /FontFile2"
 	switch {
 	case symbolic && n != 1 && !has30:
-		s.report("PDF-60", where+" /FontDescriptor /FontFile2", "the cmap table of the symbolic TrueType font has %d encodings and no Microsoft Symbol (3,0) encoding", n)
+		s.report("PDF-60", ff, "the cmap table of the symbolic TrueType font has %d encodings and no Microsoft Symbol (3,0) encoding", n)
 	case !symbolic && (n == 0 || (has30 && n == 1)):
-		s.report("PDF-60", where+" /FontDescriptor /FontFile2", "the cmap table of the non-symbolic TrueType font has no non-symbolic encoding")
+		s.report("PDF-60", ff, "the cmap table of the non-symbolic TrueType font has no non-symbolic encoding")
 	}
-}
-
-// cmapEncodings reads the number of encoding records of the cmap table of a
-// TrueType font program, and whether one is (3,0).
-func cmapEncodings(data []byte) (n int, has30, ok bool) {
-	if len(data) < 12 {
-		return 0, false, false
+	if len(diffs) == 0 {
+		return
 	}
-	tables := int(binary.BigEndian.Uint16(data[4:]))
-	for i := 0; i < tables; i++ {
-		at := 12 + 16*i
-		if at+16 > len(data) {
-			return 0, false, false
-		}
-		if string(data[at:at+4]) != "cmap" {
-			continue
-		}
-		off := int(binary.BigEndian.Uint32(data[at+8:]))
-		if off < 0 || off+4 > len(data) {
-			return 0, false, false
-		}
-		n = int(binary.BigEndian.Uint16(data[off+2:]))
-		for k := 0; k < n; k++ {
-			rec := off + 4 + 8*k
-			if rec+4 > len(data) {
-				return 0, false, false
-			}
-			if binary.BigEndian.Uint16(data[rec:]) == 3 && binary.BigEndian.Uint16(data[rec+2:]) == 0 {
-				has30 = true
-			}
-		}
-		return n, has30, true
+	if !tt.HasCmap(ms) {
+		s.report("PDF-60", ff, "the non-symbolic TrueType font has a /Differences array but its cmap table has no Microsoft Unicode (3,1) encoding to look the glyph names up")
+		return
 	}
-	return 0, false, true // no cmap table
+	for _, x := range diffs {
+		if n, ok := r.Resolve(x).(pdf.Name); ok && !font.InGlyphList(string(n)) {
+			s.report("PDF-60", where+" /Encoding /Differences", "the glyph name %s of the non-symbolic TrueType font is not in the Adobe Glyph List", n)
+			return
+		}
+	}
 }
 
 // annotTypes are the annotation types PDF/A admits (6.3.1).

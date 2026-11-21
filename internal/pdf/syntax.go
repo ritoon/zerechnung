@@ -498,8 +498,16 @@ func (l *lint) number() {
 	for l.pos < l.end && isRegular(b[l.pos]) {
 		l.pos++
 	}
-	tok := string(b[start:l.pos])
-	if bytes.IndexByte(b[start:l.pos], '.') >= 0 {
+	raw := b[start:l.pos]
+	real := bytes.IndexByte(raw, '.') >= 0
+	// A short token is within the limits: a real number out of range has
+	// at least 39 digits before the point or 38 after it, an
+	// integer out of range at least 10 digits.
+	if real && len(raw) <= 30 || !real && len(raw) <= 9 {
+		return
+	}
+	tok := string(raw)
+	if real {
 		f, err := strconv.ParseFloat(tok, 64)
 		if err != nil && f == 0 {
 			return
