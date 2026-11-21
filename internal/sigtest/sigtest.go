@@ -142,6 +142,9 @@ type LeafOptions struct {
 	// SelfSigned issues the certificate by itself instead of the
 	// intermediate authority.
 	SelfSigned bool
+	// ExtKeyUsage and CRLDistributionPoints are left out when empty.
+	ExtKeyUsage           []x509.ExtKeyUsage
+	CRLDistributionPoints []string
 }
 
 // Leaf returns a signing certificate issued by the intermediate authority,
@@ -170,6 +173,9 @@ func (p *PKI) Leaf(tb testing.TB, o LeafOptions) (*x509.Certificate, crypto.Sign
 		NotBefore:    o.NotBefore,
 		NotAfter:     o.NotAfter,
 		KeyUsage:     o.KeyUsage,
+
+		ExtKeyUsage:           o.ExtKeyUsage,
+		CRLDistributionPoints: o.CRLDistributionPoints,
 	}
 	if ext, ok := qcExtension(o.QC); ok {
 		tmpl.ExtraExtensions = []pkix.Extension{ext}
@@ -227,6 +233,16 @@ func (p *PKI) CRL(tb testing.TB, thisUpdate time.Time, revokedAt time.Time, hold
 		}
 		tmpl.RevokedCertificateEntries = append(tmpl.RevokedCertificateEntries, e)
 	}
+	return p.SignCRL(tb, tmpl)
+}
+
+// SignCRL returns the CRL of the template, signed by the intermediate
+// authority; a zero Number gets a fresh one.
+func (p *PKI) SignCRL(tb testing.TB, tmpl *x509.RevocationList) *x509.RevocationList {
+	tb.Helper()
+	if tmpl.Number == nil {
+		tmpl.Number = nextSerial()
+	}
 	der, err := x509.CreateRevocationList(rand.Reader, tmpl, p.Intermediate, p.IntermediateKey)
 	if err != nil {
 		tb.Fatal(err)
@@ -248,6 +264,19 @@ const (
 // OCSP returns an OCSP response about cert, signed by the intermediate
 // authority (byKey: the responder is identified by the hash of its key).
 func (p *PKI) OCSP(tb testing.TB, cert *x509.Certificate, status int, revokedAt, thisUpdate time.Time, byKey bool) []byte {
+	tb.Helper()
+	return p.ocsp(tb, cert, status, revokedAt, thisUpdate, byKey, nil, p.IntermediateKey)
+}
+
+// OCSPFrom returns an OCSP response about cert signed by a responder the
+// intermediate authority delegated, whose certificate the response carries
+// and whose key is an ECDSA one.
+func (p *PKI) OCSPFrom(tb testing.TB, cert *x509.Certificate, status int, revokedAt, thisUpdate time.Time, responder *x509.Certificate, key crypto.Signer) []byte {
+	tb.Helper()
+	return p.ocsp(tb, cert, status, revokedAt, thisUpdate, false, responder, key)
+}
+
+func (p *PKI) ocsp(tb testing.TB, cert *x509.Certificate, status int, revokedAt, thisUpdate time.Time, byKey bool, responderCert *x509.Certificate, key crypto.Signer) []byte {
 	tb.Helper()
 	var spki struct {
 		Algorithm pkix.AlgorithmIdentifier
@@ -280,6 +309,8 @@ func (p *PKI) OCSP(tb testing.TB, cert *x509.Certificate, status int, revokedAt,
 	if byKey {
 		kh, _ := asn1.Marshal(keyHash[:])
 		responder = der(0xa2, kh)
+	} else if responderCert != nil {
+		responder = der(0xa1, responderCert.RawSubject)
 	} else {
 		responder = der(0xa1, p.Intermediate.RawSubject)
 	}
@@ -287,13 +318,16 @@ func (p *PKI) OCSP(tb testing.TB, cert *x509.Certificate, status int, revokedAt,
 	tbs := der(0x30, responder, produced, der(0x30, single))
 	h := crypto.SHA256.New()
 	h.Write(tbs)
-	sig, err := p.IntermediateKey.Sign(rand.Reader, h.Sum(nil), crypto.SHA256)
+	sig, err := key.Sign(rand.Reader, h.Sum(nil), crypto.SHA256)
 	if err != nil {
 		tb.Fatal(err)
 	}
 	sigAlg, _ := asn1.Marshal(pkix.AlgorithmIdentifier{Algorithm: asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}})
 	sigBits, _ := asn1.Marshal(asn1.BitString{Bytes: sig, BitLength: 8 * len(sig)})
 	basic := der(0x30, tbs, sigAlg, sigBits)
+	if responderCert != nil {
+		basic = der(0x30, tbs, sigAlg, sigBits, der(0xa0, der(0x30, responderCert.Raw)))
+	}
 	basicOctets, _ := asn1.Marshal(basic)
 	oid, _ := asn1.Marshal(asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 48, 1, 1})
 	statusOK := []byte{0x0a, 0x01, 0x00}

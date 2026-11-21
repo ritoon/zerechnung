@@ -120,6 +120,9 @@ func checkOCSP(der []byte, cert, issuer *x509.Certificate, at time.Time) (Status
 			if c.CheckSignatureFrom(issuer) != nil || !hasEKU(c, oidExtKeyOCSPSign) {
 				return 0, time.Time{}, errors.New("the responder is not authorized by the issuer of the certificate")
 			}
+			if data.ProducedAt.Before(c.NotBefore) || data.ProducedAt.After(c.NotAfter) {
+				return 0, time.Time{}, errors.New("the responder certificate is not valid when the response was produced")
+			}
 			responder = c
 			break
 		}
@@ -144,7 +147,13 @@ func checkOCSP(der []byte, cert, issuer *x509.Certificate, at time.Time) (Status
 		return StatusUnknown, time.Time{}, nil
 	}
 	// A good status, or a revocation after at, holds at any time up to
-	// thisUpdate, and until nextUpdate.
+	// thisUpdate, and until nextUpdate. A responder need not keep the
+	// status of expired certificates (RFC 6960 §4.4.4): a response produced
+	// after cert expired proves nothing. The archive cutoff extension,
+	// which would vouch for it, is not read.
+	if single.ThisUpdate.After(cert.NotAfter) {
+		return StatusUnknown, time.Time{}, nil
+	}
 	if !single.ThisUpdate.Before(at) || !single.NextUpdate.IsZero() && !at.After(single.NextUpdate) {
 		return StatusGood, time.Time{}, nil
 	}

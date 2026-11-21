@@ -70,10 +70,12 @@ func TestVerifySignatureRules(t *testing.T) {
 	cases := []tc{
 		{"valid", fpa, base, opts(nil), ""},
 		{"valid invoice between companies", fpr, base, opts(nil), ""},
+		// A response produced after the certificate expired proves
+		// nothing about its revocation.
 		{"00100 expired", fpa, base, opts(func(o *VerifyOptions) {
 			o.At = leaf.NotAfter.Add(time.Hour)
 			o.OCSP = good(leaf, o.At)
-		}), "00100:error"},
+		}), "00100:error IT-SIG-05:info"},
 		{"00101 revoked", fpa, base, opts(func(o *VerifyOptions) {
 			o.OCSP = nil
 			o.CRLs = []*x509.RevocationList{p.CRL(t, at, at.Add(-time.Minute), false, leaf)}
@@ -132,6 +134,18 @@ func TestVerifySignatureRules(t *testing.T) {
 		}
 		if got := findings(VerifySignature(tampered, opts(nil))); got != "00102:error" {
 			t.Errorf("00102, %v: %q", format, got)
+		}
+	}
+	// 00102: a namespace declared twice on an element, which Parse would
+	// read as the last declaration, would take the signed elements out of
+	// the invoice.
+	for _, decl := range []string{`xmlns="" xmlns="urn:x"`, `xmlns:p="urn:x"`} {
+		tampered := bytes.Replace(files[XAdES], []byte("<p:FatturaElettronica "), []byte("<p:FatturaElettronica "+decl+" "), 1)
+		if got := findings(VerifySignature(tampered, opts(nil))); got != "00102:error" {
+			t.Errorf("00102, %s: %q", decl, got)
+		}
+		if _, _, err := Unwrap(tampered); err == nil {
+			t.Errorf("Unwrap opens a document with %s", decl)
 		}
 	}
 	// 00001: the extension does not match the format.

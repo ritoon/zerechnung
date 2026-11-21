@@ -269,6 +269,42 @@ func TestParseErrors(t *testing.T) {
 	if _, err := Parse(append(bytes.Clone(der), 0, 0, 0)); err != nil {
 		t.Errorf("zero padding: %v", err)
 	}
+
+	// The counts of SignerInfos and certificates are bounded.
+	if _, err := Parse(repeat(t, der, MaxSigners, MaxCertificates)); err != nil {
+		t.Errorf("%d signers and %d certificates: %v", MaxSigners, MaxCertificates, err)
+	}
+	if _, err := Parse(repeat(t, der, MaxSigners+1, 1)); err == nil {
+		t.Errorf("%d signers: no error", MaxSigners+1)
+	}
+	if _, err := Parse(repeat(t, der, 1, MaxCertificates+1)); err == nil {
+		t.Errorf("%d certificates: no error", MaxCertificates+1)
+	}
+}
+
+// repeat returns der, a SignedData with one SignerInfo and one certificate,
+// with signers copies of the SignerInfo and certs copies of the certificate.
+func repeat(t *testing.T, der []byte, signers, certs int) []byte {
+	t.Helper()
+	var ci contentInfo
+	if _, err := asn1.Unmarshal(der, &ci); err != nil {
+		t.Fatal(err)
+	}
+	var sd signedData
+	if _, err := asn1.Unmarshal(ci.Content.Bytes, &sd); err != nil {
+		t.Fatal(err)
+	}
+	sd.SignerInfos = asn1.RawValue{Tag: asn1.TagSet, IsCompound: true, Bytes: bytes.Repeat(sd.SignerInfos.Bytes, signers)}
+	sd.Certificates = asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: bytes.Repeat(sd.Certificates.Bytes, certs)}
+	inner, err := asn1.Marshal(sd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := asn1.Marshal(contentInfo{ContentType: OIDSignedData, Content: asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: inner}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 func FuzzParse(f *testing.F) {

@@ -195,6 +195,71 @@ func TestRevocationCRL(t *testing.T) {
 	}
 }
 
+// TestRevocationCRLScope checks the CRLs whose silence does not prove that
+// a certificate is not revoked.
+func TestRevocationCRLScope(t *testing.T) {
+	p := sigtest.New(t)
+	const dp = "http://crl.example.it/ca.crl"
+	leaf, _ := p.Leaf(t, sigtest.LeafOptions{CRLDistributionPoints: []string{dp}})
+	inter := []*x509.Certificate{p.Intermediate}
+	at := sigtest.Epoch
+	day := 24 * time.Hour
+	check := func(c *x509.Certificate, crl *x509.RevocationList) Status {
+		return Check(c, inter, &Options{Roots: p.Roots, At: at, CRLs: []*x509.RevocationList{crl}}).Revocation.Status
+	}
+	ext := func(id asn1.ObjectIdentifier, v any) pkix.Extension {
+		b, err := asn1.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return pkix.Extension{Id: id, Value: b}
+	}
+	crl := func(thisUpdate time.Time, exts ...pkix.Extension) *x509.RevocationList {
+		return p.SignCRL(t, &x509.RevocationList{ThisUpdate: thisUpdate, NextUpdate: thisUpdate.Add(7 * day), ExtraExtensions: exts})
+	}
+	// The DistributionPointName [0] holding fullName [0] with one URI.
+	idpDP := func(uri string) asn1.RawValue {
+		gn, _ := asn1.Marshal(asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 6, Bytes: []byte(uri)})
+		full, _ := asn1.Marshal(asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: gn})
+		return asn1.RawValue{Class: asn1.ClassContextSpecific, Tag: 0, IsCompound: true, Bytes: full}
+	}
+	type idp = issuingDistributionPoint
+
+	for _, c := range []struct {
+		name string
+		crl  *x509.RevocationList
+		want Status
+	}{
+		{"complete CRL", crl(at), StatusGood},
+		{"delta CRL", crl(at, ext(oidDeltaCRLIndicator, 1)), StatusUnknown},
+		{"only user certificates", crl(at, ext(oidIssuingDistributionPoint, idp{OnlyUserCerts: true})), StatusGood},
+		{"only CA certificates", crl(at, ext(oidIssuingDistributionPoint, idp{OnlyCACerts: true})), StatusUnknown},
+		{"some reasons only", crl(at, ext(oidIssuingDistributionPoint, idp{OnlySomeReasons: asn1.BitString{Bytes: []byte{0x40}, BitLength: 2}})), StatusUnknown},
+		{"indirect CRL", crl(at, ext(oidIssuingDistributionPoint, idp{IndirectCRL: true})), StatusUnknown},
+		{"distribution point of the certificate", crl(at, ext(oidIssuingDistributionPoint, idp{DistributionPoint: idpDP(dp)})), StatusGood},
+		{"another distribution point", crl(at, ext(oidIssuingDistributionPoint, idp{DistributionPoint: idpDP("http://crl.example.it/2.crl")})), StatusUnknown},
+		{"malformed issuing distribution point", crl(at, pkix.Extension{Id: oidIssuingDistributionPoint, Value: []byte{0x30, 0x03, 0x01}}), StatusUnknown},
+		// Issued after the certificate expired, the CRL may have dropped it.
+		{"issued after the expiry", crl(leaf.NotAfter.Add(day)), StatusUnknown},
+		{"issued after the expiry, expired certificates kept", crl(leaf.NotAfter.Add(day), ext(oidExpiredCertsOnCRL, time.Unix(0, 0).UTC())), StatusGood},
+	} {
+		if got := check(leaf, c.crl); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+	// A certificate without distribution point is outside a scoped CRL.
+	plain, _ := p.Leaf(t, sigtest.LeafOptions{})
+	if got := check(plain, crl(at, ext(oidIssuingDistributionPoint, idp{DistributionPoint: idpDP(dp)}))); got != StatusUnknown {
+		t.Errorf("no distribution point: %v", got)
+	}
+	// removeFromCRL takes a certificate off hold.
+	removed := p.SignCRL(t, &x509.RevocationList{ThisUpdate: at, NextUpdate: at.Add(7 * day),
+		RevokedCertificateEntries: []x509.RevocationListEntry{{SerialNumber: leaf.SerialNumber, RevocationTime: at.Add(-day), ReasonCode: 8}}})
+	if got := check(leaf, removed); got != StatusGood {
+		t.Errorf("removeFromCRL: %v", got)
+	}
+}
+
 func TestRevocationOCSP(t *testing.T) {
 	p := sigtest.New(t)
 	leaf, _ := p.Leaf(t, sigtest.LeafOptions{})
@@ -249,6 +314,34 @@ func TestRevocationOCSP(t *testing.T) {
 	r := Check(leaf, nil, &Options{At: at, OCSP: [][]byte{p.OCSP(t, leaf, sigtest.OCSPGood, time.Time{}, at, false)}}).Revocation
 	if r.Status != StatusUnknown || len(r.Errors) != 1 {
 		t.Errorf("no issuer: %+v", r)
+	}
+	// A good status produced after the certificate expired proves
+	// nothing: the responder need not keep expired certificates.
+	late := leaf.NotAfter.Add(day)
+	if r := Check(leaf, inter, &Options{Roots: p.Roots, At: leaf.NotAfter.Add(-day), OCSP: [][]byte{p.OCSP(t, leaf, sigtest.OCSPGood, time.Time{}, late, false)}}).Revocation; r.Status != StatusUnknown {
+		t.Errorf("good after the expiry: %+v", r)
+	}
+
+	// Delegated responders.
+	ocspSigning := []x509.ExtKeyUsage{x509.ExtKeyUsageOCSPSigning}
+	delegated := func(o sigtest.LeafOptions) []byte {
+		o.Key = sigtest.ECKey(t)
+		o.CommonName = "OCSP responder"
+		o.KeyUsage = x509.KeyUsageDigitalSignature
+		c, k := p.Leaf(t, o)
+		return p.OCSPFrom(t, leaf, sigtest.OCSPGood, time.Time{}, at, c, k)
+	}
+	if r := check(delegated(sigtest.LeafOptions{ExtKeyUsage: ocspSigning})); r.Status != StatusGood || len(r.Errors) != 0 {
+		t.Errorf("delegated responder: %+v", r)
+	}
+	for name, resp := range map[string][]byte{
+		"responder without OCSP signing": delegated(sigtest.LeafOptions{}),
+		"responder expired":              delegated(sigtest.LeafOptions{ExtKeyUsage: ocspSigning, NotBefore: at.Add(-2 * day), NotAfter: at.Add(-day)}),
+		"responder not yet valid":        delegated(sigtest.LeafOptions{ExtKeyUsage: ocspSigning, NotBefore: at.Add(day), NotAfter: at.Add(2 * day)}),
+	} {
+		if r := check(resp); r.Status != StatusUnknown || len(r.Errors) != 1 {
+			t.Errorf("%s: %+v", name, r)
+		}
 	}
 }
 

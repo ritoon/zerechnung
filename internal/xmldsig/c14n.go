@@ -52,14 +52,27 @@ var errXMLBase = errors.New("xmldsig: xml:base in the ancestors of a canonicaliz
 // excluded elements. Comments are output when the method keeps them and
 // withComments is set: the node-sets of same-document references have none.
 func canonicalize(doc *document, apex *node, excluded func(*node) bool, m c14nMethod, withComments bool) ([]byte, error) {
-	c := &canon{m: m, comments: m.comments && withComments, excluded: excluded}
+	c := &canon{m: m, comments: m.comments && withComments, excluded: excluded,
+		scope: map[string]string{}, out: map[string]string{}}
+	if apex != nil {
+		// The namespaces the ancestors of the apex declare, outermost first.
+		var chain []*node
+		for e := apex.parent; e != nil; e = e.parent {
+			chain = append(chain, e)
+		}
+		for i := len(chain) - 1; i >= 0; i-- {
+			for _, d := range chain[i].nsDecls {
+				c.scope[d.prefix] = d.uri
+			}
+		}
+	}
 	if apex == nil {
 		for _, n := range doc.before {
 			if c.misc(n) {
 				c.b.WriteByte('\n')
 			}
 		}
-		if err := c.element(doc.root, nil, true); err != nil {
+		if err := c.element(doc.root, true); err != nil {
 			return nil, err
 		}
 		for _, n := range doc.after {
@@ -70,7 +83,7 @@ func canonicalize(doc *document, apex *node, excluded func(*node) bool, m c14nMe
 		}
 		return []byte(c.b.String()), nil
 	}
-	if err := c.element(apex, nil, true); err != nil {
+	if err := c.element(apex, true); err != nil {
 		return nil, err
 	}
 	return []byte(c.b.String()), nil
@@ -81,6 +94,43 @@ type canon struct {
 	m        c14nMethod
 	comments bool
 	excluded func(*node) bool
+	// scope maps each prefix in scope of the current element to its
+	// namespace URI ("" for the default namespace), the xml one aside; out
+	// maps each prefix the output ancestors declared to its URI. Both are
+	// updated on entering an element and restored on leaving it, so that
+	// canonicalization stays linear in the size of the document.
+	scope, out map[string]string
+}
+
+// saved is the value of a prefix in scope or out before an element changed
+// it.
+type saved struct {
+	prefix, uri string
+	had         bool
+}
+
+func set(m map[string]string, prefix, uri string, undo *[]saved) {
+	old, had := m[prefix]
+	*undo = append(*undo, saved{prefix, old, had})
+	m[prefix] = uri
+}
+
+func restore(m map[string]string, undo []saved) {
+	for i := len(undo) - 1; i >= 0; i-- {
+		if u := undo[i]; u.had {
+			m[u.prefix] = u.uri
+		} else {
+			delete(m, u.prefix)
+		}
+	}
+}
+
+// lookup returns the namespace URI bound to prefix in the current scope.
+func (c *canon) lookup(prefix string) (string, bool) {
+	if uri, ok := c.scope[prefix]; ok {
+		return uri, true
+	}
+	return "", prefix == ""
 }
 
 func (c *canon) wouldOutput(n *node) bool {
@@ -112,23 +162,34 @@ func (c *canon) misc(n *node) bool {
 	return true
 }
 
-// rendered maps a prefix to the namespace URI declared for it in the output
-// so far ("" for the default namespace).
-type rendered map[string]string
-
-// element writes n and its subtree. ctx is the namespace context rendered
-// by the output ancestors; apex tells that n has no output ancestor.
-func (c *canon) element(n *node, ctx rendered, apex bool) error {
+// element writes n and its subtree; apex tells that n has no output
+// ancestor.
+func (c *canon) element(n *node, apex bool) error {
 	if c.excluded != nil && c.excluded(n) {
 		return nil
 	}
-	// Namespace declarations to render.
-	var decls []nsDecl
-	next := rendered{}
-	for k, v := range ctx {
-		next[k] = v
+	var scopeUndo, outUndo []saved
+	for _, d := range n.nsDecls {
+		set(c.scope, d.prefix, d.uri, &scopeUndo)
 	}
-	if c.m.exclusive {
+	// Namespace declarations to render: those whose URI differs from what
+	// the output ancestors declared, an empty default namespace being
+	// rendered only to undeclare one.
+	var decls []nsDecl
+	render := func(prefix, uri string) {
+		if prefix == "xml" {
+			return
+		}
+		if prev, had := c.out[prefix]; (had && prev == uri) || (!had && prefix == "" && uri == "") {
+			return
+		}
+		decls = append(decls, nsDecl{prefix, uri})
+		set(c.out, prefix, uri, &outUndo)
+	}
+	switch {
+	case c.m.exclusive:
+		// The visibly used prefixes and those of the InclusiveNamespaces
+		// PrefixList.
 		used := map[string]bool{n.prefix: true}
 		for _, a := range n.attrs {
 			if a.prefix != "" && a.prefix != "xml" {
@@ -143,23 +204,19 @@ func (c *canon) element(n *node, ctx rendered, apex bool) error {
 			}
 		}
 		for p := range used {
-			uri, ok := n.lookupNS(p)
-			if !ok || p == "xml" {
-				continue
+			if uri, ok := c.lookup(p); ok {
+				render(p, uri)
 			}
-			if prev, had := ctx[p]; (had && prev == uri) || (!had && p == "" && uri == "") {
-				continue
-			}
-			decls = append(decls, nsDecl{p, uri})
-			next[p] = uri
 		}
-	} else {
-		for p, uri := range inScope(n) {
-			if prev, had := ctx[p]; (had && prev == uri) || (!had && p == "" && uri == "") {
-				continue
-			}
-			decls = append(decls, nsDecl{p, uri})
-			next[p] = uri
+	case apex:
+		for p, uri := range c.scope {
+			render(p, uri)
+		}
+	default:
+		// The parent is output with every namespace in its scope: only
+		// the declarations of n can differ.
+		for _, d := range n.nsDecls {
+			render(d.prefix, d.uri)
 		}
 	}
 	sort.Slice(decls, func(i, j int) bool { return decls[i].prefix < decls[j].prefix })
@@ -203,7 +260,7 @@ func (c *canon) element(n *node, ctx rendered, apex bool) error {
 	for _, k := range n.children {
 		switch k.kind {
 		case elementNode:
-			if err := c.element(k, next, false); err != nil {
+			if err := c.element(k, false); err != nil {
 				return err
 			}
 		case textNode:
@@ -215,28 +272,15 @@ func (c *canon) element(n *node, ctx rendered, apex bool) error {
 	c.b.WriteString("</")
 	c.b.WriteString(qname(n.prefix, n.local))
 	c.b.WriteByte('>')
+	restore(c.out, outUndo)
+	restore(c.scope, scopeUndo)
 	return nil
 }
 
-// inScope returns the namespaces in scope of n, the xml one aside; an empty
-// default namespace is returned as "" when it undeclares one.
-func inScope(n *node) map[string]string {
-	out := map[string]string{}
-	for e := n; e != nil; e = e.parent {
-		for _, d := range e.nsDecls {
-			if _, ok := out[d.prefix]; !ok {
-				out[d.prefix] = d.uri
-			}
-		}
-	}
-	delete(out, "xml")
-	return out
-}
-
 // inheritedXMLAttrs returns the attributes of the xml namespace that the apex
-// of a subtree inherits from its ancestors in Canonical XML: xml:lang,
-// xml:space and, in 1.0 only, xml:base. Canonical XML 1.1 fixes up xml:base
-// instead, which is not supported.
+// of a subtree inherits from its ancestors in Canonical XML: all of them in
+// 1.0, xml:lang and xml:space only in 1.1, which does not inherit xml:id
+// and fixes up xml:base instead (not supported).
 func (c *canon) inheritedXMLAttrs(n *node) ([]attr, error) {
 	have := map[string]bool{}
 	for _, a := range n.attrs {
@@ -250,14 +294,14 @@ func (c *canon) inheritedXMLAttrs(n *node) ([]attr, error) {
 			if a.space != nsXML || have[a.local] {
 				continue
 			}
-			switch a.local {
-			case "lang", "space":
-			case "base":
-				if c.m.v11 {
+			if c.m.v11 {
+				switch a.local {
+				case "lang", "space":
+				case "base":
 					return nil, errXMLBase
+				default:
+					continue
 				}
-			default:
-				continue
 			}
 			have[a.local] = true
 			out = append(out, a)

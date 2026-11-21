@@ -49,5 +49,10 @@
 // trust in the certificate and its revocation are checked against the
 // roots, CRLs and OCSP responses the caller gives, since the package does
 // not access the network. CMS, BER, XML canonicalization and XML signatures
-// are written in Go, without dependencies.
+// are written in Go, without dependencies. A signature that no signing tool
+// writes is refused before any digest is computed, so that a small file
+// cannot keep a verifier busy: more than 8 references in an XML signature,
+// 16 SignerInfos or 64 certificates in a CMS one. So is an XML start tag
+// that repeats an attribute or a namespace declaration, which another
+// reader could resolve otherwise than the signature verification.
 package fatturapa

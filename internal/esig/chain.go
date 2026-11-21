@@ -2,8 +2,10 @@ package esig
 
 import (
 	"crypto/x509"
+	"encoding/asn1"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -167,6 +169,9 @@ func revocation(cert, issuer *x509.Certificate, at time.Time, o *Options) Revoca
 			if e.SerialNumber == nil || e.SerialNumber.Cmp(cert.SerialNumber) != 0 || e.RevocationTime.After(at) {
 				continue
 			}
+			if e.ReasonCode == 8 { // removeFromCRL, in a delta CRL: no longer on hold
+				continue
+			}
 			revoked = true
 			if e.ReasonCode == 6 { // certificateHold
 				set(StatusSuspended, e.RevocationTime, "CRL")
@@ -175,8 +180,10 @@ func revocation(cert, issuer *x509.Certificate, at time.Time, o *Options) Revoca
 			}
 		}
 		// A CRL tells the status of an unrevoked certificate at any time up
-		// to its date, and until its next update.
-		if !revoked && (!crl.ThisUpdate.Before(at) || crl.NextUpdate.IsZero() || !at.After(crl.NextUpdate)) {
+		// to its date, and until its next update, when it covers every
+		// certificate of its issuer and still lists cert if revoked.
+		if !revoked && crlCovers(crl, cert) &&
+			(!crl.ThisUpdate.Before(at) || !crl.NextUpdate.IsZero() && !at.After(crl.NextUpdate)) {
 			set(StatusGood, time.Time{}, "CRL")
 		}
 	}
@@ -191,4 +198,79 @@ func revocation(cert, issuer *x509.Certificate, at time.Time, o *Options) Revoca
 		set(s, t, "OCSP")
 	}
 	return rev
+}
+
+var (
+	oidDeltaCRLIndicator        = asn1.ObjectIdentifier{2, 5, 29, 27}
+	oidIssuingDistributionPoint = asn1.ObjectIdentifier{2, 5, 29, 28}
+	oidExpiredCertsOnCRL        = asn1.ObjectIdentifier{2, 5, 29, 60}
+)
+
+// issuingDistributionPoint is the extension of RFC 5280 §5.2.5.
+type issuingDistributionPoint struct {
+	DistributionPoint asn1.RawValue  `asn1:"optional,tag:0"`
+	OnlyUserCerts     bool           `asn1:"optional,tag:1"`
+	OnlyCACerts       bool           `asn1:"optional,tag:2"`
+	OnlySomeReasons   asn1.BitString `asn1:"optional,tag:3"`
+	IndirectCRL       bool           `asn1:"optional,tag:4"`
+	OnlyAttrCerts     bool           `asn1:"optional,tag:5"`
+}
+
+// crlCovers reports whether the absence of cert from crl means that cert is
+// not revoked: crl is a complete CRL, not a delta CRL, its scope (issuing
+// distribution point) includes cert, and it was issued before cert expired
+// or keeps listing expired certificates (RFC 5280 §3.3: a CA may drop an
+// expired certificate from its CRLs).
+func crlCovers(crl *x509.RevocationList, cert *x509.Certificate) bool {
+	if crl.ThisUpdate.After(cert.NotAfter) && !hasExtension(crl, oidExpiredCertsOnCRL) {
+		return false
+	}
+	for _, e := range crl.Extensions {
+		switch {
+		case e.Id.Equal(oidDeltaCRLIndicator):
+			return false
+		case e.Id.Equal(oidIssuingDistributionPoint):
+			var idp issuingDistributionPoint
+			if rest, err := asn1.Unmarshal(e.Value, &idp); err != nil || len(rest) != 0 {
+				return false
+			}
+			if idp.OnlyCACerts || idp.OnlyAttrCerts || idp.IndirectCRL || idp.OnlySomeReasons.BitLength > 0 {
+				return false
+			}
+			if len(idp.DistributionPoint.FullBytes) > 0 && !inDistributionPoint(idp.DistributionPoint.Bytes, cert) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// inDistributionPoint reports whether the DistributionPointName dp (the
+// content of the [0] field of the extension) names one of the CRL
+// distribution points of cert by URI.
+func inDistributionPoint(dp []byte, cert *x509.Certificate) bool {
+	var name asn1.RawValue
+	if _, err := asn1.Unmarshal(dp, &name); err != nil || name.Class != asn1.ClassContextSpecific || name.Tag != 0 {
+		return false // nameRelativeToCRLIssuer, or malformed
+	}
+	for rest := name.Bytes; len(rest) > 0; {
+		var gn asn1.RawValue
+		var err error
+		if rest, err = asn1.Unmarshal(rest, &gn); err != nil {
+			return false
+		}
+		if gn.Class == asn1.ClassContextSpecific && gn.Tag == 6 && slices.Contains(cert.CRLDistributionPoints, string(gn.Bytes)) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasExtension(crl *x509.RevocationList, id asn1.ObjectIdentifier) bool {
+	for _, e := range crl.Extensions {
+		if e.Id.Equal(id) {
+			return true
+		}
+	}
+	return false
 }

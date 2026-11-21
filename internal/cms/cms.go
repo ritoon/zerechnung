@@ -26,8 +26,16 @@ import (
 	"github.com/ritoon/zerechnung/internal/sigalg"
 )
 
-// MaxSize bounds the length of the structures Parse reads.
-const MaxSize = 64 << 20
+// MaxSize bounds the length of the structures Parse reads, MaxSigners their
+// SignerInfos and MaxCertificates the entries of their certificates field:
+// each SignerInfo digests the whole content again and each certificate may
+// be tried as an issuer, so an unbounded count would let a small file keep
+// a verifier busy for hours.
+const (
+	MaxSize         = 64 << 20
+	MaxSigners      = 16
+	MaxCertificates = 64
+)
 
 // Object identifiers of the content types and attributes.
 var (
@@ -197,7 +205,10 @@ func parse(data []byte) (*SignedData, error) {
 		}
 	}
 	certs := raw.Certificates.Bytes
-	for len(certs) > 0 {
+	for n := 0; len(certs) > 0; n++ {
+		if n == MaxCertificates {
+			return nil, fmt.Errorf("cms: more than %d certificates", MaxCertificates)
+		}
 		var c asn1.RawValue
 		var err error
 		if certs, err = asn1.Unmarshal(certs, &c); err != nil {
@@ -212,6 +223,9 @@ func parse(data []byte) (*SignedData, error) {
 	}
 	infos := raw.SignerInfos.Bytes
 	for len(infos) > 0 {
+		if len(sd.Signers) == MaxSigners {
+			return nil, fmt.Errorf("cms: more than %d SignerInfos", MaxSigners)
+		}
 		var si signerInfo
 		var err error
 		if infos, err = asn1.Unmarshal(infos, &si); err != nil {

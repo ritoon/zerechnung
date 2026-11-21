@@ -104,6 +104,35 @@ type verifier struct {
 	docRef   *node // the ds:Reference to the whole document
 	propsRef *node // the ds:Reference to the signed properties
 	props    *node // the xades:SignedProperties it designates
+
+	ids map[string][]*node // the elements of the document by Id, ID or id
+}
+
+// MaxReferences bounds the ds:Reference elements of a signature: each one
+// is digested before the signature value is checked, and a FatturaPA
+// signature has two or three (the document, the signed properties, at times
+// the key information).
+const MaxReferences = 8
+
+// MaxCertificates bounds the certificates of ds:KeyInfo, each of which may
+// be tried as an issuer.
+const MaxCertificates = 64
+
+// byID returns the elements of the document that bear an Id, ID or id
+// attribute equal to id.
+func (v *verifier) byID(id string) []*node {
+	if v.ids == nil {
+		v.ids = map[string][]*node{}
+		v.doc.root.walk(func(e *node) {
+			for _, name := range [...]string{"Id", "ID", "id"} {
+				if val, ok := e.attrValue(name); ok {
+					v.ids[val] = append(v.ids[val], e)
+					return
+				}
+			}
+		})
+	}
+	return v.ids[id]
 }
 
 func (v *verifier) verify() (*Result, error) {
@@ -141,12 +170,22 @@ func (v *verifier) verify() (*Result, error) {
 		return nil, invalidf("the signature method %q (SHA-1) is not admitted", algURI)
 	}
 	v.res.Algorithm = alg
-	if len(siKids[2:]) == 0 {
+	switch refs := len(siKids[2:]); {
+	case refs == 0:
 		return nil, invalidf("no ds:Reference")
+	case refs > MaxReferences:
+		return nil, invalidf("%d ds:Reference elements, more than %d", refs, MaxReferences)
 	}
+	uris := map[string]bool{}
 	for _, ref := range siKids[2:] {
 		if !ref.is(NSDS, "Reference") {
 			return nil, invalidf("unexpected element %s in ds:SignedInfo", ref.local)
+		}
+		if uri, ok := ref.attrValue("URI"); ok {
+			if uris[uri] {
+				return nil, invalidf("several references to %q", uri)
+			}
+			uris[uri] = true
 		}
 		if err := v.reference(ref); err != nil {
 			return nil, err
@@ -275,7 +314,7 @@ func (v *verifier) reference(ref *node) error {
 			return invalidf("several references to the whole document")
 		}
 	case strings.HasPrefix(uri, "#") && !strings.HasPrefix(uri, "#xpointer("):
-		targets := findByID(v.doc.root, uri[1:])
+		targets := v.byID(uri[1:])
 		if len(targets) != 1 {
 			return invalidf("the reference %q designates %d elements", uri, len(targets))
 		}
@@ -515,6 +554,9 @@ func certificates(keyInfo *node) ([]*x509.Certificate, error) {
 	var out []*x509.Certificate
 	for _, xd := range keyInfo.elems(NSDS, "X509Data") {
 		for _, xc := range xd.elems(NSDS, "X509Certificate") {
+			if len(out) == MaxCertificates {
+				return nil, invalidf("more than %d certificates in ds:KeyInfo", MaxCertificates)
+			}
 			der, err := decodeBase64(xc.text())
 			if err != nil {
 				return nil, invalidf("ds:X509Certificate is not base64")

@@ -172,6 +172,7 @@ func parse(data []byte) (*document, error) {
 	input := data[base:]
 	d := xml.NewDecoder(bytes.NewReader(input))
 	doc := &document{}
+	scope := nsScope{}
 	var stack []*node
 	prev := int64(0)
 	seenDecl := false
@@ -199,7 +200,7 @@ func parse(data []byte) (*document, error) {
 			if parent == nil && doc.root != nil {
 				return nil, errors.New("xmldsig: several root elements")
 			}
-			n, err := newElement(t, raw, parent)
+			n, err := newElement(t, raw, parent, scope)
 			if err != nil {
 				return nil, err
 			}
@@ -213,6 +214,7 @@ func parse(data []byte) (*document, error) {
 			if parent == nil || parent.prefix != t.Name.Space || parent.local != t.Name.Local {
 				return nil, fmt.Errorf("xmldsig: unexpected end tag </%s>", qname(t.Name.Space, t.Name.Local))
 			}
+			scope.pop(parent.nsDecls)
 			stack = stack[:len(stack)-1]
 			if len(stack) == 0 {
 				doc.rootEnd = base + int(start)
@@ -230,7 +232,7 @@ func parse(data []byte) (*document, error) {
 				parent.children = append(parent.children, &node{kind: textNode, data: string(t), parent: parent})
 			}
 		case xml.Comment:
-			n := &node{kind: commentNode, data: string(t), parent: parent}
+			n := &node{kind: commentNode, data: normalizeNewlines(t), parent: parent}
 			doc.attach(n, parent)
 		case xml.ProcInst:
 			if strings.EqualFold(t.Target, "xml") {
@@ -240,7 +242,7 @@ func parse(data []byte) (*document, error) {
 				seenDecl = true
 				continue
 			}
-			n := &node{kind: piNode, target: t.Target, data: string(t.Inst), parent: parent}
+			n := &node{kind: piNode, target: t.Target, data: normalizeNewlines(t.Inst), parent: parent}
 			doc.attach(n, parent)
 		case xml.Directive:
 			return nil, errors.New("xmldsig: documents with a DOCTYPE or another declaration are not accepted")
@@ -253,6 +255,51 @@ func parse(data []byte) (*document, error) {
 		return nil, errors.New("xmldsig: unexpected end of document")
 	}
 	return doc, nil
+}
+
+// normalizeNewlines turns each CR LF pair and each lone CR into LF, as XML
+// 1.0 §2.11 requires: encoding/xml does it in character data, not in
+// comments and processing instructions.
+func normalizeNewlines(b []byte) string {
+	if bytes.IndexByte(b, '\r') < 0 {
+		return string(b)
+	}
+	b = bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))
+	return string(bytes.ReplaceAll(b, []byte("\r"), []byte("\n")))
+}
+
+// nsScope holds the namespace declarations in scope while parsing: for each
+// prefix, the URIs declared for it by the open elements, innermost last.
+type nsScope map[string][]string
+
+func (s nsScope) push(decls []nsDecl) {
+	for _, d := range decls {
+		s[d.prefix] = append(s[d.prefix], d.uri)
+	}
+}
+
+func (s nsScope) pop(decls []nsDecl) {
+	for _, d := range decls {
+		if u := s[d.prefix]; len(u) > 1 {
+			s[d.prefix] = u[:len(u)-1]
+		} else {
+			delete(s, d.prefix)
+		}
+	}
+}
+
+// lookup returns the namespace URI bound to prefix.
+func (s nsScope) lookup(prefix string) (string, bool) {
+	if prefix == "xml" {
+		return nsXML, true
+	}
+	if u := s[prefix]; len(u) > 0 {
+		return u[len(u)-1], true
+	}
+	if prefix == "" {
+		return "", true
+	}
+	return "", false
 }
 
 func (doc *document) attach(n, parent *node) {
@@ -277,7 +324,7 @@ func qname(prefix, local string) string {
 // written, from which the attribute values are read again: encoding/xml
 // does not normalize literal white space in attribute values, as XML 1.0
 // §3.3.3 requires, and canonicalization works on normalized values.
-func newElement(t xml.StartElement, raw []byte, parent *node) (*node, error) {
+func newElement(t xml.StartElement, raw []byte, parent *node, scope nsScope) (*node, error) {
 	n := &node{kind: elementNode, prefix: t.Name.Space, local: t.Name.Local, parent: parent}
 	values, err := rawAttrValues(raw)
 	if err != nil {
@@ -290,7 +337,16 @@ func newElement(t xml.StartElement, raw []byte, parent *node) (*node, error) {
 		prefix, local, value string
 	}
 	var others []pending
+	written := make(map[xml.Name]bool, len(t.Attr))
 	for i, a := range t.Attr {
+		// XML 1.0 §3.1 (Unique Att Spec): a name, namespace declarations
+		// included, appears once in a start tag. A parser that took the
+		// last of two declarations of a prefix would read other names
+		// than the ones canonicalized.
+		if written[a.Name] {
+			return nil, fmt.Errorf("xmldsig: attribute %s repeated", qname(a.Name.Space, a.Name.Local))
+		}
+		written[a.Name] = true
 		v := values[i]
 		switch {
 		case a.Name.Space == "" && a.Name.Local == "xmlns":
@@ -307,7 +363,8 @@ func newElement(t xml.StartElement, raw []byte, parent *node) (*node, error) {
 	if n.prefix == "xmlns" {
 		return nil, errors.New("xmldsig: element with the xmlns prefix")
 	}
-	space, ok := n.lookupNS(n.prefix)
+	scope.push(n.nsDecls)
+	space, ok := scope.lookup(n.prefix)
 	if !ok {
 		return nil, fmt.Errorf("xmldsig: undeclared namespace prefix %q", n.prefix)
 	}
@@ -317,7 +374,7 @@ func newElement(t xml.StartElement, raw []byte, parent *node) (*node, error) {
 		var space string
 		if a.prefix != "" {
 			var ok bool
-			if space, ok = n.lookupNS(a.prefix); !ok {
+			if space, ok = scope.lookup(a.prefix); !ok {
 				return nil, fmt.Errorf("xmldsig: undeclared namespace prefix %q", a.prefix)
 			}
 		}

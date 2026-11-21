@@ -5,10 +5,12 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ritoon/zerechnung/internal/sigalg"
 	"github.com/ritoon/zerechnung/internal/sigtest"
@@ -157,11 +159,61 @@ func TestCanonicalSubtree(t *testing.T) {
 	if got := c14n(t, `<r xml:base="http://example.org/"><x/></r>`, c14nMethod{}, false, x); got != `<x xml:base="http://example.org/"></x>` {
 		t.Errorf("xml:base with Canonical XML 1.0: %s", got)
 	}
+	// Canonical XML 1.0 inherits every attribute of the xml namespace,
+	// xml:id included; 1.1 does not inherit xml:id.
+	if got := c14n(t, `<r xml:id="i" xml:lang="it"><x/></r>`, c14nMethod{}, false, x); got != `<x xml:id="i" xml:lang="it"></x>` {
+		t.Errorf("xml:id with Canonical XML 1.0: %s", got)
+	}
+	if got := c14n(t, `<r xml:id="i" xml:lang="it"><x/></r>`, c14nMethod{v11: true}, false, x); got != `<x xml:lang="it"></x>` {
+		t.Errorf("xml:id with Canonical XML 1.1: %s", got)
+	}
+	// Line ends are normalized in comments and processing instructions
+	// too (XML 1.0 §2.11).
+	if got := c14n(t, "<r><!--a\r\nb\rc--><?pi x\r\ny?>t\r\n</r>", c14nMethod{comments: true}, true, nil); got != "<r><!--a\nb\nc--><?pi x\ny?>t\n</r>" {
+		t.Errorf("CR LF: %q", got)
+	}
 	// Excluded subtrees leave no trace.
 	d = mustParse(t, `<r><a/><b><c/></b></r>`)
 	out, err := canonicalize(d, nil, func(n *node) bool { return n.local == "b" }, c14nMethod{}, false)
 	if err != nil || string(out) != `<r><a></a></r>` {
 		t.Errorf("excluded subtree: %s, %v", out, err)
+	}
+}
+
+// TestNamespaceCost checks that parsing and canonicalization stay linear
+// with many namespace declarations: copying the namespaces in scope for each
+// element made a 300 KB document take tens of seconds.
+func TestNamespaceCost(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("<r")
+	for i := range 4000 {
+		fmt.Fprintf(&b, ` xmlns:n%d="urn:n%d"`, i, i)
+	}
+	b.WriteString(">")
+	for i := range 50000 {
+		if i%2 == 0 {
+			b.WriteString("<a/>")
+		} else {
+			b.WriteString(`<n1:a xmlns:n2="urn:other"/>`)
+		}
+	}
+	b.WriteString("</r>")
+	start := time.Now()
+	d := mustParse(t, b.String())
+	for _, m := range []c14nMethod{{}, {exclusive: true, prefixes: map[string]bool{"n3": true}}} {
+		if _, err := canonicalize(d, nil, nil, m, false); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := canonicalize(d, d.root.childElements()[1], nil, m, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Errorf("%v to parse and canonicalize", elapsed)
+	}
+	// The child redeclaring n2 renders it, its sibling does not.
+	if got := c14n(t, `<r xmlns:a="urn:a"><x xmlns:a="urn:b"/><y xmlns:a="urn:a"/></r>`, c14nMethod{}, false, nil); got != `<r xmlns:a="urn:a"><x xmlns:a="urn:b"></x><y></y></r>` {
+		t.Errorf("redeclarations: %s", got)
 	}
 }
 
@@ -176,6 +228,11 @@ func TestParseRefuses(t *testing.T) {
 		"bad char ref":    `<r a="&#0;"/>`,
 		"lt in attribute": `<r a="<"/>`,
 		"too deep":        strings.Repeat("<a>", MaxDepth+1) + strings.Repeat("</a>", MaxDepth+1),
+		// A reader that took the last declaration would read other names
+		// than the ones canonicalized.
+		"default namespace declared twice": `<r xmlns="" xmlns="urn:x"/>`,
+		"prefix declared twice":            `<r xmlns:a="urn:a" xmlns:a="urn:b"><a:x/></r>`,
+		"attribute repeated":               `<r a="1" a="2"/>`,
 	} {
 		if _, err := parse([]byte(s)); err == nil {
 			t.Errorf("%s: parsed", name)
@@ -292,6 +349,7 @@ var (
 	reID       = regexp.MustCompile(`<ds:Signature [^>]*Id="([^"]+)"`)
 	reSigValue = regexp.MustCompile(`(-sigvalue">)([^<]+)(</ds:SignatureValue>)`)
 	reSig      = regexp.MustCompile(`(?s)<ds:Signature .*</ds:Signature>`)
+	reRef      = regexp.MustCompile(`<ds:Reference [^>]*URI="#[^"]*"[^>]*>.*?</ds:Reference>`)
 )
 
 // resign recomputes the signature value of signed after its SignedInfo
@@ -395,6 +453,12 @@ func TestVerifyRefuses(t *testing.T) {
 		{"DOCTYPE", strings.Replace(signed, "?>\n", "?>\n<!DOCTYPE p:FatturaElettronica>\n", 1), ""},
 		{"unknown signature method", strings.Replace(signed, "xmldsig-more#rsa-sha256", "xmldsig-more#rsa-md5", 1), "unsupported signature method"},
 		{"KeyInfo after Object", strings.Replace(signed, "<ds:KeyInfo>", "<ds:Object/><ds:KeyInfo>", 1), "unexpected element"},
+		// The verifier would read xmlns="", a reader taking the last
+		// declaration urn:x: every unprefixed element would change.
+		{"default namespace declared twice", strings.Replace(signed, "<p:FatturaElettronica ", `<p:FatturaElettronica xmlns="" xmlns="urn:x" `, 1), "repeated"},
+		{"prefix declared twice", strings.Replace(signed, "<p:FatturaElettronica ", `<p:FatturaElettronica xmlns:p="urn:x" `, 1), "repeated"},
+		{"too many references", strings.Replace(signed, "</ds:SignedInfo>", strings.Repeat(`<ds:Reference URI="#x"/>`, MaxReferences)+"</ds:SignedInfo>", 1), "more than"},
+		{"reference repeated", reRef.ReplaceAllString(signed, "$0$0"), "several references"},
 	} {
 		_, err := Verify([]byte(c.doc))
 		if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), c.msg) {
