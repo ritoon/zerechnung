@@ -14,7 +14,7 @@
 
 ZeRechnung is a Go package for e-invoices in the Factur-X, ZUGFeRD and XRechnung formats.
 
-Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL).
+Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL), and reads and writes FatturaPA, the national format of the Italian SDI.
 
 - Pure Go, standard library only. No CGO, no Java, no external binary, no network calls.
 - All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS and CIUS-IT, in CII and UBL 2.1.
@@ -168,7 +168,7 @@ XRechnung, Peppol, NLCIUS and CIUS-IT invoices declare themselves, so their rule
 
 ### Work with the XML directly
 
-The `cii` and `ubl` packages read and write the XML with the same `invoice.Invoice` model, so converting between syntaxes is a parse and a marshal:
+The `cii`, `ubl` and `fatturapa` packages read and write the XML with the same `invoice.Invoice` model, so converting between syntaxes is a parse and a marshal:
 
 ```go
 // Write the CII XML for a given profile.
@@ -177,6 +177,11 @@ xml, err := cii.Marshal(inv, &cii.MarshalOptions{Profile: invoice.ProfileBasic})
 // Convert a UBL invoice to CII.
 fromUBL, err := ubl.Parse(ublXML)
 ciiXML, err := cii.Marshal(fromUBL, nil)
+
+// Convert a FatturaPA invoice to CII, and a CII invoice to FatturaPA.
+fromSDI, err := fatturapa.Parse(sdiXML)
+ciiXML, err = cii.Marshal(fromSDI, nil)
+sdiXML, err = fatturapa.Marshal(inv, nil)
 
 // Embed an XML invoice that another system produced.
 pdf, err := zerechnung.Embed(host, xml, nil)
@@ -283,7 +288,7 @@ warning [PDF] PDF-06: the catalog has no PDF/A output intent (/S /GTS_PDFA1) (ca
 | `zerechnung validate [-fr] [-de] [-auto] [-json] ... file` | Validates a PDF or an XML file, and exits with code 1 on errors |
 | `zerechnung embed -xml invoice.xml [-attach file]... [-convert-pdfa] input.pdf` | Embeds an XML invoice in a PDF, converting it to PDF/A-3 first with `-convert-pdfa` |
 | `zerechnung pdfa [-o out.pdf] input.pdf` | Converts a PDF to PDF/A-3, or prints why it cannot, one reason per line |
-| `zerechnung json file` | Prints the parsed invoice as JSON |
+| `zerechnung json file` | Prints the parsed invoice as JSON (CII, UBL or FatturaPA; an array for a FatturaPA batch) |
 | `zerechnung rules [-fr] [-de] ...` | Lists the rules that are implemented |
 
 Since `validate` exits with code 1 when it finds errors, you can drop it into a CI pipeline as is. Run `zerechnung help` for every flag.
@@ -298,6 +303,7 @@ Since `validate` exits with code 1 when it finds errors, you can drop it into a 
 | NLCIUS, the Netherlands (CII and UBL) | yes | yes | yes |
 | CIUS-IT, Italy (CII and UBL) | yes | yes | yes |
 | UBL 2.1 Invoice and CreditNote (EN 16931) | yes | yes | yes |
+| FatturaPA 1.2, Italy (FPA12 and FPR12) | yes | yes | through CII (CIUS-IT) |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
 
 Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules (BR-IT, technical rules 2.7), the Chorus Pro checks and 72 checks of the PDF container. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
@@ -336,7 +342,7 @@ The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11
 - PDF/A levels A and U are not checked. Factur-X and ZUGFeRD only need level B (basic), which is what `ConvertPDFA` writes; a PDF that declares level A or U is checked as level B, without its logical structure (tags) or the Unicode mapping of its text.
 - Encrypted PDFs are detected, not decrypted.
 - ZUGFeRD 1.0 is read only, and written back as Factur-X.
-- FatturaPA, the national XML format of the Italian SDI, is not read nor written. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry; the rules of the Italian extensions (BR-IT-DE-*) are not checked.
+- FatturaPA is read and written, but not validated against its XSD schema nor the SDI checks: convert it to CII to apply the CIUS-IT rules. Signed files (.p7m) are not opened, and `Marshal` writes one invoice per file. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry; the rules of the Italian extensions (BR-IT-DE-*) are not checked.
 - For EXTENDED-CTC-FR, only the CII syntax rules of the FNFE schematron are applied, not its business rules (BR-FREXT).
 - Only EN 16931-1:2017 is supported. An invoice whose specification identifier (BT-24) names EN 16931-1:2026, such as `urn:cen.eu:en16931:2026`, gets the error `EN16931-EDITION-01` and no other rule, since the 2026 validation artefacts are not published yet. Force a profile (`Options.Profile`, `-profile`) to apply the 2017 rules anyway. `Create` and `embed` do not write this edition.
 - The rules are rewritten in Go from the official artefacts, so a new version of an artefact needs a code update.
@@ -351,6 +357,7 @@ The full list is on [Coverage and accuracy](https://github.com/ritoon/zerechnung
 | `invoice` | The EN 16931 model, exact decimals, dates, profiles, total calculation |
 | `cii` | Read and write CII XML, profile by profile |
 | `ubl` | Read and write UBL 2.1 XML (Invoice, CreditNote) |
+| `fatturapa` | Read and write FatturaPA 1.2 XML (Italy) |
 | `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-DE, Peppol, BR-NL, BR-IT, Chorus Pro |
 | `cmd/zerechnung` | The command-line tool |
 

@@ -236,3 +236,41 @@ func TestEmbedConvertPDFA(t *testing.T) {
 		t.Errorf("embed -convert-pdfa on a PDF with a font not embedded: %v", err)
 	}
 }
+
+// TestJSONFatturaPA checks that json reads a FatturaPA document: one
+// invoice as an object, a lotto of several invoices as an array.
+func TestJSONFatturaPA(t *testing.T) {
+	const name = "../../fatturapa/testdata/fpr12.xml"
+	var out bytes.Buffer
+	if err := jsonCmd([]string{name}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var inv struct {
+		Number  string
+		Profile string
+		Italy   struct{ DocumentType string }
+	}
+	if err := json.Unmarshal(out.Bytes(), &inv); err != nil || inv.Number != "FT-2026/0042" || inv.Profile != "CIUS-IT" ||
+		inv.Italy.DocumentType != "TD24" {
+		t.Errorf("json %s: %+v, %v", name, inv, err)
+	}
+
+	b, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := string(b)
+	i, j := strings.Index(data, "  <FatturaElettronicaBody>"), strings.Index(data, "</p:FatturaElettronica>")
+	lotto := filepath.Join(t.TempDir(), "lotto.xml")
+	if err := os.WriteFile(lotto, []byte(data[:j]+data[i:j]+data[j:]), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := jsonCmd([]string{lotto}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var invs []struct{ Number string }
+	if err := json.Unmarshal(out.Bytes(), &invs); err != nil || len(invs) != 2 || invs[1].Number != "FT-2026/0042" {
+		t.Errorf("json of a lotto: %+v, %v", invs, err)
+	}
+}

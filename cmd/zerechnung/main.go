@@ -1,6 +1,7 @@
 // Command zerechnung reads, validates and creates Factur-X / ZUGFeRD /
 // XRechnung invoices. validate and json also accept a CII or UBL 2.1 XML
-// invoice, whose syntax is detected from the root element.
+// invoice, and json a FatturaPA document, whose syntax is detected from the
+// root element.
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
@@ -26,6 +27,7 @@ import (
 
 	"github.com/ritoon/zerechnung"
 	"github.com/ritoon/zerechnung/cii"
+	"github.com/ritoon/zerechnung/fatturapa"
 	"github.com/ritoon/zerechnung/internal/xmltree"
 	"github.com/ritoon/zerechnung/invoice"
 	"github.com/ritoon/zerechnung/ubl"
@@ -33,7 +35,8 @@ import (
 )
 
 const usage = `zerechnung reads, validates and creates Factur-X / ZUGFeRD / XRechnung invoices.
-validate and json also accept an XML invoice in CII or UBL 2.1 syntax.
+validate and json also accept an XML invoice in CII or UBL 2.1 syntax,
+json also a FatturaPA document (an array when it holds several invoices).
 
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
@@ -67,7 +70,7 @@ func main() {
 	case "pdfa":
 		err = pdfaCmd(args)
 	case "json":
-		err = jsonCmd(args)
+		err = jsonCmd(args, os.Stdout)
 	case "rules":
 		err = rulesCmd(args)
 	case "help", "-h", "-help", "--help":
@@ -339,7 +342,7 @@ func reasons(err error) error {
 	return err
 }
 
-func jsonCmd(args []string) error {
+func jsonCmd(args []string, w io.Writer) error {
 	fs := flag.NewFlagSet("json", flag.ContinueOnError)
 	_, data, err := oneFile(fs, args)
 	if err != nil {
@@ -352,24 +355,37 @@ func jsonCmd(args []string) error {
 		}
 		data = att.XML
 	}
-	inv, err := parseInvoice(data)
-	if inv == nil {
+	invs, err := parseInvoices(data)
+	if len(invs) == 0 {
 		return err
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "zerechnung: warning:", err)
 	}
-	enc := json.NewEncoder(os.Stdout)
+	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	return enc.Encode(inv)
+	if len(invs) == 1 {
+		return enc.Encode(invs[0])
+	}
+	return enc.Encode(invs)
 }
 
-// parseInvoice reads a CII or UBL invoice, detected from the root element.
-func parseInvoice(data []byte) (*invoice.Invoice, error) {
-	if root, err := xmltree.Parse(data); err == nil && ubl.IsUBL(root) {
-		return ubl.Parse(data)
+// parseInvoices reads a CII, UBL or FatturaPA document, detected from the
+// root element. A FatturaPA document may hold several invoices.
+func parseInvoices(data []byte) ([]*invoice.Invoice, error) {
+	var inv *invoice.Invoice
+	var err error
+	if root, perr := xmltree.Parse(data); perr == nil && fatturapa.IsFatturaPA(root) {
+		return fatturapa.ParseAll(data)
+	} else if perr == nil && ubl.IsUBL(root) {
+		inv, err = ubl.Parse(data)
+	} else {
+		inv, err = cii.Parse(data)
 	}
-	return cii.Parse(data)
+	if inv == nil {
+		return nil, err
+	}
+	return []*invoice.Invoice{inv}, err
 }
 
 func rulesCmd(args []string) error {

@@ -34,7 +34,9 @@ type LossError struct {
 	// "BT-33", "BG-25"…, or "EXT <Field>" for data of the model outside
 	// the EN 16931 data set and "EXT <Role>.<Field>" for party data. An
 	// extension (see invoice.Extension) is reported as "EXT " followed by its
-	// entry in Invoice.Unmodeled.
+	// entry in Invoice.Unmodeled. The data of the national blocks that UBL
+	// does not carry (the FatturaPA data of invoice.Italy…) follows, as
+	// listed by invoice.Invoice.NationalData: "EXT Italy.Withholdings".
 	Terms []string
 }
 
@@ -112,6 +114,9 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 	}
 	for _, u := range inv.Unmodeled() {
 		w.lose("EXT " + u)
+	}
+	if o.Strict {
+		w.losses = append(w.losses, inv.NationalData()...)
 	}
 	if o.Strict && len(w.losses) > 0 {
 		return nil, &LossError{Terms: w.losses}

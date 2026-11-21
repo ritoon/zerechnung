@@ -116,6 +116,22 @@ done <<EOF
 4_Factur-X_1.09.2_EXTENDED  FACTUR-X_EXTENDED_codedb.xml  6e23aedbba0e3b32b3b1211d145186193215f56f755201555306c42327e75fbc
 EOF
 
+# FatturaPA 1.2 examples of the Agenzia delle Entrate (FX_FATTURAPA): three
+# invoices to public administrations (FPA12) and three between private
+# parties (FPR12). Their terms of use do not allow copying them into the
+# repository; the tests of package fatturapa check the same sums.
+FPA=https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.2
+while read -r name sum; do
+	fetch_file "$DEST/fatturapa/$name" "$FPA/$name" "$sum"
+done <<EOF
+IT01234567890_FPA01.xml  e26b32f39ac87824d3255f3a9d2b5f06de6cd52dfba705ad057227a5a6d8c30b
+IT01234567890_FPA02.xml  872befe17bad12323d0091b664bd8341dbd758b90511873b7badc563f167f3e2
+IT01234567890_FPA03.xml  3acfe0322b4cc6312f397d2d40f7e6d2bf79e734779eddf13784185db57c506b
+IT01234567890_FPR01.xml  73e61f2f71ca83937fdc2b64dfa71e45f025087b44ad73d835d8c080dc70b286
+IT01234567890_FPR02.xml  f75334471b7411f4dbd9c05c403e6c6c06cbeb5f4d0d832851bc84adebdc0cf4
+IT01234567890_FPR03.xml  3a9001230c6a7a0d76004a7eacecb025589ee3a3369d6d995b06eda165b6f358
+EOF
+
 # Reference XML of the valid PDFs of the corpus (FX_CORPUS_XML), extracted by
 # pdfdetach: the attachment named factur-x.xml, xrechnung.xml or
 # zugferd-invoice.xml (any case), else the only XML attachment. Each file has
@@ -154,5 +170,6 @@ vars=(
 	"FX_XSD_DIR=$DEST/xsd"
 	"FX_FACTURX_SCH=$DEST/facturx-sch"
 	"FX_VERAPDF=$DEST/verapdf-corpus"
+	"FX_FATTURAPA=$DEST/fatturapa"
 )
 export_vars "${vars[@]}"
