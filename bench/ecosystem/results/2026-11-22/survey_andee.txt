@@ -1,0 +1,54 @@
+FLAG EN16931_1_Teilrechnung.cii.xml: 9 errors, err=<nil>
+FLAG EN16931_2_Teilrechnung.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_AbweichenderZahlungsempf.cii.xml: 5 errors, err=<nil>
+FLAG EN16931_Betriebskostenabrechnung.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Einfach.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Einfach_DueDate.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Einfach_negativePaymentDue.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Elektron.cii.xml: 3 errors, err=<nil>
+FLAG EN16931_ElektronischeAdresse.cii.xml: 5 errors, err=<nil>
+FLAG EN16931_Gutschrift.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Haftpflichtversicherung_Versicherungssteuer.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Innergemeinschaftliche_Lieferungen.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Kraftfahrversicherung_Bruttopreise.cii.xml: 8 errors, err=<nil>
+FLAG EN16931_Miete.cii.xml: 5 errors, err=<nil>
+FLAG EN16931_OEPNV.cii.xml: 3 errors, err=<nil>
+FLAG EN16931_Physiotherapeut.cii.xml: 4 errors, err=<nil>
+FLAG EN16931_Rabatte.cii.xml: 9 errors, err=<nil>
+FLAG EN16931_RechnungsUebertragung.cii.xml: 5 errors, err=<nil>
+FLAG EN16931_Rechnungskorrektur.cii.xml: 6 errors, err=<nil>
+FLAG EN16931_Reisekostenabrechnung.cii.xml: 9 errors, err=<nil>
+FLAG EN16931_SEPA_Prenotification.cii.xml: 5 errors, err=<nil>
+FLAG EN16931_Sachversicherung_berechneter_Steuersatz.cii.xml: 7 errors, err=<nil>
+SURVEY validate: 22/26 valid samples flagged
+SURVEY parse: 26/26 CII
+MISS zugferd_2p0_BASIC_Einfach.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_BASIC_Rechnungskorrektur.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_BASIC_Taxifahrt.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_1_Teilrechnung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_2_Teilrechnung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_AbweichenderZahlungsempf.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Betriebskostenabrechnung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Einfach.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Elektron.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_ElektronischeAdresse.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Gutschrift.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Haftpflichtversicherung_Versicherungssteuer.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Innergemeinschaftliche_Lieferungen.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Kraftfahrversicherung_Bruttopreise.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Miete.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_OEPNV.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Physiotherapeut.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Rabatte.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_RechnungsUebertragung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Rechnungskorrektur.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Reisekostenabrechnung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_SEPA_Prenotification.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Sachversicherung_berechneter_Steuersatz.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Fremdwaehrung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_InnergemeinschLieferungMehrereBestellungen.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Kostenrechnung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Rechnungskorrektur.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Warenrechnung.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_MINIMUM.pdf: xinvoice-pdf: read PDF: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+SURVEY extract: 75/104 PDFs

@@ -1,0 +1,31 @@
+SURVEY parse: 26/26 CII
+MISS zugferd_2p0_BASIC_Einfach.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_BASIC_Rechnungskorrektur.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_BASIC_Taxifahrt.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_1_Teilrechnung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_2_Teilrechnung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_AbweichenderZahlungsempf.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Betriebskostenabrechnung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Einfach.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Elektron.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_ElektronischeAdresse.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Gutschrift.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Haftpflichtversicherung_Versicherungssteuer.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Innergemeinschaftliche_Lieferungen.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Kraftfahrversicherung_Bruttopreise.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Miete.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_OEPNV.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Physiotherapeut.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Rabatte.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_RechnungsUebertragung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Rechnungskorrektur.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Reisekostenabrechnung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_SEPA_Prenotification.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Sachversicherung_berechneter_Steuersatz.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Fremdwaehrung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_InnergemeinschLieferungMehrereBestellungen.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Kostenrechnung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Rechnungskorrektur.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Warenrechnung.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_MINIMUM.pdf: zugferd: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+SURVEY extract: 75/104 PDFs

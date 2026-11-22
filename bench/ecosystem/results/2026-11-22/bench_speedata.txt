@@ -1,0 +1,43 @@
+go version go1.27.4 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/ritoon/zerechnung/bench/ecosystem/speedata
+cpu: Apple M4 Pro
+BenchmarkExtract_Small-14          	   16207	     73392 ns/op	2031.33 MB/s	  410530 B/op	     318 allocs/op
+BenchmarkExtract_Small-14          	   16545	     72604 ns/op	2053.39 MB/s	  410529 B/op	     318 allocs/op
+BenchmarkExtract_Small-14          	   16438	     72423 ns/op	2058.52 MB/s	  410529 B/op	     318 allocs/op
+BenchmarkExtract_Large-14          	    5035	    236771 ns/op	4666.38 MB/s	 2391801 B/op	     522 allocs/op
+BenchmarkExtract_Large-14          	    5005	    235566 ns/op	4690.26 MB/s	 2391800 B/op	     522 allocs/op
+BenchmarkExtract_Large-14          	    5024	    238210 ns/op	4638.21 MB/s	 2391800 B/op	     522 allocs/op
+BenchmarkExtract_Minimum-14        	   46567	     25668 ns/op	3476.98 MB/s	  221312 B/op	     246 allocs/op
+BenchmarkExtract_Minimum-14        	   46506	     25950 ns/op	3439.10 MB/s	  221312 B/op	     246 allocs/op
+BenchmarkExtract_Minimum-14        	   46651	     25743 ns/op	3466.79 MB/s	  221312 B/op	     246 allocs/op
+BenchmarkExtract_Extended-14       	   14550	     82295 ns/op	1913.17 MB/s	  452042 B/op	     267 allocs/op
+BenchmarkExtract_Extended-14       	   14608	     82563 ns/op	1906.96 MB/s	  452042 B/op	     267 allocs/op
+BenchmarkExtract_Extended-14       	   14708	     81812 ns/op	1924.48 MB/s	  452042 B/op	     267 allocs/op
+BenchmarkParse_Small-14            	    5696	    206811 ns/op	  63.60 MB/s	  339330 B/op	    4531 allocs/op
+BenchmarkParse_Small-14            	    5818	    206577 ns/op	  63.67 MB/s	  339330 B/op	    4531 allocs/op
+BenchmarkParse_Small-14            	    5893	    207900 ns/op	  63.27 MB/s	  339332 B/op	    4531 allocs/op
+BenchmarkParse_Lines-14            	    3574	    340694 ns/op	  55.19 MB/s	  557851 B/op	    7734 allocs/op
+BenchmarkParse_Lines-14            	    3536	    339841 ns/op	  55.33 MB/s	  557851 B/op	    7734 allocs/op
+BenchmarkParse_Lines-14            	    3558	    341716 ns/op	  55.02 MB/s	  557851 B/op	    7734 allocs/op
+BenchmarkParse_Large-14            	     164	   7255220 ns/op	 179.91 MB/s	 9464483 B/op	    5404 allocs/op
+BenchmarkParse_Large-14            	     165	   7206501 ns/op	 181.13 MB/s	 9464486 B/op	    5404 allocs/op
+BenchmarkParse_Large-14            	     162	   7444349 ns/op	 175.34 MB/s	 9464486 B/op	    5404 allocs/op
+BenchmarkParseValidate_Small-14    	    1132	   1059002 ns/op	  12.42 MB/s	 2007296 B/op	   46459 allocs/op
+BenchmarkParseValidate_Small-14    	    1134	   1064189 ns/op	  12.36 MB/s	 2007326 B/op	   46459 allocs/op
+BenchmarkParseValidate_Small-14    	    1131	   1056888 ns/op	  12.45 MB/s	 2007318 B/op	   46459 allocs/op
+BenchmarkParseValidate_Lines-14    	     619	   1935972 ns/op	   9.71 MB/s	 3822867 B/op	   82314 allocs/op
+BenchmarkParseValidate_Lines-14    	     624	   1935602 ns/op	   9.71 MB/s	 3822884 B/op	   82314 allocs/op
+BenchmarkParseValidate_Lines-14    	     618	   1925440 ns/op	   9.77 MB/s	 3822838 B/op	   82314 allocs/op
+BenchmarkParseValidate_Large-14    	     142	   8348795 ns/op	 156.35 MB/s	11905168 B/op	   59403 allocs/op
+BenchmarkParseValidate_Large-14    	     144	   8294962 ns/op	 157.36 MB/s	11905897 B/op	   59403 allocs/op
+BenchmarkParseValidate_Large-14    	     142	   8356615 ns/op	 156.20 MB/s	11912847 B/op	   59404 allocs/op
+BenchmarkWrite_Small-14            	   44019	     27096 ns/op	   45525 B/op	     988 allocs/op
+BenchmarkWrite_Small-14            	   43836	     27058 ns/op	   45531 B/op	     988 allocs/op
+BenchmarkWrite_Small-14            	   44415	     27214 ns/op	   45584 B/op	     988 allocs/op
+BenchmarkWrite_Lines-14            	   24498	     49015 ns/op	   78317 B/op	    1804 allocs/op
+BenchmarkWrite_Lines-14            	   24174	     49417 ns/op	   78333 B/op	    1804 allocs/op
+BenchmarkWrite_Lines-14            	   24543	     49006 ns/op	   78284 B/op	    1804 allocs/op
+PASS
+ok  	github.com/ritoon/zerechnung/bench/ecosystem/speedata	43.417s

@@ -1,0 +1,8 @@
+MISS Avoir_FR_type381_BASIC.pdf: could not extract attachments: pdfcpu: invalid date ModDate
+MISS Facture_DOM_BASICWL.pdf: could not extract attachments: pdfcpu: invalid date ModDate
+MISS Facture_DOM_MINIMUM.pdf: could not extract attachments: pdfcpu: invalid date ModDate
+MISS Facture_FR_BASICWL.pdf: could not extract attachments: pdfcpu: invalid date ModDate
+MISS Facture_FR_MINIMUM.pdf: could not extract attachments: pdfcpu: invalid date ModDate
+MISS Facture_UE_BASICWL.pdf: could not extract attachments: pdfcpu: invalid date ModDate
+MISS Facture_UE_MINIMUM.pdf: could not extract attachments: pdfcpu: invalid date ModDate
+SURVEY extract: 97/104 PDFs

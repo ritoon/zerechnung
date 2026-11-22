@@ -3,7 +3,7 @@ module github.com/ritoon/zerechnung/bench/ecosystem/litho
 go 1.27.3
 
 require (
-	github.com/gotenberg/litho v0.0.13
+	github.com/gotenberg/litho v0.0.18
 	github.com/ritoon/zerechnung/bench/ecosystem/common v0.0.0
 )
 

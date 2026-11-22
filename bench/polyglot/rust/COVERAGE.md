@@ -174,7 +174,7 @@ Deux crates sœurs, l'un pour le XML, l'autre pour le conteneur.
     recherche d'octets : 32 PDF sur 104.
 - Dépendance unique : `xmlkit`, du même dépôt. Réseau : aucun.
 
-### pdf-invoice 1.4.0 (PDFluent SDK)
+### pdf-invoice 1.5.0 (PDFluent SDK)
 
 FDF/XFDF et modèle ZUGFeRD / Factur-X CII, sur un fork de lopdf
 (`pdfluent-lopdf =0.39.9`, `Cargo.toml:61-63`). Licence AGPL-3.0 ou commerciale.
@@ -307,7 +307,7 @@ l'ordre :
 | zugferd-rs | 0.2.2 | Apache-2.0 | 0.2.2 (2026-11-11) | 92 | partiel (rejette TypeCode 204/387/575/877) | oui | oui | oui | oui (convertit en PDF/A-3b) | oui : Factur-X 1.09.2 et 1.08 par profil (libxml2) | partiel : .sch CEN 1.3.17 en XPath 1.0, règles XPath 2.0 sautées, drapeaux ignorés ; Saxon (Java) en option | XSD seulement | non | non (écriture XRechnung CII seulement) | non | partiel : 21 règles veraPDF PDF/A-3b (`validate_pdf_a`), séparées du XML | libxml2 système, libclang à la compilation ; Java optionnel |
 | factur-x | 0.3.1 | Apache-2.0 | 0.3.1 (2026-10-30) | 131 | partiel (refuse les montants à 4 décimales) | oui | oui | non | non | non | partiel (16 règles arithmétiques) | détection du profil seulement | non | non | non | non | aucune |
 | pdfa | 0.1.10 | Apache-2.0 | 0.1.10 (2026-10-30) | 159 | non | non | non | partiel (recherche d'octets, 32/104) | partiel (xref classique seulement ; nouveau XMP PDF/A-3B) | non | non | non | non | non | non | partiel (5 contrôles : XMP PDF/A-3, /Metadata, nom, /AFRelationship, somme de contrôle) | aucune |
-| pdf-invoice | 1.4.0 | AGPL-3.0-only OR commerciale | 1.4.0 (2026-11-13) | 72 | oui (montants f64) | partiel (refuse si les contrôles de profil échouent) | non | oui (101/104) | oui (réécriture, XMP remplacé, pas de PDF/A) | non | partiel (14 règles) | partiel (champs exigés par profil) | non | non | non | non | aucune (fork pdfluent-lopdf) |
+| pdf-invoice | 1.5.0 | AGPL-3.0-only OR commerciale | 1.5.0 (2026-11-19) | 72 | oui (montants f64) | partiel (refuse si les contrôles de profil échouent) | non | oui (101/104) | oui (réécriture, XMP remplacé, pas de PDF/A) | non | partiel (14 règles) | partiel (champs exigés par profil) | non | non | non | non | aucune (fork pdfluent-lopdf) |
 | zugferd | 0.3.0 | Apache-2.0 | 0.3.0 (2026-11-11) | 6 013 (168) | non | oui (MINIMUM, BASIC WL, BASIC, depuis un builder) | non | non | non | non | non (17 règles sur le modèle construit seulement) | génération MINIMUM / BASIC WL / BASIC ; pas EN16931 ni EXTENDED | non | non | non | non | aucune |
 | einvoice | 0.1.1 | MIT | 0.1.1 (2025-01-18) | 1 965 (12) | oui (yaserde) | oui | oui (modèle) | privée (chemin de fichier) | non | non | non (777 bouchons `if false`) | non | non | non | non | non | aucune (fork yaserde) |
 | lopdf (plancher) | 0.47.0 | MIT | 0.47.0 (2026-11-04) | 30 787 114 (14 860 187) | non | non | non | plancher écrit à la main | non | non | non | non | non | non | non | non | aucune |

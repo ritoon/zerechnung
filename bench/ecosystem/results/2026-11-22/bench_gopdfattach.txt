@@ -1,0 +1,22 @@
+go version go1.27.4 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/ritoon/zerechnung/bench/ecosystem/gopdfattach
+cpu: Apple M4 Pro
+BenchmarkEmbedClassic_Small-14    	     998	   1080579 ns/op	 136.36 MB/s	 5477824 B/op	    7992 allocs/op
+BenchmarkEmbedClassic_Small-14    	    1153	   1063765 ns/op	 138.51 MB/s	 5476441 B/op	    7991 allocs/op
+BenchmarkEmbedClassic_Small-14    	    1119	   1080590 ns/op	 136.36 MB/s	 5476743 B/op	    7992 allocs/op
+BenchmarkExtract_Small-14         	    3085	    381768 ns/op	 390.51 MB/s	  666433 B/op	    3136 allocs/op
+BenchmarkExtract_Small-14         	    3169	    385463 ns/op	 386.77 MB/s	  666438 B/op	    3136 allocs/op
+BenchmarkExtract_Small-14         	    3152	    384521 ns/op	 387.71 MB/s	  666434 B/op	    3136 allocs/op
+BenchmarkExtract_Large-14         	    2229	    539466 ns/op	2048.08 MB/s	 1740647 B/op	    3659 allocs/op
+BenchmarkExtract_Large-14         	    2242	    541203 ns/op	2041.50 MB/s	 1740660 B/op	    3659 allocs/op
+BenchmarkExtract_Large-14         	    2220	    543325 ns/op	2033.53 MB/s	 1740673 B/op	    3659 allocs/op
+BenchmarkExtract_Extended-14      	    3044	    393917 ns/op	 399.69 MB/s	  764311 B/op	    3105 allocs/op
+BenchmarkExtract_Extended-14      	    3111	    389767 ns/op	 403.95 MB/s	  764311 B/op	    3105 allocs/op
+BenchmarkExtract_Extended-14      	    3031	    392400 ns/op	 401.24 MB/s	  764309 B/op	    3105 allocs/op
+BenchmarkEmbed_Small-14           	     996	   1187166 ns/op	 121.17 MB/s	 5538283 B/op	    8043 allocs/op
+BenchmarkEmbed_Small-14           	    1009	   1176486 ns/op	 122.27 MB/s	 5538314 B/op	    8043 allocs/op
+BenchmarkEmbed_Small-14           	    1020	   1168211 ns/op	 123.13 MB/s	 5539547 B/op	    8043 allocs/op
+PASS
+ok  	github.com/ritoon/zerechnung/bench/ecosystem/gopdfattach	18.270s

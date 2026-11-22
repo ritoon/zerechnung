@@ -1,4 +1,4 @@
-//! pdf-invoice 1.4.0 (PDFluent SDK, AGPL-3.0 or commercial): FDF/XFDF and
+//! pdf-invoice 1.5.0 (PDFluent SDK, AGPL-3.0 or commercial): FDF/XFDF and
 //! ZUGFeRD / Factur-X CII model, read, write, a few EN 16931 rules, and
 //! attachment helpers on its lopdf fork (pdfluent-lopdf 0.39.9).
 
@@ -7,7 +7,7 @@ use pdf_invoice::embed::{AfRelationship, add_zugferd_xmp, embed_xml_attachment, 
 use pdf_invoice::zugferd::{ZugferdInvoice, ZugferdProfile};
 use pdfluent_lopdf::Document;
 
-const LIB: Lib = Lib { lib: "pdf-invoice", pkg: "pdf-invoice", version: "1.4.0" };
+const LIB: Lib = Lib { lib: "pdf-invoice", pkg: "pdf-invoice", version: "1.5.0" };
 
 const NAMES: [&str; 5] = ["factur-x.xml", "zugferd-invoice.xml", "ZUGFeRD-invoice.xml", "xrechnung.xml", "order-x.xml"];
 
