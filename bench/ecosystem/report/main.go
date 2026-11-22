@@ -76,6 +76,81 @@ func main() {
 	for _, g := range groups {
 		printGroup(g, results, surveys)
 	}
+	printAllocs(results)
+}
+
+// allocColumns are the columns of the allocation table: one call of each
+// operation, on the inputs of the site's charts.
+var allocColumns = []struct{ bench, label string }{
+	{"Extract_Small", "Extraction, PDF de 149 Ko"},
+	{"Parse_Small", "Lecture, XML de 13 Ko"},
+	{"ParseValidate_Small", "Validation, XML de 13 Ko"},
+	{"ParseValidate_Large", "Validation, XML de 1,3 Mo"},
+	{"Write_Small", "Écriture, XML de 13 Ko"},
+	{"Embed_Small", "Injection, hôte à flux xref"},
+	{"CheckPDF_Small", "Contrôle, PDF de 149 Ko"},
+}
+
+// printAllocs prints, for each library, the bytes and the allocations of one
+// call (go test -benchmem), ZeRechnung first, with the encoding/xml floor as a
+// reference under the reading column.
+func printAllocs(res map[string]map[string]run) {
+	libs := map[string]bool{}
+	best := map[string]float64{}
+	for _, c := range allocColumns {
+		for l, r := range res[c.bench] {
+			libs[l] = true
+			if v, ok := best[c.bench]; !ok || r.bytes < v {
+				best[c.bench] = r.bytes
+			}
+		}
+	}
+	if len(libs) == 0 {
+		return
+	}
+	order := keys(libs)
+	sort.Slice(order, func(i, j int) bool {
+		if (order[i] == "facturx") != (order[j] == "facturx") {
+			return order[i] == "facturx"
+		}
+		return strings.ToLower(display(order[i])) < strings.ToLower(display(order[j]))
+	})
+	cell := func(r run) string { return fmtBytes(r.bytes) + " · " + thousands(r.allocs) }
+
+	fmt.Print("\n#### Allocations par appel\n\n")
+	head := []string{"Librairie"}
+	for _, c := range allocColumns {
+		head = append(head, c.label)
+	}
+	fmt.Println("| " + strings.Join(head, " | ") + " |")
+	fmt.Println("|" + strings.Repeat("---|", len(head)))
+	for _, l := range order {
+		row := []string{display(l)}
+		for _, c := range allocColumns {
+			r, ok := res[c.bench][l]
+			switch {
+			case !ok:
+				row = append(row, "—")
+			case r.bytes <= best[c.bench]:
+				row = append(row, "**"+cell(r)+"**")
+			default:
+				row = append(row, cell(r))
+			}
+		}
+		fmt.Println("| " + strings.Join(row, " | ") + " |")
+	}
+	if r, ok := res["Floor_XMLRawToken_Small"]["floor"]; ok {
+		row := []string{"*plancher : jetons `encoding/xml`*"}
+		for _, c := range allocColumns {
+			if c.bench == "Parse_Small" {
+				row = append(row, "*"+cell(r)+"*")
+			} else {
+				row = append(row, "")
+			}
+		}
+		fmt.Println("| " + strings.Join(row, " | ") + " |")
+	}
+	fmt.Println("\nOctets alloués · nombre d'allocations, pour un appel (`go test -benchmem`, médiane des exécutions). « — » : opération non proposée, ou en échec. En gras : le moins d'octets alloués de la colonne.")
 }
 
 func loadBenches(dir string) (map[string]map[string]run, error) {
@@ -251,7 +326,9 @@ func fmtNs(ns float64) string {
 
 func fmtBytes(b float64) string {
 	switch {
-	case b >= 1<<20:
+	case b >= 1000<<20:
+		return comma(b/(1<<30), 1) + " Go"
+	case b >= 1000<<10:
 		return comma(b/(1<<20), 1) + " Mo"
 	case b >= 1<<10:
 		return comma(b/(1<<10), 0) + " Ko"

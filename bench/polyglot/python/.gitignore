@@ -1,3 +1,4 @@
 .venv/
 .artefacts/
 __pycache__/
+.alloc/

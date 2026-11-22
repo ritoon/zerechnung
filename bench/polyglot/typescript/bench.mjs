@@ -1,10 +1,12 @@
 // node bench.mjs <lib> <Benchmark>  →  one line of bench_typescript.jsonl
+// node --expose-gc … bench.mjs --alloc <lib> <Benchmark>  →  one line of
+//   alloc_typescript.jsonl: the bytes one call allocates (run.sh alloc)
 //
 // One process per library and benchmark, so that first_call_ns is the first
 // call of the operation in a fresh process and no benchmark warms another.
 import { pathToFileURL } from 'node:url';
 import * as corpus from './lib/corpus.mjs';
-import { emit, errMessage, measure, record, silenceConsole, Unsupported, Wrong } from './lib/harness.mjs';
+import { emit, errMessage, measure, measureAlloc, record, silenceConsole, Unsupported, Wrong } from './lib/harness.mjs';
 import { loadAdapter } from './adapters/index.mjs';
 import { HAND_NOTE } from './lib/handmodels.mjs';
 
@@ -41,7 +43,7 @@ const checkCount = (r) => {
 	if (!r || typeof r.errors !== 'number' || Number.isNaN(r.errors)) throw new Wrong(`résultat de validation illisible : ${JSON.stringify(r)?.slice(0, 200)}`);
 };
 
-export async function runBenchmark(adapter, bench) {
+export async function runBenchmark(adapter, bench, alloc = false) {
 	const spec = BENCHMARKS[bench];
 	if (!spec) throw new Error(`unknown benchmark ${bench}`);
 	const op = spec.op;
@@ -108,7 +110,7 @@ export async function runBenchmark(adapter, bench) {
 				break;
 			}
 		}
-		const m = await measure(fn, check);
+		const m = alloc ? await measureAlloc(fn, check) : await measure(fn, check);
 		return record(adapter, bench, { status: 'ok', ...m, note: joinNotes(opNote, extraNote) });
 	} catch (e) {
 		if (e instanceof Unsupported) return record(adapter, bench, { status: 'unsupported', note: joinNotes(e.message) });
@@ -135,15 +137,17 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 		emit(record(await loadAdapter(id), b, { status: 'fail', note: why }));
 		process.exit(0);
 	}
+	const alloc = process.argv[2] === '--alloc';
+	const [libArg, benchArg] = alloc ? process.argv.slice(3) : [lib, bench];
 	silenceConsole();
-	const adapter = await loadAdapter(lib);
+	const adapter = await loadAdapter(libArg);
 	// A library can kill the process from a stray promise or leave the top-level
 	// await unsettled: the benchmark is then a "fail" line, never a missing one.
 	let done = false;
 	const crash = (why) => {
 		if (done) return;
 		done = true;
-		emit(record(adapter, bench, { status: 'fail', note: joinNotes(adapter.notes?.[BENCHMARKS[bench]?.op], why) }));
+		emit(record(adapter, benchArg, { status: 'fail', note: joinNotes(adapter.notes?.[BENCHMARKS[benchArg]?.op], why) }));
 	};
 	process.on('uncaughtException', (e) => {
 		crash(`exception non rattrapée : ${errMessage(e)}`);
@@ -154,7 +158,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 		process.exit(0);
 	});
 	process.on('exit', (code) => crash(`processus terminé (code ${code}) sans résultat`));
-	const r = await runBenchmark(adapter, bench);
+	const r = await runBenchmark(adapter, benchArg, alloc);
 	done = true;
 	emit(r);
 	process.exit(0);

@@ -1,7 +1,7 @@
 // Command report merges the Go results of this repository's package
 // (bench_facturx.txt, survey_facturx.txt, produced by bench/ecosystem/run.sh)
 // with the TypeScript, Python and Rust results (bench_<lang>.jsonl,
-// survey_<lang>.jsonl) into Markdown comparison tables.
+// survey_<lang>.jsonl, alloc_<lang>.jsonl), into Markdown comparison tables.
 //
 // Usage: go run . ../results/2026-11-17 > ../results/2026-11-17/tables.md
 package main
@@ -94,7 +94,143 @@ func main() {
 	for _, g := range groups {
 		printGroup(g, res, surveys)
 	}
+	printAllocs(loadAllocs(dir))
 	printNotes(notes)
+}
+
+// alloc is what one call of one benchmark allocates.
+type alloc struct {
+	status string  // ok, unsupported, fail
+	bytes  float64 // bytes allocated
+	allocs float64 // number of allocations, -1 when the language does not count them
+	lower  bool    // a garbage collection ran during the count: bytes is a lower bound
+}
+
+// allocColumns are the columns of the allocation table, as in the Go report.
+var allocColumns = []struct{ bench, label string }{
+	{"Extract_Small", "Extraction, PDF de 149 Ko"},
+	{"Parse_Small", "Lecture, XML de 13 Ko"},
+	{"ParseValidate_Small", "Validation, XML de 13 Ko"},
+	{"ParseValidate_Large", "Validation, XML de 1,3 Mo"},
+	{"Write_Small", "Écriture, XML de 13 Ko"},
+	{"Embed_Small", "Injection, hôte à flux xref"},
+	{"CheckPDF_Small", "Contrôle, PDF de 149 Ko"},
+}
+
+var goMem = regexp.MustCompile(`^Benchmark(\S+?)-\d+\s+\d+\s+[\d.]+ ns/op(?:\s+[\d.]+ MB/s)?\s+(\d+) B/op\s+(\d+) allocs/op`)
+
+// loadAllocs reads the allocations of ZeRechnung from bench_facturx.txt
+// (go test -benchmem) and those of the other languages from alloc_<lang>.jsonl.
+func loadAllocs(dir string) map[key]map[string]alloc {
+	out := map[key]map[string]alloc{}
+	put := func(k key, bench string, a alloc) {
+		if out[k] == nil {
+			out[k] = map[string]alloc{}
+		}
+		out[k][bench] = a
+	}
+	bytes, allocs := map[string][]float64{}, map[string][]float64{}
+	eachLine(filepath.Join(dir, "bench_facturx.txt"), func(line string) {
+		if m := goMem.FindStringSubmatch(line); m != nil {
+			b, _ := strconv.ParseFloat(m[2], 64)
+			n, _ := strconv.ParseFloat(m[3], 64)
+			bytes[m[1]] = append(bytes[m[1]], b)
+			allocs[m[1]] = append(allocs[m[1]], n)
+		}
+	})
+	for b := range bytes {
+		put(key{"ZeRechnung (ce dépôt)", "go"}, b, alloc{"ok", median(bytes[b]), median(allocs[b]), false})
+	}
+	files, _ := filepath.Glob(filepath.Join(dir, "alloc_*.jsonl"))
+	for _, f := range files {
+		eachLine(f, func(line string) {
+			var r struct {
+				Lang, Lib, Bench, Status string
+				Bytes                    float64
+				Allocs                   *float64
+				Gcs                      int
+			}
+			if strings.TrimSpace(line) == "" || json.Unmarshal([]byte(line), &r) != nil {
+				return
+			}
+			a := alloc{status: r.Status, bytes: r.Bytes, allocs: -1, lower: r.Gcs > 0}
+			if r.Allocs != nil {
+				a.allocs = *r.Allocs
+			}
+			put(key{r.Lib, r.Lang}, r.Bench, a)
+		})
+	}
+	return out
+}
+
+func printAllocs(m map[key]map[string]alloc) {
+	best := map[string]float64{}
+	var order []key
+	for k, runs := range m {
+		shown := false
+		for _, c := range allocColumns {
+			if r, ok := runs[c.bench]; ok && r.status == "ok" {
+				shown = true
+				if v, ok := best[c.bench]; !ok || r.bytes < v {
+					best[c.bench] = r.bytes
+				}
+			}
+		}
+		if shown {
+			order = append(order, k)
+		}
+	}
+	if len(order) == 0 {
+		return
+	}
+	sort.Slice(order, func(i, j int) bool { return less(order[i], order[j]) })
+	fmt.Print("\n#### Allocations par appel\n\n")
+	head := []string{"Librairie", "Langage"}
+	for _, c := range allocColumns {
+		head = append(head, c.label)
+	}
+	fmt.Println("| " + strings.Join(head, " | ") + " |")
+	fmt.Println("|" + strings.Repeat("---|", len(head)))
+	for _, k := range order {
+		row := []string{name(k), langNames[k.lang]}
+		for _, c := range allocColumns {
+			r, ok := m[k][c.bench]
+			switch {
+			case !ok || r.status == "unsupported":
+				row = append(row, "—")
+			case r.status != "ok":
+				row = append(row, "échec")
+			default:
+				v := fmtBytes(r.bytes)
+				if r.lower {
+					v = "≥ " + v
+				}
+				if r.allocs >= 0 {
+					v += " · " + comma(r.allocs, 0)
+				}
+				if r.bytes <= best[c.bench] {
+					v = "**" + v + "**"
+				}
+				row = append(row, v)
+			}
+		}
+		fmt.Println("| " + strings.Join(row, " | ") + " |")
+	}
+	fmt.Println("\nOctets alloués · nombre d'allocations, pour un appel, après le même contrôle du résultat et un échauffement. Go : `go test -benchmem`, médiane des exécutions. Rust : allocateur global du harnais, qui compte chaque `alloc` et `realloc`. Python : `PYTHONMALLOC=malloc` et un compteur inséré dans le processus, qui compte chaque `malloc`, objets Python et extensions C comprises (libxml2, qpdf). TypeScript : croissance du tas V8 et des ArrayBuffer pendant la série d'appels ; V8 ne compte pas ses allocations, d'où l'absence de nombre, et « ≥ » quand un ramasse-miettes a tourné pendant la série. En gras : le moins d'octets alloués de la colonne.")
+}
+
+// fmtBytes formats a size in Ko and Mo (powers of 1024), as on the wiki.
+func fmtBytes(b float64) string {
+	switch {
+	case b >= 1000<<20:
+		return comma(b/(1<<30), 1) + " Go"
+	case b >= 1000<<10:
+		return comma(b/(1<<20), 1) + " Mo"
+	case b >= 1<<10:
+		return comma(b/(1<<10), 0) + " Ko"
+	default:
+		return comma(b, 0) + " o"
+	}
 }
 
 func loadGo(dir string, res map[string]map[key]result, surveys map[key]map[string]string) error {
