@@ -66,7 +66,8 @@ type glyphFont struct {
 	tt  *font.TrueType
 	t3  map[string]float64 // Type 3: width of the glyph descriptions by name, NaN when it cannot be read
 
-	checked  map[uint64]bool // codes checked, with their visibility
+	seen     [8]uint64       // simple fonts: codes checked, with their visibility, as bits code<<1 | visible
+	checked  map[uint64]bool // Type 0 fonts: codes checked, with their size and visibility; made on first use
 	reported glyphProblem
 }
 
@@ -78,7 +79,7 @@ func (s *pdfaScan) glyphFont(o pdf.Object) *glyphFont {
 	if f := cs.fonts[id]; id != "" && f != nil {
 		return f
 	}
-	f := &glyphFont{checked: map[uint64]bool{}}
+	f := &glyphFont{}
 	if d, ok := s.c.r.Dict(o); ok {
 		switch s.name(d, "Subtype") {
 		case "Type0":
@@ -223,19 +224,19 @@ func (s *pdfaScan) readTrueType(d pdf.Dict, f *glyphFont) {
 	enc := r.Resolve(d.Get("Encoding"))
 	f.symbolic = flags&4 != 0 || enc == nil
 	if !f.symbolic {
-		gid := new([256]string)
+		var gid *[256]string // read only once set
 		switch e := enc.(type) {
 		case pdf.Name:
 			if e != "WinAnsiEncoding" && e != "MacRomanEncoding" {
 				return
 			}
-			t, _ := font.Encoding(string(e))
-			*gid = *t
+			gid, _ = font.Encoding(string(e)) // shared: not to be modified
 		case pdf.Dict:
 			b, _ := r.Resolve(e.Get("BaseEncoding")).(pdf.Name)
 			if b == "MacExpertEncoding" {
 				return
 			}
+			gid = new([256]string)
 			t, ok := font.Encoding(string(b))
 			if !ok || b == "StandardEncoding" {
 				t, _ = font.Encoding("StandardEncoding")
@@ -387,14 +388,29 @@ func (sc *streamScan) showGlyphs(strs []pdf.String) {
 				code, size = f.cmap.next(str)
 			}
 			str = str[min(size, len(str)):]
-			key := uint64(code)<<8 | uint64(size)<<1
-			if visible {
-				key |= 1
+			if f.cmap == nil {
+				// A simple font: a code of one byte.
+				bit := code << 1
+				if visible {
+					bit |= 1
+				}
+				if f.seen[bit>>6]&(1<<(bit&63)) != 0 {
+					continue
+				}
+				f.seen[bit>>6] |= 1 << (bit & 63)
+			} else {
+				key := uint64(code)<<8 | uint64(size)<<1
+				if visible {
+					key |= 1
+				}
+				if f.checked[key] || len(f.checked) > 1<<16 {
+					continue
+				}
+				if f.checked == nil {
+					f.checked = map[uint64]bool{}
+				}
+				f.checked[key] = true
 			}
-			if f.checked[key] || len(f.checked) > 1<<16 {
-				continue
-			}
-			f.checked[key] = true
 			g := s.glyphOf(f, code)
 			if g.name == ".notdef" {
 				sc.glyphReport(f, glyphNotdef, code, size, "the text shows the code %s, mapped to the .notdef glyph (6.2.11.8)")

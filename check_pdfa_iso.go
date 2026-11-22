@@ -172,7 +172,7 @@ func (s *pdfaScan) fileStructure() {
 		}
 		if s.name(st.Dict, "Type") == "Metadata" && ref != s.metaRef() {
 			if data, err := r.Decode(st); err == nil {
-				s.packet(data, where)
+				s.packet(xmp.ParsePacket(data), where)
 			}
 		}
 		names, parms := s.filters(st.Dict)
@@ -206,21 +206,20 @@ func (s *pdfaScan) metadata() {
 	if t := s.name(st.Dict, "Subtype"); t != "XML" {
 		s.report("PDF-65", "catalog /Metadata /Subtype", "the metadata stream has /Subtype %q, not /XML", t)
 	}
-	data, err := r.Decode(st)
-	if err != nil {
-		return
-	}
-	info, err := xmp.Parse(data)
-	if err != nil {
+	// The stream as document read it: the packet is nil when the stream
+	// cannot be decoded, and what it declares nil when the packet cannot
+	// be read.
+	p, info := s.k.xmp, s.k.xmpInfo
+	if p == nil || info == nil {
 		return
 	}
 	s.xmp = info.Declared()
-	s.packet(data, "catalog /Metadata")
+	s.packet(p, "catalog /Metadata")
 }
 
 // packet checks an XMP packet against the PDF/A requirements.
-func (s *pdfaScan) packet(data []byte, where string) {
-	xmp.CheckPDFA(data, s.xmp, func(is xmp.Issue) {
+func (s *pdfaScan) packet(p *xmp.Packet, where string) {
+	p.CheckPDFA(s.xmp, func(is xmp.Issue) {
 		switch is.Kind {
 		case xmp.IssuePacket:
 			s.report("PDF-65", where, "%s", is.Message)

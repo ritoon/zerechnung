@@ -92,10 +92,14 @@ var predefined = func() map[string]map[string]bool {
 // the extension schemas of the document metadata (6.6.2.3.1); the extension
 // schemas are described as 6.6.2.3.3 requires. The properties of the
 // hybrid-invoice schemas are left to the caller.
-func CheckPDFA(data []byte, main Declared, fn func(Issue)) {
+func CheckPDFA(data []byte, main Declared, fn func(Issue)) { ParsePacket(data).CheckPDFA(main, fn) }
+
+// CheckPDFA checks the packet as the function CheckPDFA does.
+func (p *Packet) CheckPDFA(main Declared, fn func(Issue)) {
 	report := func(k IssueKind, format string, args ...any) {
 		fn(Issue{Kind: k, Message: fmt.Sprintf(format, args...)})
 	}
+	data := p.raw
 	if h := packetHeader(data); h != nil {
 		if headerBytes.Match(h) {
 			report(IssuePacket, "the xpacket header has a bytes attribute, which PDF/A forbids")
@@ -107,11 +111,13 @@ func CheckPDFA(data []byte, main Declared, fn func(Issue)) {
 	switch {
 	case len(data) >= 2 && (data[0] == 0xFE && data[1] == 0xFF || data[0] == 0xFF && data[1] == 0xFE || data[0] == 0 || data[1] == 0):
 		report(IssuePacket, "the XMP packet is encoded in UTF-16; PDF/A requires UTF-8")
-		data = toUTF8(data)
 	case !utf8.Valid(data):
 		report(IssuePacket, "the XMP packet is not valid UTF-8")
 	}
-	root, err := parse(data)
+	// The packet in UTF-8: toUTF8 converts what the case above reports as
+	// UTF-16 and leaves the other packets as they are.
+	data = p.data
+	root, err := p.root, p.err
 	if err != nil {
 		report(IssuePacket, "the XMP packet is not well-formed XML: %v", err)
 		return

@@ -3,14 +3,18 @@ package pdf
 import (
 	"encoding/binary"
 	"errors"
+	"math/bits"
 	"sync"
 )
 
 // This file implements a DEFLATE decoder (RFC 1951) specialised for data
 // held in memory: the whole output is the history window, input bits are
 // refilled 8 bytes at a time, and Huffman codes are decoded through a
-// two-level lookup table. It is several times faster than compress/flate,
-// whose decoder reads the input one byte at a time through an interface.
+// two-level lookup table whose entries carry the base and extra bits of the
+// lengths and distances. While the input and the output have room, a fast
+// loop decodes up to three literals per refill and copies matches 8 bytes at
+// a time. It is several times faster than compress/flate, whose decoder
+// reads the input one byte at a time through an interface.
 
 var (
 	errCorrupt   = errors.New("corrupt deflate data")
@@ -45,26 +49,70 @@ func inflateIn(src []byte, hint int, sc *Scratch) ([]byte, error) {
 	return inflateRawIn(src, hint, sc)
 }
 
-// Huffman table entries: sym<<16 | flags | length. A link to a subtable is
-// offset<<16 | subBits<<8 | entLink | primaryBits.
+// Huffman table entries. An entry of a literal/length or distance code
+// holds in its low 6 bits the number of bits the symbol takes, codeword and
+// extra bits together, in bits 8-11 the length of its codeword, and in bits
+// 16-31 its value: the literal, the base length or the base distance. The
+// extra bits are thus read from the bits saved before the symbol is
+// consumed. A link to a subtable holds the bits of the primary table in its
+// low 6 bits, the index bits of the subtable in bits 8-11 and its offset in
+// bits 16-31. An invalid code is rejected once it has consumed the bits of
+// its codeword when it is a literal/length symbol (286 and 287 of the fixed
+// code), none otherwise: the bits left tell whether the error is reported
+// as a truncated stream.
 const (
-	entLink    = 1 << 4
+	entBits = 0x3F    // bits the symbol takes
+	entExc  = 1 << 6  // end of block, link or invalid code
+	entLit  = 1 << 7  // a literal
+	entLink = 1 << 12 // a link to a subtable (with entExc)
+	entEOB  = 1 << 13 // the end of the block (with entExc)
+
 	litBits    = 10 // primary table bits for literal/length codes
 	distBits   = 8  // primary table bits for distance codes
 	clBits     = 7  // code length codes are at most 7 bits long
 	maxCodeLen = 15
 )
 
+// The kinds of Huffman codes, which give their entries their values.
+const (
+	kindCL   = iota // code lengths: the symbol itself
+	kindLit         // literals and lengths
+	kindDist        // distances
+)
+
 type huffman struct {
 	table []uint32
-	bits  uint32
 	mask  uint64
+}
+
+// huffEntry returns the table entry of the symbol sym, whose codeword has r
+// bits left to read in the table.
+func huffEntry(kind int, sym int, r uint32) uint32 {
+	switch kind {
+	case kindLit:
+		switch {
+		case sym < 256:
+			return uint32(sym)<<16 | entLit | r
+		case sym == 256:
+			return entExc | entEOB | r
+		case sym < 286:
+			i := sym - 257
+			return uint32(lenBase[i])<<16 | r<<8 | (r + uint32(lenExtra[i]))
+		}
+		return entExc | r // 286 and 287: read, then rejected
+	case kindDist:
+		if sym < 30 {
+			return uint32(distBase[sym])<<16 | r<<8 | (r + uint32(distExtr[sym]))
+		}
+		return entExc // 30 and 31: rejected before being read
+	}
+	return uint32(sym)<<16 | r
 }
 
 // build constructs the decoding table for the given code lengths. As in
 // zlib, incomplete codes are only accepted when they hold a single code of
 // length 1, or no code at all (every lookup then fails).
-func (h *huffman) build(lengths []uint8, primary uint32) error {
+func (h *huffman) build(lengths []uint8, primary uint32, kind int) error {
 	var count [maxCodeLen + 1]int
 	maxLen := 0
 	for _, l := range lengths {
@@ -74,16 +122,15 @@ func (h *huffman) build(lengths []uint8, primary uint32) error {
 		}
 	}
 	count[0] = 0
-	h.bits = primary
 	h.mask = 1<<primary - 1
 	size := 1 << primary
 	if cap(h.table) >= size {
 		h.table = h.table[:size]
-		clear(h.table)
 	} else {
 		h.table = make([]uint32, size, size*2)
 	}
 	if maxLen == 0 {
+		fillInvalid(h.table)
 		return nil
 	}
 	// Canonical codes (RFC 1951, 3.2.2).
@@ -97,8 +144,11 @@ func (h *huffman) build(lengths []uint8, primary uint32) error {
 			return errCorrupt // over-subscribed
 		}
 	}
-	if left > 0 && !(maxLen == 1 && count[1] == 1) {
-		return errCorrupt // incomplete
+	if left > 0 {
+		if !(maxLen == 1 && count[1] == 1) {
+			return errCorrupt // incomplete
+		}
+		fillInvalid(h.table) // half the entries stay unused
 	}
 	// Codes longer than the primary table go to subtables, one per primary
 	// index, sized for the longest code sharing that index.
@@ -128,7 +178,7 @@ func (h *huffman) build(lengths []uint8, primary uint32) error {
 		rev := reverse(uint32(next[l]), uint32(l))
 		next[l]++
 		if uint32(l) <= primary {
-			e := uint32(sym)<<16 | uint32(l)
+			e := huffEntry(kind, sym, uint32(l))
 			for i := rev; i < uint32(size); i += 1 << l {
 				h.table[i] = e
 			}
@@ -141,9 +191,9 @@ func (h *huffman) build(lengths []uint8, primary uint32) error {
 			off = uint32(len(h.table))
 			h.table = append(h.table, make([]uint32, 1<<sb)...)
 			subOff[p] = off
-			h.table[p] = off<<16 | sb<<8 | entLink | primary
+			h.table[p] = off<<16 | sb<<8 | entExc | entLink | primary
 		}
-		e := uint32(sym)<<16 | (uint32(l) - primary)
+		e := huffEntry(kind, sym, uint32(l)-primary)
 		for i := rev >> primary; i < 1<<sb; i += 1 << (uint32(l) - primary) {
 			h.table[off+i] = e
 		}
@@ -151,13 +201,16 @@ func (h *huffman) build(lengths []uint8, primary uint32) error {
 	return nil
 }
 
-func reverse(code, n uint32) uint32 {
-	var r uint32
-	for i := uint32(0); i < n; i++ {
-		r = r<<1 | code&1
-		code >>= 1
+// fillInvalid marks every entry of t as an invalid code.
+func fillInvalid(t []uint32) {
+	for i := range t {
+		t[i] = entExc
 	}
-	return r
+}
+
+// reverse returns the n low bits of code in reverse order.
+func reverse(code, n uint32) uint32 {
+	return uint32(bits.Reverse16(uint16(code))) >> (16 - n)
 }
 
 // decoder holds the state of one decompression.
@@ -202,21 +255,16 @@ func (d *decoder) take(n uint32) uint32 {
 	return v
 }
 
-// sym decodes one symbol; at least 15 bits must be available.
+// sym decodes one symbol of the code length code, whose codes fit the
+// primary table; at least 7 bits must be available.
 func (d *decoder) sym(h *huffman) (uint32, bool) {
 	e := h.table[d.bits&h.mask]
-	if e&entLink != 0 {
-		d.bits >>= h.bits
-		d.n -= h.bits
-		sb := e >> 8 & 0xF
-		e = h.table[e>>16+uint32(d.bits&(1<<sb-1))]
-	}
-	l := e & 0xF
-	if l == 0 {
+	if e&entExc != 0 {
 		return 0, false
 	}
-	d.bits >>= l
-	d.n -= l
+	c := e & entBits
+	d.bits >>= c
+	d.n -= c
 	return e >> 16, true
 }
 
@@ -275,14 +323,14 @@ func fixedTables() {
 			l[i] = 8
 		}
 	}
-	if err := fixedLit.build(l[:], litBits); err != nil {
+	if err := fixedLit.build(l[:], litBits, kindLit); err != nil {
 		panic("pdf: fixed literal/length code: " + err.Error())
 	}
 	var dl [32]uint8 // codes 30 and 31 complete the code but never occur
 	for i := range dl {
 		dl[i] = 5
 	}
-	if err := fixedDist.build(dl[:], distBits); err != nil {
+	if err := fixedDist.build(dl[:], distBits, kindDist); err != nil {
 		panic("pdf: fixed distance code: " + err.Error())
 	}
 }
@@ -305,6 +353,9 @@ func inflateRawIn(src []byte, hint int, sc *Scratch) ([]byte, error) {
 		hint = 4*len(src) + 64
 	}
 	d.out = sc.get(min(hint, maxDecoded))
+	// The whole capacity serves, so that the fast loop of block runs to
+	// the end of an output of the announced size.
+	d.out = d.out[:max(len(d.out), min(cap(d.out), maxDecoded))]
 	err := d.run()
 	if err != nil && d.truncated() {
 		err = errTruncated
@@ -395,7 +446,7 @@ func (d *decoder) dynamic() error {
 		}
 		cl[clOrder[i]] = uint8(d.take(3))
 	}
-	if err := d.cl.build(cl[:], clBits); err != nil {
+	if err := d.cl.build(cl[:], clBits, kindCL); err != nil {
 		return err
 	}
 	var lengths [286 + 30]uint8
@@ -443,26 +494,149 @@ func (d *decoder) dynamic() error {
 	if lengths[256] == 0 {
 		return errCorrupt // no end-of-block code
 	}
-	if err := d.lit.build(lengths[:nlit], litBits); err != nil {
+	if err := d.lit.build(lengths[:nlit], litBits, kindLit); err != nil {
 		return err
 	}
-	return d.dist.build(lengths[nlit:nlit+ndist], distBits)
+	return d.dist.build(lengths[nlit:nlit+ndist], distBits, kindDist)
 }
 
+// Margins of the fast loop of block: an iteration reads at most 15 bytes
+// of input (two refills) and writes at most two literals and a match of
+// 258 bytes copied 8 bytes at a time.
+const (
+	fastIn  = 16
+	fastOut = 2 + 258 + 8
+)
+
 // block decodes the symbols of a compressed block. The decoder state is
-// kept in local variables in the hot loop.
+// kept in local variables in the hot loop. While the input and the output
+// have room, a fast loop decodes without checking for their ends; it then
+// hands over to a careful loop that decodes one symbol at a time.
 func (d *decoder) block(lit, dist *huffman) error {
 	var (
 		bits, n = d.bits, d.n
 		in, pos = d.in, d.pos
 		out, w  = d.out, d.w
 		lt, lm  = lit.table, lit.mask
-		lb      = lit.bits
 		dt, dm  = dist.table, dist.mask
-		db      = dist.bits
 	)
 	save := func() { d.bits, d.n, d.pos, d.out, d.w = bits, n, pos, out, w }
 	for {
+		if pos+fastIn <= len(in) && w+fastOut <= len(out) {
+			// Fast loop. Past the end of the input no bit is read, so
+			// the stream cannot be truncated here.
+			bits |= binary.LittleEndian.Uint64(in[pos:]) << n
+			pos += int((63 - n) >> 3)
+			n |= 56
+			e := lt[bits&lm]
+			if e&entLit != 0 {
+				// Up to three literals from the primary table, of 10 bits
+				// at most each.
+				c := e & entBits
+				bits >>= c
+				n -= c
+				out[w] = byte(e >> 16)
+				w++
+				e = lt[bits&lm]
+				if e&entLit != 0 {
+					c = e & entBits
+					bits >>= c
+					n -= c
+					out[w] = byte(e >> 16)
+					w++
+					e = lt[bits&lm]
+					if e&entLit != 0 {
+						c = e & entBits
+						bits >>= c
+						n -= c
+						out[w] = byte(e >> 16)
+						w++
+						continue
+					}
+				}
+				// The entry stays valid: refilling only adds bits above
+				// the 36 still there.
+				bits |= binary.LittleEndian.Uint64(in[pos:]) << n
+				pos += int((63 - n) >> 3)
+				n |= 56
+			}
+			if e&entExc != 0 {
+				if e&entLink != 0 {
+					c := e & entBits
+					bits >>= c
+					n -= c
+					e = lt[e>>16+uint32(bits)&(1<<(e>>8&0xF)-1)]
+					if e&entLit != 0 {
+						c = e & entBits
+						bits >>= c
+						n -= c
+						out[w] = byte(e >> 16)
+						w++
+						continue
+					}
+				}
+				if e&entExc != 0 {
+					c := e & entBits
+					bits >>= c
+					n -= c
+					save()
+					if e&entEOB != 0 {
+						return nil
+					}
+					return errCorrupt
+				}
+			}
+			// A length (20 bits at most with its extra bits) and a
+			// distance (28 bits at most) fit the 56 bits refilled.
+			c := e & entBits
+			length := int(e>>16) + int(bits&(1<<c-1)>>(e>>8&0xF))
+			bits >>= c
+			n -= c
+			e = dt[bits&dm]
+			if e&entLink != 0 {
+				c = e & entBits
+				bits >>= c
+				n -= c
+				e = dt[e>>16+uint32(bits)&(1<<(e>>8&0xF)-1)]
+			}
+			if e&entExc != 0 {
+				save()
+				return errCorrupt
+			}
+			c = e & entBits
+			dst := int(e>>16) + int(bits&(1<<c-1)>>(e>>8&0xF))
+			bits >>= c
+			n -= c
+			if dst > w {
+				save()
+				return errCorrupt
+			}
+			// Copy 8 bytes at a time: up to 7 bytes past the match are
+			// written, which later symbols overwrite.
+			start := w - dst
+			switch {
+			case dst >= 8:
+				for i := 0; i < length; i += 8 {
+					binary.LittleEndian.PutUint64(out[w+i:], binary.LittleEndian.Uint64(out[start+i:]))
+				}
+			case dst == 1:
+				v := uint64(out[start]) * 0x0101010101010101
+				for i := 0; i < length; i += 8 {
+					binary.LittleEndian.PutUint64(out[w+i:], v)
+				}
+			default:
+				o := out[w : w+length]
+				src := out[start : start+length]
+				for i := range o {
+					o[i] = src[i]
+				}
+			}
+			w += length
+			continue
+		}
+
+		// Careful loop: one symbol, refilling past the end of the input
+		// with zeros and growing the output as needed.
 		if n < 48 {
 			if pos+8 <= len(in) {
 				bits |= binary.LittleEndian.Uint64(in[pos:]) << n
@@ -476,23 +650,30 @@ func (d *decoder) block(lit, dist *huffman) error {
 		}
 		e := lt[bits&lm]
 		if e&entLink != 0 {
-			bits >>= lb
-			n -= lb
-			e = lt[e>>16+uint32(bits&(1<<(e>>8&0xF)-1))]
+			c := e & entBits
+			bits >>= c
+			n -= c
+			e = lt[e>>16+uint32(bits)&(1<<(e>>8&0xF)-1)]
 		}
-		l := e & 0xF
-		if l == 0 {
+		c := e & entBits
+		saved := bits
+		bits >>= c
+		n -= c
+		if e&entExc != 0 {
 			save()
-			return errCorrupt
+			if e&entEOB == 0 {
+				return errCorrupt
+			}
+			if d.truncated() {
+				return errTruncated
+			}
+			return nil
 		}
-		bits >>= l
-		n -= l
-		sym := e >> 16
 		if d.over > 0 && int(n) < 8*d.over {
 			save()
 			return errTruncated
 		}
-		if sym < 256 {
+		if e&entLit != 0 {
 			if w >= len(out) {
 				d.w = w
 				if !d.grow(1) {
@@ -501,41 +682,26 @@ func (d *decoder) block(lit, dist *huffman) error {
 				}
 				out = d.out
 			}
-			out[w] = byte(sym)
+			out[w] = byte(e >> 16)
 			w++
 			continue
 		}
-		if sym == 256 {
-			save()
-			return nil
-		}
-		sym -= 257
-		if sym >= 29 {
-			save()
-			return errCorrupt
-		}
-		eb := uint32(lenExtra[sym])
-		length := int(lenBase[sym]) + int(bits&(1<<eb-1))
-		bits >>= eb
-		n -= eb
+		length := int(e>>16) + int(saved&(1<<c-1)>>(e>>8&0xF))
 		e = dt[bits&dm]
 		if e&entLink != 0 {
-			bits >>= db
-			n -= db
-			e = dt[e>>16+uint32(bits&(1<<(e>>8&0xF)-1))]
+			c = e & entBits
+			bits >>= c
+			n -= c
+			e = dt[e>>16+uint32(bits)&(1<<(e>>8&0xF)-1)]
 		}
-		l = e & 0xF
-		ds := e >> 16
-		if l == 0 || ds >= 30 {
+		if e&entExc != 0 {
 			save()
 			return errCorrupt
 		}
-		bits >>= l
-		n -= l
-		eb = uint32(distExtr[ds])
-		dst := int(distBase[ds]) + int(bits&(1<<eb-1))
-		bits >>= eb
-		n -= eb
+		c = e & entBits
+		dst := int(e>>16) + int(bits&(1<<c-1)>>(e>>8&0xF))
+		bits >>= c
+		n -= c
 		if d.over > 0 && int(n) < 8*d.over {
 			save()
 			return errTruncated

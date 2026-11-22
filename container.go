@@ -390,12 +390,22 @@ func (c *container) xmpPacket() ([]byte, bool) {
 // xmpInfo parses the XMP metadata. present reports whether a metadata
 // stream exists.
 func (c *container) xmpInfo() (info *xmp.Info, present bool, err error) {
+	p, present := c.xmpParsed()
+	if p == nil {
+		return nil, present, nil
+	}
+	info, err = p.Info()
+	return info, true, err
+}
+
+// xmpParsed reads the XMP metadata stream, nil when there is none or it
+// cannot be decoded. present reports whether a metadata stream exists.
+func (c *container) xmpParsed() (p *xmp.Packet, present bool) {
 	data, ok := c.xmpPacket()
 	if !ok {
-		return nil, c.catalog.Has("Metadata"), nil
+		return nil, c.catalog.Has("Metadata")
 	}
-	info, err = xmp.Parse(data)
-	return info, true, err
+	return xmp.ParsePacket(data), true
 }
 
 // requirePDFA returns an error wrapping ErrNotPDFA when the XMP metadata of

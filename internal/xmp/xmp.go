@@ -219,14 +219,32 @@ func (in *Info) Schema(uri string) *Schema {
 // ErrNoRDF is returned by Parse when the packet holds no rdf:RDF element.
 var ErrNoRDF = errors.New("xmp: no rdf:RDF element")
 
+// Packet is an XMP packet read once, for Info and CheckPDFA to share. The
+// packet is not modified once read.
+type Packet struct {
+	raw  []byte // as given
+	data []byte // converted to UTF-8 when given in UTF-16
+	root *node
+	err  error // why the packet is not well-formed XML
+}
+
+// ParsePacket reads an XMP packet.
+func ParsePacket(data []byte) *Packet {
+	p := &Packet{raw: data, data: toUTF8(data)}
+	p.root, p.err = parse(p.data)
+	return p
+}
+
 // Parse reads an XMP packet.
-func Parse(data []byte) (*Info, error) {
-	data = toUTF8(data)
-	root, err := parse(data)
-	if err != nil {
-		return nil, err
+func Parse(data []byte) (*Info, error) { return ParsePacket(data).Info() }
+
+// Info returns what the packet declares, as Parse does.
+func (p *Packet) Info() (*Info, error) {
+	if p.err != nil {
+		return nil, p.err
 	}
-	rdf := findRDF(root)
+	data := p.data
+	rdf := findRDF(p.root)
 	if rdf == nil {
 		return nil, ErrNoRDF
 	}
