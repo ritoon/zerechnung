@@ -1,0 +1,51 @@
+# zerechnung-server with its secrets and its logs sent to Grafana Loki.
+#
+# Put the files of the secrets next to this file first:
+#   secrets/sign.p12           the PKCS#12 signing key (.p12 or .pfx)
+#   secrets/sign.password      its password
+#   secrets/basic-users        user:sha256:<hex> lines, the hex being
+#                              printf %s 'password' | sha256sum
+# On Linux, the container's user (65532) must be able to read them:
+# chmod 0444 secrets/*. Then:
+#   docker compose -f server/examples/compose.yaml up -d
+#   curl -u billing:password --data-binary @server/examples/invoice-request.json \
+#     -H 'Content-Type: application/json' -o invoice.pdf http://localhost:8080/v1/invoices
+
+services:
+  zerechnung:
+    image: ritoon/zerechnung:latest
+    ports:
+      - "8080:8080"
+    environment:
+      ZR_BASIC_USERS_FILE: /run/secrets/basic-users
+      ZR_SIGN_PKCS12_FILE: /run/secrets/sign.p12
+      ZR_SIGN_PKCS12_PASSWORD_FILE: /run/secrets/sign.password
+      ZR_SIGN_REASON: Facture émise
+      ZR_SIGN_LOCATION: Paris
+      ZR_LOG_OUTPUTS: stdout,loki
+      ZR_LOG_LOKI_URL: http://loki:3100
+      ZR_LOG_LOKI_LABELS: env=demo
+    secrets:
+      - basic-users
+      - sign.p12
+      - sign.password
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+  loki:
+    image: grafana/loki:3.5.0
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+
+secrets:
+  basic-users:
+    file: ./secrets/basic-users
+  sign.p12:
+    file: ./secrets/sign.p12
+  sign.password:
+    file: ./secrets/sign.password

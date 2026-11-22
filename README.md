@@ -315,6 +315,23 @@ warning [PDF] PDF-06: the catalog has no PDF/A output intent (/S /GTS_PDFA1) (ca
 
 Since `validate` exits with code 1 when it finds errors, you can drop it into a CI pipeline as is. Run `zerechnung help` for every flag.
 
+## HTTP server and Docker image
+
+`zerechnung-server` exposes the package as an HTTP API for microservices, in a [Docker image](https://hub.docker.com/r/ritoon/zerechnung) for Linux and Windows Server. One request turns invoice data into a signed Factur-X PDF: rendering as PDF/A-3, CII XML, validation and PAdES signature. Other endpoints validate, sign, verify, extract and convert invoices. Authentication uses a JWT or basic auth, the signing key is a PKCS#12 or PEM file, and logs can go to syslog, GELF, OpenTelemetry, Loki or HTTP.
+
+```bash
+docker run -d -p 8080:8080 \
+  -e ZR_BASIC_USERS='billing:change-me' \
+  -e ZR_SIGN_PKCS12_FILE=/run/secrets/sign.p12 -e ZR_SIGN_PKCS12_PASSWORD='p12 password' \
+  -v "$PWD/company.p12:/run/secrets/sign.p12:ro" \
+  ritoon/zerechnung
+
+curl -u billing:change-me -H 'Content-Type: application/json' \
+  --data-binary @server/examples/invoice-request.json -o invoice.pdf http://localhost:8080/v1/invoices
+```
+
+The [server's README](server/README.md) documents the endpoints, the settings and the deployment with Compose and Kubernetes. The server is a module of its own, as it uses the network (JWKS, log collectors), which this package never does.
+
 ## What's supported
 
 | Format | Read | Write | Validate |
@@ -388,6 +405,7 @@ The full list is on [Coverage and accuracy](https://github.com/ritoon/zerechnung
 | `facturae` | Read Facturae 3.2, 3.2.1 and 3.2.2 XML and write Facturae 3.2.2 (Spain) |
 | `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-DE, Peppol, BR-NL, BR-IT, Chorus Pro |
 | `cmd/zerechnung` | The command-line tool |
+| `server` | The HTTP server and its Docker image (a module of its own) |
 
 ## Documentation
 

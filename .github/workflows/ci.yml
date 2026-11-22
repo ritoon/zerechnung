@@ -50,6 +50,49 @@ jobs:
           disable_search: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  server:
+    # The HTTP server (server/), a module of its own that ./... does not
+    # reach: it imports nothing outside the standard library either, but
+    # calls the network (JWKS, log outputs). The images are built by the
+    # Docker workflow.
+    name: Server (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.24.x', 'stable']
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+      - name: go vet
+        run: go vet ./...
+      - name: go test -race
+        run: go test -race ./...
+      - name: Cross-compile for Windows, macOS and Linux
+        run: |
+          for t in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/arm64 linux/arm; do
+            GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=0 go build -o /dev/null ./cmd/zerechnung-server
+          done
+
+  server-lint:
+    name: Server lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          working-directory: server
+          args: --config=../.golangci.yml
+
   lint:
     # Settings in .golangci.yml: staticcheck, errcheck, doc comments of the
     # exported symbols (revive) and their final period (godot).

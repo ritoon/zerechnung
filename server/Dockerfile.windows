@@ -1,0 +1,44 @@
+# escape=`
+
+# Windows image of zerechnung-server, on Nano Server, for the Windows
+# container hosts (Windows Server 2022 and 2025, Windows 10/11 in Windows
+# containers mode). The build context is the root of the repository, and the
+# build runs on a Windows host whose version matches WINDOWS_VERSION:
+#
+#	docker build -f server\Dockerfile.windows --build-arg WINDOWS_VERSION=ltsc2022 -t zerechnung .
+#
+# WINDOWS_VERSION is ltsc2022 (Windows Server 2022, build 20348) or ltsc2025
+# (Windows Server 2025, build 26100).
+
+ARG WINDOWS_VERSION=ltsc2022
+ARG GO_VERSION=1.27
+
+FROM golang:${GO_VERSION}-nanoserver-${WINDOWS_VERSION} AS build
+USER ContainerAdministrator
+WORKDIR C:\src
+COPY . .
+ARG VERSION=dev
+ENV CGO_ENABLED=0 GOFLAGS="-trimpath -buildvcs=false"
+RUN go build -ldflags "-s -w -X main.version=%VERSION%" -o C:\out\zerechnung.exe .\cmd\zerechnung && `
+    cd server && `
+    go build -ldflags "-s -w -X main.version=%VERSION%" -o C:\out\zerechnung-server.exe .\cmd\zerechnung-server
+
+FROM mcr.microsoft.com/windows/nanoserver:${WINDOWS_VERSION}
+ARG VERSION=dev
+LABEL org.opencontainers.image.title="zerechnung" `
+      org.opencontainers.image.description="HTTP API that creates, signs, validates and converts Factur-X, ZUGFeRD, XRechnung, UBL, FatturaPA and Facturae e-invoices" `
+      org.opencontainers.image.source="https://github.com/ritoon/zerechnung" `
+      org.opencontainers.image.documentation="https://github.com/ritoon/zerechnung/tree/main/server" `
+      org.opencontainers.image.licenses="MIT" `
+      org.opencontainers.image.version="${VERSION}"
+COPY --from=build C:\out\ C:\zerechnung\
+COPY LICENSE C:\zerechnung\LICENSE
+COPY server\internal\render\fonts\LICENSE C:\zerechnung\fonts\LICENSE
+# ContainerUser is the unprivileged user of Nano Server.
+USER ContainerUser
+ENV ZR_PORT=8080
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 `
+    CMD ["C:\\zerechnung\\zerechnung-server.exe", "healthcheck"]
+ENTRYPOINT ["C:\\zerechnung\\zerechnung-server.exe"]
+CMD ["serve"]
