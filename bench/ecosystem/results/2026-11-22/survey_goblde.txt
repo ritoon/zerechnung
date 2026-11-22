@@ -1,0 +1,22 @@
+FLAG EN16931_1_Teilrechnung.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_2_Teilrechnung.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_AbweichenderZahlungsempf.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Einfach.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Einfach_DueDate.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Einfach_negativePaymentDue.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Elektron.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Gutschrift.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Haftpflichtversicherung_Versicherungssteuer.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Innergemeinschaftliche_Lieferungen.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Kraftfahrversicherung_Bruttopreise.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_OEPNV.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Rabatte.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Rechnungskorrektur.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Reisekostenabrechnung.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_SEPA_Prenotification.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Sachversicherung_berechneter_Steuersatz.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Einfach.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Elektron.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Reisekostenabrechnung.cii.xml: 1 errors, err=<nil>
+SURVEY validate: 20/26 valid samples flagged
+SURVEY parse: 26/26 CII

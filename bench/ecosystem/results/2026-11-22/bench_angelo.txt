@@ -1,0 +1,34 @@
+go version go1.27.4 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/ritoon/zerechnung/bench/ecosystem/angelo
+cpu: Apple M4 Pro
+BenchmarkExtract_Small-14          	    3366	    353367 ns/op	 421.90 MB/s	  643036 B/op	    3303 allocs/op
+BenchmarkExtract_Small-14          	    3525	    343999 ns/op	 433.38 MB/s	  643033 B/op	    3303 allocs/op
+BenchmarkExtract_Small-14          	    3465	    347386 ns/op	 429.16 MB/s	  643041 B/op	    3303 allocs/op
+BenchmarkExtract_Large-14          	     472	   2524323 ns/op	 437.69 MB/s	 4166233 B/op	    3958 allocs/op
+BenchmarkExtract_Large-14          	     472	   2530395 ns/op	 436.64 MB/s	 4166195 B/op	    3958 allocs/op
+BenchmarkExtract_Large-14          	     477	   2519934 ns/op	 438.45 MB/s	 4166207 B/op	    3958 allocs/op
+BenchmarkExtract_Minimum-14        	    4962	    241939 ns/op	 368.88 MB/s	  511059 B/op	    2685 allocs/op
+BenchmarkExtract_Minimum-14        	    4888	    245756 ns/op	 363.15 MB/s	  511082 B/op	    2685 allocs/op
+BenchmarkExtract_Minimum-14        	    4876	    248172 ns/op	 359.61 MB/s	  511111 B/op	    2686 allocs/op
+BenchmarkParse_Small-14            	   10000	    116236 ns/op	 113.16 MB/s	   57416 B/op	    1268 allocs/op
+BenchmarkParse_Small-14            	   10000	    116845 ns/op	 112.57 MB/s	   57416 B/op	    1268 allocs/op
+BenchmarkParse_Small-14            	   10000	    114834 ns/op	 114.54 MB/s	   57416 B/op	    1268 allocs/op
+BenchmarkParse_Lines-14            	    6567	    185016 ns/op	 101.62 MB/s	   94241 B/op	    2228 allocs/op
+BenchmarkParse_Lines-14            	    6430	    182496 ns/op	 103.03 MB/s	   94241 B/op	    2228 allocs/op
+BenchmarkParse_Lines-14            	    6627	    184171 ns/op	 102.09 MB/s	   94241 B/op	    2228 allocs/op
+BenchmarkParse_Large-14            	     169	   6915594 ns/op	 188.75 MB/s	 4253219 B/op	    1509 allocs/op
+BenchmarkParse_Large-14            	     178	   6749864 ns/op	 193.38 MB/s	 4253219 B/op	    1509 allocs/op
+BenchmarkParse_Large-14            	     178	   6691531 ns/op	 195.07 MB/s	 4253217 B/op	    1509 allocs/op
+BenchmarkParseValidate_Small-14    	    8342	    140727 ns/op	  93.46 MB/s	   92761 B/op	    1912 allocs/op
+BenchmarkParseValidate_Small-14    	    8490	    142116 ns/op	  92.55 MB/s	   92758 B/op	    1912 allocs/op
+BenchmarkParseValidate_Small-14    	    8473	    140483 ns/op	  93.63 MB/s	   92757 B/op	    1912 allocs/op
+BenchmarkParseValidate_Lines-14    	    5665	    214329 ns/op	  87.73 MB/s	  134679 B/op	    3050 allocs/op
+BenchmarkParseValidate_Lines-14    	    5678	    213913 ns/op	  87.90 MB/s	  134679 B/op	    3050 allocs/op
+BenchmarkParseValidate_Lines-14    	    5581	    214845 ns/op	  87.51 MB/s	  134689 B/op	    3050 allocs/op
+BenchmarkParseValidate_Large-14    	     181	   6687305 ns/op	 195.19 MB/s	 4289947 B/op	    2133 allocs/op
+BenchmarkParseValidate_Large-14    	     174	   6869786 ns/op	 190.01 MB/s	 4289950 B/op	    2133 allocs/op
+BenchmarkParseValidate_Large-14    	     177	   6698212 ns/op	 194.87 MB/s	 4289950 B/op	    2133 allocs/op
+PASS
+ok  	github.com/ritoon/zerechnung/bench/ecosystem/angelo	32.600s

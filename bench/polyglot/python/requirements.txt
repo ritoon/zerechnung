@@ -1,4 +1,4 @@
-# Banc Python (CPython 3.13). Versions figées le 2026-11-17 avec `pip freeze`.
+# Banc Python (CPython 3.13). Versions figées le 2026-11-17 avec `pip freeze`, factur-x et mcp-einvoicing-core mis à jour le 2026-11-22.
 # Installation : ./run.sh setup  (pip install --only-binary=:all: --no-binary=tagic -r requirements.txt)
 # Librairies mesurées : factur-x, drafthorse, pycheval, getafix[pdf,lxml], zugferd-pdf, erechnung,
 # mcp-einvoicing-de[xslt2], saxonche. tagic (dépendance de getafix) n'existe qu'en sdist :
@@ -23,7 +23,7 @@ drafthorse==2025.2.0
 email-validator==2.4.0
 erechnung==0.3.0
 exceptiongroup==1.3.1
-factur-x==7.9
+factur-x==7.10
 fastmcp==4.2.0
 fastmcp-slim==4.2.0
 getafix==0.5.0
@@ -43,7 +43,7 @@ jsonschema-specifications==2025.9.1
 lxml==6.1.3
 markdown-it-py==4.3.0
 mcp==2.3.0
-mcp-einvoicing-core==1.35.0
+mcp-einvoicing-core==1.36.0
 mcp-einvoicing-de==0.11.4
 mcp-types==2.3.0
 mdurl==0.1.2

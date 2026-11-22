@@ -1,0 +1,8 @@
+FLAG EN16931_ElektronischeAdresse.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_RechnungsUebertragung.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Betriebskostenabrechnung.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Einfach.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Elektron.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Reisekostenabrechnung.cii.xml: 1 errors, err=<nil>
+SURVEY validate: 6/26 valid samples flagged
+SURVEY extract: 104/104 PDFs

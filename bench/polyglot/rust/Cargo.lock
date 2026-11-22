@@ -1590,9 +1590,9 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pdf-invoice"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14b22ba2285c7c806eb579bfd4b0f30bc8fc6da15f0dfd340647c428d49ca356"
+checksum = "06dd3318c5f9c1e95a1562f92c94bef7a5ba5435a4e86786e9d72e1db0b0cae7"
 dependencies = [
  "chrono",
  "flate2",

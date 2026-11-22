@@ -1,0 +1,37 @@
+go version go1.27.4 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/ritoon/zerechnung/bench/ecosystem/dotwave
+cpu: Apple M4 Pro
+BenchmarkEmbedClassic_Small-14    	    1010	   1098950 ns/op	 134.08 MB/s	 5167917 B/op	    8796 allocs/op
+BenchmarkEmbedClassic_Small-14    	    1092	   1106866 ns/op	 133.12 MB/s	 5168426 B/op	    8797 allocs/op
+BenchmarkEmbedClassic_Small-14    	    1100	   1089079 ns/op	 135.29 MB/s	 5168450 B/op	    8797 allocs/op
+BenchmarkExtract_Small-14         	    3661	    323393 ns/op	 461.00 MB/s	  642865 B/op	    3304 allocs/op
+BenchmarkExtract_Small-14         	    3802	    320452 ns/op	 465.23 MB/s	  642880 B/op	    3304 allocs/op
+BenchmarkExtract_Small-14         	    3768	    325407 ns/op	 458.15 MB/s	  642888 B/op	    3304 allocs/op
+BenchmarkExtract_Large-14         	     463	   2486436 ns/op	 444.36 MB/s	 4166404 B/op	    3962 allocs/op
+BenchmarkExtract_Large-14         	     464	   2519959 ns/op	 438.45 MB/s	 4166524 B/op	    3962 allocs/op
+BenchmarkExtract_Large-14         	     470	   2505572 ns/op	 440.96 MB/s	 4166464 B/op	    3962 allocs/op
+BenchmarkExtract_Minimum-14       	    5220	    227195 ns/op	 392.82 MB/s	  510953 B/op	    2686 allocs/op
+BenchmarkExtract_Minimum-14       	    5349	    227037 ns/op	 393.09 MB/s	  510955 B/op	    2686 allocs/op
+BenchmarkExtract_Minimum-14       	    5403	    226100 ns/op	 394.72 MB/s	  510957 B/op	    2686 allocs/op
+BenchmarkParse_Small-14           	    8528	    137831 ns/op	  95.43 MB/s	   65632 B/op	    1253 allocs/op
+BenchmarkParse_Small-14           	    8637	    136940 ns/op	  96.05 MB/s	   65632 B/op	    1253 allocs/op
+BenchmarkParse_Small-14           	    8785	    137950 ns/op	  95.35 MB/s	   65632 B/op	    1253 allocs/op
+BenchmarkParse_Lines-14           	    6036	    201206 ns/op	  93.45 MB/s	   99712 B/op	    2131 allocs/op
+BenchmarkParse_Lines-14           	    6055	    200344 ns/op	  93.85 MB/s	   99712 B/op	    2131 allocs/op
+BenchmarkParse_Lines-14           	    5960	    202151 ns/op	  93.01 MB/s	   99712 B/op	    2131 allocs/op
+BenchmarkParse_Large-14           	     176	   6796946 ns/op	 192.04 MB/s	 4261179 B/op	    1492 allocs/op
+BenchmarkParse_Large-14           	     176	   6609526 ns/op	 197.49 MB/s	 4261177 B/op	    1492 allocs/op
+BenchmarkParse_Large-14           	     184	   6551420 ns/op	 199.24 MB/s	 4261176 B/op	    1492 allocs/op
+BenchmarkWrite_Small-14           	   58736	     20372 ns/op	   35000 B/op	     361 allocs/op
+BenchmarkWrite_Small-14           	   58611	     20520 ns/op	   35000 B/op	     361 allocs/op
+BenchmarkWrite_Small-14           	   58909	     20373 ns/op	   35000 B/op	     361 allocs/op
+BenchmarkWrite_Lines-14           	   35371	     33427 ns/op	   60520 B/op	     540 allocs/op
+BenchmarkWrite_Lines-14           	   35905	     33399 ns/op	   60520 B/op	     540 allocs/op
+BenchmarkWrite_Lines-14           	   35767	     33353 ns/op	   60520 B/op	     540 allocs/op
+BenchmarkEmbed_Small-14           	     992	   1170963 ns/op	 122.84 MB/s	 5220956 B/op	    8855 allocs/op
+BenchmarkEmbed_Small-14           	    1046	   1151179 ns/op	 124.96 MB/s	 5220991 B/op	    8855 allocs/op
+BenchmarkEmbed_Small-14           	    1048	   1150897 ns/op	 124.99 MB/s	 5221005 B/op	    8855 allocs/op
+PASS
+ok  	github.com/ritoon/zerechnung/bench/ecosystem/dotwave	36.096s

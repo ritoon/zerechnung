@@ -1,0 +1,47 @@
+go version go1.27.4 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/ritoon/zerechnung/bench/ecosystem/kanjo
+cpu: Apple M4 Pro
+BenchmarkEmbedClassic_Small-14     	    3529	    339572 ns/op	 433.91 MB/s	  756117 B/op	    3212 allocs/op
+BenchmarkEmbedClassic_Small-14     	    3524	    343434 ns/op	 429.03 MB/s	  757168 B/op	    3213 allocs/op
+BenchmarkEmbedClassic_Small-14     	    3547	    338123 ns/op	 435.77 MB/s	  756787 B/op	    3213 allocs/op
+BenchmarkExtract_Small-14          	    3411	    355166 ns/op	 419.76 MB/s	  643179 B/op	    3308 allocs/op
+BenchmarkExtract_Small-14          	    3463	    351916 ns/op	 423.63 MB/s	  643188 B/op	    3308 allocs/op
+BenchmarkExtract_Small-14          	    3286	    348269 ns/op	 428.07 MB/s	  643183 B/op	    3308 allocs/op
+BenchmarkExtract_Large-14          	     438	   2737394 ns/op	 403.62 MB/s	 6492841 B/op	    4014 allocs/op
+BenchmarkExtract_Large-14          	     435	   2737654 ns/op	 403.58 MB/s	 6492905 B/op	    4015 allocs/op
+BenchmarkExtract_Large-14          	     435	   2757001 ns/op	 400.75 MB/s	 6492928 B/op	    4015 allocs/op
+BenchmarkExtract_Minimum-14        	    4672	    248899 ns/op	 358.56 MB/s	  511319 B/op	    2694 allocs/op
+BenchmarkExtract_Minimum-14        	    4840	    252120 ns/op	 353.98 MB/s	  511319 B/op	    2694 allocs/op
+BenchmarkExtract_Minimum-14        	    4791	    253437 ns/op	 352.14 MB/s	  511322 B/op	    2694 allocs/op
+BenchmarkParse_Small-14            	    4796	    243519 ns/op	  54.01 MB/s	  101424 B/op	    2036 allocs/op
+BenchmarkParse_Small-14            	    4918	    245157 ns/op	  53.65 MB/s	  101424 B/op	    2036 allocs/op
+BenchmarkParse_Small-14            	    4936	    244053 ns/op	  53.89 MB/s	  101424 B/op	    2036 allocs/op
+BenchmarkParse_Lines-14            	    3219	    370240 ns/op	  50.78 MB/s	  157936 B/op	    3541 allocs/op
+BenchmarkParse_Lines-14            	    3261	    371510 ns/op	  50.61 MB/s	  157936 B/op	    3541 allocs/op
+BenchmarkParse_Lines-14            	    3208	    366605 ns/op	  51.29 MB/s	  157936 B/op	    3541 allocs/op
+BenchmarkParse_Large-14            	      90	  13402303 ns/op	  97.39 MB/s	 8489116 B/op	    2453 allocs/op
+BenchmarkParse_Large-14            	      90	  13324640 ns/op	  97.96 MB/s	 8489112 B/op	    2453 allocs/op
+BenchmarkParse_Large-14            	      88	  13583890 ns/op	  96.09 MB/s	 8489113 B/op	    2453 allocs/op
+BenchmarkParseValidate_Small-14    	    4252	    280180 ns/op	  46.94 MB/s	  123006 B/op	    2106 allocs/op
+BenchmarkParseValidate_Small-14    	    4006	    281077 ns/op	  46.79 MB/s	  123005 B/op	    2106 allocs/op
+BenchmarkParseValidate_Small-14    	    4327	    281946 ns/op	  46.65 MB/s	  123007 B/op	    2106 allocs/op
+BenchmarkParseValidate_Lines-14    	    2943	    408571 ns/op	  46.02 MB/s	  182147 B/op	    3671 allocs/op
+BenchmarkParseValidate_Lines-14    	    2942	    410908 ns/op	  45.76 MB/s	  182145 B/op	    3671 allocs/op
+BenchmarkParseValidate_Lines-14    	    2958	    402232 ns/op	  46.74 MB/s	  182140 B/op	    3671 allocs/op
+BenchmarkParseValidate_Large-14    	      90	  13444543 ns/op	  97.09 MB/s	 8513386 B/op	    2535 allocs/op
+BenchmarkParseValidate_Large-14    	      88	  13461817 ns/op	  96.96 MB/s	 8513386 B/op	    2535 allocs/op
+BenchmarkParseValidate_Large-14    	      81	  13488238 ns/op	  96.77 MB/s	 8513386 B/op	    2535 allocs/op
+BenchmarkWrite_Small-14            	   10000	    100335 ns/op	  560515 B/op	     826 allocs/op
+BenchmarkWrite_Small-14            	   10000	    100700 ns/op	  560517 B/op	     826 allocs/op
+BenchmarkWrite_Small-14            	   10000	    100679 ns/op	  560517 B/op	     826 allocs/op
+BenchmarkWrite_Lines-14            	    6862	    175072 ns/op	  975836 B/op	    1444 allocs/op
+BenchmarkWrite_Lines-14            	    6940	    174696 ns/op	  975837 B/op	    1444 allocs/op
+BenchmarkWrite_Lines-14            	    6712	    174349 ns/op	  975835 B/op	    1444 allocs/op
+--- FAIL: BenchmarkEmbed_Small
+    harness.go:58: embedded PDF does not round-trip: pdfa: extraction des pièces jointes: extract attachments: validation error (obj#:8): document catalog: catalog Pages: page tree: page obj#11: ColorSpace resource DefaultRGB: color space ICCBased: ICCBased color space profile: check valid: missing xref entry for obj#20 gen#0
+FAIL
+exit status 1
+FAIL	github.com/ritoon/zerechnung/bench/ecosystem/kanjo	42.731s
+FAIL
