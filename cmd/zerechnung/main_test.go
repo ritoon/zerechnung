@@ -10,8 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ritoon/zerechnung"
+	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/fatturapa"
 	"github.com/ritoon/zerechnung/internal/sigtest"
 )
@@ -498,5 +500,87 @@ func TestSignCmd(t *testing.T) {
 		if err := signCmd(args); err == nil {
 			t.Errorf("sign %v: no error", args)
 		}
+	}
+}
+
+// TestFacturaeSigned reads and validates a signed Facturae invoice: json
+// reads it, validate describes its signature, and -face requires it and
+// checks it.
+func TestFacturaeSigned(t *testing.T) {
+	const name = "../../facturae/testdata/b2g.xml"
+	doc, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := sigtest.New(t)
+	now := time.Now()
+	cert, key := p.Leaf(t, sigtest.LeafOptions{QC: sigtest.QcSignature, NotBefore: now.AddDate(-1, 0, 0), NotAfter: now.AddDate(1, 0, 0)})
+	data, err := facturae.Sign(doc, &facturae.SignOptions{Signer: key, Chain: []*x509.Certificate{cert, p.Intermediate}, SigningTime: now.Add(-time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	signed := filepath.Join(dir, "signed.xml")
+	tampered := filepath.Join(dir, "tampered.xml")
+	if err := os.WriteFile(signed, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(tampered, bytes.Replace(data, []byte("A0042"), []byte("A0043"), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	roots := filepath.Join(dir, "roots.pem")
+	otherRoots := filepath.Join(dir, "other.pem")
+	if err := os.WriteFile(roots, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: p.Root.Raw}), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(otherRoots, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: sigtest.New(t).Root.Raw}), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := jsonCmd([]string{signed}, &out); err != nil || !strings.Contains(out.String(), `"Number": "A0042"`) {
+		t.Errorf("json of a signed Facturae: %v\n%s", err, out.String())
+	}
+	out.Reset()
+	if code, err := validateCmd([]string{signed}, &out); err != nil || code != 0 ||
+		!strings.Contains(out.String(), "\nSignature: XAdES by SERIALNUMBER=TINIT-RSSMRA80A01H501U,CN=Mario Rossi,C=IT, signed ") ||
+		!strings.Contains(out.String(), ", role emisor, policy of Facturae v3.1, qualified certificate (integrity checked") {
+		t.Errorf("validate %s: code %d, %v\n%s", signed, code, err, out.String())
+	}
+	out.Reset()
+	if _, err := validateCmd([]string{"-json", signed}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var report struct {
+		Signature struct{ Role, Policy string }
+	}
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil || report.Signature.Role != "emisor" || report.Signature.Policy != facturae.PolicyIdentifier {
+		t.Errorf("validate -json %s: %+v, %v\n%s", signed, report, err, out.String())
+	}
+
+	for _, c := range []struct {
+		args []string
+		code int
+		want []string
+	}{
+		{[]string{name}, 0, []string{"FE-02"}},
+		{[]string{"-face", name}, 1, []string{"ES-SIG-01", "FE-02"}},
+		{[]string{"-face", signed}, 0, []string{"FE-02"}},
+		{[]string{"-face", tampered}, 1, []string{"ES-SIG-02", "FE-02"}},
+		{[]string{"-face", "-roots", roots, signed}, 0, []string{"FE-02"}},
+		{[]string{"-face", "-roots", otherRoots, signed}, 1, []string{"ES-SIG-09", "FE-02"}},
+	} {
+		code, got := runValidate(t, c.args...)
+		ok := code == c.code && len(got) == len(c.want)
+		for _, r := range c.want {
+			ok = ok && got[r]
+		}
+		if !ok {
+			t.Errorf("validate %v: code %d, findings %v", c.args, code, got)
+		}
+	}
+	out.Reset()
+	if _, err := validateCmd([]string{tampered}, &out); err != nil || !strings.Contains(out.String(), "\nSignature: not valid: xmldsig: the signature is not valid: the document does not match the signed digest\n") {
+		t.Errorf("validate %s: %v\n%s", tampered, err, out.String())
 	}
 }

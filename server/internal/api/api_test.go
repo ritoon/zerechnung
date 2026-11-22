@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ritoon/zerechnung"
+	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/invoice"
 	"github.com/ritoon/zerechnung/server/internal/auth"
 	"github.com/ritoon/zerechnung/server/internal/config"
@@ -442,6 +443,51 @@ func TestSignAndVerify(t *testing.T) {
 	_, body = e.do("POST", "/v1/verify", "application/pdf", testdata(t, "EN16931_Einfach.pdf"))
 	if err := json.Unmarshal(body, &v); err != nil || v.Valid {
 		t.Errorf("unsigned: %s", body)
+	}
+}
+
+// TestSignAndVerifyFacturae signs a Facturae invoice in XAdES-EPES and
+// verifies it, and validates it under the FACe rule set.
+func TestSignAndVerifyFacturae(t *testing.T) {
+	e := newEnv(t, testSigner(t))
+	doc, err := os.ReadFile("../../../facturae/testdata/b2g.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, signed := e.do("POST", "/v1/sign?role=tercero", "application/xml", doc)
+	if resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "application/xml" || !bytes.Contains(signed, []byte("<xades:ClaimedRole>tercero</xades:ClaimedRole>")) {
+		t.Fatalf("status %d: %.300s", resp.StatusCode, signed)
+	}
+	resp, body := e.do("POST", "/v1/verify", "application/xml", signed)
+	var v VerifyResponse
+	if err := json.Unmarshal(body, &v); err != nil || resp.StatusCode != 200 {
+		t.Fatalf("status %d: %s", resp.StatusCode, body)
+	}
+	if !v.Valid || len(v.Signatures) != 1 || v.Signatures[0].Format != "XAdES" || v.Signatures[0].Role != "tercero" ||
+		v.Signatures[0].Policy != facturae.PolicyIdentifier || v.Signatures[0].Time == nil || !strings.Contains(v.Signatures[0].Signer.Subject, "Exemple Informatique SAS") {
+		t.Errorf("%s", body)
+	}
+	_, body = e.do("POST", "/v1/verify", "application/xml", bytes.Replace(signed, []byte("A0042"), []byte("A0043"), 1))
+	if err := json.Unmarshal(body, &v); err != nil || v.Valid || v.Error == "" {
+		t.Errorf("tampered: %s", body)
+	}
+	_, body = e.do("POST", "/v1/verify", "application/xml", doc)
+	if err := json.Unmarshal(body, &v); err != nil || v.Valid || len(v.Signatures) != 0 {
+		t.Errorf("unsigned: %s", body)
+	}
+	for _, q := range []string{"?format=cades", "?role=jefe"} {
+		if resp, body := e.do("POST", "/v1/sign"+q, "application/xml", doc); resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: status %d: %s", q, resp.StatusCode, body)
+		}
+	}
+	if resp, body := e.do("POST", "/v1/sign", "application/xml", signed); resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("already signed: status %d: %s", resp.StatusCode, body)
+	}
+	// The FACe rule set requires the signature.
+	var r struct{ Findings []struct{ Rule string } }
+	_, body = e.do("POST", "/v1/validate?rules=face", "application/xml", doc)
+	if err := json.Unmarshal(body, &r); err != nil || len(r.Findings) != 2 || r.Findings[0].Rule != facturae.RuleNotSigned {
+		t.Errorf("validate ?rules=face: %s", body)
 	}
 }
 

@@ -1,10 +1,15 @@
 package validate
 
 import (
+	"crypto/x509"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/ritoon/zerechnung/facturae"
+	"github.com/ritoon/zerechnung/internal/sigtest"
+	"github.com/ritoon/zerechnung/internal/xmltree"
 	"github.com/ritoon/zerechnung/invoice"
 )
 
@@ -98,4 +103,77 @@ func TestCatalogFacturae(t *testing.T) {
 	if got := ids(Catalog(EN16931 | FacturX | France | Germany | Peppol | Netherlands)); got != nil {
 		t.Errorf("Catalog without Schema lists %v", got)
 	}
+}
+
+// TestFACe checks the FACe rule set: the signature of a Facturae document
+// is required and checked, but neither its trust nor its revocation.
+func TestFACe(t *testing.T) {
+	doc := []byte(readXML(t, facturaeInvoice))
+	p := sigtest.New(t)
+	cert, key := p.Leaf(t, sigtest.LeafOptions{QC: sigtest.QcSignature})
+	signed, err := facturae.Sign(doc, &facturae.SignOptions{Signer: key, Chain: []*x509.Certificate{cert, p.Intermediate}, SigningTime: sigtest.Epoch})
+	if err != nil {
+		t.Fatal(err)
+	}
+	face := &Options{Rules: Default | FACe, ReceivedAt: sigtest.Epoch.Add(time.Hour)}
+	for _, c := range []struct {
+		name string
+		doc  []byte
+		opts *Options
+		want []string
+	}{
+		{"unsigned, without FACe", doc, nil, []string{ruleFEScope}},
+		{"signed, without FACe", signed, nil, []string{ruleFEScope}},
+		{"unsigned", doc, face, []string{facturae.RuleNotSigned, ruleFEScope}},
+		{"signed", signed, face, []string{ruleFEScope}},
+		{"tampered", []byte(strings.Replace(string(signed), "A0042", "A0043", 1)), face, []string{ruleFEScope, facturae.RuleSignatureInvalid}},
+		{"received after the certificate expired", signed, &Options{Rules: FACe, ReceivedAt: cert.NotAfter.Add(time.Hour)}, []string{ruleFEScope, facturae.RuleCertInvalid}},
+		{"trusted root", signed, &Options{Rules: FACe, ReceivedAt: face.ReceivedAt, Trust: TrustOptions{Roots: pool(p.Root)}}, []string{ruleFEScope}},
+		{"other root", signed, &Options{Rules: FACe, Trust: TrustOptions{Roots: pool(sigtest.New(t).Root), At: face.ReceivedAt}}, []string{ruleFEScope, facturae.RuleUntrustedCA}},
+	} {
+		r := XML(c.doc, c.opts)
+		if got := ruleIDs(r); !slices.Equal(got, c.want) {
+			t.Errorf("%s: findings = %v, want %v", c.name, r.Findings, c.want)
+		}
+	}
+	// A tree does not keep what the signature covers: Tree only reports a
+	// missing signature.
+	for _, c := range []struct {
+		name string
+		doc  []byte
+		want []string
+	}{
+		{"unsigned", doc, []string{facturae.RuleNotSigned, ruleFEScope}},
+		{"tampered", []byte(strings.Replace(string(signed), "A0042", "A0043", 1)), []string{ruleFEScope}},
+	} {
+		if got := ruleIDs(Tree(mustTree(t, c.doc), face)); !slices.Equal(got, c.want) {
+			t.Errorf("Tree, %s: findings = %v, want %v", c.name, got, c.want)
+		}
+	}
+	// The catalog of FACe has the rules of facturae.VerifySignature but
+	// ES-SIG-11 and ES-SIG-12.
+	var ids []string
+	for _, r := range Catalog(FACe) {
+		ids = append(ids, r.ID)
+	}
+	if len(ids) != len(facturae.SignatureRules)-2 || slices.Contains(ids, facturae.RuleTrustNotChecked) || slices.Contains(ids, facturae.RuleRevocationUnknown) {
+		t.Errorf("Catalog(FACe) = %v", ids)
+	}
+}
+
+func pool(certs ...*x509.Certificate) *x509.CertPool {
+	p := x509.NewCertPool()
+	for _, c := range certs {
+		p.AddCert(c)
+	}
+	return p
+}
+
+func mustTree(t *testing.T, doc []byte) *xmltree.Node {
+	t.Helper()
+	root, err := xmltree.Parse(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }

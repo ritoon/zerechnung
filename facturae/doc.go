@@ -26,6 +26,32 @@
 // EN 16931 fields. The EN 16931 data that Facturae cannot carry is dropped,
 // or reported by a *LossError when MarshalOptions.Strict is set.
 //
+// # Signature
+//
+// FACe only receives signed invoices, and between businesses the invoices
+// carry an advanced electronic signature (Real Decreto 238/2026, article
+// 7.3). Sign signs a Facturae document in XAdES-EPES, enveloped, under the
+// signature policy of Facturae v3.1 (PolicyIdentifier): the basic format of
+// its §1, with the signing time, the signing certificate, the policy, the
+// role of the signer (emisor, receptor or tercero, which by default follows
+// InvoiceIssuerType) and ds:KeyInfo signed. The key only signs a digest:
+// it may stay in a smart card, an HSM or a remote signing service.
+//
+// ReadSignature checks the integrity of the signature of a document and
+// describes it: the signer, the signing time, the policy and the role.
+// VerifySignature checks it against the policy and checks the signing
+// certificate at the reception of the invoice, under the ES-SIG rules
+// (SignatureRules); trust and revocation are checked against the roots, the
+// CRLs and the OCSP responses that the caller gives, nothing is fetched.
+// Both accept the signatures of other tools: XAdES 1.3.2 and 1.2.2, the
+// properties of EN 319 132-1 (SigningCertificateV2, SignerRoleV2), the
+// canonicalizations of XML Signature.
+//
+// Parse reads a signed document as an unsigned one: the signature is not
+// part of the invoice. Marshal therefore writes an unsigned document, and
+// any change to a signed document breaks its signature: sign the document
+// written again.
+//
 // # Mapping
 //
 // The main correspondences between EN 16931 and Facturae, by the local
@@ -117,13 +143,18 @@
 // Marshal writes a document even when a value that the schema requires is
 // missing from the invoice (the tax identifier of a party, for example):
 // validate.XML checks a Facturae document against the schema of its
-// version and reports it. The package neither creates nor verifies the
-// XAdES signature that Facturae requires (a signature read is not kept),
-// and it does not handle EDIFACT, the transmission of invoices (FACe, the
-// private platforms, the public solution of the AEAT), the invoice states
-// or VERI*FACTU.
+// version and reports it. Sign writes the basic format of the signature
+// policy (XAdES-EPES), not its format with validation data (XAdES-X-L,
+// with a timestamp, the references to the chain and the revocation data):
+// the timestamp would need a call to a time-stamping authority. A signature
+// in SHA-1, which older tools write, is refused, but for the digests of the
+// policy and of the certificate. The trusted list of Spain is not
+// embedded. The package does not handle EDIFACT, the transmission of
+// invoices (FACe, the private platforms, the public solution of the AEAT),
+// the invoice states, TicketBAI or VERI*FACTU.
 //
-// The schemas compiled into the module come from facturae.gob.es. Origen de
+// The schemas compiled into the module and the signature policy come from
+// facturae.gob.es. Origen de
 // los datos: Ministerio de Hacienda y Administraciones Públicas - Ministerio
 // de Industria, Energía y Turismo. The ministries do not take part in,
 // sponsor or support this package. No official Facturae 3.2.x example is

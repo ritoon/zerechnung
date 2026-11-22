@@ -57,7 +57,7 @@
     "yes": "sì",
     "fmt_facturx_note": "profili da MINIMUM a EXTENDED, ed EXTENDED-CTC-FR",
     "fmt_via_cii": "tramite CII (CIUS-IT)",
-    "fmt_xsd": "schema XSD; EN 16931 tramite UBL o CII",
+    "fmt_xsd": "schema XSD, firma XAdES; EN 16931 tramite UBL o CII",
     "fmt_as_facturx": "come Factur-X",
     "fmt_minimal": "controlli minimi",
 
@@ -271,6 +271,7 @@
     "cp_es_en16931": "Fatture EN 16931 in UBL o CII, due delle quattro sintassi ammesse nel B2B",
     "cp_es_peppol": "Peppol BIS Billing 3.0, ammesso sulle piattaforme private",
     "cp_es_facturae": "Facturae 3.2, 3.2.1 e 3.2.2, il formato di FACe: lettura, scrittura, schema XSD",
+    "cp_es_sign": "Firma XAdES-EPES delle fatture Facturae secondo la politica di firma di Facturae v3.1 e verifica delle firme ricevute: politica, ruolo del firmatario, certificato",
     "cp_es_verifactu": "Software di fatturazione VERI*FACTU e comunicazione al SII",
     "cp_pt_intro": "Dal 2021 le grandi imprese fatturano alle amministrazioni pubbliche in CIUS-PT. Non c'è un obbligo B2B strutturato, ma le fatture vengono comunicate ogni mese all'amministrazione fiscale e riportano un codice ATCUD e un codice QR.",
     "cp_pt_cius": "CIUS-PT 2.1.1 (UBL) per le amministrazioni pubbliche: le regole dello schematron di eSPap, BR-CIUS-PT e DT-CIUS-PT, e le sue versioni delle regole EN 16931",

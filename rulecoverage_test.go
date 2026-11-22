@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/fatturapa"
 	"github.com/ritoon/zerechnung/validate"
 )
@@ -19,8 +20,9 @@ const ruleCoverageKnown = "testdata/rule-coverage.txt"
 
 // outsideCatalogs are the rules that the package reports without listing
 // them in a catalog: the syntax findings of validate.XML and validate.Tree
-// on a document that is not XML or not an invoice, and the rules of
-// fatturapa.VerifySignature.
+// on a document that is not XML or not an invoice, the rules of
+// fatturapa.VerifySignature, and the rules of facturae.VerifySignature that
+// the FACe rule set does not report.
 var outsideCatalogs = []string{
 	"XML", "CII",
 	fatturapa.RuleFileName, fatturapa.RuleFileSize, fatturapa.RuleCertExpired,
@@ -29,6 +31,7 @@ var outsideCatalogs = []string{
 	fatturapa.RuleNotSigned, fatturapa.RuleNotQualified, fatturapa.RuleSeal,
 	fatturapa.RuleTrustNotChecked, fatturapa.RuleRevocationUnknown, fatturapa.RuleNotBaselineB,
 	fatturapa.RuleNotFatturaPA,
+	facturae.RuleTrustNotChecked, facturae.RuleRevocationUnknown,
 }
 
 // TestRuleCoverage checks that the test suite raises each rule of the

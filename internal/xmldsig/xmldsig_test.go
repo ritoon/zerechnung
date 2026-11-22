@@ -319,11 +319,13 @@ func TestSignErrors(t *testing.T) {
 
 // TestXAdESEPES signs a Facturae invoice with the signature policy of
 // Facturae 3.1, as the Spanish administration requires (XAdES-EPES).
-func TestXAdESEPES(t *testing.T) {
-	doc := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+var facturae = []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <fe:Facturae xmlns:fe="http://www.facturae.gob.es/formato/Versiones/Facturae3_2_2.xml" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
   <FileHeader><SchemaVersion>3.2.2</SchemaVersion><Modality>I</Modality><InvoiceIssuerType>EM</InvoiceIssuerType></FileHeader>
 </fe:Facturae>`)
+
+func TestXAdESEPES(t *testing.T) {
+	doc := facturae
 	digest, _ := base64.StdEncoding.DecodeString("Ohixl6upD6av8N7pEvDABhEL6hM=")
 	policy := &Policy{
 		Identifier:  "http://www.facturae.es/politica_de_firma_formato_facturae/politica_de_firma_formato_facturae_v3_1.pdf",
@@ -343,6 +345,92 @@ func TestXAdESEPES(t *testing.T) {
 	if !reflect.DeepEqual(res.Policy, policy) {
 		t.Errorf("policy %+v, want %+v", res.Policy, policy)
 	}
+}
+
+// TestFacturaeProperties signs with the properties that the signature
+// policy of Facturae names: xades:SigningCertificate with the issuer and
+// the serial number of the certificate, the role of the signer, and a
+// reference to ds:KeyInfo.
+func TestFacturaeProperties(t *testing.T) {
+	_, chain, key := newSigner(t, nil)
+	signed := signDoc(t, facturae, &SignOptions{
+		Signer: key, Chain: chain, SigningTime: sigtest.Epoch,
+		SigningCertificateV1: true, SignKeyInfo: true, ClaimedRoles: []string{"emisor"}, Description: "Factura electrónica",
+	})
+	for _, want := range []string{
+		`<xades:SigningCertificate><xades:Cert><xades:CertDigest>`,
+		`<xades:IssuerSerial><ds:X509IssuerName>` + chain[0].Issuer.String() + `</ds:X509IssuerName><ds:X509SerialNumber>` + chain[0].SerialNumber.String() + `</ds:X509SerialNumber></xades:IssuerSerial>`,
+		`<xades:SignerRole><xades:ClaimedRoles><xades:ClaimedRole>emisor</xades:ClaimedRole></xades:ClaimedRoles></xades:SignerRole></xades:SignedSignatureProperties>`,
+		`<xades:Description>Factura electrónica</xades:Description><xades:MimeType>text/xml</xades:MimeType>`,
+		`-keyinfo"><ds:Transforms>`,
+		`-keyinfo"><ds:X509Data>`,
+	} {
+		if !strings.Contains(signed, want) {
+			t.Errorf("no %s in\n%s", want, signed)
+		}
+	}
+	check := func(name, doc string, ns string) {
+		t.Helper()
+		res, err := Verify([]byte(doc))
+		if err != nil {
+			t.Fatalf("%s: Verify: %v", name, err)
+		}
+		if !res.Certificate.Equal(chain[0]) || res.SigningCertificate != "SigningCertificate" || !res.KeyInfoSigned ||
+			!reflect.DeepEqual(res.ClaimedRoles, []string{"emisor"}) || res.XAdESNamespace != ns || !res.SigningTime.Equal(sigtest.Epoch) {
+			t.Errorf("%s: result %+v", name, res)
+		}
+	}
+	check("XAdES 1.3.2", signed, NSXAdES)
+
+	// XAdES 1.2.2, the version the policy names.
+	v122 := strings.ReplaceAll(signed, NSXAdES, NSXAdES122)
+	v122 = strings.Replace(v122, `Type="`+TypeSignedProperties+`"`, `Type="`+TypeSignedProperties122+`"`, 1)
+	check("XAdES 1.2.2", redigest(t, v122, key), NSXAdES122)
+
+	// The certificates of ds:KeyInfo are signed.
+	b64 := base64.StdEncoding.EncodeToString
+	noIntermediate := strings.Replace(signed, `<ds:X509Certificate>`+b64(chain[1].Raw)+`</ds:X509Certificate>`, ``, 1)
+	if _, err := Verify([]byte(noIntermediate)); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "keyinfo") {
+		t.Errorf("ds:KeyInfo changed: %v", err)
+	}
+	// xades:IssuerSerial must name the signing certificate.
+	serial := `<ds:X509SerialNumber>` + chain[0].SerialNumber.String() + `</ds:X509SerialNumber>`
+	otherSerial := strings.Replace(signed, serial, `<ds:X509SerialNumber>1</ds:X509SerialNumber>`, 1)
+	if _, err := Verify([]byte(redigest(t, otherSerial, key))); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "serial number") {
+		t.Errorf("another serial number: %v", err)
+	}
+	// Without the reference to ds:KeyInfo.
+	plain := signDoc(t, facturae, &SignOptions{Signer: key, Chain: chain, SigningTime: sigtest.Epoch})
+	if res, err := Verify([]byte(plain)); err != nil || res.KeyInfoSigned || res.ClaimedRoles != nil {
+		t.Errorf("plain signature: %+v, %v", res, err)
+	}
+}
+
+// redigest recomputes the digests of the references to the elements of the
+// signature (signed properties, key information) after they changed, then
+// the signature value, as the signer would have written them.
+func redigest(t *testing.T, signed string, key crypto.Signer) string {
+	t.Helper()
+	d := mustParse(t, signed)
+	si := d.root.elems(NSDS, "Signature")[0].elem(NSDS, "SignedInfo")
+	for _, ref := range si.elems(NSDS, "Reference") {
+		uri, _ := ref.attrValue("URI")
+		if !strings.HasPrefix(uri, "#") {
+			continue
+		}
+		target := findByID(d.root, uri[1:])
+		if len(target) != 1 {
+			t.Fatalf("%s designates %d elements", uri, len(target))
+		}
+		c, err := canonicalize(d, target[0], nil, c14nMethod{}, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := strings.TrimSpace(ref.elem(NSDS, "DigestValue").text())
+		digest := base64.StdEncoding.EncodeToString(sigalg.Digest(crypto.SHA256, c))
+		signed = strings.Replace(signed, ">"+old+"<", ">"+digest+"<", 1)
+	}
+	return resign(t, signed, key)
 }
 
 var (

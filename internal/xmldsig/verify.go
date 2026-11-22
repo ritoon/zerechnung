@@ -48,6 +48,15 @@ type Result struct {
 	DataObjectFormat bool
 	// Policy is the signed signature policy, nil when there is none.
 	Policy *Policy
+	// ClaimedRoles are the signed roles of the signer
+	// (xades:SignerRole/ClaimedRoles, or SignerRoleV2), trimmed.
+	ClaimedRoles []string
+	// KeyInfoSigned tells that a reference covers ds:KeyInfo, and with it
+	// the certificates it holds.
+	KeyInfoSigned bool
+	// XAdESNamespace is the namespace of the signed properties: NSXAdES
+	// (version 1.3.2, kept by EN 319 132-1) or NSXAdES122.
+	XAdESNamespace string
 }
 
 // Verify checks the enveloped signature of doc: it must be a child of the
@@ -101,9 +110,11 @@ type verifier struct {
 	sig *node
 	res Result
 
-	docRef   *node // the ds:Reference to the whole document
-	propsRef *node // the ds:Reference to the signed properties
-	props    *node // the xades:SignedProperties it designates
+	docRef   *node  // the ds:Reference to the whole document
+	propsRef *node  // the ds:Reference to the signed properties
+	props    *node  // the xades:SignedProperties it designates
+	keyInfo  *node  // the ds:KeyInfo of the signature
+	xades    string // the namespace of props
 
 	ids map[string][]*node // the elements of the document by Id, ID or id
 }
@@ -151,6 +162,7 @@ func (v *verifier) verify() (*Result, error) {
 			return nil, invalidf("unexpected element %s in ds:Signature", k.local)
 		}
 	}
+	v.keyInfo = keyInfo
 
 	// SignedInfo.
 	siKids := si.childElements()
@@ -384,16 +396,25 @@ func (v *verifier) reference(ref *node) error {
 		}
 		return invalidf("the element %q does not match the signed digest", uri)
 	}
-	if apex != nil && (refType == TypeSignedProperties || apex.is(NSXAdES, "SignedProperties")) {
+	if apex != nil && (refType == TypeSignedProperties || refType == TypeSignedProperties122 || isSignedProperties(apex)) {
 		if v.propsRef != nil {
 			return invalidf("several references to signed properties")
 		}
-		if !apex.is(NSXAdES, "SignedProperties") {
+		if !isSignedProperties(apex) {
 			return invalidf("the reference to the signed properties does not designate xades:SignedProperties")
 		}
-		v.propsRef, v.props = ref, apex
+		v.propsRef, v.props, v.xades = ref, apex, apex.space
+	}
+	if apex != nil && apex == v.keyInfo {
+		v.res.KeyInfoSigned = true
 	}
 	return nil
+}
+
+// isSignedProperties reports whether n is a xades:SignedProperties element
+// of XAdES 1.3.2 or 1.2.2.
+func isSignedProperties(n *node) bool {
+	return n.is(NSXAdES, "SignedProperties") || n.is(NSXAdES122, "SignedProperties")
 }
 
 // isNotSignatureXPath reports whether an XPath transform holds the
@@ -450,8 +471,9 @@ func isSubtractSignatures(t *node) bool {
 
 // properties reads the signed qualifying properties.
 func (v *verifier) properties() error {
+	x := v.xades
 	qp := v.props.parent
-	if qp == nil || !qp.is(NSXAdES, "QualifyingProperties") || qp.parent == nil || !qp.parent.is(NSDS, "Object") || qp.parent.parent != v.sig {
+	if qp == nil || !qp.is(x, "QualifyingProperties") || qp.parent == nil || !qp.parent.is(NSDS, "Object") || qp.parent.parent != v.sig {
 		return invalidf("xades:SignedProperties is not in a xades:QualifyingProperties of the signature")
 	}
 	if id, ok := v.sig.attrValue("Id"); ok {
@@ -459,35 +481,35 @@ func (v *verifier) properties() error {
 			return invalidf("xades:QualifyingProperties does not target the signature")
 		}
 	}
-	v.res.XAdES = true
-	ssp := v.props.elem(NSXAdES, "SignedSignatureProperties")
+	v.res.XAdES, v.res.XAdESNamespace = true, x
+	ssp := v.props.elem(x, "SignedSignatureProperties")
 	if ssp != nil {
-		if st := ssp.elem(NSXAdES, "SigningTime"); st != nil {
+		if st := ssp.elem(x, "SigningTime"); st != nil {
 			t, err := parseDateTime(strings.TrimSpace(st.text()))
 			if err != nil {
 				return invalidf("xades:SigningTime cannot be read: %v", err)
 			}
 			v.res.SigningTime = t
 		}
-		if sc := ssp.elem(NSXAdES, "SigningCertificateV2"); sc != nil {
+		if sc := ssp.elem(x, "SigningCertificateV2"); sc != nil {
 			v.res.SigningCertificate = "SigningCertificateV2"
 			if err := v.signingCert(sc); err != nil {
 				return err
 			}
-		} else if sc := ssp.elem(NSXAdES, "SigningCertificate"); sc != nil {
+		} else if sc := ssp.elem(x, "SigningCertificate"); sc != nil {
 			v.res.SigningCertificate = "SigningCertificate"
 			if err := v.signingCert(sc); err != nil {
 				return err
 			}
 		}
-		if spi := ssp.elem(NSXAdES, "SignaturePolicyIdentifier"); spi != nil {
-			if id := spi.elem(NSXAdES, "SignaturePolicyId"); id != nil {
+		if spi := ssp.elem(x, "SignaturePolicyIdentifier"); spi != nil {
+			if id := spi.elem(x, "SignaturePolicyId"); id != nil {
 				p := &Policy{}
-				if spid := id.elem(NSXAdES, "SigPolicyId"); spid != nil {
-					p.Identifier = strings.TrimSpace(textOf(spid.elem(NSXAdES, "Identifier")))
-					p.Description = strings.TrimSpace(textOf(spid.elem(NSXAdES, "Description")))
+				if spid := id.elem(x, "SigPolicyId"); spid != nil {
+					p.Identifier = strings.TrimSpace(textOf(spid.elem(x, "Identifier")))
+					p.Description = strings.TrimSpace(textOf(spid.elem(x, "Description")))
 				}
-				if ph := id.elem(NSXAdES, "SigPolicyHash"); ph != nil {
+				if ph := id.elem(x, "SigPolicyHash"); ph != nil {
 					if dm := ph.elem(NSDS, "DigestMethod"); dm != nil {
 						u, _ := dm.attrValue("Algorithm")
 						p.Hash, _ = hashFromURI(u)
@@ -497,11 +519,20 @@ func (v *verifier) properties() error {
 				v.res.Policy = p
 			}
 		}
+		for _, name := range [...]string{"SignerRole", "SignerRoleV2"} {
+			if sr := ssp.elem(x, name); sr != nil {
+				if cr := sr.elem(x, "ClaimedRoles"); cr != nil {
+					for _, r := range cr.elems(x, "ClaimedRole") {
+						v.res.ClaimedRoles = append(v.res.ClaimedRoles, strings.TrimSpace(r.text()))
+					}
+				}
+			}
+		}
 	}
-	if sdop := v.props.elem(NSXAdES, "SignedDataObjectProperties"); sdop != nil {
+	if sdop := v.props.elem(x, "SignedDataObjectProperties"); sdop != nil {
 		docID, _ := v.docRef.attrValue("Id")
-		for _, f := range sdop.elems(NSXAdES, "DataObjectFormat") {
-			if r, _ := f.attrValue("ObjectReference"); docID != "" && r == "#"+docID && f.elem(NSXAdES, "MimeType") != nil {
+		for _, f := range sdop.elems(x, "DataObjectFormat") {
+			if r, _ := f.attrValue("ObjectReference"); docID != "" && r == "#"+docID && f.elem(x, "MimeType") != nil {
 				v.res.DataObjectFormat = true
 			}
 		}
@@ -512,11 +543,12 @@ func (v *verifier) properties() error {
 // signingCert finds the certificate of ds:KeyInfo that the first xades:Cert
 // of SigningCertificateV2 (or SigningCertificate) designates by its digest.
 func (v *verifier) signingCert(sc *node) error {
-	certs := sc.elems(NSXAdES, "Cert")
+	x := v.xades
+	certs := sc.elems(x, "Cert")
 	if len(certs) == 0 {
 		return invalidf("xades:%s holds no xades:Cert", sc.local)
 	}
-	cd := certs[0].elem(NSXAdES, "CertDigest")
+	cd := certs[0].elem(x, "CertDigest")
 	if cd == nil {
 		return invalidf("xades:Cert without xades:CertDigest")
 	}
@@ -535,6 +567,13 @@ func (v *verifier) signingCert(sc *node) error {
 	}
 	for _, c := range v.res.Certificates {
 		if string(sigalg.Digest(h, c.Raw)) == string(want) {
+			// xades:SigningCertificate also names the certificate by its
+			// issuer and serial number.
+			if is := certs[0].elem(x, "IssuerSerial"); is != nil {
+				if sn := is.elem(NSDS, "X509SerialNumber"); sn != nil && strings.TrimSpace(sn.text()) != c.SerialNumber.String() {
+					return invalidf("the serial number of xades:IssuerSerial is not that of the signing certificate")
+				}
+			}
 			v.res.Certificate = c
 			return nil
 		}

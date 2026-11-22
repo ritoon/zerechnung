@@ -1,14 +1,15 @@
 // Package xmldsig writes and reads enveloped XML signatures (XML Signature
 // 1.1) with the qualifying properties of XAdES Baseline B (ETSI
-// EN 319 132-1 §6.3), as the SdI admits them for FatturaPA files and as the
-// Spanish Facturae requires them with a signature policy (XAdES-EPES).
+// EN 319 132-1 §6.3), as the SdI admits them for FatturaPA files, and of
+// XAdES-EPES, as the signature policy of the Spanish Facturae requires them.
 //
 // SignEnveloped appends a ds:Signature to the root element: a reference to
 // the whole document (URI="" with the enveloped-signature transform), a
 // reference to the xades:SignedProperties (signing time, digest of the
 // signing certificate, format of the signed document, optional signature
-// policy), and the certificate chain in ds:KeyInfo. Canonicalization is
-// Canonical XML 1.0 without comments.
+// policy and signer role), optionally a reference to ds:KeyInfo, and the
+// certificate chain in ds:KeyInfo. Canonicalization is Canonical XML 1.0
+// without comments.
 //
 // Verify accepts what other signing tools write: Canonical XML 1.0 and 1.1
 // and Exclusive XML Canonicalization, with or without comments, the
@@ -27,10 +28,13 @@ import (
 	"github.com/ritoon/zerechnung/internal/sigalg"
 )
 
-// Namespaces.
+// Namespaces. SignEnveloped writes XAdES in the namespace of version 1.3.2,
+// which EN 319 132-1 keeps; Verify also reads the qualifying properties of
+// version 1.2.2, which the signature policy of Facturae names.
 const (
 	NSDS       = "http://www.w3.org/2000/09/xmldsig#"
 	NSXAdES    = "http://uri.etsi.org/01903/v1.3.2#"
+	NSXAdES122 = "http://uri.etsi.org/01903/v1.2.2#"
 	NSXAdES141 = "http://uri.etsi.org/01903/v1.4.1#"
 )
 
@@ -40,6 +44,9 @@ const (
 	TransformXPath       = "http://www.w3.org/TR/1999/REC-xpath-19991116"
 	TransformXPath2      = "http://www.w3.org/2002/06/xmldsig-filter2"
 	TypeSignedProperties = "http://uri.etsi.org/01903#SignedProperties"
+	// TypeSignedProperties122 is the type of the reference to the signed
+	// properties in XAdES 1.2.2.
+	TypeSignedProperties122 = NSXAdES122 + "SignedProperties"
 )
 
 var digestURIs = []struct {

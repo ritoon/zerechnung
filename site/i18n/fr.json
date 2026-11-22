@@ -57,7 +57,7 @@
     "yes": "oui",
     "fmt_facturx_note": "profils MINIMUM à EXTENDED, et EXTENDED-CTC-FR",
     "fmt_via_cii": "via CII (CIUS-IT)",
-    "fmt_xsd": "schéma XSD ; EN 16931 via UBL ou CII",
+    "fmt_xsd": "schéma XSD, signature XAdES ; EN 16931 via UBL ou CII",
     "fmt_as_facturx": "en Factur-X",
     "fmt_minimal": "contrôles minimaux",
 
@@ -271,6 +271,7 @@
     "cp_es_en16931": "Factures EN 16931 en UBL ou en CII, deux des quatre syntaxes admises en B2B",
     "cp_es_peppol": "Peppol BIS Billing 3.0, admis sur les plateformes privées",
     "cp_es_facturae": "Facturae 3.2, 3.2.1 et 3.2.2, le format de FACe : lecture, écriture, schéma XSD",
+    "cp_es_sign": "Signature XAdES-EPES des factures Facturae sous la politique de signature de Facturae v3.1, et vérification des signatures reçues : politique, rôle du signataire, certificat",
     "cp_es_verifactu": "Logiciels de facturation VERI*FACTU et déclaration au SII",
     "cp_pt_intro": "Les grandes entreprises facturent les acheteurs publics en CIUS-PT depuis 2021. Il n'y a pas d'obligation B2B structurée, mais les factures sont communiquées chaque mois à l'administration fiscale et portent un code ATCUD et un QR code.",
     "cp_pt_cius": "CIUS-PT 2.1.1 (UBL) pour les acheteurs publics : règles du schematron de l'eSPap, BR-CIUS-PT et DT-CIUS-PT, et ses versions des règles EN 16931",
