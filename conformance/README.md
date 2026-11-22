@@ -62,13 +62,13 @@ Le job *Tests sur les artefacts officiels* lance `go test ./...` avec toutes les
 
 Le job compile aussi la suite avec l'étiquette `ruletrace` : chaque binaire de test écrit alors dans `rules.txt` les règles des findings qu'il rapporte (`ZERECHNUNG_RULE_TRACE`, voir [`internal/rules/trace_ruletrace.go`](../internal/rules/trace_ruletrace.go)), et `TestRuleCoverage` ([`rulecoverage_test.go`](../rulecoverage_test.go)) vérifie ensuite que chaque règle des catalogues (`validate.Catalog` de tous les jeux de règles, `ContainerCatalog` et `SignatureCatalog`), plus `XML`, `CII` et les règles de `fatturapa.VerifySignature`, est levée par au moins un test. C'est la version dynamique des tests `TestCatalogComplete`, qui lisent les sources : une règle écrite qu'aucun test ne fait échouer peut être inatteignable, ou fausse sans qu'aucun test ne le voie.
 
-La suite lève 2 992 des 3 340 règles. Les 348 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de ses signatures (SIG-01 à SIG-14), de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
+La suite lève 2 995 des 3 340 règles. Les 345 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de ses signatures (SIG-01 à SIG-14), de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
 
 | Jeu de règles | Non levées | Familles |
 |---|---|---|
 | EN 16931 | 4 sur 1 689 | BR-CO-05 à 08, que le schematron UBL EXTENDED-CTC-FR réduit à `true()` |
 | Factur-X | 304 sur 385 | listes de codes du schematron Factur-X 1.09.2 (FX-SCH-A) |
-| CIUS-PT | 32 sur 369 | formats DT-CIUS-PT (29), BR-AA, UBL-SR-38 |
+| CIUS-PT | 29 sur 369 | formats DT-CIUS-PT (26), BR-AA, UBL-SR-38 |
 | CIUS-RO | 7 sur 123 | assertions du schematron 1.0.9 qui ne peuvent pas échouer : BR-DEC-RO-13, BR-DEC-RO-15, BR-DEC-RO-23, BR-RO-A051, BR-RO-A052, BR-RO-A500, BR-RO-L1019 |
 | FatturaPA (signature) | 1 | IT-SIG-06, que seul le job d'interopérabilité des signatures lève |
 

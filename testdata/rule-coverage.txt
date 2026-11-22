@@ -332,7 +332,7 @@ FX-SCH-A-001172
 FX-SCH-A-001173
 
 # CIUS-PT : formats des données du schematron d'eSPap (DT-CIUS-PT).
-# 29 règles.
+# 26 règles.
 DT-CIUS-PT-020_2.1
 DT-CIUS-PT-020_2.2
 DT-CIUS-PT-020_2.4
@@ -349,9 +349,7 @@ DT-CIUS-PT-084.2
 DT-CIUS-PT-085
 DT-CIUS-PT-090.2
 DT-CIUS-PT-092.2
-DT-CIUS-PT-098.2
 DT-CIUS-PT-103.1
-DT-CIUS-PT-104.2
 DT-CIUS-PT-106.2
 DT-CIUS-PT-111.2
 DT-CIUS-PT-118.1
@@ -361,7 +359,6 @@ DT-CIUS-PT-138.3
 DT-CIUS-PT-139_5
 DT-CIUS-PT-152
 DT-CIUS-PT-159
-DT-CIUS-PT-169
 
 # CIUS-PT : règles du schematron d'eSPap que les artefacts du CEN ne
 # définissent pas (BR-AA, BR-CO-07, BR-CO-08, UBL-SR-38).
