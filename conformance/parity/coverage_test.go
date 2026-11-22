@@ -34,7 +34,7 @@ func TestStageVariants(t *testing.T) {
 	}
 	os.MkdirAll(filepath.Join(repo, "internal/rules/nl/testdata"), 0o755)
 	nl := nlInputs{npa: t.TempDir(), tests: tests, repo: repo, variants: nlVariants}
-	if err := stage(corpus, kosit, work, nl, ptInputs{}, fnfeInputs{}, variants); err != nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}, roInputs{}, fnfeInputs{}, variants); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -75,7 +75,7 @@ func TestStageVariants(t *testing.T) {
 	}
 
 	write(variants, "de/expected.tsv", "de/cii-001-br-de-1.xml\tBR-DE-1\n")
-	if err := stage(corpus, kosit, work, nl, ptInputs{}, fnfeInputs{}, variants); err == nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}, roInputs{}, fnfeInputs{}, variants); err == nil {
 		t.Error("expected.tsv with a path: no error")
 	}
 	if rules, err := readExpectedRules(t.TempDir()); err != nil || rules != nil {

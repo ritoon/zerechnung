@@ -5,7 +5,8 @@
 // Each rule set lives in its own package (internal/rules/en16931,
 // internal/rules/ubl, internal/rules/facturx, internal/rules/fr,
 // internal/rules/de, internal/rules/choruspro, internal/rules/peppol,
-// internal/rules/nl, internal/rules/it) and exports:
+// internal/rules/nl, internal/rules/it, internal/rules/pt,
+// internal/rules/ro) and exports:
 //
 //	func Check(c *rules.Checker)  // runs every rule of the set
 //	var Catalog []rules.RuleInfo  // the rules the set implements
@@ -77,6 +78,7 @@ const (
 	SourceNL        = "BR-NL"      // Dutch rules (NLCIUS, SI-UBL 2.0)
 	SourceIT        = "BR-IT"      // Italian rules (CIUS-IT)
 	SourcePT        = "CIUS-PT"    // Portuguese rules (CIUS-PT of eSPap)
+	SourceRO        = "BR-RO"      // Romanian rules (CIUS-RO of ANAF)
 	SourceSDI       = "SDI"        // controls of the Italian SDI on a FatturaPA file: its signature, its name, its content
 	SourceSignature = "signature"  // signatures of a PDF (PAdES): integrity, changes after signing, certificate, time-stamps
 	SourceFacturae  = "Facturae"   // signature policy of Facturae (XAdES-EPES) on a Facturae document

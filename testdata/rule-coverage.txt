@@ -332,7 +332,7 @@ FX-SCH-A-001172
 FX-SCH-A-001173
 
 # CIUS-PT : formats des données du schematron d'eSPap (DT-CIUS-PT).
-# 29 règles.
+# 26 règles.
 DT-CIUS-PT-020_2.1
 DT-CIUS-PT-020_2.2
 DT-CIUS-PT-020_2.4
@@ -349,9 +349,7 @@ DT-CIUS-PT-084.2
 DT-CIUS-PT-085
 DT-CIUS-PT-090.2
 DT-CIUS-PT-092.2
-DT-CIUS-PT-098.2
 DT-CIUS-PT-103.1
-DT-CIUS-PT-104.2
 DT-CIUS-PT-106.2
 DT-CIUS-PT-111.2
 DT-CIUS-PT-118.1
@@ -361,7 +359,6 @@ DT-CIUS-PT-138.3
 DT-CIUS-PT-139_5
 DT-CIUS-PT-152
 DT-CIUS-PT-159
-DT-CIUS-PT-169
 
 # CIUS-PT : règles du schematron d'eSPap que les artefacts du CEN ne
 # définissent pas (BR-AA, BR-CO-07, BR-CO-08, UBL-SR-38).
@@ -371,6 +368,22 @@ BR-AA-04
 BR-CO-07
 BR-CO-08
 UBL-SR-38
+
+# CIUS-RO : assertions du schematron de l'ANAF 1.0.9 qui ne peuvent pas
+# échouer sur un document que le schéma UBL accepte (voir le paquet
+# internal/rules/ro) : le contexte de BR-DEC-RO-13 et BR-DEC-RO-15
+# (/ubl:Invoice | cac:CreditNote) ne désigne aucun élément qu'une règle
+# précédente n'a pas pris, BR-DEC-RO-23 et BR-RO-L1019 viennent après une
+# règle sur les mêmes éléments, BR-RO-A051 et BR-RO-A052 comptent l'élément
+# de contexte lui-même, BR-RO-A500 un enfant que UBL ne répète pas.
+# 7 règles.
+BR-DEC-RO-13
+BR-DEC-RO-15
+BR-DEC-RO-23
+BR-RO-A051
+BR-RO-A052
+BR-RO-A500
+BR-RO-L1019
 
 # FatturaPA : règles de fatturapa.VerifySignature, hors des catalogues.
 # IT-SIG-06 (signature qui n'est pas CAdES ou XAdES Baseline B) n'est levée

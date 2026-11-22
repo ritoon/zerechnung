@@ -30,6 +30,8 @@ func TestLookups(t *testing.T) {
 		{"MIME", MIME, []string{"application/pdf", "image/png", "image/jpeg", "text/csv"}, []string{"application/xml", "image/gif", "APPLICATION/PDF"}},
 		{"EAS", EAS, []string{"0088", "9930", "EM", "0204"}, []string{"9958", "88", "em"}},
 		{"VATPrefix", VATPrefix, []string{"DE", "FR", "XI", "1A"}, []string{"EL", "de", "D"}},
+		{"RomanianCounty", RomanianCounty, []string{"RO-AB", "RO-B", "RO-BC", "RO-CJ", "RO-IF", "RO-VS"}, []string{"RO-XX", "ro-cj", "CJ", "RO-CJ ", ""}},
+		{"BucharestSector", BucharestSector, []string{"SECTOR1", "SECTOR6"}, []string{"SECTOR7", "Sector1", "SECTOR 1", ""}},
 	}
 	for _, tt := range tests {
 		for _, s := range tt.ok {
@@ -52,6 +54,7 @@ func TestListsSorted(t *testing.T) {
 		"itemClassifications": itemClassifications, "countries": countries, "paymentMeans": paymentMeans,
 		"vatCategories": vatCategories, "allowanceReasons": allowanceReasons, "chargeReasons": chargeReasons,
 		"vatex": vatex, "units": units, "mimeCodes": mimeCodes, "eas": eas, "vatPrefixes": vatPrefixes,
+		"RomanianCounties": RomanianCounties, "BucharestSectors": BucharestSectors,
 	}
 	for name, l := range all {
 		if len(l) == 0 {

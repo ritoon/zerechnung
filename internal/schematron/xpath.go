@@ -1,4 +1,4 @@
-package pt
+package schematron
 
 import (
 	"fmt"
@@ -10,13 +10,15 @@ import (
 	"unicode/utf8"
 )
 
-// This file parses the subset of XPath 2.0 the CIUS-PT schematron uses in
-// its rule contexts, variables and tests: paths with the child, attribute,
-// self, parent, ancestor and descendant axes and predicates, unions, the
-// general comparisons, arithmetic (+, -, *, div), and, or, quantified
-// expressions (some, every), variables and the functions of funcs. An
-// expression outside this subset is refused when it is compiled: the
-// package tests compile every expression of the generated tables.
+// This file parses the subset of XPath 2.0 that the schematrons of the
+// CIUS-PT and of the CIUS-RO use in their rule contexts, variables and tests:
+// paths with the child, attribute, self, parent, ancestor, descendant and
+// following-sibling axes and predicates, the node tests node() and text(),
+// unions, castable as xs:date, the general comparisons, arithmetic (+, -, *,
+// div), and, or, quantified expressions (some, every), variables and the
+// functions of funcs. An expression outside this subset is refused when it
+// is compiled: the tests of the rule sets compile every expression of their
+// generated tables.
 
 type tokKind uint8
 
@@ -302,12 +304,26 @@ func (p *parser) multiplicative() expr {
 }
 
 func (p *parser) union() expr {
-	e := p.unary()
+	e := p.castable()
 	for p.isSym("|") || p.isOp("union") {
 		p.pos++
-		e = &unionExpr{e, p.unary()}
+		e = &unionExpr{e, p.castable()}
 	}
 	return e
+}
+
+// castable parses CastableExpr: UnaryExpr ("castable" "as" SingleType)?,
+// for the single type xs:date.
+func (p *parser) castable() expr {
+	e := p.unary()
+	if t := p.peekAt(1); !p.isOp("castable") || t.kind != tName || t.val != "as" {
+		return e
+	}
+	p.pos += 2
+	if t := p.next(); t.kind != tName || t.val != "xs:date" {
+		p.fail("castable as %s is not supported", t.val)
+	}
+	return &castableExpr{e}
 }
 
 func (p *parser) unary() expr {
@@ -373,6 +389,7 @@ var axes = sync.OnceValue(func() map[string]axis {
 		"child": axChild, "attribute": axAttribute, "self": axSelf, "parent": axParent,
 		"ancestor": axAncestor, "ancestor-or-self": axAncestorOrSelf,
 		"descendant": axDescendant, "descendant-or-self": axDescendantOrSelf,
+		"following-sibling": axFollowingSibling,
 	}
 })
 
@@ -404,6 +421,9 @@ func (p *parser) step() step {
 	default:
 		s.prim = p.primary()
 	}
+	if s.prim == nil && s.test.kind == testText && s.axis != axChild && s.axis != axSelf {
+		p.fail("text() is only supported on the child and self axes")
+	}
 	for p.isSym("[") {
 		p.pos++
 		s.preds = append(s.preds, p.expr())
@@ -423,7 +443,7 @@ func (p *parser) nodeTest(attr bool) nodeTest {
 		p.pos++
 		p.expect(")")
 		if t.val == "text" {
-			p.fail("text() is not supported")
+			return nodeTest{kind: testText}
 		}
 		return nodeTest{kind: testNode}
 	}

@@ -121,7 +121,7 @@ The documents (PDF, XML) are sent as the body, with their content type, or as th
 | `language` | Language of the rendered PDF: `en`, `fr`, `de`, `it`, `es`, `pt`, `nl`; when absent, the invoice's `Language` or the seller's country, English otherwise |
 | `profile` | Overrides the profile: `MINIMUM`, `BASIC WL`, `BASIC`, `EN 16931`, `EXTENDED`, `EXTENDED-CTC-FR`, `XRECHNUNG`, `PEPPOL`, `NLCIUS`, `CIUS-IT` |
 | `calculate` | Computes the line amounts, totals and VAT breakdown; `true` by default |
-| `validation` | `{"rules": ["fr", "de", "choruspro", "peppol", "nl", "it", "pt"], "auto": true, "skip": false, "profile": "", "reject_basicwl": false, "service_code_required": false, "engagement_required": false}`; EN 16931 and the Factur-X rules always apply, `auto` adds the rules of the seller's country |
+| `validation` | `{"rules": ["fr", "de", "choruspro", "peppol", "nl", "it", "pt", "ro"], "auto": true, "skip": false, "profile": "", "reject_basicwl": false, "service_code_required": false, "engagement_required": false}`; EN 16931 and the Factur-X rules always apply, `auto` adds the rules of the seller's country |
 | `convert_pdfa`, `require_pdfa` | For your own PDF: convert it to PDF/A-3, or refuse it unless it declares PDF/A |
 | `sign` | Signs the PDF; `ZR_SIGN_DEFAULT` (true) when absent |
 | `reason`, `location` | Of the signature, instead of `ZR_SIGN_REASON` and `ZR_SIGN_LOCATION` |

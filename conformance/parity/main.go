@@ -2,10 +2,11 @@
 // raised by the reference validators, invoice by invoice: the KoSIT validator
 // with the XRechnung configuration, and Mustang; for NLCIUS, the XSLT of the
 // schematrons of the Dutch Peppol Authority (NPa); for the CIUS-PT, the
-// schematron of eSPap compiled by SchXslt; for EXTENDED-CTC-FR, the XSLT of
-// the FNFE-MPE. See ../README.md.
+// schematron of eSPap compiled by SchXslt; for the CIUS-RO, the ROmodel
+// phase of the schematron of ANAF compiled by SchXslt; for EXTENDED-CTC-FR,
+// the XSLT of the FNFE-MPE. See ../README.md.
 //
-//	parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-fnfe DIR -fnfe-variants DIR]
+//	parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-ro DIR -ro-variants DIR] [-fnfe DIR -fnfe-variants DIR]
 //	parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]
 //	parity badge -report report.json -o badge.json
 //
@@ -23,7 +24,11 @@
 // (DIR/npa.list). With -pt, it adds the CIUS-PT invoices: the examples of
 // eSPap (the XML files of the archive -pt), the CIUS-PT invoices of the
 // repository and the variants of the mutation tests (-pt-variants), which
-// only the CIUS-PT schematron receives (DIR/pt.list). With -fnfe, it adds
+// only the CIUS-PT schematron receives (DIR/pt.list). With -ro, it adds the
+// CIUS-RO invoices in UBL: the examples of ANAF (the XML files of the UBL
+// archives of the directory -ro), the UBL CIUS-RO invoices of the repository
+// and the variants of the mutation tests (-ro-variants), which only the
+// CIUS-RO schematron receives (DIR/ro.list). With -fnfe, it adds
 // the EXTENDED-CTC-FR invoices: the examples of France_RFE, the
 // EXTENDED-CTC-FR invoices of the repository and the variants of the
 // mutation tests of the CII and UBL rules (-fnfe-variants, one directory
@@ -32,13 +37,14 @@
 // (DIR/fnfe.list).
 //
 // compare reads the reports that the validators wrote in DIR/kosit
-// (0001-report.xml), DIR/mustang (0001.xml.xml), DIR/npa, DIR/fnfe and
-// DIR/pt (0001.xml.svrl), and the table at the end of DIR/kosit.log, which
+// (0001-report.xml), DIR/mustang (0001.xml.xml), DIR/npa, DIR/fnfe, DIR/pt
+// and DIR/ro (0001.xml.svrl), and the table at the end of DIR/kosit.log, which
 // alone tells the documents that KoSIT could not assess; it validates each
 // invoice with this package, and compares the rules raised as errors, and
-// also as warnings for the NPa and FNFE-MPE XSLT, the CIUS-PT schematron and
-// the variants, on the same element for the CIUS-PT schematron (whose XSLT,
-// compiled by SchXslt, it reads from DIR/cius-pt.xsl). Each variant must
+// also as warnings for the NPa and FNFE-MPE XSLT, the CIUS-PT and CIUS-RO
+// schematrons and the variants, on the same element for the CIUS-PT and
+// CIUS-RO schematrons (whose XSLT, compiled by SchXslt, it reads from
+// DIR/cius-pt.xsl and DIR/cius-ro.xsl). Each variant must
 // raise, at the reference, the rules that its mutation case expects. It
 // lists the assertions of the NLCIUS patterns that no invoice makes fail
 // and, with -kosit-config (the unzipped configuration of the KoSIT
@@ -75,6 +81,7 @@ func main() {
 		var (
 			nl nlInputs
 			pt ptInputs
+			ro roInputs
 			fr fnfeInputs
 		)
 		fs.StringVar(&nl.npa, "nl", "", "clone of peppolautoriteit-nl/validation (FX_NL)")
@@ -83,13 +90,16 @@ func main() {
 		variants := fs.String("variants", "", "documents of the mutation cases of the EN 16931 and XRechnung rules, one directory per package")
 		fs.StringVar(&pt.examples, "pt", "", "archive of the CIUS-PT examples of eSPap (FX_PT)")
 		fs.StringVar(&pt.variants, "pt-variants", "", "documents of the mutation cases of internal/rules/pt")
+		fs.StringVar(&ro.examples, "ro", "", "directory of the archives of the CIUS-RO examples of ANAF (FX_RO)")
+		fs.StringVar(&ro.variants, "ro-variants", "", "documents of the mutation cases of internal/rules/ro")
 		fs.StringVar(&fr.rfe, "fnfe", "", "checkout of fnfempe/France_RFE (FX_FNFE)")
 		fs.StringVar(&fr.variants, "fnfe-variants", "", "documents of the EXTENDED-CTC-FR mutation cases of internal/rules/en16931 and internal/rules/ubl, one directory per package")
 		fs.Parse(os.Args[2:])
-		nl.repo, pt.repo, fr.repo = *repo, *repo, *repo
+		nl.repo, pt.repo, ro.repo, fr.repo = *repo, *repo, *repo, *repo
 		if *corpus == "" || *kosit == "" || *work == "" ||
 			nl.npa != "" && (nl.tests == "" || *repo == "" || nl.variants == "") ||
 			pt.examples != "" && (*repo == "" || pt.variants == "") ||
+			ro.examples != "" && (*repo == "" || ro.variants == "") ||
 			fr.rfe != "" && (*repo == "" || fr.variants == "") {
 			usage()
 		}
@@ -103,7 +113,7 @@ func main() {
 				break
 			}
 		}
-		err = stage(*corpus, *kosit, *work, nl, pt, fr, *variants)
+		err = stage(*corpus, *kosit, *work, nl, pt, ro, fr, *variants)
 	case "compare":
 		fs := flag.NewFlagSet("compare", flag.ExitOnError)
 		work := fs.String("work", "", "work directory")
@@ -140,7 +150,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
-  parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-fnfe DIR -fnfe-variants DIR]
+  parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-ro DIR -ro-variants DIR] [-fnfe DIR -fnfe-variants DIR]
   parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]
   parity badge -report report.json -o badge.json`)
 	os.Exit(2)
