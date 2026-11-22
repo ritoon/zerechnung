@@ -78,6 +78,7 @@ const (
 	SourceIT        = "BR-IT"      // Italian rules (CIUS-IT)
 	SourcePT        = "CIUS-PT"    // Portuguese rules (CIUS-PT of eSPap)
 	SourceSDI       = "SDI"        // controls of the Italian SDI on a FatturaPA file: its signature, its name, its content
+	SourceSignature = "signature"  // signatures of a PDF (PAdES): integrity, changes after signing, certificate, time-stamps
 )
 
 // Finding is a rule violation.

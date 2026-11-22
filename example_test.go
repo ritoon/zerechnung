@@ -2,9 +2,15 @@ package zerechnung_test
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"time"
 
@@ -147,4 +153,58 @@ func ExampleConvertPDFA() {
 	fmt.Println(len(pdfa) > 0)
 	// Output:
 	// page 1 /Contents: the font "Helvetica" (Type1) shows text but its font program is not embedded, which PDF/A requires; embed the font when producing the PDF
+}
+
+// ExampleSign signs a hybrid invoice in PAdES Baseline B-B and verifies the
+// signature. The self-signed certificate stands in for the qualified
+// certificate of the company and its chain.
+func ExampleSign() {
+	host, err := os.ReadFile("testdata/host.pdf")
+	if err != nil {
+		log.Fatal(err)
+	}
+	hybrid, err := zerechnung.Create(host, newInvoice(), &zerechnung.CreateOptions{Calculate: true})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	now := time.Now()
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Exemple Informatique SAS", Country: []string{"FR"}},
+		NotBefore:    now.Add(-time.Hour), NotAfter: now.AddDate(1, 0, 0),
+		KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageContentCommitment,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	signed, err := zerechnung.Sign(hybrid, &zerechnung.SignOptions{
+		Signer: key, Chain: []*x509.Certificate{cert}, Reason: "Facture", Location: "Paris",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	roots := x509.NewCertPool()
+	roots.AddCert(cert)
+	report, sigs, err := zerechnung.VerifySignatures(signed, &validate.TrustOptions{Roots: roots})
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := sigs[0]
+	fmt.Println(s.Field, s.Level, s.Valid, s.WholeDocument, s.Reason)
+	fmt.Println("errors:", len(report.Errors()))
+	// Output:
+	// Signature1 B-B true true Facture
+	// errors: 0
 }

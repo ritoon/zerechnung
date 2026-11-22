@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Checks that the CAdES and XAdES signatures of package fatturapa
-# interoperate with OpenSSL, xmlsec1 and EU DSS 6.5.1, both ways.
+# interoperate with OpenSSL, xmlsec1 and EU DSS 6.5.1, and the PAdES
+# signatures of package zerechnung with pdfsig (Poppler) and EU DSS, both
+# ways.
 #
 #   conformance/signature.sh [dir]
 #
@@ -19,16 +21,26 @@
 #     (exclusive C14N, C14N 1.1 with ECDSA, the XPath transform with
 #     comments) and DSS (XAdES and CAdES Baseline B, RSA, RSA-PSS, ECDSA);
 #  4. verifies those files with Unwrap and VerifySignature
-#     (TestForeignSignatures, FX_SIG_FOREIGN).
+#     (TestForeignSignatures, FX_SIG_FOREIGN);
+#  5. writes a hybrid invoice signed by Sign in PAdES B-B (RSA, RSA-PSS,
+#     ECDSA, certification followed by an approval signature), B-T and
+#     B-LTA, with a test PKI of its own (TestWritePAdESInteropFiles,
+#     FX_PADES_OUT);
+#  6. verifies them with pdfsig, which must find every ETSI.CAdES.detached
+#     signature valid (it does not verify document time-stamps), and DSS,
+#     which must find each signature at the PAdES level its file name gives;
+#  7. signs the unsigned invoice with DSS in PAdES Baseline B (RSA, RSA-PSS,
+#     ECDSA), and verifies those files with VerifySignatures
+#     (TestForeignPAdES, FX_PADES_FOREIGN).
 #
-# It needs go, openssl 3, xmlsec1, java 21 and mvn (Maven). Java and xmlsec1
-# run in the CI only: the package itself stays pure Go.
+# It needs go, openssl 3, xmlsec1, pdfsig, java 21 and mvn (Maven). Java,
+# xmlsec1 and pdfsig run in the CI only: the packages stay pure Go.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/lib.sh"
 
-for tool in go openssl xmlsec1 java mvn; do
+for tool in go openssl xmlsec1 pdfsig java mvn; do
 	command -v "$tool" >/dev/null || die "$tool is required"
 done
 
@@ -134,3 +146,38 @@ dss sign "$KEYS/signer-ec.p12" test "$doc" "$FOREIGN" ec
 log "the package verifies $(find "$FOREIGN" -name '*-*' | wc -l | tr -d ' ') files signed by the other tools"
 (cd "$here/.." && FX_SIG_FOREIGN="$FOREIGN" go test -count=1 -v -run '^TestForeignSignatures$' ./fatturapa |
 	grep -E '^(ok|FAIL|---|\s+---|\s+interop_test)')
+
+PADES=$WORK/pades                 # signed by Sign, with a test PKI of its own
+PADES_FOREIGN=$WORK/pades-foreign # signed by DSS, for TestForeignPAdES
+mkdir -p "$PADES" "$PADES_FOREIGN" "$KEYS/pades"
+
+log "PDF signed by the package"
+(cd "$here/.." && FX_PADES_OUT="$PADES" go test -count=1 -run '^TestWritePAdESInteropFiles$' .)
+mv "$PADES"/signer-*.key "$KEYS/pades"/
+cp "$PADES"/invoice.pdf "$PADES"/root.pem "$PADES"/intermediate.pem "$PADES_FOREIGN"/
+
+log "$(pdfsig -v 2>&1 | head -1) verifies the PDF"
+for f in "$PADES"/pades-*.pdf; do
+	pdfsig -nocert "$f" >"$WORK/pdfsig.log" 2>&1 || true
+	awk '/Signature Type:/ { type = $NF }
+		/Signature Validation:/ && type == "ETSI.CAdES.detached" { n++; if ($0 !~ /Signature is Valid\./) bad = 1 }
+		END { exit (n == 0 || bad) }' "$WORK/pdfsig.log" ||
+		{ cat "$WORK/pdfsig.log" >&2; die "pdfsig: ${f##*/} does not verify"; }
+	echo "PASS ${f##*/}"
+done
+
+log "DSS verifies the PDF"
+dss verify-pades "$PADES/root.pem" "$PADES/intermediate.pem" "$PADES"/pades-*.pdf
+
+log "DSS signs the PDF"
+for key in rsa ec; do
+	openssl pkcs12 -export -inkey "$KEYS/pades/signer-$key.key" -in "$PADES/signer-$key.pem" -certfile "$PADES/intermediate.pem" \
+		-passout pass:test -out "$KEYS/pades/signer-$key.p12"
+done
+dss sign-pades "$KEYS/pades/signer-rsa.p12" test "$PADES/invoice.pdf" "$PADES_FOREIGN" rsa
+dss sign-pades "$KEYS/pades/signer-rsa.p12" test "$PADES/invoice.pdf" "$PADES_FOREIGN" pss pss
+dss sign-pades "$KEYS/pades/signer-ec.p12" test "$PADES/invoice.pdf" "$PADES_FOREIGN" ec
+
+log "the package verifies $(find "$PADES_FOREIGN" -name 'dss-pades-*.pdf' | wc -l | tr -d ' ') PDF signed by DSS"
+(cd "$here/.." && FX_PADES_FOREIGN="$PADES_FOREIGN" go test -count=1 -v -run '^TestForeignPAdES$' . |
+	grep -E '^(ok|FAIL|---|\s+---|\s+sign_interop_test)')

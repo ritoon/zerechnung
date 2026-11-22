@@ -6,13 +6,13 @@ Ce dossier mesure l'exactitude du package sur les artefacts officiels, à chaque
 |---|---|
 | [`fetch.sh`](fetch.sh) | Récupère les artefacts officiels à des versions figées et les vérifie, puis affiche les variables `FX_*` qui activent les tests optionnels |
 | [`fetch-nl.sh`](fetch-nl.sh) | Récupère les seuls artefacts des règles néerlandaises (`FX_NL`, `FX_NL_TESTS`) ; `fetch.sh` l'appelle, et le job *Tests NLCIUS sur les artefacts officiels* du workflow [CI](../.github/workflows/ci.yml) l'exécute seul, en quelques secondes |
-| [`verapdf.sh`](verapdf.sh) | Convertit en PDF/A-3 les fichiers PDF/A-2b et PDF/A-3b du corpus veraPDF et les PDF non conformes des tests, puis vérifie les fichiers convertis avec veraPDF |
+| [`verapdf.sh`](verapdf.sh) | Convertit en PDF/A-3 les fichiers PDF/A-2b et PDF/A-3b du corpus veraPDF et les PDF non conformes des tests, signe en PAdES une facture hybride PDF/A-3, puis vérifie ces fichiers avec veraPDF |
 | [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, KoSIT sur les variants des tests de mutation EN 16931 et XRechnung, les XSLT de la NPa sur les factures NLCIUS, les XSLT EXTENDED-CTC-FR de la FNFE-MPE sur les factures EXTENDED-CTC-FR et le schematron CIUS-PT d'eSPap, compilé par SchXslt, sur les factures CIUS-PT, puis compare leurs règles à celles du package |
 | [`parity/`](parity) | Outil Go de comparaison (module séparé) et lanceurs Java de Mustang, des XSLT de la NPa et de la FNFE-MPE, et du schematron CIUS-PT |
 | [`parity/known.txt`](parity/known.txt) | Écarts connus et justifiés, règles attendues par un variant que la référence ne lève pas, et assertions NLCIUS qu'aucune facture ne déclenche ; tout autre écart fait échouer le job |
 | [`qr/`](qr) | Tests Go (module séparé) qui font lire les QR codes du package `internal/qr` par gozxing, portage de ZXing, et par le décodeur de piglig/go-qr, dont l'encodeur est issu ; job *Lecture des QR codes par deux décodeurs* |
-| [`signature.sh`](signature.sh) | Fait vérifier par OpenSSL, xmlsec1 et EU DSS les signatures CAdES et XAdES du package `fatturapa`, et fait vérifier par le package les fichiers que ces outils signent |
-| [`signature/`](signature) | Projet Maven d'EU DSS 6.5.1 et son lanceur [`DssCheck.java`](signature/DssCheck.java), qui valide et signe |
+| [`signature.sh`](signature.sh) | Fait vérifier par OpenSSL, xmlsec1 et EU DSS les signatures CAdES et XAdES du package `fatturapa`, par pdfsig et EU DSS les signatures PAdES du package `zerechnung`, et fait vérifier par les packages les fichiers que ces outils signent |
+| [`signature/`](signature) | Projet Maven d'EU DSS 6.5.1 et son lanceur [`DssCheck.java`](signature/DssCheck.java), qui valide et signe (CAdES, XAdES, PAdES) |
 
 ## Artefacts
 
@@ -56,9 +56,9 @@ Le job *Tests sur les artefacts officiels* lance `go test ./...` avec toutes les
 
 ### Règles levées par la suite
 
-Le job compile aussi la suite avec l'étiquette `ruletrace` : chaque binaire de test écrit alors dans `rules.txt` les règles des findings qu'il rapporte (`ZERECHNUNG_RULE_TRACE`, voir [`internal/rules/trace_ruletrace.go`](../internal/rules/trace_ruletrace.go)), et `TestRuleCoverage` ([`rulecoverage_test.go`](../rulecoverage_test.go)) vérifie ensuite que chaque règle des catalogues (`validate.Catalog` de tous les jeux de règles et `ContainerCatalog`), plus `XML`, `CII` et les règles de `fatturapa.VerifySignature`, est levée par au moins un test. C'est la version dynamique des tests `TestCatalogComplete`, qui lisent les sources : une règle écrite qu'aucun test ne fait échouer peut être inatteignable, ou fausse sans qu'aucun test ne le voie.
+Le job compile aussi la suite avec l'étiquette `ruletrace` : chaque binaire de test écrit alors dans `rules.txt` les règles des findings qu'il rapporte (`ZERECHNUNG_RULE_TRACE`, voir [`internal/rules/trace_ruletrace.go`](../internal/rules/trace_ruletrace.go)), et `TestRuleCoverage` ([`rulecoverage_test.go`](../rulecoverage_test.go)) vérifie ensuite que chaque règle des catalogues (`validate.Catalog` de tous les jeux de règles, `ContainerCatalog` et `SignatureCatalog`), plus `XML`, `CII` et les règles de `fatturapa.VerifySignature`, est levée par au moins un test. C'est la version dynamique des tests `TestCatalogComplete`, qui lisent les sources : une règle écrite qu'aucun test ne fait échouer peut être inatteignable, ou fausse sans qu'aucun test ne le voie.
 
-La suite lève 2 752 des 3 188 règles. Les 436 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF, de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
+La suite lève 2 766 des 3 202 règles. Les 436 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de ses signatures (SIG-01 à SIG-14), de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
 
 | Jeu de règles | Non levées | Familles |
 |---|---|---|
@@ -78,7 +78,7 @@ go test -run '^TestRuleCoverage$' . -rule-coverage rules.txt
 Le job *veraPDF sur les PDF convertis* exécute [`verapdf.sh`](verapdf.sh), qui vérifie avec veraPDF 1.30.3 les fichiers qu'écrit `ConvertPDFA`. veraPDF tourne depuis l'image Docker du consortium veraPDF, figée par son empreinte (`verapdf/cli:v1.30.3@sha256:d74b7026…`) : le package reste en pur Go. Le script :
 
 1. récupère le corpus veraPDF au commit de `fetch.sh` (`FX_VERAPDF`) ;
-2. lance `TestConvertCorpus`, `TestConvertPDFA` et `TestEmbedConvertPDFA` avec `FX_PDFA_OUT` : les 998 fichiers PDF/A-2b et PDF/A-3b du corpus, valides et invalides, sont convertis (ou refusés), comme les PDF non conformes que génèrent les tests de [`convert_test.go`](../convert_test.go) (actions et JavaScript, LZW, états graphiques, annotations sans le drapeau Print, ressources héritées, fichiers incorporés incomplets, métadonnées refusées par PDF/A…) et la facture hybride de `testdata` ; les fichiers convertis sont écrits dans `conformance/.artifacts/pdfa/out` ;
+2. lance `TestConvertCorpus`, `TestConvertPDFA`, `TestEmbedConvertPDFA` et `TestSignPDFA` avec `FX_PDFA_OUT` : les 998 fichiers PDF/A-2b et PDF/A-3b du corpus, valides et invalides, sont convertis (ou refusés), comme les PDF non conformes que génèrent les tests de [`convert_test.go`](../convert_test.go) (actions et JavaScript, LZW, états graphiques, annotations sans le drapeau Print, ressources héritées, fichiers incorporés incomplets, métadonnées refusées par PDF/A…) et la facture hybride de `testdata` ; `TestSignPDFA` signe une facture hybride PDF/A-3 en PAdES B-B, B-T, B-LTA (DSS et horodatage de document) et par une certification suivie d'une signature d'approbation, pour les règles de signature de PDF/A (6.4.3 et 6.3.3) ; les fichiers sont écrits dans `conformance/.artifacts/pdfa/out` ;
 3. exécute veraPDF sur ce dossier, qui détecte la conformité déclarée (PDF/A-3B) ;
 4. relance les mêmes tests avec `FX_PDFA_REPORT` : chaque fichier converti doit passer veraPDF, sauf les échecs connus que liste `convertKnownFailures` dans [`convert_corpus_test.go`](../convert_corpus_test.go). Un échec non listé, un fichier listé qui passe ou n'est plus converti, un fichier absent du rapport font échouer le job.
 
@@ -88,6 +88,7 @@ Le job *veraPDF sur les PDF convertis* exécute [`verapdf.sh`](verapdf.sh), qui 
 |---|---|---|---|---|
 | Corpus veraPDF, PDF/A-2b et PDF/A-3b (998) | 836 | 162 | 835 | 1 |
 | PDF non conformes générés par les tests (10) | 10 | — | 10 | 0 |
+| Factures hybrides signées en PAdES par `TestSignPDFA` (4) | — | — | 4 | 0 |
 
 Des 162 refus, un seul porte sur un fichier valide du corpus : un document signé, que la réécriture invaliderait (`convertRefusedValid`). Les autres sont des fichiers invalides que la conversion ne sait pas réparer sans moteur PDF : police non incorporée, glyphe absent du programme de police ou de largeur différente, glyphe `.notdef`, nom de glyphe hors de l'Adobe Glyph List, valeur de CID hors limites, données JPEG 2000 refusées par PDF/A, DeviceCMYK sans profil CMYK, annotation masquée ou sans apparence, opérateur inconnu, profil ICC de l'intention de sortie inutilisable, chiffrement…
 
@@ -264,9 +265,9 @@ Des 5 462 variantes que Saxon mène à terme, 3 878 lèvent au moins une règle 
 
 Les 1 077 cas de `internal/rules/pt/cases_gen_test.go`, chacun une variante et les règles que Saxon lève pour elle, figent en plus ce résultat dans `go test`, sans Java (1 105 des 1 154 identifiants du schematron) ; `go test ./internal/rules/pt -run '^TestUpdateCases$' -variants DIR` les régénère à partir des rapports SVRL des variantes. Les 49 autres identifiants n'ont pas de variante à une seule modification qui les lève : ils demandent deux modifications à la fois (BR-CO-03 : date et code de date d'exigibilité de la TVA ; BR-42, BR-44, BR-CO-23, BR-CO-24 : motif et code de motif d'une remise ou d'une charge de ligne), ou portent sur un élément qu'aucune des trois factures ne contient (devise de TVA BT-6 et notes structurées `#SOURCECURRENCYCODE#` et `#CALCULATIONRATE#`, répétitions que vérifient certaines règles de syntaxe UBL-SR). `cases_gen_test.go` les liste.
 
-## Interopérabilité des signatures FatturaPA
+## Interopérabilité des signatures FatturaPA et PAdES
 
-Le job *Interopérabilité des signatures FatturaPA* exécute [`signature.sh`](signature.sh), qui croise les signatures du package `fatturapa` (`SignCAdES`, `SignXAdES`, `Unwrap`, `VerifySignature`) avec trois implémentations de référence, dans les deux sens. Aucun certificat réel n'intervient : `TestWriteInteropFiles`, avec `FX_SIG_OUT`, génère une PKI de test (racine, autorité intermédiaire, certificats de signature qualifiés RSA et ECDSA) valide à la date du jour.
+Le job *Interopérabilité des signatures FatturaPA et PAdES* exécute [`signature.sh`](signature.sh), qui croise les signatures du package `fatturapa` (`SignCAdES`, `SignXAdES`, `Unwrap`, `VerifySignature`) avec trois implémentations de référence, dans les deux sens. Aucun certificat réel n'intervient : `TestWriteInteropFiles`, avec `FX_SIG_OUT`, génère une PKI de test (racine, autorité intermédiaire, certificats de signature qualifiés RSA et ECDSA) valide à la date du jour.
 
 | Outil | Vérifie les fichiers du package | Signe des fichiers que le package vérifie |
 |---|---|---|
@@ -277,6 +278,15 @@ Le job *Interopérabilité des signatures FatturaPA* exécute [`signature.sh`](s
 La conclusion de DSS reste INDETERMINATE, faute de données de révocation pour la PKI de test : seule la validation du certificat (bloc XCV) en dépend, et le script ne la contrôle pas.
 
 `TestForeignSignatures`, avec `FX_SIG_FOREIGN`, vérifie enfin chacun des 13 fichiers signés par les outils : `Unwrap` doit rendre la facture (à l'octet près en CAdES, à l'identique une fois lue en XAdES, que les outils réécrivent) et `VerifySignature` ne lever que les règles attendues de l'outil (`foreignExpect` dans [`interop_test.go`](../fatturapa/interop_test.go)) : aucune pour DSS et `openssl cms -sign -cades`, IT-SIG-06 pour une signature CMS sans signing-certificate-v2 ou une signature XML sans propriétés XAdES, 00103 pour une signature sans heure de signature (riferimento temporale). Tous lèvent IT-SIG-05, faute de données de révocation.
+
+Le script croise ensuite les signatures PAdES de `Sign`, `AddValidationData`, `AddDocumentTimestamp` et `VerifySignatures`. `TestWritePAdESInteropFiles`, avec `FX_PADES_OUT`, génère sa propre PKI de test, avec une autorité d'horodatage (RFC 3161), une facture hybride non signée et sept PDF signés : B-B en RSA, RSA-PSS SHA-384 et ECDSA, certification (DocMDP 2) suivie d'une signature d'approbation, B-T, et B-LTA (chaîne, CRL et réponse OCSP dans le DSS, puis horodatage de document).
+
+| Outil | Vérifie les PDF du package | Signe des PDF que le package vérifie |
+|---|---|---|
+| pdfsig (Poppler 24.02, paquet Ubuntu) | `pdfsig -nocert` : chaque signature ETSI.CAdES.detached valide (pdfsig ne vérifie pas les horodatages de document) | — |
+| EU DSS 6.5.1 (Maven Central) | `DssCheck.java verify-pades` : niveau PAdES-BASELINE-B, -T ou -LTA selon le nom du fichier, plage d'octets, dictionnaire de signature, aucune modification indéfinie après chaque signature, mêmes contrôles que plus haut, et chaque horodatage (empreinte, signature, chaîne jusqu'à la racine) | `DssCheck.java sign-pades` : PAdES Baseline B de la facture hybride, RSA, RSA-PSS et ECDSA |
+
+Le fichier B-LTA, qui porte ses données de révocation, atteint TOTAL_PASSED chez DSS ; les autres restent INDETERMINATE, faute de données de révocation. `TestForeignPAdES`, avec `FX_PADES_FOREIGN`, vérifie les trois PDF signés par DSS : une signature PAdES B-B valide, couvrant tout le fichier, de confiance avec la racine de test, sans aucun constat SIG en erreur ou en avertissement, et la facture toujours extractible.
 
 ## En local
 
@@ -293,4 +303,4 @@ conformance/parity.sh
 conformance/signature.sh
 ```
 
-`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE et le schematron CIUS-PT ; `signature.sh` demande Go, OpenSSL 3, xmlsec1, Java 21 et Maven. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.
+`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE et le schematron CIUS-PT ; `signature.sh` demande Go, OpenSSL 3, xmlsec1, pdfsig (poppler-utils), Java 21 et Maven. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.

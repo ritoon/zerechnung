@@ -791,6 +791,11 @@ type EmbedOptions struct {
 	// ModDate is the date of the conversion. RequirePDFA is then met by
 	// the converted host.
 	ConvertPDFA bool
+	// Sign, when set, signs the result with Sign: the PAdES signature
+	// then covers the PDF and the embedded invoice. A host whose
+	// certification signature (DocMDP) forbids the change is refused
+	// whatever Sign (see Embed).
+	Sign *SignOptions
 }
 
 // File is a supplementary file that Embed attaches to the PDF besides the
@@ -1014,6 +1019,13 @@ func putFile(u *pdf.Update, name, desc, rel, mime string, date time.Time, data [
 // Embed fails when EmbedOptions.Relationship does not fit the profile or,
 // for Data and Source, the seller's country (see EmbedOptions).
 //
+// On a signed host, the earlier signatures stay valid on the revision they
+// cover, but the invoice is added after them: VerifySignatures and Check
+// report it (SIG-05). Embed refuses a host certified by a DocMDP
+// signature, with an error wrapping ErrCertified: no certification level
+// permits embedding a file. With EmbedOptions.Sign, the result is signed
+// with Sign, after the invoice is embedded.
+//
 // Embed does not convert the PDF to PDF/A unless EmbedOptions.ConvertPDFA
 // is set: fonts, colour spaces and output intents are left as they are, and
 // CheckContainer reports what is missing. With EmbedOptions.RequirePDFA,
@@ -1085,6 +1097,9 @@ func Embed(pdfData, xml []byte, opts *EmbedOptions) ([]byte, error) {
 		if err := c.requirePDFA(); err != nil {
 			return nil, err
 		}
+	}
+	if level := docMDP(c.r, c.catalog); level != NoCertification {
+		return nil, fmt.Errorf("%w (%s): embedding a file is permitted at no level", ErrCertified, level)
 	}
 	r := c.r
 	u := pdf.NewUpdate(r)
@@ -1288,5 +1303,9 @@ func Embed(pdfData, xml []byte, opts *EmbedOptions) ([]byte, error) {
 		first = second
 	}
 	trailer.Set("ID", pdf.Array{first, second})
-	return u.Bytes(trailer), nil
+	out := u.Bytes(trailer)
+	if o.Sign != nil {
+		return Sign(out, o.Sign)
+	}
+	return out, nil
 }

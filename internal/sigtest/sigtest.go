@@ -254,6 +254,22 @@ func (p *PKI) SignCRL(tb testing.TB, tmpl *x509.RevocationList) *x509.Revocation
 	return crl
 }
 
+// RootCRL returns a CRL of the root authority that revokes nothing: the
+// revocation data of the intermediate authority.
+func (p *PKI) RootCRL(tb testing.TB, thisUpdate time.Time) *x509.RevocationList {
+	tb.Helper()
+	tmpl := &x509.RevocationList{Number: nextSerial(), ThisUpdate: thisUpdate, NextUpdate: thisUpdate.AddDate(0, 0, 7)}
+	der, err := x509.CreateRevocationList(rand.Reader, tmpl, p.Root, p.RootKey)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	crl, err := x509.ParseRevocationList(der)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return crl
+}
+
 // OCSP statuses for OCSP.
 const (
 	OCSPGood = iota
@@ -350,4 +366,29 @@ func der(tag byte, content ...[]byte) []byte {
 		out = append(out, 0x82, byte(n>>8), byte(n))
 	}
 	return append(out, body...)
+}
+
+// TSA returns the certificate of a time-stamping authority issued by the
+// intermediate authority, with an ECDSA key and the time-stamping extended
+// key usage marked critical, as RFC 3161 §2.3 requires.
+func (p *PKI) TSA(tb testing.TB) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+	key := ECKey(tb)
+	eku, err := asn1.Marshal([]asn1.ObjectIdentifier{{1, 3, 6, 1, 5, 5, 7, 3, 8}})
+	if err != nil {
+		tb.Fatal(err)
+	}
+	last := Epoch
+	if now := time.Now(); now.After(last) {
+		last = now
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:    nextSerial(),
+		Subject:         pkix.Name{CommonName: "ZeRechnung Test TSA", Organization: []string{"ZeRechnung tests"}, Country: []string{"IT"}},
+		NotBefore:       Epoch.AddDate(-2, 0, 0),
+		NotAfter:        last.AddDate(5, 0, 0),
+		KeyUsage:        x509.KeyUsageDigitalSignature,
+		ExtraExtensions: []pkix.Extension{{Id: asn1.ObjectIdentifier{2, 5, 29, 37}, Critical: true, Value: eku}},
+	}
+	return create(tb, tmpl, p.Intermediate, key.Public(), p.IntermediateKey), key
 }

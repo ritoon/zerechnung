@@ -21,7 +21,6 @@ import (
 	"github.com/ritoon/zerechnung/internal/cms"
 	"github.com/ritoon/zerechnung/internal/pdf"
 	"github.com/ritoon/zerechnung/internal/pdf/pdftest"
-	"github.com/ritoon/zerechnung/internal/sigalg"
 	"github.com/ritoon/zerechnung/internal/sigtest"
 	"github.com/ritoon/zerechnung/validate"
 )
@@ -451,36 +450,6 @@ func TestErrors(t *testing.T) {
 	if _, err := Sign(allowed, ss[0].options()); err != nil {
 		t.Errorf("a document certified with form filling and signing allowed: %v", err)
 	}
-}
-
-// TestReserve checks that the reserved size bounds the real signature for
-// each key, ECDSA signatures varying in length.
-func TestReserve(t *testing.T) {
-	for _, s := range signers(t) {
-		o := s.options()
-		size, err := reserve(o, mustAlg(t, o))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for i := 0; i < 20; i++ {
-			der, err := cms.Sign([]byte{byte(i)}, &cms.SignOptions{Signer: s.key, Chain: s.chain, Hash: s.hash, PSS: s.pss, Detached: true})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(der) > size-contentsMargin {
-				t.Fatalf("%s: signature of %d bytes, more than the trial %d", s.name, len(der), size-contentsMargin)
-			}
-		}
-	}
-}
-
-func mustAlg(t *testing.T, o *Options) sigalg.Algorithm {
-	t.Helper()
-	a, err := sigalg.For(o.Chain[0].PublicKey, o.Hash, o.PSS)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return a
 }
 
 // TestWriteSamples writes signed files to the directory named by

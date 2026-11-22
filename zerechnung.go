@@ -14,7 +14,10 @@
 //   - Embed adds an XML invoice to a PDF; Create does the same from an
 //     invoice.Invoice.
 //   - Check validates a hybrid PDF: container, XML schema, EN 16931 rules,
-//     profile rules and, on request, French and German rules.
+//     profile rules, signatures and, on request, French and German rules.
+//   - Sign signs a PDF in PAdES, as a signature or a seal; AddValidationData
+//     and AddDocumentTimestamp take the signature to B-LT and B-LTA, and
+//     VerifySignatures checks the signatures of a PDF.
 //
 // Sub-packages give direct access to each layer: invoice (the EN 16931
 // model), cii (CII XML), validate (validation of XML invoices).
@@ -133,6 +136,10 @@ func Create(pdf []byte, inv *invoice.Invoice, opts *CreateOptions) ([]byte, erro
 // Factur-X PDF is checked against the Factur-X schematron of the EN 16931
 // profile, like BASIC and EXTENDED invoices (see validate.Options.Hybrid).
 //
+// The signatures of a signed PDF are checked by VerifySignatures, with
+// opts.Trust: the findings of SignatureCatalog follow those of the
+// container.
+//
 // opts.PDFA selects the PDF/A checks of the container. The default,
 // validate.PDFAFull, reads the content streams of the pages and the font
 // programs they use, which takes most of the time and memory of a check;
@@ -176,6 +183,10 @@ func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, e
 		}
 	default:
 		r = validate.XML(att.XML, opts) // reports why the XML cannot be parsed
+	}
+	// The signatures of the PDF, when it has some.
+	if sr, sigs, err := VerifySignatures(pdf, &opts.Trust); err == nil && len(sigs) > 0 {
+		findings = append(findings, sr.Findings...)
 	}
 	r.Findings = append(findings, r.Findings...)
 	return r, att, nil

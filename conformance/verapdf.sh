@@ -2,14 +2,15 @@
 # Checks the files that ConvertPDFA writes with veraPDF: the PDF/A-2b and
 # PDF/A-3b test files of the veraPDF corpus, converted, and the non-
 # conforming PDF files that the tests of convert_test.go generate and
-# convert.
+# convert; and the PDF/A-3 hybrid invoices that TestSignPDFA signs (PAdES
+# B-B, B-T, B-LTA, certification), for the signature rules of 6.4.3.
 #
 #   conformance/verapdf.sh [dir]
 #
 # dir defaults to conformance/.artifacts. The script fetches the veraPDF
 # corpus (FX_VERAPDF) at its pinned commit, converts the files with
 #
-#   go test -run '^(TestConvertCorpus|TestConvertPDFA|TestEmbedConvertPDFA)$'
+#   go test -run '^(TestConvertCorpus|TestConvertPDFA|TestEmbedConvertPDFA|TestSignPDFA)$'
 #
 # and FX_PDFA_OUT, runs veraPDF on them, then checks the report with the
 # same tests and FX_PDFA_REPORT: every converted file passes, but those that
@@ -38,7 +39,7 @@ fetch_git_sparse "$DEST/verapdf-corpus" https://github.com/veraPDF/veraPDF-corpu
 WORK=$DEST/pdfa
 rm -rf "$WORK"
 mkdir -p "$WORK/out"
-tests='^(TestConvertCorpus|TestConvertPDFA|TestEmbedConvertPDFA)$'
+tests='^(TestConvertCorpus|TestConvertPDFA|TestEmbedConvertPDFA|TestSignPDFA)$'
 
 log "conversion"
 (cd "$here/.." && FX_VERAPDF="$DEST/verapdf-corpus" FX_PDFA_OUT="$WORK/out" go test -count=1 -run "$tests" .)

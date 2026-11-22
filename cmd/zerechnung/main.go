@@ -8,17 +8,24 @@
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
-//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-json] invoice.pdf|invoice.xml
+//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
 //	zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-o out.pdf] input.pdf
+//	zerechnung sign -key key.pem -cert cert.pem [-reason r] [-location l] [-certify 1|2|3] [-o out.pdf] input.pdf
 //	zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
 //	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt]
 //
-// validate exits with status 1 when the invoice has errors.
+// validate exits with status 1 when the invoice has errors. It checks the
+// signatures of a signed PDF, against the trusted roots of -roots when
+// given. sign signs a PDF in PAdES Baseline B-B with a key and its
+// certificate chain in PEM files.
 package main
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -48,8 +55,9 @@ FatturaPA file signed in CAdES (.xml.p7m).
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
   zerechnung info invoice.pdf
-  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-json] invoice.pdf|invoice.xml
+  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
   zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-convert-pdfa] [-o out.pdf] input.pdf
+  zerechnung sign -key key.pem -cert cert.pem [-reason r] [-location l] [-contact c] [-name n] [-field f] [-certify 1|2|3] [-hash sha256|sha384|sha512] [-pss] [-o out.pdf] input.pdf
   zerechnung pdfa [-o out.pdf] input.pdf
   zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
   zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt]
@@ -74,6 +82,8 @@ func main() {
 		code, err = validateCmd(args, os.Stdout)
 	case "embed":
 		err = embed(args)
+	case "sign":
+		err = signCmd(args)
 	case "pdfa":
 		err = pdfaCmd(args)
 	case "json":
@@ -200,12 +210,27 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	profile := fs.String("profile", "", "validate against this profile instead of BT-24")
 	hybrid := fs.Bool("hybrid", false, "the XML is the invoice of a Factur-X PDF: check an EN 16931 invoice against the Factur-X schematron (always the case for a PDF)")
 	pdfa := fs.String("pdfa", "full", "PDF/A checks of a PDF: full, or basic to skip those that read the pages and the font programs (PDF-41 to PDF-69, PDF-71, PDF-72), about ten times faster")
+	roots := fs.String("roots", "", "PEM file of the trusted root certificates the signatures of a PDF are checked against")
 	asJSON := fs.Bool("json", false, "print the report as JSON")
 	_, data, err := oneFile(fs, args)
 	if err != nil {
 		return 0, err
 	}
 	opts := &validate.Options{Auto: *auto, RejectBasicWL: *rejectBasicWL, Hybrid: *hybrid}
+	if *roots != "" {
+		b, err := os.ReadFile(*roots)
+		if err != nil {
+			return 0, err
+		}
+		certs, err := parseCertificates(b)
+		if err != nil {
+			return 0, fmt.Errorf("-roots: %w", err)
+		}
+		opts.Trust.Roots = x509.NewCertPool()
+		for _, c := range certs {
+			opts.Trust.Roots.AddCert(c)
+		}
+	}
 	switch *pdfa {
 	case "full":
 		opts.PDFA = validate.PDFAFull
@@ -335,7 +360,133 @@ func embed(args []string) error {
 	if err != nil {
 		return reasons(err)
 	}
+	if _, sigs, err := zerechnung.VerifySignatures(pdf, nil); err == nil && len(sigs) > 0 {
+		fmt.Fprintf(os.Stderr, "zerechnung: warning: the input PDF holds %d signature(s); they do not cover the invoice embedded after them (SIG-05): sign the hybrid PDF instead\n", len(sigs))
+	}
 	return writeOut(*out, res)
+}
+
+// signCmd signs a PDF in PAdES Baseline B-B, or certifies it with
+// -certify.
+func signCmd(args []string) error {
+	fs := flag.NewFlagSet("sign", flag.ContinueOnError)
+	keyPath := fs.String("key", "", "PEM file of the private key, RSA or ECDSA, unencrypted (PKCS#8, PKCS#1 or SEC 1) (required)")
+	certPath := fs.String("cert", "", "PEM file of the signing certificate, followed by the certificates of its chain (required)")
+	reason := fs.String("reason", "", "reason of the signature (/Reason)")
+	location := fs.String("location", "", "place of signing (/Location)")
+	contact := fs.String("contact", "", "contact information of the signer (/ContactInfo)")
+	name := fs.String("name", "", "name of the signer (/Name)")
+	field := fs.String("field", "", "name of the signature field (default: the first free SignatureN)")
+	certify := fs.Int("certify", 0, "certify the document (DocMDP): 1 permits no change, 2 form filling and signing, 3 annotations as well (default: an approval signature)")
+	hash := fs.String("hash", "sha256", "digest algorithm: sha256, sha384 or sha512")
+	pss := fs.Bool("pss", false, "sign with RSA-PSS instead of RSA PKCS#1 v1.5")
+	out := fs.String("o", "", "output PDF (default: standard output)")
+	_, data, err := oneFile(fs, args)
+	if err != nil {
+		return err
+	}
+	if *keyPath == "" || *certPath == "" {
+		return errors.New("sign: -key and -cert are required")
+	}
+	kb, err := os.ReadFile(*keyPath)
+	if err != nil {
+		return err
+	}
+	key, err := parsePrivateKey(kb)
+	if err != nil {
+		return fmt.Errorf("-key: %w", err)
+	}
+	cb, err := os.ReadFile(*certPath)
+	if err != nil {
+		return err
+	}
+	chain, err := parseCertificates(cb)
+	if err != nil {
+		return fmt.Errorf("-cert: %w", err)
+	}
+	opts := &zerechnung.SignOptions{
+		Signer: key, Chain: chain, PSS: *pss, Certify: zerechnung.Certification(*certify),
+		Reason: *reason, Location: *location, ContactInfo: *contact, Name: *name, FieldName: *field,
+	}
+	switch strings.ToLower(*hash) {
+	case "sha256":
+		opts.Hash = crypto.SHA256
+	case "sha384":
+		opts.Hash = crypto.SHA384
+	case "sha512":
+		opts.Hash = crypto.SHA512
+	default:
+		return fmt.Errorf("unknown digest algorithm %q (sha256, sha384 or sha512)", *hash)
+	}
+	res, err := zerechnung.Sign(data, opts)
+	if err != nil {
+		return err
+	}
+	return writeOut(*out, res)
+}
+
+// parsePrivateKey reads the first private key of a PEM file: PKCS#8,
+// PKCS#1 (RSA) or SEC 1 (EC), unencrypted.
+func parsePrivateKey(data []byte) (crypto.Signer, error) {
+	for {
+		var block *pem.Block
+		block, data = pem.Decode(data)
+		if block == nil {
+			return nil, errors.New("no private key in the PEM file")
+		}
+		var key any
+		var err error
+		switch block.Type {
+		case "PRIVATE KEY":
+			key, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+		case "RSA PRIVATE KEY":
+			if _, encrypted := block.Headers["DEK-Info"]; encrypted {
+				return nil, errors.New("the key is encrypted: decrypt it first (openssl pkey -in key.pem -out plain.pem)")
+			}
+			key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		case "EC PRIVATE KEY":
+			if _, encrypted := block.Headers["DEK-Info"]; encrypted {
+				return nil, errors.New("the key is encrypted: decrypt it first (openssl pkey -in key.pem -out plain.pem)")
+			}
+			key, err = x509.ParseECPrivateKey(block.Bytes)
+		case "ENCRYPTED PRIVATE KEY":
+			return nil, errors.New("the key is encrypted: decrypt it first (openssl pkey -in key.pem -out plain.pem)")
+		default:
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		signer, ok := key.(crypto.Signer)
+		if !ok {
+			return nil, fmt.Errorf("unsupported key type %T", key)
+		}
+		return signer, nil
+	}
+}
+
+// parseCertificates reads the certificates of a PEM file, in their order.
+func parseCertificates(data []byte) ([]*x509.Certificate, error) {
+	var certs []*x509.Certificate
+	for {
+		var block *pem.Block
+		block, data = pem.Decode(data)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		c, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, c)
+	}
+	if len(certs) == 0 {
+		return nil, errors.New("no certificate in the PEM file")
+	}
+	return certs, nil
 }
 
 // pdfaCmd converts a PDF to PDF/A-3. When the conversion is refused, every

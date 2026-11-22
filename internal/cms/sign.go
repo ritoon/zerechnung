@@ -35,6 +35,15 @@ type SignOptions struct {
 	MimeType string
 	// Detached leaves the content out of the SignedData.
 	Detached bool
+	// ContentType is the type of the content, written in the
+	// encapsulated content info and the content-type attribute; id-data
+	// when nil (id-ct-TSTInfo for a time-stamp token).
+	ContentType asn1.ObjectIdentifier
+	// SignatureTimestamp, when set, is called with the signature value
+	// and returns a time-stamp token over it (RFC 3161), which is written
+	// in the signature-time-stamp unsigned attribute (CAdES and PAdES
+	// Baseline T, ETSI EN 319 122-1 §5.3).
+	SignatureTimestamp func(signature []byte) ([]byte, error)
 }
 
 // Sign returns a ContentInfo holding a SignedData that signs content, DER
@@ -57,10 +66,14 @@ func Sign(content []byte, o *SignOptions) ([]byte, error) {
 	}
 	hashOID, _ := sigalg.OIDFromHash(alg.Hash)
 	digestAI := mustMarshal(pkix.AlgorithmIdentifier{Algorithm: hashOID})
+	contentType := o.ContentType
+	if contentType == nil {
+		contentType = OIDData
+	}
 
 	// Signed attributes, sorted by their encoding as DER sorts a SET OF.
 	attrs := [][]byte{
-		attr(OIDAttrContentType, mustMarshal(OIDData)),
+		attr(OIDAttrContentType, mustMarshal(contentType)),
 		attr(OIDAttrMessageDigest, mustMarshal(sigalg.Digest(alg.Hash, content))),
 		attr(OIDAttrSigningCertificateV2, signingCertV2(cert, alg.Hash)),
 	}
@@ -85,14 +98,26 @@ func Sign(content []byte, o *SignOptions) ([]byte, error) {
 	}
 	implicitAttrs := append([]byte{0xa0}, signedAttrs[1:]...)
 
-	signerInfo := tlv(0x30,
+	fields := [][]byte{
 		mustMarshal(1),
 		tlv(0x30, cert.RawIssuer, mustMarshal(cert.SerialNumber)),
 		digestAI,
 		implicitAttrs,
 		mustMarshal(sigAI),
 		mustMarshal(sig),
-	)
+	}
+	if o.SignatureTimestamp != nil {
+		token, err := o.SignatureTimestamp(sig)
+		if err != nil {
+			return nil, fmt.Errorf("cms: signature time-stamp: %w", err)
+		}
+		var v asn1.RawValue
+		if rest, err := asn1.Unmarshal(token, &v); err != nil || len(rest) != 0 || v.Tag != asn1.TagSequence {
+			return nil, errors.New("cms: the signature time-stamp token is not a DER SEQUENCE")
+		}
+		fields = append(fields, tlv(0xa1, attr(OIDAttrTimestamp, token)))
+	}
+	signerInfo := tlv(0x30, fields...)
 
 	var certs [][]byte
 	seen := map[string]bool{}
@@ -102,7 +127,7 @@ func Sign(content []byte, o *SignOptions) ([]byte, error) {
 			certs = append(certs, c.Raw)
 		}
 	}
-	encap := [][]byte{mustMarshal(OIDData)}
+	encap := [][]byte{mustMarshal(contentType)}
 	if !o.Detached {
 		encap = append(encap, tlv(0xa0, mustMarshal(content)))
 	}

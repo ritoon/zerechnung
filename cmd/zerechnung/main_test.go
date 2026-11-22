@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"os"
 	"path/filepath"
@@ -427,5 +428,75 @@ func TestFacturae(t *testing.T) {
 	bad = mutated(t, name, "<IssueDate>2026-11-02</IssueDate>", "<IssueDate>02/11/2026</IssueDate>")
 	if code, got := runValidate(t, bad); code != 1 || !got["FE-01"] {
 		t.Errorf("validate of an unreadable date: code %d, findings %v", code, got)
+	}
+}
+
+// TestSignCmd signs a hybrid invoice with keys and certificates in PEM
+// files and checks the signature with validate -roots: trusted, it adds no
+// error; against other roots, SIG-07 or SIG-09 makes validate fail.
+func TestSignCmd(t *testing.T) {
+	dir := t.TempDir()
+	invoice := filepath.Join(dir, "invoice.pdf")
+	if err := embed([]string{"-xml", "../../testdata/EN16931_Einfach.cii.xml", "-o", invoice, "../../testdata/host.pdf"}); err != nil {
+		t.Fatal(err)
+	}
+	p := sigtest.New(t)
+	cert, key := p.Leaf(t, sigtest.LeafOptions{QC: sigtest.QcSeal})
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write := func(name string, blocks ...*pem.Block) string {
+		var b bytes.Buffer
+		for _, bl := range blocks {
+			if err := pem.Encode(&b, bl); err != nil {
+				t.Fatal(err)
+			}
+		}
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, b.Bytes(), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	keyPEM := write("key.pem", &pem.Block{Type: "PRIVATE KEY", Bytes: der})
+	certPEM := write("cert.pem", &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}, &pem.Block{Type: "CERTIFICATE", Bytes: p.Intermediate.Raw})
+	roots := write("roots.pem", &pem.Block{Type: "CERTIFICATE", Bytes: p.Root.Raw})
+	other := sigtest.New(t)
+	otherRoots := write("other.pem", &pem.Block{Type: "CERTIFICATE", Bytes: other.Root.Raw})
+
+	signed := filepath.Join(dir, "signed.pdf")
+	if err := signCmd([]string{"-key", keyPEM, "-cert", certPEM, "-reason", "Facture", "-location", "Paris", "-o", signed, invoice}); err != nil {
+		t.Fatal(err)
+	}
+	code, rules := runValidate(t, "-roots", roots, signed)
+	if code != 0 || !rules["SIG-14"] {
+		t.Errorf("validate -roots of a trusted signature: exit %d, rules %v", code, rules)
+	}
+	code, rules = runValidate(t, "-roots", otherRoots, signed)
+	if code != 1 || !(rules["SIG-07"] || rules["SIG-09"]) {
+		t.Errorf("validate -roots of an untrusted signature: exit %d, rules %v", code, rules)
+	}
+
+	certified := filepath.Join(dir, "certified.pdf")
+	if err := signCmd([]string{"-key", keyPEM, "-cert", certPEM, "-certify", "1", "-hash", "sha384", "-o", certified, invoice}); err != nil {
+		t.Fatal(err)
+	}
+	err = embed([]string{"-xml", "../../testdata/EN16931_Einfach.cii.xml", "-o", filepath.Join(dir, "x.pdf"), certified})
+	if !errors.Is(err, zerechnung.ErrCertified) {
+		t.Errorf("embed into a certified PDF: %v, want ErrCertified", err)
+	}
+
+	for _, args := range [][]string{
+		{"-cert", certPEM, invoice},
+		{"-key", keyPEM, invoice},
+		{"-key", certPEM, "-cert", certPEM, invoice},
+		{"-key", keyPEM, "-cert", keyPEM, invoice},
+		{"-key", keyPEM, "-cert", certPEM, "-hash", "md5", invoice},
+		{"-key", keyPEM, "-cert", certPEM, "-o", filepath.Join(dir, "y.pdf"), signed + ".missing"},
+	} {
+		if err := signCmd(args); err == nil {
+			t.Errorf("sign %v: no error", args)
+		}
 	}
 }
