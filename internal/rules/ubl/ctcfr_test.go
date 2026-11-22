@@ -188,6 +188,7 @@ func ctcfrBaseCases() []ctcfrCase {
 			want: []string{"BR-FREXT-G-01"}},
 		{name: "tax amount of category L within tolerance", repl: category("L", "7", "", "", "100.00", "7.99")},
 		{name: "tax amount of category L", repl: category("L", "7", "", "", "100.00", "8.00"), want: []string{"BR-AF-09"}},
+		{name: "tax amount of category M", repl: category("M", "7", "", "", "100.00", "8.00"), want: []string{"BR-AG-09"}},
 		{name: "exemption reason of category L", repl: category("L", "7", "", "<cbc:TaxExemptionReason>Reason</cbc:TaxExemptionReason>", "100.00", "7.00"), want: []string{"BR-AF-10", "BR-FREXT-AF-08rev"}},
 		{name: "line without net amount", repl: []string{"<cbc:LineExtensionAmount currencyID=\"EUR\">100.00</cbc:LineExtensionAmount>\n<cac:Item>", "<cac:Item>"},
 			want: []string{"BR-FREXT-24", "BR-FREXT-CO-10", "BR-FREXT-CO-13", "BR-FREXT-S-08", "BR-FREXT-S-08ini", "BR-FREXT-S-08rev"}},
@@ -248,25 +249,27 @@ var (
 // that category, an invoice whose taxable amount is wrong (BR-FREXT-*-08),
 // for the categories with exemption reasons an invoice whose line has no
 // exemption reason (BR-FREXT-*-08rev), and an invoice that fails
-// BR-FREXT-*-01: a breakdown of the category without lines or, for AE and M,
-// a line of the category whose breakdown is of category Z. (Package en16931
-// reports BR-AE-01 for an AE breakdown without lines and not BR-IP-01 for an
-// M breakdown without lines, unlike the UBL schematrons.)
+// BR-FREXT-*-01 with a breakdown of the category without lines. For AE and M,
+// a line of the category whose breakdown is of category Z fails it too. The
+// two fail BR-AE-01 and BR-AG-01 (BR-IP-01 of the CEN) in their own ways: a
+// category M, which is of type VAT, needs both a line and a breakdown, while
+// a breakdown AE without lines is enough for category AE.
 func categoryCases() []ctcfrCase {
 	type spec struct {
 		code, id, percent, reason, tax string
 		extra                          []string
-		lineOnly                       []string // the rules of a line without breakdown
+		breakdownOnly                  []string // the rules of a breakdown without lines, besides BR-FREXT-*-01
+		lineOnly                       []string // the rules of a line without breakdown, nil when not tested
 	}
 	specs := []spec{
-		{"Z", "Z", "0", "", "0.00", nil, nil},
-		{"E", "E", "0", "VATEX-EU-132", "0.00", nil, nil},
-		{"AE", "AE", "0", "VATEX-EU-AE", "0.00", buyerVAT, []string{"BR-AE-01", "BR-FREXT-Z-01"}},
-		{"K", "IC", "0", "VATEX-EU-IC", "0.00", slices.Concat(buyerVAT, intraDelivery), nil},
-		{"G", "G", "0", "VATEX-EU-G", "0.00", nil, nil},
-		{"O", "O", "", "VATEX-EU-O", "0.00", nil, nil},
-		{"L", "AF", "7", "", "7.00", nil, nil},
-		{"M", "AG", "7", "", "7.00", nil, []string{"BR-AG-01", "BR-FREXT-Z-01"}},
+		{"Z", "Z", "0", "", "0.00", nil, nil, nil},
+		{"E", "E", "0", "VATEX-EU-132", "0.00", nil, nil, nil},
+		{"AE", "AE", "0", "VATEX-EU-AE", "0.00", buyerVAT, nil, []string{"BR-AE-01", "BR-FREXT-Z-01"}},
+		{"K", "IC", "0", "VATEX-EU-IC", "0.00", slices.Concat(buyerVAT, intraDelivery), nil, nil},
+		{"G", "G", "0", "VATEX-EU-G", "0.00", nil, nil, nil},
+		{"O", "O", "", "VATEX-EU-O", "0.00", nil, nil, nil},
+		{"L", "AF", "7", "", "7.00", nil, nil, nil},
+		{"M", "AG", "7", "", "7.00", nil, []string{"BR-AG-01"}, []string{"BR-AG-01", "BR-FREXT-Z-01"}},
 	}
 	var cases []ctcfrCase
 	for _, c := range specs {
@@ -278,15 +281,14 @@ func categoryCases() []ctcfrCase {
 			ctcfrCase{name: "category " + c.code, repl: slices.Concat(category(c.code, c.percent, r, r, "100.00", c.tax), c.extra)},
 			ctcfrCase{name: "category " + c.code + " taxable amount", repl: slices.Concat(category(c.code, c.percent, r, r, "100.02", c.tax), c.extra),
 				want: []string{"BR-FREXT-" + c.id + "-08", "BR-FREXT-" + c.id + "-08ini", "BR-FREXT-" + c.id + "-08rev"}})
+		cases = append(cases, ctcfrCase{name: "category " + c.code + " breakdown without lines", repl: slices.Concat([]string{"</cac:TaxTotal>", `<cac:TaxSubtotal><cbc:TaxableAmount currencyID="EUR">0.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount><cac:TaxCategory>` +
+			taxCategory(c.code, c.percent, r) + `<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>`}, c.extra),
+			want: slices.Concat([]string{"BR-FREXT-" + c.id + "-01"}, c.breakdownOnly)})
 		if c.lineOnly != nil {
 			repl := category(c.code, c.percent, r, "", "0.00", "0.00")
 			repl[7] = taxCategory("Z", "0", "")
 			cases = append(cases, ctcfrCase{name: "category " + c.code + " line without breakdown", repl: slices.Concat(repl, c.extra),
 				want: slices.Concat([]string{"BR-FREXT-" + c.id + "-01"}, c.lineOnly)})
-		} else {
-			cases = append(cases, ctcfrCase{name: "category " + c.code + " breakdown without lines", repl: slices.Concat([]string{"</cac:TaxTotal>", `<cac:TaxSubtotal><cbc:TaxableAmount currencyID="EUR">0.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount><cac:TaxCategory>` +
-				taxCategory(c.code, c.percent, r) + `<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>`}, c.extra),
-				want: []string{"BR-FREXT-" + c.id + "-01"}})
 		}
 		if c.reason != "" {
 			cases = append(cases, ctcfrCase{name: "category " + c.code + " exemption reason of the breakdown only", repl: slices.Concat(category(c.code, c.percent, "", r, "100.00", c.tax), c.extra),

@@ -192,6 +192,10 @@ func ruleCases() []ruleCase {
 		{name: "BR-Z valid", doc: func(t *testing.T) string { return zeroRated(t, "Z", "") }, want: ""},
 		{name: "BR-Z-10 exemption", doc: func(t *testing.T) string { return zeroRated(t, "Z", "<ram:ExemptionReason>x</ram:ExemptionReason>") }, want: "BR-Z-10"},
 		{name: "BR-E-10 no exemption", doc: func(t *testing.T) string { return zeroRated(t, "E", "") }, want: "BR-E-10"},
+		{name: "BR-E-08 taxable amount", doc: func(t *testing.T) string {
+			return edit(t, zeroRated(t, "E", "<ram:ExemptionReasonCode>VATEX-EU-132</ram:ExemptionReasonCode>"),
+				"<ram:BasisAmount>100.00</ram:BasisAmount><ram:CategoryCode>E</ram:CategoryCode>", "<ram:BasisAmount>102.00</ram:BasisAmount><ram:CategoryCode>E</ram:CategoryCode>")
+		}, want: "BR-E-08"},
 		{name: "BR-AE-02 buyer identifier", doc: func(t *testing.T) string {
 			return zeroRated(t, "AE", "<ram:ExemptionReason>Reverse charge</ram:ExemptionReason>")
 		}, want: "BR-AE-02"},

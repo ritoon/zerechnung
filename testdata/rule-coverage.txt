@@ -27,8 +27,7 @@ BR-CO-24
 # presque toutes les règles des catégories S et E, environ la moitié de
 # celles de G, O et B, un tiers de celles de K, et presque aucune de celles
 # de Z, AE, L et M.
-# 55 règles.
-BR-AE-01
+# 54 règles.
 BR-AE-03
 BR-AE-04
 BR-AE-05
@@ -86,14 +85,13 @@ BR-Z-09
 
 # EN 16931 : nombre de décimales des montants (BR-DEC). Aucun test ne
 # donne plus de deux décimales à ces montants.
-# 16 règles.
+# 15 règles.
 BR-DEC-02
 BR-DEC-05
 BR-DEC-06
 BR-DEC-10
 BR-DEC-11
 BR-DEC-14
-BR-DEC-15
 BR-DEC-16
 BR-DEC-17
 BR-DEC-19
@@ -106,7 +104,7 @@ BR-DEC-28
 
 # EN 16931 : listes de codes du CEN (BR-CL). Aucun test ne met un code hors
 # liste dans ces éléments.
-# 10 règles.
+# 9 règles.
 BR-CL-05
 BR-CL-15
 BR-CL-16
@@ -115,7 +113,6 @@ BR-CL-18
 BR-CL-19
 BR-CL-20
 BR-CL-21
-BR-CL-22
 BR-CL-26
 
 # EN 16931 : règles de syntaxe CII du schematron CEN (CII-SR), qui
@@ -123,7 +120,7 @@ BR-CL-26
 # n'utilise pas, et pour quelques-unes un élément répété (syntaxNots et
 # syntaxCounts, générés dans catalog_gen.go). Aucun test ne place ou ne
 # répète l'élément.
-# 455 règles.
+# 454 règles.
 CII-SR-001
 CII-SR-003
 CII-SR-04
@@ -492,7 +489,6 @@ CII-SR-392
 CII-SR-393
 CII-SR-394
 CII-SR-395
-CII-SR-396
 CII-SR-397
 CII-SR-398
 CII-SR-399
@@ -741,48 +737,35 @@ UBL-CR-682
 UBL-DT-27
 UBL-DT-28
 
+# EN 16931 : assertions du schematron UBL EXTENDED-CTC-FR de la FNFE que
+# celui-ci réduit à true() (BR-CO-05 à 08) : elles ne peuvent pas échouer.
+# BR-CO-07 et BR-CO-08 sont citées plus bas, avec la CIUS-PT.
+# 2 règles.
+BR-CO-05
+BR-CO-06
+
 # Factur-X : règles de l'IGIC (Canaries, BR-AF) et de l'IPSI (Ceuta et
 # Melilla, BR-AG) du schematron Factur-X 1.09.2.
-# 10 règles.
-BR-AF-03
-BR-AF-04
-BR-AF-06
-BR-AF-07
-BR-AF-10
-BR-AG-03
-BR-AG-04
-BR-AG-06
-BR-AG-07
+# 1 règle.
 BR-AG-10
 
 # Factur-X : règles du profil EXTENDED (BR-FXEXT), sur les lignes de
 # sous-type DETAIL et sur les montants de la ventilation de TVA.
-# 25 règles.
+# 14 règles.
 BR-FXEXT-AE-01
 BR-FXEXT-AE-08b
-BR-FXEXT-AE-08ini
-BR-FXEXT-AE-08rev
 BR-FXEXT-AF-01
 BR-FXEXT-AF-08b
-BR-FXEXT-AF-08ini
-BR-FXEXT-AF-08rev
 BR-FXEXT-AG-01
 BR-FXEXT-AG-08b
-BR-FXEXT-AG-08ini
-BR-FXEXT-AG-08rev
 BR-FXEXT-E-01
 BR-FXEXT-E-08b
-BR-FXEXT-E-08ini
-BR-FXEXT-E-08rev
 BR-FXEXT-G-01
 BR-FXEXT-IC-01
 BR-FXEXT-O-01
 BR-FXEXT-O-08b
-BR-FXEXT-O-08ini
-BR-FXEXT-O-08rev
 BR-FXEXT-S-01
 BR-FXEXT-Z-08b
-BR-FXEXT-Z-08ini
 
 # Factur-X : assertions du schematron Factur-X 1.09.2 sans identifiant de
 # règle métier (FX-SCH-A), pour l'essentiel ses listes de codes (codedb,

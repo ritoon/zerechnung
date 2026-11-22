@@ -58,13 +58,13 @@ Le job *Tests sur les artefacts officiels* lance `go test ./...` avec toutes les
 
 Le job compile aussi la suite avec l'étiquette `ruletrace` : chaque binaire de test écrit alors dans `rules.txt` les règles des findings qu'il rapporte (`ZERECHNUNG_RULE_TRACE`, voir [`internal/rules/trace_ruletrace.go`](../internal/rules/trace_ruletrace.go)), et `TestRuleCoverage` ([`rulecoverage_test.go`](../rulecoverage_test.go)) vérifie ensuite que chaque règle des catalogues (`validate.Catalog` de tous les jeux de règles et `ContainerCatalog`), plus `XML`, `CII` et les règles de `fatturapa.VerifySignature`, est levée par au moins un test. C'est la version dynamique des tests `TestCatalogComplete`, qui lisent les sources : une règle écrite qu'aucun test ne fait échouer peut être inatteignable, ou fausse sans qu'aucun test ne le voie.
 
-La suite lève 2 038 des 3 098 règles. Les 1 060 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
+La suite lève 2 150 des 3 188 règles. Les 1 038 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
 
 | Jeu de règles | Non levées | Familles |
 |---|---|---|
-| EN 16931 | 686 sur 1 566 | règles de syntaxe CII-SR (455) et CII-DT (95) du schematron CEN, UBL-CR (30), UBL-SR (19) et UBL-DT (2), catégories de TVA autres que S et E (55), décimales BR-DEC (16), listes de codes BR-CL (10), motif des remises et majorations de ligne (BR-42, BR-44, BR-CO-23, BR-CO-24) |
-| Factur-X | 339 sur 415 | listes de codes du schematron Factur-X 1.09.2 (FX-SCH-A, 304), règles EXTENDED BR-FXEXT (25), IGIC et IPSI (10) |
-| CIUS-PT | 34 sur 372 | formats DT-CIUS-PT (29), BR-AA, BR-CO-07, BR-CO-08, UBL-SR-38 |
+| EN 16931 | 687 sur 1 689 | règles de syntaxe CII-SR (454) et CII-DT (95) du schematron CEN, UBL-CR (30), UBL-SR (19) et UBL-DT (2), catégories de TVA autres que S et E (55), décimales BR-DEC (15), listes de codes BR-CL (9), motif des remises et majorations de ligne (BR-42, BR-44, BR-CO-23, BR-CO-24), BR-CO-05 à 08, que le schematron UBL EXTENDED-CTC-FR réduit à `true()` |
+| Factur-X | 318 sur 385 | listes de codes du schematron Factur-X 1.09.2 (FX-SCH-A, 304), règles EXTENDED BR-FXEXT (14) |
+| CIUS-PT | 32 sur 369 | formats DT-CIUS-PT (29), BR-AA, UBL-SR-38 |
 | FatturaPA (signature) | 1 | IT-SIG-06, que seul le job d'interopérabilité des signatures lève |
 
 ```bash
@@ -146,10 +146,10 @@ go test ./internal/rules/de -run '^TestVariants$' -variants DIR
 | Paquet | Variants | Documents |
 |---|---|---|
 | `internal/rules/de` | 293 | les cas de mutation des factures XRechnung CII et UBL du dépôt, factures de départ comprises ; ceux dont le BT-24 n'est retenu par aucun scénario de la configuration KoSIT (BR-DE-21, extension sur un avoir) sont laissés de côté |
-| `internal/rules/en16931` | 55 | les cas des règles CEN en CII sans profil Factur-X, au BT-24 CEN ou XRechnung |
+| `internal/rules/en16931` | 56 | les cas des règles CEN en CII sans profil Factur-X, au BT-24 CEN ou XRechnung |
 | `internal/rules/ubl` | 64 | les cas du contrôle des factures UBL, sauf ceux de l'extension G-rekening |
 
-Chaque variant casse une ou plusieurs règles d'une facture valide (308 variants), ou vérifie qu'un cas limite n'en casse aucune (104) ; le fichier `expected.tsv` que le test écrit à côté donne les règles attendues. KoSIT seul les reçoit. L'outil compare les règles à tous les niveaux, erreurs, avertissements et informations, car beaucoup des règles cassées sont des avertissements. Il vérifie aussi que KoSIT lève chaque règle attendue : sinon l'écart `?RÈGLE` signale un variant qui ne teste plus sa règle chez la référence, et fait échouer le job comme les autres.
+Chaque variant casse une ou plusieurs règles d'une facture valide (309 variants), ou vérifie qu'un cas limite n'en casse aucune (104) ; le fichier `expected.tsv` que le test écrit à côté donne les règles attendues. KoSIT seul les reçoit. L'outil compare les règles à tous les niveaux, erreurs, avertissements et informations, car beaucoup des règles cassées sont des avertissements. Il vérifie aussi que KoSIT lève chaque règle attendue : sinon l'écart `?RÈGLE` signale un variant qui ne teste plus sa règle chez la référence, et fait échouer le job comme les autres.
 
 Deux comportements de KoSIT demandent un traitement à part :
 
@@ -162,17 +162,17 @@ Le rapport donne enfin, pour chaque XSLT de la configuration KoSIT, la part des 
 
 | Référence | Variants comparés | Mêmes règles | Écarts justifiés | Même verdict |
 |---|---|---|---|---|
-| KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 412 | 398 | 14 | 410 |
+| KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 413 | 399 | 14 | 411 |
 
 | XSLT de la configuration KoSIT | Assertions | Levées sur le corpus et la suite KoSIT | Levées sur les variants | Levées au total |
 |---|---|---|---|---|
-| `EN16931-CII-validation.xsl` (CEN 1.3.16) | 806 | 10 | 66 | 70 (8,7 %) |
+| `EN16931-CII-validation.xsl` (CEN 1.3.16) | 806 | 10 | 67 | 71 (8,8 %) |
 | `EN16931-UBL-validation.xsl` (CEN 1.3.16) | 979 | 4 | 70 | 70 (7,2 %) |
 | `XRechnung-CII-validation.xsl` | 74 | 2 | 70 | 70 (94,6 %) |
 | `XRechnung-UBL-validation.xsl` | 77 | 1 | 73 | 73 (94,8 %) |
-| Total | 1 936 | 17 | 279 | 283 (14,6 %) |
+| Total | 1 936 | 17 | 280 | 284 (14,7 %) |
 
-Les variants portent les assertions XRechnung exercées de 3 à 143 sur 151, dont les 43 assertions Peppol (22 en CII, 21 en UBL), et celles du CEN de 14 à 140 sur 1 785. Restent jamais levées en CII BR-DE-21 (un BT-24 qu'aucun scénario ne retient n'est pas évalué), BR-DE-23-a, BR-DEX-05 et BR-TMP-CVD-01, en UBL BR-DE-21, BR-DE-1, BR-DE-2 et BR-TMP-6. Ces chiffres mesurent ce que la référence a confirmé, pas la couverture des tests du package : les familles CII-SR et UBL-CR (482 et 678 assertions) interdisent chacune un élément du schéma, et presque aucune n'est levée ; les règles BR, BR-CO et de catégorie de TVA restent en majorité à exercer par de nouveaux variants.
+Les variants portent les assertions XRechnung exercées de 3 à 143 sur 151, dont les 43 assertions Peppol (22 en CII, 21 en UBL), et celles du CEN de 14 à 141 sur 1 785. Restent jamais levées en CII BR-DE-21 (un BT-24 qu'aucun scénario ne retient n'est pas évalué), BR-DE-23-a, BR-DEX-05 et BR-TMP-CVD-01, en UBL BR-DE-21, BR-DE-1, BR-DE-2 et BR-TMP-6. Ces chiffres mesurent ce que la référence a confirmé, pas la couverture des tests du package : les familles CII-SR et UBL-CR (482 et 678 assertions) interdisent chacune un élément du schéma, et presque aucune n'est levée ; les règles BR, BR-CO et de catégorie de TVA restent en majorité à exercer par de nouveaux variants.
 
 Les écarts justifiés de [`parity/known.txt`](parity/known.txt) viennent de deux causes :
 
@@ -219,11 +219,11 @@ Les 5 autres arrêts sont rendus à l'identique : BR-NL-7 sur un code de type `3
 
 ## Parité EXTENDED-CTC-FR avec les XSLT de la FNFE-MPE
 
-Le même job exécute les XSLT que la FNFE-MPE compile de ses schematrons EXTENDED-CTC-FR, `FNFE_RFE_INVOICE/CII/EXTENDED-CTC-FR/2xslt/EXTENDED-CTC-FR-CII.xslt` et `FNFE_RFE_INVOICE/UBL/EXTENDED-CTC-FR/2xslt/EXTENDED-CTC-FR-UBL.xslt` du paquet France_RFE 1.4.0.04 (`FX_FNFE`), sur 224 fichiers :
+Le même job exécute les XSLT que la FNFE-MPE compile de ses schematrons EXTENDED-CTC-FR, `FNFE_RFE_INVOICE/CII/EXTENDED-CTC-FR/2xslt/EXTENDED-CTC-FR-CII.xslt` et `FNFE_RFE_INVOICE/UBL/EXTENDED-CTC-FR/2xslt/EXTENDED-CTC-FR-UBL.xslt` du paquet France_RFE 1.4.0.04 (`FX_FNFE`), sur 227 fichiers :
 
 - les 10 exemples EXTENDED-CTC-FR du paquet (`Z.example/TEST/CII/EXTENDED-CTC-FR` et `Z.example/TEST/UBL/EXTENDED-CTC-FR`), qui déclarent le profil ;
 - les 4 factures EXTENDED-CTC-FR du dépôt (`internal/rules/fr/testdata`, en CII et en UBL), parmi les factures françaises de ce répertoire, celles qui déclarent le profil ;
-- 210 variantes : les documents des tests de mutation EXTENDED-CTC-FR de `internal/rules/en16931` (106, en CII) et de `internal/rules/ubl` (104, en UBL), que leur test `TestCTCFRVariants` écrit avec `-variants DIR` (paquet [`internal/variants`](../internal/variants)), et qui enfreignent ou frôlent chacun une règle du schematron (sous-lignes DETAIL, GROUP et INFORMATION, tolérances des totaux et des ventilations de TVA, listes de codes, règles de syntaxe…).
+- 213 variantes : les documents des tests de mutation EXTENDED-CTC-FR de `internal/rules/en16931` (106, en CII) et de `internal/rules/ubl` (107, en UBL), que leur test `TestCTCFRVariants` écrit avec `-variants DIR` (paquet [`internal/variants`](../internal/variants)), et qui enfreignent ou frôlent chacun une règle du schematron (sous-lignes DETAIL, GROUP et INFORMATION, tolérances des totaux et des ventilations de TVA, listes de codes, règles de syntaxe…).
 
 Chaque fichier reçoit la XSLT de sa syntaxe, que [`parity/NPaBatch.java`](parity/NPaBatch.java) exécute avec Saxon-HE 12.10, comme celles de la NPa. Pour chaque fichier, l'outil compare les règles levées **en erreur et en avertissement**, sous leur identifiant : côté FNFE-MPE, chaque assertion échouée du rapport SVRL, au niveau de son `flag` ; côté package, les constats du jeu `EN16931` de `validate.XML` avec les jeux par défaut, qui portent les règles EXTENDED-CTC-FR pour une facture qui déclare le profil ; ses constats de schéma XSD et des autres jeux, que les XSLT n'ont pas, restent hors de la comparaison. Un arrêt de la transformation sur une erreur dynamique est traité comme pour la NPa : seule l'assertion dont le test l'a levée est comparée. Comme pour les variants KoSIT, l'outil vérifie aussi que la XSLT lève chaque règle que le test de mutation d'une variante attend (`expected.tsv`) : sinon l'écart `?RÈGLE` fait échouer le job.
 
@@ -231,7 +231,7 @@ Chaque fichier reçoit la XSLT de sa syntaxe, que [`parity/NPaBatch.java`](parit
 
 | Référence | Fichiers comparés | Mêmes règles | Écarts justifiés |
 |---|---|---|---|
-| XSLT EXTENDED-CTC-FR de la FNFE-MPE, France_RFE 1.4.0.04 (Saxon-HE 12.10) | 224 | 223 | 1 |
+| XSLT EXTENDED-CTC-FR de la FNFE-MPE, France_RFE 1.4.0.04 (Saxon-HE 12.10) | 227 | 226 | 1 |
 
 Le seul écart justifié est un arrêt de la XSLT CII sur une erreur de type XPath dans le test de BR-FREXT-CO-10, sur une variante qui répète `ram:LineTotalAmount` : le package lit la première valeur et lève CII-SR-477, la règle que la variante teste.
 
