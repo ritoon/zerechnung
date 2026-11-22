@@ -161,38 +161,40 @@ func TestXPathRO(t *testing.T) {
 
 // TestRun checks the claims of the rules in a pattern, the variables, the
 // messages with values, the reports and the failure of a test that raises
-// an error.
+// an error. The assertions bear identifiers of rules of EN 16931, which
+// other tests raise: a test binary built with the tag ruletrace records the
+// rules it reports, which must be in a catalog (TestRuleCoverage).
 func TestRun(t *testing.T) {
 	root := parse(t, `<r><a>5</a><a>2</a><b>x</b><b>y</b></r>`)
 	s, err := Compile(testNS, []Pattern{{
 		ID:   "p",
 		Lets: []Let{{Name: "max", Value: "1"}},
 		Rules: []Rule{
-			// The first rule hides a[1] from the next ones, although R-1
+			// The first rule hides a[1] from the next ones, although BR-01
 			// is not kept.
-			{Context: "a[. = '5']", Asserts: []Assertion{{ID: "R-1", Flag: rules.Error, Test: "false()", Msg: "first rule"}}},
+			{Context: "a[. = '5']", Asserts: []Assertion{{ID: "BR-01", Flag: rules.Error, Test: "false()", Msg: "first rule"}}},
 			{Context: "a", Lets: []Let{{Name: "v", Value: "xs:decimal(.)"}}, Asserts: []Assertion{
-				{ID: "R-2", Flag: rules.Error, Test: "$v <= $max", Msg: "%s is %s, above 1 (100%%)", Values: []string{"name()", "."}},
-				{ID: "R-3", Flag: rules.Warning, Report: true, Test: "$v = 2", Msg: "two"},
-				{ID: "R-4", Flag: rules.Error, Test: "true()", Msg: "never"},
+				{ID: "BR-02", Flag: rules.Error, Test: "$v <= $max", Msg: "%s is %s, above 1 (100%%)", Values: []string{"name()", "."}},
+				{ID: "BR-03", Flag: rules.Warning, Report: true, Test: "$v = 2", Msg: "two"},
+				{ID: "BR-04", Flag: rules.Error, Test: "true()", Msg: "never"},
 			}},
-			{Context: "/r", Asserts: []Assertion{{ID: "R-5", Flag: rules.Error, Test: "normalize-space(b) = 'x'", Msg: "error"}}},
-			{Context: "a", Asserts: []Assertion{{ID: "R-6", Flag: rules.Error, Test: "false()", Msg: "hidden"}}},
+			{Context: "/r", Asserts: []Assertion{{ID: "BR-05", Flag: rules.Error, Test: "normalize-space(b) = 'x'", Msg: "error"}}},
+			{Context: "a", Asserts: []Assertion{{ID: "BR-06", Flag: rules.Error, Test: "false()", Msg: "hidden"}}},
 		},
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	r := &rules.Report{}
-	s.Run(&rules.Checker{Doc: &rules.Doc{Root: root}, Report: r}, root, func(id string) bool { return id != "R-1" })
+	s.Run(&rules.Checker{Doc: &rules.Doc{Root: root}, Report: r}, root, func(id string) bool { return id != "BR-01" })
 	var got []string
 	for _, f := range r.Findings {
 		got = append(got, f.Rule+" "+f.Severity.String()+" "+f.Path+" "+f.Message)
 	}
 	want := []string{
-		"R-5 error /r error",
-		"R-2 error /r/a[2] a is 2, above 1 (100%)",
-		"R-3 warning /r/a[2] two",
+		"BR-05 error /r error",
+		"BR-02 error /r/a[2] a is 2, above 1 (100%)",
+		"BR-03 warning /r/a[2] two",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("got  %q\nwant %q", got, want)
