@@ -6,9 +6,10 @@ import "testing"
 // fullCases mutate: a line of category S with an allowance and a charge
 // (BG-27, BG-28), a line of category E, document level allowance and charge
 // with base amounts and reason codes, a VAT accounting currency (BT-6, BT-111),
-// rounding and paid amounts, a payment means, an item identifier and country
-// of origin, a deliver to location identifier and a VAT exemption reason
-// code. It follows the element order of the CII schema.
+// rounding and paid amounts, a payment means, a payment due date (BT-9, for
+// BR-CO-25), an item identifier and country of origin, a deliver to location
+// identifier and a VAT exemption reason code. It follows the element order of
+// the CII schema.
 const tFull = tHeader + `<ram:IncludedSupplyChainTradeLineItem>
 <ram:AssociatedDocumentLineDocument><ram:LineID>1</ram:LineID></ram:AssociatedDocumentLineDocument>
 <ram:SpecifiedTradeProduct><ram:GlobalID schemeID="0160">4012345000016</ram:GlobalID><ram:Name>Widget</ram:Name><ram:OriginTradeCountry><ram:ID>DE</ram:ID></ram:OriginTradeCountry></ram:SpecifiedTradeProduct>
@@ -44,6 +45,7 @@ const tFull = tHeader + `<ram:IncludedSupplyChainTradeLineItem>
 <ram:ApplicableTradeTax><ram:CalculatedAmount>0.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>50.00</ram:BasisAmount><ram:CategoryCode>E</ram:CategoryCode><ram:ExemptionReasonCode>VATEX-EU-132</ram:ExemptionReasonCode><ram:RateApplicablePercent>0</ram:RateApplicablePercent></ram:ApplicableTradeTax>
 <ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator><ram:CalculationPercent>10</ram:CalculationPercent><ram:BasisAmount>100.00</ram:BasisAmount><ram:ActualAmount>10.00</ram:ActualAmount><ram:ReasonCode>95</ram:ReasonCode><ram:Reason>Discount</ram:Reason><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>
 <ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>true</udt:Indicator></ram:ChargeIndicator><ram:CalculationPercent>5</ram:CalculationPercent><ram:BasisAmount>100.00</ram:BasisAmount><ram:ActualAmount>5.00</ram:ActualAmount><ram:ReasonCode>FC</ram:ReasonCode><ram:Reason>Freight</ram:Reason><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>
+` + tPaymentTerms + `
 <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 <ram:LineTotalAmount>150.00</ram:LineTotalAmount>
 <ram:ChargeTotalAmount>5.00</ram:ChargeTotalAmount>

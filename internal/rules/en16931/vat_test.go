@@ -227,7 +227,7 @@ func vatCases() []ruleCase {
 		{name: "BR-B-02 split payment and standard rate", doc: func(t *testing.T) string {
 			return edit(t, splitPayment(t),
 				"</ram:IncludedSupplyChainTradeLineItem>\n", "</ram:IncludedSupplyChainTradeLineItem>\n"+strings.Replace(tLine, "<ram:LineID>1</ram:LineID>", "<ram:LineID>2</ram:LineID>", 1),
-				"</ram:ApplicableTradeTax>\n<ram:SpecifiedTradeSettlementHeaderMonetarySummation>", "</ram:ApplicableTradeTax>\n"+breakdownS+"\n<ram:SpecifiedTradeSettlementHeaderMonetarySummation>",
+				"</ram:ApplicableTradeTax>\n"+tPaymentTerms, "</ram:ApplicableTradeTax>\n"+breakdownS+"\n"+tPaymentTerms,
 				"<ram:LineTotalAmount>100.00</ram:LineTotalAmount>\n<ram:TaxBasisTotalAmount>100.00</ram:TaxBasisTotalAmount>\n<ram:TaxTotalAmount currencyID=\"EUR\">19.00</ram:TaxTotalAmount>\n<ram:GrandTotalAmount>119.00</ram:GrandTotalAmount>\n<ram:DuePayableAmount>119.00</ram:DuePayableAmount>",
 				"<ram:LineTotalAmount>200.00</ram:LineTotalAmount>\n<ram:TaxBasisTotalAmount>200.00</ram:TaxBasisTotalAmount>\n<ram:TaxTotalAmount currencyID=\"EUR\">38.00</ram:TaxTotalAmount>\n<ram:GrandTotalAmount>238.00</ram:GrandTotalAmount>\n<ram:DuePayableAmount>238.00</ram:DuePayableAmount>")
 		}, want: "BR-B-02"},
