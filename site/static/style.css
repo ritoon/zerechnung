@@ -1043,6 +1043,7 @@ table.bars {
 
 .axis span:first-child { transform: none; }
 .dense .axis span:nth-child(even):not(:last-child) { visibility: hidden; }
+.sparse .axis span:not(:first-child):not(:last-child) { visibility: hidden; }
 .axis span:last-child { transform: translateX(-100%); }
 
 .chart-note {
@@ -1062,6 +1063,12 @@ table.bars {
   border-left: 2px dashed var(--ink-3);
   transform: translateY(2px);
 }
+
+.res table { min-width: 560px; }
+.res .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.res .ours .n { color: var(--slate); font-weight: 700; }
+.res .lib { overflow-wrap: normal; white-space: nowrap; }
+.res-notes { margin-top: 24px; }
 
 .env { max-width: 760px; margin-top: 24px; }
 .env table { min-width: 0; }

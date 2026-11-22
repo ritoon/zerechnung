@@ -96,83 +96,124 @@
       ]
     }
   ],
+  "poly_date": "2026-11-22",
+  "poly_commit": "8d728bd",
   "poly": [
     {
       "op": "bm_op_extract",
       "input": "bm_in_pdf149",
+      "floor": 27.9,
+      "floor_lib": "qpdf (C)",
       "rows": [
-        {"lib": "ZeRechnung", "lang": "Go", "us": 29.3},
-        {"lib": "einvoice-validator", "lang": "Rust", "us": 32.5},
-        {"lib": "speedata", "lang": "Go", "us": 75.2},
-        {"lib": "zugferd-pdf", "lang": "Python", "us": 78.5},
-        {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 184}
+        {"lib": "Kura", "lang": "C++", "us": 28.9},
+        {"lib": "ZeRechnung", "lang": "Go", "us": 29.9},
+        {"lib": "einvoice-validator", "lang": "Rust", "us": 33.0},
+        {"lib": "quittio/core", "lang": "PHP", "us": 72.8},
+        {"lib": "zugferd-pdf", "lang": "Python", "us": 79.6},
+        {"lib": "antiphon", "lang": "C#", "us": 79.7},
+        {"lib": "paniolo", "lang": "Java", "us": 116},
+        {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 176}
       ]
     },
     {
       "op": "bm_op_parse",
       "input": "bm_in_xml13",
+      "floor": 5.6,
+      "floor_lib": "pugixml (C++)",
       "rows": [
-        {"lib": "ZeRechnung", "lang": "Go", "us": 16.3},
-        {"lib": "zugferd-rs", "lang": "Rust", "us": 24.0},
-        {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "us": 69.6},
-        {"lib": "fX", "lang": "Go", "us": 124},
-        {"lib": "pycheval", "lang": "Python", "us": 221, "note": "bm_note_7of26"}
+        {"lib": "ZeRechnung", "lang": "Go", "us": 18.8},
+        {"lib": "zugferd-rs", "lang": "Rust", "us": 24.5},
+        {"lib": "antiphon", "lang": "C#", "us": 28.7},
+        {"lib": "imixs-e-invoice", "lang": "Java", "us": 68.3},
+        {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "us": 70.6},
+        {"lib": "pycheval", "lang": "Python", "us": 230, "note": "bm_note_7of26"},
+        {"lib": "tiime/cross-industry-invoice", "lang": "PHP", "us": 234}
       ]
     },
     {
       "op": "bm_op_parse",
       "input": "bm_in_xml1300",
+      "floor": 238,
+      "floor_lib": "pugixml (C++)",
       "rows": [
-        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 702, "note": "bm_note_lxml"},
-        {"lib": "ZeRechnung", "lang": "Go", "us": 1110},
-        {"lib": "pdf-invoice", "lang": "Rust", "us": 1630},
-        {"lib": "@conformo/toolkit", "lang": "TypeScript", "us": 1740},
-        {"lib": "dotwave", "lang": "Go", "us": 6760}
+        {"lib": "john-wink/en16931-php", "lang": "PHP", "us": 646},
+        {"lib": "imixs-e-invoice", "lang": "Java", "us": 715},
+        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 906, "note": "bm_note_lxml"},
+        {"lib": "ZeRechnung", "lang": "Go", "us": 1320, "note": "bm_note_base64"},
+        {"lib": "factur-x", "lang": "Rust", "us": 1660, "note": "bm_note_9of26"},
+        {"lib": "@conformo/toolkit", "lang": "TypeScript", "us": 1700},
+        {"lib": "antiphon", "lang": "C#", "us": 2180}
       ]
     },
     {
       "op": "bm_op_validate_full",
       "input": "bm_in_xml13",
       "rows": [
-        {"lib": "ZeRechnung", "lang": "Go", "us": 23.1},
-        {"lib": "pdf0", "lang": "Go", "us": 126},
-        {"lib": "einvoice-validator", "lang": "Rust", "us": 473},
-        {"lib": "@sweberdev/summand", "lang": "TypeScript", "us": 802},
-        {"lib": "saxonche", "lang": "Python", "us": 903, "note": "bm_note_xslt"}
+        {"lib": "ZeRechnung", "lang": "Go", "us": 26.4},
+        {"lib": "Saxon-HE", "lang": "Java", "us": 419, "note": "bm_note_xslt"},
+        {"lib": "einvoice-validator", "lang": "Rust", "us": 483},
+        {"lib": "SaxonCS-HE", "lang": "C#", "us": 528, "note": "bm_note_xslt"},
+        {"lib": "SaxonC-HE", "lang": "C++", "us": 862, "note": "bm_note_xslt"},
+        {"lib": "@sweberdev/summand", "lang": "TypeScript", "us": 908},
+        {"lib": "saxonche", "lang": "Python", "us": 915, "note": "bm_note_xslt"},
+        {"lib": "dealerweb/einvoice", "lang": "PHP", "us": 8030, "note": "bm_note_xslt_php"}
       ]
     },
     {
       "op": "bm_op_write",
       "input": "bm_in_xml13",
+      "floor": 3.7,
+      "floor_lib": "pugixml (C++)",
       "rows": [
-        {"lib": "ZeRechnung", "lang": "Go", "us": 3.1},
-        {"lib": "zugferd-rs", "lang": "Rust", "us": 6.7},
+        {"lib": "ZeRechnung", "lang": "Go", "us": 3.5},
+        {"lib": "zugferd-rs", "lang": "Rust", "us": 6.9},
+        {"lib": "balsoft", "lang": "C#", "us": 9.6},
         {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "us": 10.9, "note": "bm_note_handmade"},
-        {"lib": "fX", "lang": "Go", "us": 20.2},
-        {"lib": "pycheval", "lang": "Python", "us": 76.6}
+        {"lib": "invoice4j", "lang": "Java", "us": 29.5},
+        {"lib": "tiime/cross-industry-invoice", "lang": "PHP", "us": 40.9},
+        {"lib": "pycheval", "lang": "Python", "us": 78.3}
       ]
     },
     {
       "op": "bm_op_inject",
       "input": "bm_in_host_stream",
+      "floor": 123,
+      "floor_lib": "MuPDF (C)",
       "rows": [
-        {"lib": "ZeRechnung", "lang": "Go", "us": 87.8},
-        {"lib": "pdf-invoice", "lang": "Rust", "us": 178},
-        {"lib": "pdf0", "lang": "Go", "us": 522},
-        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 662},
-        {"lib": "@stackforge-eu/factur-x", "lang": "TypeScript", "us": 1140}
+        {"lib": "ZeRechnung", "lang": "Go", "us": 105},
+        {"lib": "pdf-invoice", "lang": "Rust", "us": 182},
+        {"lib": "balsoft", "lang": "C#", "us": 388},
+        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 711},
+        {"lib": "@stackforge-eu/factur-x", "lang": "TypeScript", "us": 1220},
+        {"lib": "dealerweb/einvoice", "lang": "PHP", "us": 2140},
+        {"lib": "mustang", "lang": "Java", "us": 5420},
+        {"lib": "Kura", "lang": "C++", "us": 12590, "note": "bm_note_rewrite"}
       ]
     },
     {
       "op": "bm_op_check",
       "input": "bm_in_pdf149",
       "rows": [
-        {"lib": "ZeRechnung", "lang": "Go", "us": 75.0},
         {"lib": "zugferd-pdf", "lang": "Python", "us": 212, "note": "bm_note_container"},
-        {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 359},
-        {"lib": "en16931", "lang": "Rust", "us": 479},
-        {"lib": "DCNWS", "lang": "Go", "us": 1140}
+        {"lib": "officeimo", "lang": "C#", "us": 261, "note": "bm_note_container"},
+        {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 372},
+        {"lib": "en16931", "lang": "Rust", "us": 484},
+        {"lib": "ZeRechnung", "lang": "Go", "us": 863, "note": "bm_note_pdfa_pages"},
+        {"lib": "Kura", "lang": "C++", "us": 2840, "note": "bm_note_container"},
+        {"lib": "paniolo", "lang": "Java", "us": 11890, "note": "bm_note_verapdf"}
       ]
     }
+  ],
+  "resources": [
+    {"lang": "Go", "rss": [16.8, 20.9, 25.5], "cpu": [163, 206]},
+    {"lang": "Go", "note": "bm_res_one_core", "rss": [16.4, 17.6, 23.9], "cpu": [99, 100]},
+    {"lang": "TypeScript", "rss": [65.4, 174, 509], "cpu": [102, 433]},
+    {"lang": "Python", "rss": [39.8, 59.5, 387], "cpu": [100, 100]},
+    {"lang": "Rust", "rss": [1.9, 7.2, 503], "cpu": [100, 111]},
+    {"lang": "Java", "rss": [259, 602, 2129], "cpu": [125, 399]},
+    {"lang": "C#", "rss": [69.6, 90.0, 509], "cpu": [100, 506]},
+    {"lang": "C", "rss": [2.2, 5.8, 11.7], "cpu": [100, 100]},
+    {"lang": "C++", "rss": [1.7, 9.1, 278], "cpu": [100, 100]},
+    {"lang": "PHP", "rss": [32.0, 43.0, 1173], "cpu": [100, 100]}
   ]
 }

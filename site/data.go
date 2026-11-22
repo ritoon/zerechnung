@@ -13,23 +13,31 @@ import (
 )
 
 // benchData holds the benchmark results shown on the benchmarks page, read
-// from data/benchmarks.json. The figures come from the wiki pages Benchmarks
-// and Benchmarks-autres-langages; the texts are in the translations.
+// from data/benchmarks.json. The Go figures come from the wiki page
+// Benchmarks, those of the other languages from bench/polyglot/README.md and
+// its tables; the texts are in the translations.
 type benchData struct {
-	Date    string        `json:"date"`
-	Version string        `json:"version"`
-	Go      []*benchChart `json:"go"`   // ZeRechnung and the other Go libraries
-	Poly    []*benchChart `json:"poly"` // the fastest library of each language
+	Date       string        `json:"date"`        // of the Go campaign, YYYY-MM-DD
+	Version    string        `json:"version"`     // of ZeRechnung in the Go campaign
+	Go         []*benchChart `json:"go"`          // ZeRechnung and the other Go libraries
+	PolyDate   string        `json:"poly_date"`   // of the campaign across languages
+	PolyCommit string        `json:"poly_commit"` // of ZeRechnung in that campaign
+	Poly       []*benchChart `json:"poly"`        // the fastest library of each language
+	Res        []*benchRes   `json:"resources"`   // CPU and memory, by language
 }
 
 // benchChart is one operation on one input: a bar per library.
 type benchChart struct {
-	Op    string      `json:"op"`    // key of the name of the operation
-	Input string      `json:"input"` // key of the description of the input
-	Floor float64     `json:"floor"` // the encoding/xml floor in µs, if shown
-	Rows  []*benchRow `json:"rows"`
+	Op    string  `json:"op"`    // key of the name of the operation
+	Input string  `json:"input"` // key of the description of the input
+	Floor float64 `json:"floor"` // the floor in µs, if shown: encoding/xml, or FloorLib
+	// FloorLib is the generic PDF or XML library that sets the floor on the
+	// page of all languages; empty for the encoding/xml floor.
+	FloorLib string      `json:"floor_lib"`
+	Rows     []*benchRow `json:"rows"`
 
 	Ticks   []benchTick `json:"-"` // a line per power of ten
+	Sparse  bool        `json:"-"` // whether to label only the first and last lines
 	FloorAt float64     `json:"-"` // position of the floor, in percent
 	Flagged bool        `json:"-"` // whether the rows say how many valid invoices they flag
 	Gain    float64     `json:"-"` // how many times ZeRechnung is faster than the next library
@@ -48,6 +56,17 @@ type benchRow struct {
 	Best   bool    `json:"-"` // fastest of the chart
 	Width  float64 `json:"-"` // length of the bar, in percent
 	Factor float64 `json:"-"` // time divided by the fastest time
+}
+
+// benchRes is the CPU and memory use of one language: one process per
+// library and per benchmark.
+type benchRes struct {
+	Lang string     `json:"lang"`
+	Note string     `json:"note"` // key of a remark on the row
+	RSS  [3]float64 `json:"rss"`  // peak resident memory of a process in MiB: lowest, median, highest
+	CPU  [2]float64 `json:"cpu"`  // CPU time over wall time in percent: median, highest
+
+	Ours bool `json:"-"`
 }
 
 // benchTick is a grid line of a chart.
@@ -95,10 +114,14 @@ func loadBench(fsys fs.FS, langs []*lang) (*benchData, error) {
 		}
 
 		// The scale runs from the power of ten below the fastest time to the
-		// power of ten above the slowest.
-		best, worst := timed[0].US, timed[len(timed)-1].US
-		lo := int(math.Ceil(math.Log10(best))) - 1
-		hi := int(math.Ceil(math.Log10(worst)))
+		// power of ten above the slowest, the floor included.
+		best := timed[0].US
+		lowest, highest := best, timed[len(timed)-1].US
+		if c.Floor > 0 {
+			lowest, highest = min(lowest, c.Floor), max(highest, c.Floor)
+		}
+		lo := int(math.Ceil(math.Log10(lowest))) - 1
+		hi := int(math.Ceil(math.Log10(highest)))
 		pos := func(us float64) float64 {
 			return math.Round(1000*(math.Log10(us)-float64(lo))/float64(hi-lo)) / 10
 		}
@@ -106,6 +129,9 @@ func loadBench(fsys fs.FS, langs []*lang) (*benchData, error) {
 			us := math.Pow(10, float64(e))
 			c.Ticks = append(c.Ticks, benchTick{US: us, At: pos(us)})
 		}
+		// Four labels from "100 µs" up do not fit side by side in a narrow
+		// chart; from five lines on, the template shows one label in two.
+		c.Sparse = len(c.Ticks) == 4 && c.Ticks[0].US >= 100
 		for _, r := range timed {
 			r.Width = pos(r.US)
 			r.Factor = r.US / best
@@ -117,6 +143,19 @@ func loadBench(fsys fs.FS, langs []*lang) (*benchData, error) {
 		if timed[0].Ours {
 			c.Gain = timed[1].US / best
 		}
+	}
+	for _, r := range d.Res {
+		rss, cpu := r.RSS, r.CPU
+		if rss[0] <= 0 || rss[0] > rss[1] || rss[1] > rss[2] || cpu[0] <= 0 || cpu[0] > cpu[1] {
+			return nil, fmt.Errorf("%s: resources of %s: want rss [lowest, median, highest] and cpu [median, highest]", name, r.Lang)
+		}
+		if _, ok := src[r.Note]; r.Note != "" && !ok {
+			return nil, fmt.Errorf("%s: resources of %s: no text %q in %s.json", name, r.Lang, r.Note, sourceLang)
+		}
+		r.Ours = r.Lang == "Go"
+	}
+	if len(d.Res) > 0 && !slices.ContainsFunc(d.Res, func(r *benchRes) bool { return r.Ours }) {
+		return nil, fmt.Errorf("%s: resources: no Go row", name)
 	}
 	return d, nil
 }
@@ -286,6 +325,23 @@ func (p *page) Times(f float64) string {
 		prec = 0
 	}
 	return "×" + p.decimal(strconv.FormatFloat(f, 'f', prec, 64))
+}
+
+// MiB writes a memory size given in MiB: 7,2 Mio, 602 Mio, 2,08 Gio.
+func (p *page) MiB(v float64) (template.HTML, error) {
+	key, prec := "bm_unit_mib", 1
+	switch {
+	case v >= 1000:
+		key, v, prec = "bm_unit_gib", v/1024, 2
+	case v >= 100:
+		prec = 0
+	}
+	return p.Fmt(key, p.decimal(strconv.FormatFloat(v, 'f', prec, 64)))
+}
+
+// Pct writes a percentage: 163 %, 163%.
+func (p *page) Pct(v float64) (template.HTML, error) {
+	return p.Fmt("bm_unit_pct", strconv.FormatFloat(v, 'f', 0, 64))
 }
 
 // decimal uses the decimal separator of the language of the page.

@@ -427,8 +427,8 @@ var (
 	strongRE = regexp.MustCompile(`\*\*([^*]+)\*\*`)
 	// A hyphenated name, kept on one line: Factur-X, CIUS-IT, PDF/A-3.
 	hyphenRE = regexp.MustCompile(`[\pL\pN]+(?:[/.][\pL\pN]+)*(?:-[\pL\pN]+(?:[/.][\pL\pN]+)*)+`)
-	// A number followed by a space and a word or a unit: "25 µs".
-	numberRE = regexp.MustCompile(`(\d) (\pL)`)
+	// A number followed by a space and a word or a unit: "25 µs", "3 %".
+	numberRE = regexp.MustCompile(`(\d) (\pL|%)`)
 	// French puts a no-break space before the colon, a narrow one before
 	// ; ! ? » and after «.
 	frColonRE  = regexp.MustCompile(` :`)
