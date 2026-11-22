@@ -513,7 +513,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	// rule set for a CIUS-PT invoice.
 	add(Portugal, newRules(pt.CENCatalog, slices.Concat(en16931.Catalog, ubl.Catalog)))
 	add(FACe, faceCatalog())
-	add(Romania, ro.Catalog)
+	add(Romania, ro.Catalog())
 	return out
 }
 
