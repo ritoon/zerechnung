@@ -1,5 +1,5 @@
 {
-  "asof": "2026-11-21",
+  "asof": "2026-11-22",
   "countries": [
     {"code": "AT", "eu": true, "b2g": "since 2014", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"], ["ebInterface", "no"]]},
     {"code": "BE", "eu": true, "b2g": "since 2022", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"]]},
@@ -26,7 +26,7 @@
     {"code": "RO", "eu": true, "b2g": "since 2022", "b2b": "since 2024", "cover": [["CIUS-RO", "partial"]]},
     {"code": "SK", "eu": true, "b2g": "from 2027", "b2b": "from 2027", "cover": [["Peppol BIS 3.0", "partial"]]},
     {"code": "SI", "eu": true, "b2g": "since 2015", "b2b": "from 2028", "cover": [["Peppol BIS 3.0", "yes"], ["e-SLOG 2.0", "no"]]},
-    {"code": "ES", "eu": true, "b2g": "since 2015", "b2b": "from 2027", "cover": [["UBL", "yes"], ["CII", "yes"], ["Facturae", "no"]]},
+    {"code": "ES", "eu": true, "b2g": "since 2015", "b2b": "from 2027", "cover": [["UBL", "yes"], ["CII", "yes"], ["Facturae", "yes"]]},
     {"code": "SE", "eu": true, "b2g": "since 2019", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"]]},
     {"code": "IS", "eu": false, "b2g": "since 2020", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"]]},
     {"code": "LI", "eu": false, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"]]},
@@ -67,6 +67,7 @@
         {"text": "cp_it_cius", "status": "yes", "rules": ["Italy"]},
         {"text": "cp_it_ext", "status": "yes", "rules": ["Italy"]},
         {"text": "cp_it_split", "status": "yes", "rules": ["Calculate"]},
+        {"text": "cp_it_sign", "status": "yes", "rules": ["SignCAdES", "SignXAdES", "VerifySignature"]},
         {"text": "cp_it_sdi", "status": "no"},
         {"text": "cp_it_send", "status": "no"}
       ]
@@ -95,7 +96,7 @@
       "checks": [
         {"text": "cp_es_en16931", "status": "yes", "rules": ["EN16931"]},
         {"text": "cp_es_peppol", "status": "yes", "rules": ["Peppol"]},
-        {"text": "cp_es_facturae", "status": "no"},
+        {"text": "cp_es_facturae", "status": "yes", "rules": ["facturae", "Schema"]},
         {"text": "cp_es_verifactu", "status": "no"}
       ]
     },
