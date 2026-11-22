@@ -1498,6 +1498,9 @@ func (w *writer) unwritten() {
 	}
 	w.loseIf(inv.SalesOrderReference != "", "BT-14")
 	w.loseIf(inv.BusinessProcess != "", "BT-23")
+	// The project name, which CII writes with the project reference
+	// (BT-11): FatturaPA carries the CUP alone.
+	w.loseIf(inv.ProjectName != "", "EXT ProjectName")
 	w.loseIf(!inv.InvoicingPeriod.IsZero(), "BG-14")
 	w.loseIf(inv.Totals.PaidAmount.IsSet() && !inv.Totals.PaidAmount.IsZero(), "BT-113")
 	w.loseIf(inv.Totals.TaxTotalInTaxCurrency.IsSet() && inv.TaxCurrency != "" && inv.TaxCurrency != inv.Currency, "BT-111")

@@ -66,9 +66,8 @@ func main() {
 		Seller:                 bottega,
 		Buyer:                  comune,
 		ProjectReference:       "D29J26000110004", // CUP
-		ProjectName:            "Riqualificazione del centro storico",
-		AdditionalDocuments:    []invoice.AdditionalDocument{{ID: "B4F7A21C93", TypeCode: "50"}}, // CIG
 		ContractReference:      "REP-1187/2026",
+		AdditionalDocuments:    []invoice.AdditionalDocument{{ID: "B4F7A21C93", TypeCode: "50"}}, // CIG
 		PurchaseOrderReference: "DET-214/2026",
 		DeliveryDate:           invoice.NewDate(2026, time.November, 19),
 		PaymentMeans: []invoice.PaymentMeans{{

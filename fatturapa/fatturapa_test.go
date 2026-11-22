@@ -645,6 +645,27 @@ func TestProjectReference(t *testing.T) {
 	}
 }
 
+// TestProjectName reports the project name, which FatturaPA cannot carry, as
+// lost in strict mode, and drops it otherwise: the document written is the
+// one written without it.
+func TestProjectName(t *testing.T) {
+	data := read(t, paInvoice)
+	inv := parse(t, paInvoice)
+	inv.ProjectName = "Riqualificazione del centro storico"
+	_, err := Marshal(inv, &MarshalOptions{Indent: true, Strict: true})
+	var le *LossError
+	if want := []string{"EXT ProjectName"}; !errors.As(err, &le) || !reflect.DeepEqual(le.Terms, want) {
+		t.Errorf("strict Marshal: %v, want the loss of %q", err, want)
+	}
+	out, err := Marshal(inv, &MarshalOptions{Indent: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out, data) {
+		t.Errorf("Marshal differs from the source:\n%s", out)
+	}
+}
+
 // TestReadBack checks what an invoice written by Marshal reads back as,
 // when it differs from the invoice written: the payment terms (BT-20) are
 // the payment conditions, TP02 for payment terms that FatturaPA cannot
