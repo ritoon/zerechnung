@@ -8,9 +8,9 @@ import (
 // The VAT category cases mutate an invoice of a single VAT category (catDoc):
 // one line of 100.00, one document level allowance of 10.00 and one document
 // level charge of 5.00 of that category, its VAT breakdown on a taxable
-// amount of 95.00, and the parties the category requires. Unlike zeroRated,
-// the documents follow the element order of the CII schema, so that the
-// parity job compares them with the KoSIT validator on the business rules.
+// amount of 95.00, and the parties the category requires. Like the other
+// cases, the documents follow the element order of the CII schema, so that
+// the parity job compares them with the KoSIT validator on the business rules.
 
 // catSpec is what a VAT category puts in catDoc.
 type catSpec struct {

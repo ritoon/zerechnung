@@ -163,19 +163,19 @@ Le rapport donne enfin, pour chaque XSLT de la configuration KoSIT, la part des 
 
 | Référence | Variants comparés | Mêmes règles | Écarts justifiés | Même verdict |
 |---|---|---|---|---|
-| KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 475 | 461 | 14 | 474 |
+| KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 475 | 460 | 15 | 474 |
 
 | XSLT de la configuration KoSIT | Assertions | Levées sur le corpus et la suite KoSIT | Levées sur les variants | Levées au total |
 |---|---|---|---|---|
-| `EN16931-CII-validation.xsl` (CEN 1.3.16) | 806 | 10 | 155 | 159 (19,7 %) |
+| `EN16931-CII-validation.xsl` (CEN 1.3.16) | 806 | 10 | 172 | 176 (21,8 %) |
 | `EN16931-UBL-validation.xsl` (CEN 1.3.16) | 979 | 4 | 71 | 71 (7,3 %) |
 | `XRechnung-CII-validation.xsl` | 74 | 2 | 70 | 70 (94,6 %) |
 | `XRechnung-UBL-validation.xsl` | 77 | 1 | 73 | 73 (94,8 %) |
-| Total | 1 936 | 17 | 369 | 373 (19,3 %) |
+| Total | 1 936 | 17 | 386 | 390 (20,1 %) |
 
-Les variants portent les assertions XRechnung exercées de 3 à 143 sur 151, dont les 43 assertions Peppol (22 en CII, 21 en UBL), et celles du CEN de 14 à 230 sur 1 785. Restent jamais levées en CII BR-DE-21 (un BT-24 qu'aucun scénario ne retient n'est pas évalué), BR-DE-23-a, BR-DEX-05 et BR-TMP-CVD-01, en UBL BR-DE-21, BR-DE-1, BR-DE-2 et BR-TMP-6. Ces chiffres mesurent ce que la référence a confirmé, pas la couverture des tests du package : les familles CII-SR et UBL-CR (482 et 678 assertions) interdisent chacune un élément du schéma, et presque aucune n'est levée ; en CII, les variants lèvent 76 des 98 assertions de catégorie de TVA, 19 des 23 listes de codes BR-CL et 17 des 21 règles de décimales BR-DEC ; les règles BR, et en UBL les règles BR-CO et de catégorie de TVA, restent en majorité à exercer par de nouveaux variants.
+Les variants portent les assertions XRechnung exercées de 3 à 143 sur 151, dont les 43 assertions Peppol (22 en CII, 21 en UBL), et celles du CEN de 14 à 247 sur 1 785. Restent jamais levées en CII BR-DE-21 (un BT-24 qu'aucun scénario ne retient n'est pas évalué), BR-DE-23-a, BR-DEX-05 et BR-TMP-CVD-01, en UBL BR-DE-21, BR-DE-1, BR-DE-2 et BR-TMP-6. Ces chiffres mesurent ce que la référence a confirmé, pas la couverture des tests du package : les familles CII-SR et UBL-CR (482 et 678 assertions) interdisent chacune un élément du schéma, et presque aucune n'est levée ; en CII, les variants lèvent 83 des 98 assertions de catégorie de TVA, 19 des 23 listes de codes BR-CL et 17 des 21 règles de décimales BR-DEC ; les règles BR, et en UBL les règles BR-CO et de catégorie de TVA, restent en majorité à exercer par de nouveaux variants.
 
-Les écarts justifiés de [`parity/known.txt`](parity/known.txt) viennent de la version CEN 1.3.16 de la configuration KoSIT, quand le package applique la 1.3.17 : règles IGIC et IPSI renommées en CII de BR-AF en BR-IP et de BR-AG en BR-IG, CII-SR-476 comptée par document, contexte de CII-SR-036 corrigé, CII-DT-105 ajoutée, préfixe de BR-CO-09 entouré d'espaces (14 variants). Le package valide comme KoSIT un XML EN 16931 seul contre le XSD CII D16B complet, et ne garde le XSD Factur-X EN 16931, plus strict, que pour le XML d'un PDF Factur-X : les variants EN 16931 ont les mêmes erreurs de schéma de part et d'autre.
+Les écarts justifiés de [`parity/known.txt`](parity/known.txt) viennent de la version CEN 1.3.16 de la configuration KoSIT, quand le package applique la 1.3.17 : règles IGIC et IPSI renommées en CII de BR-AF en BR-IP et de BR-AG en BR-IG, CII-SR-476 comptée par document, contexte de CII-SR-036 corrigé, CII-DT-105 ajoutée, préfixe de BR-CO-09 entouré d'espaces (15 variants). Le package valide comme KoSIT un XML EN 16931 seul contre le XSD CII D16B complet, et ne garde le XSD Factur-X EN 16931, plus strict, que pour le XML d'un PDF Factur-X : les variants EN 16931 ont les mêmes erreurs de schéma de part et d'autre. Leurs tests insèrent les éléments dans l'ordre du XSD CII D16B, pour que KoSIT exécute le schematron et lève la règle visée : le XSD ne rejette que le variant de CII-SR-010, dont le second identifiant de spécification (BT-24) est interdit par le schéma lui-même.
 
 Un variant n'a pas le même verdict : celui de CII-SR-477, que KoSIT n'a pas pu évaluer.
 

@@ -127,12 +127,30 @@ const (
 	sumStart   = "<ram:SpecifiedTradeSettlementHeaderMonetarySummation>\n"
 )
 
+// The cases insert their elements where the CII schema (D16B) puts them, so
+// that a validator that checks the schema first, as the KoSIT validator does,
+// goes on to the rule they break: in the settlement, PaymentReference before
+// settlStart (the currency code), PayeeTradeParty after it, the invoicing
+// period and the document level allowances and charges after the VAT
+// breakdown, before tPaymentTerms; in a party, DefinedTradeContact before
+// PostalTradeAddress, URIUniversalCommunication after it and before
+// SpecifiedTaxRegistration; in a VAT breakdown, ExemptionReason after TypeCode
+// and ExemptionReasonCode after CategoryCode. Only the document of CII-SR-010
+// fails the schema, which itself forbids a second specification identifier.
+
 // zeroRated returns the base invoice with VAT category cat at rate 0 on the
-// line and in the breakdown, with the breakdown fields extra.
-func zeroRated(t *testing.T, cat, extra string) string {
+// line and in the breakdown, with the VAT exemption reason text reason
+// (BT-120) and code code (BT-121) in the breakdown, "" for none.
+func zeroRated(t *testing.T, cat, reason, code string) string {
+	if reason != "" {
+		reason = `<ram:ExemptionReason>` + reason + `</ram:ExemptionReason>`
+	}
+	if code != "" {
+		code = `<ram:ExemptionReasonCode>` + code + `</ram:ExemptionReasonCode>`
+	}
 	return edit(t, tBase,
 		lineTax, `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>`+cat+`</ram:CategoryCode><ram:RateApplicablePercent>0</ram:RateApplicablePercent></ram:ApplicableTradeTax>`,
-		breakdownS, `<ram:ApplicableTradeTax><ram:CalculatedAmount>0.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>100.00</ram:BasisAmount><ram:CategoryCode>`+cat+`</ram:CategoryCode>`+extra+`<ram:RateApplicablePercent>0</ram:RateApplicablePercent></ram:ApplicableTradeTax>`,
+		breakdownS, `<ram:ApplicableTradeTax><ram:CalculatedAmount>0.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode>`+reason+`<ram:BasisAmount>100.00</ram:BasisAmount><ram:CategoryCode>`+cat+`</ram:CategoryCode>`+code+`<ram:RateApplicablePercent>0</ram:RateApplicablePercent></ram:ApplicableTradeTax>`,
 		`<ram:TaxTotalAmount currencyID="EUR">19.00</ram:TaxTotalAmount>`, `<ram:TaxTotalAmount currencyID="EUR">0.00</ram:TaxTotalAmount>`,
 		`<ram:GrandTotalAmount>119.00</ram:GrandTotalAmount>`, `<ram:GrandTotalAmount>100.00</ram:GrandTotalAmount>`,
 		`<ram:DuePayableAmount>119.00</ram:DuePayableAmount>`, `<ram:DuePayableAmount>100.00</ram:DuePayableAmount>`)
@@ -161,15 +179,15 @@ func ruleCases() []ruleCase {
 		{name: "BR-23 unit code", doc: e(` unitCode="C62"`, ""), want: "BR-23"},
 		{name: "BR-27 negative net price", doc: e("<ram:ChargeAmount>10.00</ram:ChargeAmount>", "<ram:ChargeAmount>-10.00</ram:ChargeAmount>"), want: "BR-27"},
 		{name: "BR-17 payee named as seller", doc: e(settlStart, settlStart+`<ram:PayeeTradeParty><ram:Name>Seller</ram:Name></ram:PayeeTradeParty>`), want: "BR-17"},
-		{name: "BR-29 period order", doc: e(settlStart, settlStart+`<ram:BillingSpecifiedPeriod><ram:StartDateTime><udt:DateTimeString format="102">20240201</udt:DateTimeString></ram:StartDateTime><ram:EndDateTime><udt:DateTimeString format="102">20240101</udt:DateTimeString></ram:EndDateTime></ram:BillingSpecifiedPeriod>`), want: "BR-29"},
-		{name: "BR-CO-19 empty period", doc: e(settlStart, settlStart+`<ram:BillingSpecifiedPeriod></ram:BillingSpecifiedPeriod>`), want: "BR-CO-19"},
-		{name: "BR-31 BR-32 BR-33 allowance", doc: e(settlStart, settlStart+`<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator></ram:SpecifiedTradeAllowanceCharge>`), want: "BR-31 BR-32 BR-33 BR-CO-11 BR-CO-21"},
-		{name: "BR-36 charge", doc: e(settlStart, settlStart+`<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>true</udt:Indicator></ram:ChargeIndicator><ram:Reason>Freight</ram:Reason><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>`), want: "BR-36 BR-CO-12"},
+		{name: "BR-29 period order", doc: e(tPaymentTerms, `<ram:BillingSpecifiedPeriod><ram:StartDateTime><udt:DateTimeString format="102">20240201</udt:DateTimeString></ram:StartDateTime><ram:EndDateTime><udt:DateTimeString format="102">20240101</udt:DateTimeString></ram:EndDateTime></ram:BillingSpecifiedPeriod>`+tPaymentTerms), want: "BR-29"},
+		{name: "BR-CO-19 empty period", doc: e(tPaymentTerms, `<ram:BillingSpecifiedPeriod></ram:BillingSpecifiedPeriod>`+tPaymentTerms), want: "BR-CO-19"},
+		{name: "BR-31 BR-32 BR-33 allowance", doc: e(tPaymentTerms, `<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator></ram:SpecifiedTradeAllowanceCharge>`+tPaymentTerms), want: "BR-31 BR-32 BR-33 BR-CO-11 BR-CO-21"},
+		{name: "BR-36 charge", doc: e(tPaymentTerms, `<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>true</udt:Indicator></ram:ChargeIndicator><ram:Reason>Freight</ram:Reason><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>`+tPaymentTerms), want: "BR-36 BR-CO-12"},
 		{name: "BR-CO-04 line category", doc: e(lineTax, `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>`), want: "BR-CO-04 BR-S-08"},
 		{name: "BR-CO-09 VAT prefix", doc: e(">DE123456789<", ">XX123456789<"), want: "BR-CO-09"},
 		{name: "BR-CO-10 line total", doc: e("<ram:LineTotalAmount>100.00</ram:LineTotalAmount>\n<ram:TaxBasis", "<ram:LineTotalAmount>100.01</ram:LineTotalAmount>\n<ram:TaxBasis"), want: "BR-CO-10 BR-CO-13"},
-		{name: "BR-CO-11 to BR-CO-13 allowance totals", doc: e(settlStart, settlStart+allowance, breakdownS, `<ram:ApplicableTradeTax><ram:CalculatedAmount>17.10</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>90.00</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>`), want: "BR-CO-11 BR-CO-14"},
-		{name: "allowance consistent", doc: e(settlStart, settlStart+allowance,
+		{name: "BR-CO-11 to BR-CO-13 allowance totals", doc: e(tPaymentTerms, allowance+tPaymentTerms, breakdownS, `<ram:ApplicableTradeTax><ram:CalculatedAmount>17.10</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>90.00</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>`), want: "BR-CO-11 BR-CO-14"},
+		{name: "allowance consistent", doc: e(tPaymentTerms, allowance+tPaymentTerms,
 			breakdownS, `<ram:ApplicableTradeTax><ram:CalculatedAmount>17.10</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>90.00</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>`,
 			sumStart+"<ram:LineTotalAmount>100.00</ram:LineTotalAmount>\n<ram:TaxBasisTotalAmount>100.00</ram:TaxBasisTotalAmount>\n<ram:TaxTotalAmount currencyID=\"EUR\">19.00</ram:TaxTotalAmount>\n<ram:GrandTotalAmount>119.00</ram:GrandTotalAmount>\n<ram:DuePayableAmount>119.00</ram:DuePayableAmount>",
 			sumStart+"<ram:LineTotalAmount>100.00</ram:LineTotalAmount>\n<ram:AllowanceTotalAmount>10.00</ram:AllowanceTotalAmount>\n<ram:TaxBasisTotalAmount>90.00</ram:TaxBasisTotalAmount>\n<ram:TaxTotalAmount currencyID=\"EUR\">17.10</ram:TaxTotalAmount>\n<ram:GrandTotalAmount>107.10</ram:GrandTotalAmount>\n<ram:DuePayableAmount>107.10</ram:DuePayableAmount>"), want: ""},
@@ -180,7 +198,7 @@ func ruleCases() []ruleCase {
 			"<ram:DuePayableAmount>119.00</ram:DuePayableAmount>", "<ram:DuePayableAmount>120.00</ram:DuePayableAmount>"), want: "BR-S-09"},
 		{name: "BR-CO-26 seller identifier", doc: e(tSellerVAT, ""), want: "BR-CO-26 BR-S-02"},
 		{name: "BR-DEC amounts", doc: e("<ram:ChargeAmount>10.00</ram:ChargeAmount>", "<ram:ChargeAmount>10.0000</ram:ChargeAmount>", "<ram:DuePayableAmount>119.00</ram:DuePayableAmount>", "<ram:DuePayableAmount>119.000</ram:DuePayableAmount>"), want: "BR-DEC-18"},
-		{name: "BR-B-01 split payment outside Italy", doc: func(t *testing.T) string { return zeroRated(t, "B", "") }, want: "BR-B-01"},
+		{name: "BR-B-01 split payment outside Italy", doc: func(t *testing.T) string { return zeroRated(t, "B", "", "") }, want: "BR-B-01"},
 		// Code lists.
 		{name: "BR-CL-01 type code", doc: e("<ram:TypeCode>380</ram:TypeCode>", "<ram:TypeCode>999</ram:TypeCode>"), want: "BR-CL-01"},
 		{name: "BR-CL-04 currency normalized", doc: e("<ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>", "<ram:InvoiceCurrencyCode> EUR </ram:InvoiceCurrencyCode>"), want: "BR-CO-15"},
@@ -188,47 +206,47 @@ func ruleCases() []ruleCase {
 		{name: "BR-CL-14 Kosovo not in 1.3.17", doc: e(buyerAddr, `<ram:Name>Buyer</ram:Name><ram:PostalTradeAddress><ram:CountryID>XK</ram:CountryID></ram:PostalTradeAddress>`), want: "BR-CL-14"},
 		{name: "BR-CL-14 invalid country", doc: e(buyerAddr, `<ram:Name>Buyer</ram:Name><ram:PostalTradeAddress><ram:CountryID>ZZ</ram:CountryID></ram:PostalTradeAddress>`), want: "BR-CL-14"},
 		{name: "BR-CL-23 unit", doc: e(`unitCode="C62"`, `unitCode="QQQ"`), want: "BR-CL-23"},
-		{name: "BR-CL-25 EAS", doc: e("<ram:Name>Seller</ram:Name>", `<ram:Name>Seller</ram:Name><ram:URIUniversalCommunication><ram:URIID schemeID="9958">x</ram:URIID></ram:URIUniversalCommunication>`), want: "BR-CL-25"},
-		{name: "BR-62 no scheme", doc: e("<ram:Name>Seller</ram:Name>", `<ram:Name>Seller</ram:Name><ram:URIUniversalCommunication><ram:URIID>x</ram:URIID></ram:URIUniversalCommunication>`), want: "BR-62"},
+		{name: "BR-CL-25 EAS", doc: e(tSellerVAT, `<ram:URIUniversalCommunication><ram:URIID schemeID="9958">x</ram:URIID></ram:URIUniversalCommunication>`+tSellerVAT), want: "BR-CL-25"},
+		{name: "BR-62 no scheme", doc: e(tSellerVAT, `<ram:URIUniversalCommunication><ram:URIID>x</ram:URIID></ram:URIUniversalCommunication>`+tSellerVAT), want: "BR-62"},
 		{name: "BR-CL-22 VATEX case insensitive", doc: func(t *testing.T) string {
-			return zeroRated(t, "E", "<ram:ExemptionReasonCode>vatex-eu-132</ram:ExemptionReasonCode>")
+			return zeroRated(t, "E", "", "vatex-eu-132")
 		}, want: ""},
 		// VAT categories.
 		{name: "BR-S-05 zero rate", doc: e(lineTax, `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>0</ram:RateApplicablePercent></ram:ApplicableTradeTax>`), want: "BR-S-05 BR-S-08"},
-		{name: "BR-S-10 exemption", doc: e("<ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>\n"+tPaymentTerms, "<ram:CategoryCode>S</ram:CategoryCode><ram:ExemptionReason>x</ram:ExemptionReason><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>\n"+tPaymentTerms), want: "BR-S-10"},
-		{name: "BR-Z valid", doc: func(t *testing.T) string { return zeroRated(t, "Z", "") }, want: ""},
-		{name: "BR-Z-10 exemption", doc: func(t *testing.T) string { return zeroRated(t, "Z", "<ram:ExemptionReason>x</ram:ExemptionReason>") }, want: "BR-Z-10"},
-		{name: "BR-E-10 no exemption", doc: func(t *testing.T) string { return zeroRated(t, "E", "") }, want: "BR-E-10"},
+		{name: "BR-S-10 exemption", doc: e("<ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>", "<ram:TypeCode>VAT</ram:TypeCode><ram:ExemptionReason>x</ram:ExemptionReason><ram:BasisAmount>"), want: "BR-S-10"},
+		{name: "BR-Z valid", doc: func(t *testing.T) string { return zeroRated(t, "Z", "", "") }, want: ""},
+		{name: "BR-Z-10 exemption", doc: func(t *testing.T) string { return zeroRated(t, "Z", "x", "") }, want: "BR-Z-10"},
+		{name: "BR-E-10 no exemption", doc: func(t *testing.T) string { return zeroRated(t, "E", "", "") }, want: "BR-E-10"},
 		{name: "BR-E-08 taxable amount", doc: func(t *testing.T) string {
-			return edit(t, zeroRated(t, "E", "<ram:ExemptionReasonCode>VATEX-EU-132</ram:ExemptionReasonCode>"),
+			return edit(t, zeroRated(t, "E", "", "VATEX-EU-132"),
 				"<ram:BasisAmount>100.00</ram:BasisAmount><ram:CategoryCode>E</ram:CategoryCode>", "<ram:BasisAmount>102.00</ram:BasisAmount><ram:CategoryCode>E</ram:CategoryCode>")
 		}, want: "BR-E-08"},
 		{name: "BR-AE-02 buyer identifier", doc: func(t *testing.T) string {
-			return zeroRated(t, "AE", "<ram:ExemptionReason>Reverse charge</ram:ExemptionReason>")
+			return zeroRated(t, "AE", "Reverse charge", "")
 		}, want: "BR-AE-02"},
 		{name: "BR-IC-11 BR-IC-12 delivery", doc: func(t *testing.T) string {
-			d := zeroRated(t, "K", "<ram:ExemptionReason>Intra-community</ram:ExemptionReason>")
+			d := zeroRated(t, "K", "Intra-community", "")
 			return edit(t, d, buyerAddr, buyerAddr+`<ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">FR12345678901</ram:ID></ram:SpecifiedTaxRegistration>`)
 		}, want: "BR-IC-11 BR-IC-12"},
 		{name: "BR-G-02 seller VAT", doc: func(t *testing.T) string {
-			d := zeroRated(t, "G", "<ram:ExemptionReason>Export</ram:ExemptionReason>")
+			d := zeroRated(t, "G", "Export", "")
 			return edit(t, d, `schemeID="VA">DE123456789`, `schemeID="FC">201/113/40209`)
 		}, want: "BR-CO-26 BR-G-02"},
 		{name: "BR-O-02 BR-O-05 not subject", doc: func(t *testing.T) string {
-			d := zeroRated(t, "O", "<ram:ExemptionReason>Not subject</ram:ExemptionReason>")
-			return edit(t, d, "<ram:CategoryCode>O</ram:CategoryCode><ram:ExemptionReason>Not subject</ram:ExemptionReason><ram:RateApplicablePercent>0</ram:RateApplicablePercent>", "<ram:CategoryCode>O</ram:CategoryCode><ram:ExemptionReason>Not subject</ram:ExemptionReason>")
+			d := zeroRated(t, "O", "Not subject", "")
+			return edit(t, d, "<ram:BasisAmount>100.00</ram:BasisAmount><ram:CategoryCode>O</ram:CategoryCode><ram:RateApplicablePercent>0</ram:RateApplicablePercent>", "<ram:BasisAmount>100.00</ram:BasisAmount><ram:CategoryCode>O</ram:CategoryCode>")
 		}, want: "BR-O-02 BR-O-05"},
-		{name: "BR-O-11 other categories", doc: e(breakdownS, breakdownS+`<ram:ApplicableTradeTax><ram:CalculatedAmount>0.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>0.00</ram:BasisAmount><ram:CategoryCode>O</ram:CategoryCode><ram:ExemptionReason>x</ram:ExemptionReason></ram:ApplicableTradeTax>`), want: "BR-O-01 BR-O-11 BR-O-12"},
-		{name: "BR-IP-05 IGIC rate", doc: func(t *testing.T) string { return zeroRated(t, "L", "") }, want: "BR-IP-05"},
-		{name: "BR-IG-10 IPSI exemption", doc: func(t *testing.T) string { return zeroRated(t, "M", "<ram:ExemptionReason>x</ram:ExemptionReason>") }, want: "BR-IG-10"},
+		{name: "BR-O-11 other categories", doc: e(breakdownS, breakdownS+`<ram:ApplicableTradeTax><ram:CalculatedAmount>0.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:ExemptionReason>x</ram:ExemptionReason><ram:BasisAmount>0.00</ram:BasisAmount><ram:CategoryCode>O</ram:CategoryCode></ram:ApplicableTradeTax>`), want: "BR-O-01 BR-O-11 BR-O-12"},
+		{name: "BR-IP-05 IGIC rate", doc: func(t *testing.T) string { return zeroRated(t, "L", "", "") }, want: "BR-IP-05"},
+		{name: "BR-IG-10 IPSI exemption", doc: func(t *testing.T) string { return zeroRated(t, "M", "x", "") }, want: "BR-IG-10"},
 		{name: "BR-S-01 missing breakdown", doc: e(breakdownS, ""), want: "BR-CO-14 BR-CO-18 BR-S-01"},
 		// CII syntax.
 		{name: "CII-SR-002 test indicator", doc: e("<rsm:ExchangedDocumentContext>\n", "<rsm:ExchangedDocumentContext>\n<ram:TestIndicator><udt:Indicator>true</udt:Indicator></ram:TestIndicator>"), want: "CII-SR-002"},
 		{name: "CII-SR-010 specification identifier count", doc: e("<ram:ID>urn:cen.eu:en16931:2017</ram:ID>", "<ram:ID>urn:cen.eu:en16931:2017</ram:ID><ram:ID>x</ram:ID>"), want: "CII-SR-010"},
 		{name: "CII-DT-031 currencyID on amount", doc: e("<ram:LineTotalAmount>100.00</ram:LineTotalAmount>\n<ram:TaxBasis", "<ram:LineTotalAmount currencyID=\"EUR\">100.00</ram:LineTotalAmount>\n<ram:TaxBasis"), want: "CII-DT-031"},
 		{name: "CII-DT-097 date format 102", doc: e("20240115", "20241315"), want: "CII-DT-097"},
-		{name: "CII-SR-466 buyer contact", doc: e(buyerAddr, buyerAddr+"<ram:DefinedTradeContact><ram:PersonName>A</ram:PersonName><ram:DepartmentName>B</ram:DepartmentName></ram:DefinedTradeContact>"), want: "CII-SR-466"},
-		{name: "CII-SR-469 payment references", doc: e(settlStart, settlStart+"<ram:PaymentReference>a</ram:PaymentReference><ram:PaymentReference>b</ram:PaymentReference>"), want: "CII-SR-469"},
+		{name: "CII-SR-466 buyer contact", doc: e("<ram:Name>Buyer</ram:Name>", "<ram:Name>Buyer</ram:Name><ram:DefinedTradeContact><ram:PersonName>A</ram:PersonName><ram:DepartmentName>B</ram:DepartmentName></ram:DefinedTradeContact>"), want: "CII-SR-466"},
+		{name: "CII-SR-469 payment references", doc: e(settlStart, "<ram:PaymentReference>a</ram:PaymentReference><ram:PaymentReference>b</ram:PaymentReference>\n"+settlStart), want: "CII-SR-469"},
 		{name: "CII-SR-477 line total count", doc: e("<ram:LineTotalAmount>100.00</ram:LineTotalAmount>\n<ram:TaxBasis", "<ram:LineTotalAmount>100.00</ram:LineTotalAmount><ram:LineTotalAmount>100.00</ram:LineTotalAmount>\n<ram:TaxBasis"), want: "CII-SR-477"},
 		{name: "CII-DT-033 unit code without billed unit", doc: e(` unitCode="C62"`, "", "<ram:ChargeAmount>10.00</ram:ChargeAmount>", `<ram:ChargeAmount>10.00</ram:ChargeAmount><ram:BasisQuantity unitCode="C62">1</ram:BasisQuantity>`), want: "BR-23 CII-DT-033"},
 		// Profiles.
