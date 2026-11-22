@@ -48,6 +48,11 @@ var (
 	OIDAttrSigningCertificate   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 12}
 	OIDAttrSigningCertificateV2 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 47}
 	OIDAttrMimeType             = asn1.ObjectIdentifier{0, 4, 0, 1733, 2, 1}
+	// OIDAttrTimestamp is the signature-time-stamp unsigned attribute
+	// (id-aa-signatureTimeStampToken, RFC 3161 appendix A).
+	OIDAttrTimestamp = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 2, 14}
+	// OIDTSTInfo is the content type of a time-stamp token (id-ct-TSTInfo).
+	OIDTSTInfo = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 1, 4}
 )
 
 type contentInfo struct {
@@ -134,6 +139,9 @@ type SignerInfo struct {
 	// AttrErr tells why the signed attributes cannot be read, when they
 	// cannot.
 	AttrErr error
+	// Timestamps are the values of the signature-time-stamp unsigned
+	// attributes: time-stamp tokens over the signature value (RFC 3161).
+	Timestamps [][]byte
 
 	sid       asn1.RawValue
 	attrsDER  []byte // the signed attributes, with the SET tag they are signed with
@@ -262,7 +270,37 @@ func (sd *SignedData) newSigner(si *signerInfo) *SignerInfo {
 		s.attrsDER[0] = 0x31 // [0] IMPLICIT becomes the SET OF tag that is signed
 		s.AttrErr = s.readAttrs(si.SignedAttrs.Bytes)
 	}
+	s.Timestamps = unsignedTimestamps(si.UnsignedAttrs.Bytes)
 	return s
+}
+
+// SignatureValue returns the signature value of the SignerInfo, which a
+// signature time-stamp covers.
+func (s *SignerInfo) SignatureValue() []byte { return s.signature }
+
+// unsignedTimestamps returns the values of the signature-time-stamp
+// attributes among the unsigned attributes b; those that cannot be read
+// are skipped.
+func unsignedTimestamps(b []byte) [][]byte {
+	var out [][]byte
+	for len(b) > 0 && len(out) < MaxSigners {
+		var a attribute
+		var err error
+		if b, err = asn1.Unmarshal(b, &a); err != nil {
+			return out
+		}
+		if !a.Type.Equal(OIDAttrTimestamp) {
+			continue
+		}
+		for vals := a.Values.Bytes; len(vals) > 0; {
+			var v asn1.RawValue
+			if vals, err = asn1.Unmarshal(vals, &v); err != nil {
+				break
+			}
+			out = append(out, v.FullBytes)
+		}
+	}
+	return out
 }
 
 // findCert returns the certificate a SignerIdentifier designates.

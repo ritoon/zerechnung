@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -503,5 +504,38 @@ func TestDictSkipArrays(t *testing.T) {
 		if d, _ := r.DictSkipArrays(whole); !d.Has("Widths") {
 			t.Errorf("%+v: direct dictionary changed", o)
 		}
+	}
+}
+
+// TestUpdatedAfter checks the objects that the updates appended after a
+// revision define, for each layout, and that a repaired file tells nothing.
+func TestUpdatedAfter(t *testing.T) {
+	for _, layout := range []pdftest.Layout{pdftest.Classic, pdftest.XrefStream, pdftest.Hybrid} {
+		b, _ := sample()
+		orig := b.Bytes(pdftest.Options{Layout: layout, ObjStm: true})
+		r := open(t, orig)
+		if nums, ok := r.UpdatedAfter(int64(len(orig))); !ok || len(nums) != 0 {
+			t.Errorf("layout %d: updated after the end of the file: %v, %v", layout, nums, ok)
+		}
+		u := pdf.NewUpdate(r)
+		ref := u.Alloc()
+		u.Put(ref, pdf.Dict{{Key: "Note", Val: pdf.EncodeText("first")}})
+		cat := r.Catalog().Clone()
+		cat.Set("Note", ref)
+		u.Put(pdf.Ref{Num: 1}, cat)
+		out := u.Bytes(pdf.Dict{{Key: "Root", Val: pdf.Ref{Num: 1}}, {Key: "Info", Val: pdf.Ref{Num: 3}}})
+		r2 := open(t, out)
+		nums, ok := r2.UpdatedAfter(int64(len(orig)))
+		if !ok || !slices.Contains(nums, 1) || !slices.Contains(nums, ref.Num) || slices.Contains(nums, 2) || !slices.IsSorted(nums) {
+			t.Errorf("layout %d: updated after the first revision: %v, %v, want 1 and %d", layout, nums, ok, ref.Num)
+		}
+		if all, ok := r2.UpdatedAfter(0); !ok || !slices.Contains(all, 2) {
+			t.Errorf("layout %d: updated after 0: %v, %v", layout, all, ok)
+		}
+	}
+	b, _ := sample()
+	r := open(t, b.Bytes(pdftest.Options{Shift: 11}))
+	if _, ok := r.UpdatedAfter(0); ok {
+		t.Error("a repaired file tells its revisions")
 	}
 }

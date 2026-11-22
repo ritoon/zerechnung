@@ -44,6 +44,7 @@
         {"text": "cp_fr_syntax", "status": "yes", "rules": ["EN16931", "France"]},
         {"text": "cp_fr_chorus", "status": "yes", "rules": ["ChorusPro"]},
         {"text": "cp_fr_pdf", "status": "yes", "rules": ["Check"]},
+        {"text": "cp_fr_sign", "status": "yes", "rules": ["Sign", "VerifySignatures"]},
         {"text": "cp_fr_send", "status": "no"}
       ]
     },
@@ -107,7 +108,7 @@
         {"text": "cp_pt_nif", "status": "yes", "rules": ["Portugal"]},
         {"text": "cp_pt_atcud", "status": "no"},
         {"text": "cp_pt_saft", "status": "no"},
-        {"text": "cp_pt_sign", "status": "no"}
+        {"text": "cp_pt_sign", "status": "yes", "rules": ["Sign", "VerifySignatures"]}
       ]
     },
     {

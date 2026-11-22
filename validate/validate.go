@@ -73,6 +73,7 @@
 package validate
 
 import (
+	"crypto/x509"
 	"slices"
 	"time"
 
@@ -128,6 +129,7 @@ const (
 	SourceIT        = rules.SourceIT
 	SourcePT        = rules.SourcePT
 	SourceSDI       = rules.SourceSDI
+	SourceSignature = rules.SourceSignature
 )
 
 // RuleSet selects groups of rules.
@@ -205,6 +207,35 @@ type Options struct {
 	// ReceivedAt is the time the SdI receives a FatturaPA document: the date
 	// of the invoice must not be later (00403). The current time when zero.
 	ReceivedAt time.Time
+
+	// Trust gives what zerechnung.Check verifies the certificates of the
+	// signatures of a PDF against. It has no effect on the validation of
+	// an XML document.
+	Trust TrustOptions
+}
+
+// TrustOptions give what the certificates of the signatures of a PDF are
+// checked against, by zerechnung.Check and zerechnung.VerifySignatures.
+// Nothing is fetched from the network. The zero value checks the
+// signatures and the validity of their certificates, but neither their
+// chain nor their revocation, beyond the data the document carries.
+type TrustOptions struct {
+	// Roots are the trusted certification authorities, such as those of
+	// the EU trusted lists for qualified signatures and seals. Without
+	// them, the chains are not checked.
+	Roots *x509.CertPool
+	// Intermediates are certificates that may complete the chains,
+	// besides those the signatures and the document security store carry.
+	Intermediates []*x509.Certificate
+	// CRLs and OCSP are revocation data obtained by the caller (CRLs
+	// parsed by x509.ParseRevocationList, OCSP responses in DER), used
+	// with those of the document security store (DSS).
+	CRLs []*x509.RevocationList
+	OCSP [][]byte
+	// At is the time of the verification: a certificate must still be
+	// valid then when no time-stamp proves that the signature was made
+	// earlier. time.Now() when zero.
+	At time.Time
 }
 
 // PDFALevel selects the PDF/A checks of the PDF container (see

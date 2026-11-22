@@ -5,6 +5,7 @@ import eu.europa.esig.dss.detailedreport.jaxb.XmlBasicBuildingBlocks;
 import eu.europa.esig.dss.detailedreport.jaxb.XmlConstraintsConclusion;
 import eu.europa.esig.dss.diagnostic.DiagnosticData;
 import eu.europa.esig.dss.diagnostic.SignatureWrapper;
+import eu.europa.esig.dss.diagnostic.TimestampWrapper;
 import eu.europa.esig.dss.diagnostic.jaxb.XmlDigestMatcher;
 import eu.europa.esig.dss.enumerations.DigestAlgorithm;
 import eu.europa.esig.dss.enumerations.EncryptionAlgorithm;
@@ -16,6 +17,8 @@ import eu.europa.esig.dss.model.FileDocument;
 import eu.europa.esig.dss.model.SignatureValue;
 import eu.europa.esig.dss.model.ToBeSigned;
 import eu.europa.esig.dss.model.x509.CertificateToken;
+import eu.europa.esig.dss.pades.PAdESSignatureParameters;
+import eu.europa.esig.dss.pades.signature.PAdESService;
 import eu.europa.esig.dss.spi.DSSUtils;
 import eu.europa.esig.dss.spi.validation.CommonCertificateVerifier;
 import eu.europa.esig.dss.spi.x509.CommonCertificateSource;
@@ -38,6 +41,8 @@ import java.util.List;
  * <pre>
  * java DssCheck.java verify root.pem intermediate.pem file...
  * java DssCheck.java sign signer.p12 password fpa12.xml outdir name [pss]
+ * java DssCheck.java verify-pades root.pem intermediate.pem file.pdf...
+ * java DssCheck.java sign-pades signer.p12 password invoice.pdf outdir name [pss]
  * </pre>
  *
  * verify validates CAdES and XAdES files with root.pem as the only trust
@@ -49,6 +54,16 @@ import java.util.List;
  * sign signs fpa12.xml in XAdES Baseline B enveloped (dss-xades-name.xml)
  * and in CAdES Baseline B enveloping (dss-cades-name.xml.p7m), with RSA-PSS
  * when pss is given.
+ *
+ * verify-pades validates signed PDF the same way, and fails unless every
+ * signature passes those checks at the PAdES level its file name gives
+ * (pades-bb-: PAdES-BASELINE-B, pades-bt-: PAdES-BASELINE-T, pades-lta-:
+ * PAdES-BASELINE-LTA), its byte range and signature dictionary are valid,
+ * no undefined change follows it, and every time-stamp verifies and leads
+ * to the trusted root.
+ *
+ * sign-pades signs invoice.pdf in PAdES Baseline B (dss-pades-name.pdf),
+ * with RSA-PSS when pss is given.
  */
 public class DssCheck {
     public static void main(String[] args) throws Exception {
@@ -67,16 +82,35 @@ public class DssCheck {
                 }
             }
             System.exit(failed == 0 ? 0 : 1);
+        } else if (args.length >= 4 && args[0].equals("verify-pades")) {
+            int failed = 0;
+            for (int i = 3; i < args.length; i++) {
+                List<String> errors = verifyPades(args[1], args[2], args[i]);
+                if (errors.isEmpty()) {
+                    System.out.println("PASS " + args[i]);
+                } else {
+                    failed++;
+                    System.out.println("FAIL " + args[i]);
+                    for (String e : errors) {
+                        System.out.println("  " + e);
+                    }
+                }
+            }
+            System.exit(failed == 0 ? 0 : 1);
         } else if (args.length >= 6 && args[0].equals("sign")) {
             sign(args[1], args[2], args[3], args[4], args[5], args.length > 6 && args[6].equals("pss"));
+        } else if (args.length >= 6 && args[0].equals("sign-pades")) {
+            signPades(args[1], args[2], args[3], args[4], args[5], args.length > 6 && args[6].equals("pss"));
         } else {
             System.err.println("usage: DssCheck verify root.pem intermediate.pem file...");
             System.err.println("       DssCheck sign signer.p12 password doc.xml outdir name [pss]");
+            System.err.println("       DssCheck verify-pades root.pem intermediate.pem file.pdf...");
+            System.err.println("       DssCheck sign-pades signer.p12 password invoice.pdf outdir name [pss]");
             System.exit(2);
         }
     }
 
-    static List<String> verify(String root, String intermediate, String file) {
+    static Reports validate(String root, String intermediate, String file) {
         CommonTrustedCertificateSource trusted = new CommonTrustedCertificateSource();
         trusted.addCertificate(DSSUtils.loadCertificate(new File(root)));
         CommonCertificateSource adjunct = new CommonCertificateSource();
@@ -90,7 +124,11 @@ public class DssCheck {
 
         SignedDocumentValidator validator = SignedDocumentValidator.fromDocument(new FileDocument(file));
         validator.setCertificateVerifier(cv);
-        Reports reports = validator.validateDocument();
+        return validator.validateDocument();
+    }
+
+    static List<String> verify(String root, String intermediate, String file) {
+        Reports reports = validate(root, intermediate, file);
         DiagnosticData dd = reports.getDiagnosticData();
         DetailedReport dr = reports.getDetailedReport();
 
@@ -110,6 +148,12 @@ public class DssCheck {
                 && sig.getSignatureFormat() != SignatureLevel.CAdES_BASELINE_B) {
             errors.add("format " + level + ", want XAdES-BASELINE-B or CAdES-BASELINE-B");
         }
+        checkSignature(errors, sig, dr);
+        return errors;
+    }
+
+    /** checkSignature adds the errors of the checks common to every format. */
+    static void checkSignature(List<String> errors, SignatureWrapper sig, DetailedReport dr) {
         if (!sig.isSignatureIntact() || !sig.isSignatureValid()) {
             errors.add("signature value does not verify");
         }
@@ -137,6 +181,58 @@ public class DssCheck {
         check(errors, "validation context initialization (VCI)", bbb.getVCI());
         check(errors, "cryptographic verification (CV)", bbb.getCV());
         check(errors, "signature acceptance validation (SAV)", bbb.getSAV());
+    }
+
+    static List<String> verifyPades(String root, String intermediate, String file) {
+        Reports reports = validate(root, intermediate, file);
+        DiagnosticData dd = reports.getDiagnosticData();
+        DetailedReport dr = reports.getDetailedReport();
+        String base = new File(file).getName();
+        SignatureLevel want = base.startsWith("pades-bt-") ? SignatureLevel.PAdES_BASELINE_T
+                : base.startsWith("pades-lta-") ? SignatureLevel.PAdES_BASELINE_LTA
+                : SignatureLevel.PAdES_BASELINE_B;
+
+        List<String> errors = new ArrayList<>();
+        List<SignatureWrapper> sigs = dd.getSignatures();
+        if (sigs.isEmpty()) {
+            errors.add("no signature");
+        }
+        for (SignatureWrapper sig : sigs) {
+            String name = sig.getFirstFieldName();
+            System.out.println("  " + base + " " + name + ": " + sig.getSignatureFormat() + ", "
+                    + sig.getSignatureAlgorithm() + ", DocMDP " + sig.getDocMDPPermissions()
+                    + ", indication " + reports.getSimpleReport().getIndication(sig.getId()) + " "
+                    + reports.getSimpleReport().getSubIndication(sig.getId()));
+            List<String> errs = new ArrayList<>();
+            if (sig.getSignatureFormat() != want) {
+                errs.add("format " + sig.getSignatureFormat() + ", want " + want);
+            }
+            if (!sig.isSignatureByteRangeValid()) {
+                errs.add("byte range not valid: " + sig.getSignatureByteRange());
+            }
+            if (!sig.isPdfSignatureDictionaryConsistent()) {
+                errs.add("signature dictionary not consistent");
+            }
+            if (!sig.getPdfUndefinedChanges().isEmpty()) {
+                errs.add("undefined changes after the signature: " + sig.getPdfUndefinedChanges().size());
+            }
+            checkSignature(errs, sig, dr);
+            for (String e : errs) {
+                errors.add(name + ": " + e);
+            }
+        }
+        for (TimestampWrapper ts : dd.getTimestampList()) {
+            System.out.println("  " + base + " time-stamp " + ts.getType() + " at " + ts.getProductionTime().toInstant());
+            if (!ts.isMessageImprintDataFound() || !ts.isMessageImprintDataIntact()) {
+                errors.add("time-stamp " + ts.getType() + ": the message imprint does not match");
+            }
+            if (!ts.isSignatureIntact() || !ts.isSignatureValid()) {
+                errors.add("time-stamp " + ts.getType() + ": the signature does not verify");
+            }
+            if (ts.getSigningCertificate() == null || !ts.getSigningCertificate().isTrustedChain()) {
+                errors.add("time-stamp " + ts.getType() + ": no chain to the trusted root");
+            }
+        }
         return errors;
     }
 
@@ -192,6 +288,31 @@ public class DssCheck {
             File cout = new File(outDir, "dss-cades-" + name + ".xml.p7m");
             cs.signDocument(doc, cp, sv).save(cout.getPath());
             System.out.println("wrote " + cout);
+        }
+    }
+
+    static void signPades(String p12, String password, String pdfPath, String outDir, String name, boolean pss)
+            throws Exception {
+        DSSDocument doc = new FileDocument(pdfPath);
+        try (Pkcs12SignatureToken token = new Pkcs12SignatureToken(new File(p12),
+                new KeyStore.PasswordProtection(password.toCharArray()))) {
+            DSSPrivateKeyEntry key = token.getKeys().get(0);
+            PAdESSignatureParameters pp = new PAdESSignatureParameters();
+            pp.setSignatureLevel(SignatureLevel.PAdES_BASELINE_B);
+            pp.setDigestAlgorithm(DigestAlgorithm.SHA256);
+            pp.setSigningCertificate(key.getCertificate());
+            pp.setCertificateChain(key.getCertificateChain());
+            pp.setReason("Facture");
+            pp.setLocation("Bruxelles");
+            if (pss) {
+                pp.setEncryptionAlgorithm(EncryptionAlgorithm.RSASSA_PSS);
+            }
+            PAdESService ps = new PAdESService(new CommonCertificateVerifier());
+            ToBeSigned tbs = ps.getDataToSign(doc, pp);
+            SignatureValue sv = token.sign(tbs, pp.getSignatureAlgorithm(), key);
+            File out = new File(outDir, "dss-pades-" + name + ".pdf");
+            ps.signDocument(doc, pp, sv).save(out.getPath());
+            System.out.println("wrote " + out);
         }
     }
 }

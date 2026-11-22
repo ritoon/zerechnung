@@ -32,7 +32,8 @@ var outsideCatalogs = []string{
 }
 
 // TestRuleCoverage checks that the test suite raises each rule of the
-// catalogs (validate.Catalog of every rule set, and ContainerCatalog) and of
+// catalogs (validate.Catalog of every rule set, ContainerCatalog and
+// SignatureCatalog) and of
 // outsideCatalogs at least once, unless testdata/rule-coverage.txt lists it.
 // It is the dynamic counterpart of the TestCatalogComplete tests, which read
 // the sources: a rule that is written but that no test makes fail could be
@@ -55,6 +56,9 @@ func TestRuleCoverage(t *testing.T) {
 		rules[r.ID] = true
 	}
 	for _, r := range ContainerCatalog {
+		rules[r.ID] = true
+	}
+	for _, r := range SignatureCatalog {
 		rules[r.ID] = true
 	}
 	for _, id := range outsideCatalogs {

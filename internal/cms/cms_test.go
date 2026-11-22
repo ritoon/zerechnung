@@ -327,3 +327,48 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+// TestContentTypeAndTimestamp checks the options of a time-stamp token and
+// of a CAdES-T signature: the content type of the encapsulated content and
+// its content-type attribute, and the signature-time-stamp unsigned
+// attribute, computed over the signature value.
+func TestContentTypeAndTimestamp(t *testing.T) {
+	p := sigtest.New(t)
+	leaf, key := p.Leaf(t, sigtest.LeafOptions{Key: sigtest.ECKey(t)})
+	chain := []*x509.Certificate{leaf}
+	sd, s := parse1(t, sign(t, &SignOptions{Signer: key, Chain: chain, ContentType: OIDTSTInfo}))
+	if !sd.ContentType.Equal(OIDTSTInfo) || !s.ContentType.Equal(OIDTSTInfo) || len(s.Timestamps) != 0 {
+		t.Errorf("content type %v, attribute %v, %d time-stamps", sd.ContentType, s.ContentType, len(s.Timestamps))
+	}
+	if err := sd.VerifyAll(nil); err != nil {
+		t.Errorf("VerifyAll: %v", err)
+	}
+
+	token, _ := asn1.Marshal(struct{ A, B int }{1, 2})
+	var stamped []byte
+	der := sign(t, &SignOptions{Signer: key, Chain: chain, Detached: true, SignatureTimestamp: func(sig []byte) ([]byte, error) {
+		stamped = bytes.Clone(sig)
+		return token, nil
+	}})
+	sd, s = parse1(t, der)
+	if len(s.Timestamps) != 1 || !bytes.Equal(s.Timestamps[0], token) {
+		t.Fatalf("time-stamps %x, want [%x]", s.Timestamps, token)
+	}
+	if !bytes.Equal(stamped, s.SignatureValue()) {
+		t.Error("the time-stamp is not computed over the signature value")
+	}
+	if err := sd.VerifyAll(content); err != nil {
+		t.Errorf("VerifyAll: %v", err)
+	}
+
+	for name, ts := range map[string]func([]byte) ([]byte, error){
+		"error":        func([]byte) ([]byte, error) { return nil, errors.New("unreachable") },
+		"not DER":      func([]byte) ([]byte, error) { return []byte("token"), nil },
+		"not SEQUENCE": func([]byte) ([]byte, error) { return asn1.Marshal(42) },
+		"trailing":     func([]byte) ([]byte, error) { return append(bytes.Clone(token), 0), nil },
+	} {
+		if _, err := Sign(content, &SignOptions{Signer: key, Chain: chain, SignatureTimestamp: ts}); err == nil {
+			t.Errorf("time-stamp %s: no error", name)
+		}
+	}
+}

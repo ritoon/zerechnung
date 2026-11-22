@@ -246,8 +246,20 @@ func TestCreateRenderedSignedInvoice(t *testing.T) {
 		t.Fatalf("signatures %+v, %v", sigs, err)
 	}
 	report, att, err := zerechnung.Check(body, &validate.Options{Rules: validate.Default | validate.France})
-	if err != nil || !report.Valid() || len(report.Findings) != 0 {
+	if err != nil || !report.Valid() {
 		t.Errorf("check: %v %v", err, report)
+	}
+	// Check describes the signature (SIG-14), and tells that neither its
+	// chain nor its revocation was checked; nothing else.
+	described := false
+	for _, f := range report.Findings {
+		described = described || f.Rule == "SIG-14"
+		if f.Source != validate.SourceSignature || f.Severity != validate.Info {
+			t.Errorf("check: %v", f)
+		}
+	}
+	if !described {
+		t.Errorf("check does not describe the signature: %v", report)
 	}
 	inv, _, err := zerechnung.Read(body)
 	if err != nil || inv.Number != "FA-2026-00042" || inv.Totals.DuePayable.String() != "1080.00" || att.Filename != "factur-x.xml" {

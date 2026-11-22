@@ -134,10 +134,12 @@ jobs:
 
   signature:
     # The CAdES and XAdES signatures of package fatturapa against OpenSSL
-    # 3.0, xmlsec1 1.2 and EU DSS 6.5.1, both ways: each tool verifies the
-    # files the package signs, and the package verifies the files each tool
-    # signs. Java and xmlsec1 run in the CI only: the package is pure Go.
-    name: Interopérabilité des signatures FatturaPA
+    # 3.0, xmlsec1 1.2 and EU DSS 6.5.1, and the PAdES signatures of package
+    # zerechnung against pdfsig (Poppler) and EU DSS, both ways: each tool
+    # verifies the files the packages sign, and the packages verify the
+    # files the tools sign. Java, xmlsec1 and pdfsig run in the CI only: the
+    # packages are pure Go.
+    name: Interopérabilité des signatures FatturaPA et PAdES
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -150,9 +152,9 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: conformance/signature/pom.xml
-      - name: Install xmlsec1
-        run: sudo apt-get update -q && sudo apt-get install -y -q xmlsec1
-      - name: Sign and verify with OpenSSL, xmlsec1 and DSS
+      - name: Install xmlsec1 and pdfsig
+        run: sudo apt-get update -q && sudo apt-get install -y -q xmlsec1 poppler-utils
+      - name: Sign and verify with OpenSSL, xmlsec1, pdfsig and DSS
         run: conformance/signature.sh
       - uses: actions/upload-artifact@v5
         if: always()
