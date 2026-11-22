@@ -59,6 +59,9 @@ const tInvoice = `<?xml version="1.0" encoding="UTF-8"?>
 </Invoice>
 `
 
+// cenSpecification is the specification identifier of tInvoice.
+const cenSpecification = "<cbc:CustomizationID>urn:cen.eu:en16931:2017</cbc:CustomizationID>"
+
 // creditNote turns tInvoice into a credit note: BT-9 moves to
 // cac:PaymentMeans/cbc:PaymentDueDate.
 func creditNote(s string) string {
@@ -89,21 +92,42 @@ func check(t *testing.T, doc string) *rules.Report {
 	return r
 }
 
-func TestCheck(t *testing.T) {
+// checkCase is a mutation of tInvoice.
+type checkCase struct {
+	name     string
+	old, new string // replacement in tInvoice
+	old2     string // second replacement
+	new2     string
+	credit   bool // apply creditNote
+	want     []string
+}
+
+// doc returns the document of the case.
+func (c checkCase) doc(t testing.TB) string {
+	t.Helper()
+	doc := tInvoice
+	if c.credit {
+		doc = creditNote(doc)
+	}
+	for _, r := range [][2]string{{c.old, c.new}, {c.old2, c.new2}} {
+		if r[0] == "" {
+			continue
+		}
+		if !strings.Contains(doc, r[0]) {
+			t.Fatalf("%q not found in the template", r[0])
+		}
+		doc = strings.Replace(doc, r[0], r[1], 1)
+	}
+	return doc
+}
+
+func checkCases() []checkCase {
 	ext := `<ext:UBLExtensions xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"><ext:UBLExtension><ext:ExtensionContent/></ext:UBLExtension></ext:UBLExtensions>`
 	// The payment elements of the Dutch G-account extension, and its
 	// specification identifier.
 	gaPayment := `<cac:PaymentMeans><cbc:ID>GACCOUNT</cbc:ID><cbc:PaymentMeansCode>1</cbc:PaymentMeansCode></cac:PaymentMeans><cac:PaymentTerms><!--terms--><cbc:PaymentMeansID>GACCOUNT</cbc:PaymentMeansID><cbc:Amount currencyID="EUR">119.00</cbc:Amount></cac:PaymentTerms>`
-	cen := "<cbc:CustomizationID>urn:cen.eu:en16931:2017</cbc:CustomizationID>"
 	gaSpec := "<cbc:CustomizationID>" + invoice.URNNLCIUS + rules.GAccountExtension + "</cbc:CustomizationID>"
-	cases := []struct {
-		name     string
-		old, new string // replacement in tInvoice
-		old2     string // second replacement
-		new2     string
-		credit   bool // apply creditNote
-		want     []string
-	}{
+	return []checkCase{
 		{name: "valid"},
 		{name: "valid credit note", credit: true},
 		{name: "extensions", old: "<cbc:CustomizationID>", new: ext + "<cbc:CustomizationID>", want: []string{"UBL-CR-001"}},
@@ -133,9 +157,9 @@ func TestCheck(t *testing.T) {
 		{name: "name attribute", old: "<cbc:InvoiceTypeCode>", new: `<cbc:InvoiceTypeCode name="x">`, want: []string{"UBL-DT-18"}},
 		{name: "payment means name", old: "<!--payment-->", new: `<cac:PaymentMeans><cbc:PaymentMeansCode name="Cash">10</cbc:PaymentMeansCode></cac:PaymentMeans>`},
 		{name: "G-account elements", old: "<!--payment-->", new: gaPayment, want: []string{"UBL-CR-411", "UBL-CR-453", "UBL-CR-459"}},
-		{name: "G-account elements with the extension", old: "<!--payment-->", new: gaPayment, old2: cen, new2: gaSpec},
-		{name: "G-account extension keeps the other syntax rules", old: "<!--payment-->", new: strings.Replace(gaPayment, "<!--terms-->", "<cbc:ID>T1</cbc:ID>", 1), old2: cen, new2: gaSpec, want: []string{"UBL-CR-452"}},
-		{name: "G-account extension of another identifier", old: "<!--payment-->", new: gaPayment, old2: cen, new2: "<cbc:CustomizationID>urn:cen.eu:en16931:2017" + rules.GAccountExtension + "</cbc:CustomizationID>"},
+		{name: "G-account elements with the extension", old: "<!--payment-->", new: gaPayment, old2: cenSpecification, new2: gaSpec},
+		{name: "G-account extension keeps the other syntax rules", old: "<!--payment-->", new: strings.Replace(gaPayment, "<!--terms-->", "<cbc:ID>T1</cbc:ID>", 1), old2: cenSpecification, new2: gaSpec, want: []string{"UBL-CR-452"}},
+		{name: "G-account extension of another identifier", old: "<!--payment-->", new: gaPayment, old2: cenSpecification, new2: "<cbc:CustomizationID>urn:cen.eu:en16931:2017" + rules.GAccountExtension + "</cbc:CustomizationID>"},
 		{name: "invoice type code of a credit note", old: "<cbc:InvoiceTypeCode>380<", new: "<cbc:InvoiceTypeCode>381<", want: []string{"BR-CL-01"}},
 		{name: "credit note type code of an invoice", credit: true, old: "<cbc:CreditNoteTypeCode>381<", new: "<cbc:CreditNoteTypeCode>380<", want: []string{"BR-CL-01"}},
 		{name: "note subject", old: "<!--notes-->", new: "<cbc:Note>#AAI#Text</cbc:Note><cbc:Note>#AB#Text</cbc:Note><cbc:Note>#AAI Text</cbc:Note>"},
@@ -172,23 +196,22 @@ func TestCheck(t *testing.T) {
 		{name: "tax representative without address", old: "<!--payment-->", new: `<cac:TaxRepresentativeParty><cac:PartyName><cbc:Name>Rep</cbc:Name></cac:PartyName><cac:PartyTaxScheme><cbc:CompanyID>DE987654321</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme></cac:TaxRepresentativeParty>`, want: []string{"BR-19"}},
 		{name: "item identifier without scheme", old: "<!--item-->", new: "<cac:StandardItemIdentification><cbc:ID>4000001123452</cbc:ID></cac:StandardItemIdentification>", want: []string{"BR-64"}},
 		{name: "item classification without scheme", old: "<!--item-->", new: "<cac:CommodityClassification><cbc:ItemClassificationCode>9873242</cbc:ItemClassificationCode></cac:CommodityClassification>", want: []string{"BR-65"}},
+		// BR-x-01: the UBL tests differ from the CII ones. A category that
+		// appears on the lines needs exactly one breakdown of that category
+		// (BR-O-01), a standard rated breakdown needs standard rated lines
+		// (BR-S-01), and a breakdown alone satisfies BR-Z-01.
+		{name: "lines not subject to VAT", old: `<cac:ClassifiedTaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>19</cbc:Percent>`, new: `<cac:ClassifiedTaxCategory><cbc:ID>O</cbc:ID>`, want: []string{"BR-O-01", "BR-O-02", "BR-S-01", "BR-S-08"}},
+		// BR-CO-14 compares each tax total with its own breakdown.
+		{name: "second tax total with a breakdown", old: "</cac:TaxTotal>", new: `</cac:TaxTotal><cac:TaxTotal><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="EUR">0.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount><cac:TaxCategory><cbc:ID>Z</cbc:ID><cbc:Percent>0</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>`, want: []string{"BR-CO-15"}},
+		{name: "tax total of another breakdown", old: "</cac:TaxTotal>", new: `</cac:TaxTotal><cac:TaxTotal><cbc:TaxAmount currencyID="EUR">19.00</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="EUR">0.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount><cac:TaxCategory><cbc:ID>Z</cbc:ID><cbc:Percent>0</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>`, want: []string{"BR-CO-14", "BR-CO-15"}},
+		{name: "zero rated breakdown without lines", old: "</cac:TaxTotal>", new: `<cac:TaxSubtotal><cbc:TaxableAmount currencyID="EUR">0.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount><cac:TaxCategory><cbc:ID>Z</cbc:ID><cbc:Percent>0</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>`},
 	}
-	for _, c := range cases {
+}
+
+func TestCheck(t *testing.T) {
+	for _, c := range checkCases() {
 		t.Run(c.name, func(t *testing.T) {
-			doc := tInvoice
-			if c.credit {
-				doc = creditNote(doc)
-			}
-			for _, r := range [][2]string{{c.old, c.new}, {c.old2, c.new2}} {
-				if r[0] == "" {
-					continue
-				}
-				if !strings.Contains(doc, r[0]) {
-					t.Fatalf("%q not found in the template", r[0])
-				}
-				doc = strings.Replace(doc, r[0], r[1], 1)
-			}
-			r := check(t, doc)
+			r := check(t, c.doc(t))
 			got := r.Rules()
 			want := append([]string(nil), c.want...)
 			sort.Strings(want)

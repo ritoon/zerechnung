@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -149,7 +152,9 @@ func kositLevel(s string) string {
 // rule identifier in their code attribute, and the level of the schematron.
 // The levels that the scenario changes (s:customLevel, which the report
 // repeats) replace them, as in the assessment of the document. An invoice
-// that matches no scenario of the configuration is not covered.
+// that matches no scenario of the configuration is not covered. KoSIT runs
+// no schematron on an invoice that the XML schema rejects: its result is then
+// Stopped, and only the schema is compared.
 func parseKoSIT(data []byte) (result, error) {
 	res := newResult()
 	d := xml.NewDecoder(bytes.NewReader(data))
@@ -159,6 +164,8 @@ func parseKoSIT(data []byte) (result, error) {
 		noMatch  bool
 		resource string // name of the resource of the current step
 		scenario string
+		schema   bool                  // a message of a schema step
+		rules    bool                  // a schematron step ran
 		custom   = map[string]string{} // rule → level set by the scenario
 		customAt string                // level of the s:customLevel being read
 		messages [][2]string           // compared rule, level
@@ -188,6 +195,7 @@ func parseKoSIT(data []byte) (result, error) {
 				switch {
 				case noMatch || strings.Contains(resource, "Schema") && !strings.Contains(resource, "Schematron"):
 					res.add(schemaToken, levelError)
+					schema = true
 				case compared(code):
 					messages = append(messages, [2]string{code, level})
 				default:
@@ -206,6 +214,9 @@ func parseKoSIT(data []byte) (result, error) {
 				switch stack[len(stack)-2] {
 				case "resource":
 					resource = strings.TrimSpace(text.String())
+					if strings.Contains(resource, "Schematron") && len(stack) >= 3 && stack[len(stack)-3] == "validationStepResult" {
+						rules = true
+					}
 				case "scenario":
 					scenario = strings.TrimSpace(text.String())
 				}
@@ -222,6 +233,9 @@ func parseKoSIT(data []byte) (result, error) {
 	switch {
 	case matched:
 		res.Note = scenario
+		if schema && !rules {
+			res.Stopped = "XML Schema : KoSIT n'exécute pas les schematrons"
+		}
 	case noMatch && len(res.Rules) > 0:
 		res.Note = "not well-formed"
 	case noMatch:
@@ -232,6 +246,77 @@ func parseKoSIT(data []byte) (result, error) {
 	}
 	return res, nil
 }
+
+// kositFailures reads the table that the KoSIT validator prints at the end of
+// its log and returns, by staged file name (0042.xml), the description of the
+// documents it could not assess (UNDEFINED): a schematron that stops on a
+// dynamic error, such as an XPath cast of a sequence of two items, leaves in
+// the report a valid step without any message, and only the log tells. Each
+// row of the table spans several lines, the first of which fills the columns
+// Schema, Schematron and Acceptance; the file name ends the File column, and
+// the description is cut every 60 characters, within words. The table ends
+// the log. A missing log gives no failure.
+func kositFailures(file string) (map[string]string, error) {
+	data, err := os.ReadFile(file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	var (
+		results            bool
+		name, desc, accept strings.Builder
+		open               bool
+	)
+	flush := func() {
+		if open && accept.String() == "UNDEFINED" {
+			if m := stagedName.FindStringSubmatch(name.String()); m != nil {
+				out[m[1]] = strings.Join(strings.Fields(desc.String()), " ")
+			}
+		}
+		open = false
+		name.Reset()
+		desc.Reset()
+		accept.Reset()
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimRight(line, "\r")
+		if !results {
+			results = strings.HasPrefix(line, "Results:")
+			continue
+		}
+		// | File | Schema | Schematron | Acceptance | Error/Description |
+		// A description may hold line breaks: the lines that do not start
+		// with a cell continue it, and are left out.
+		cols := strings.SplitN(line, "|", 6)
+		if len(cols) != 6 || cols[0] != "" {
+			continue
+		}
+		if strings.TrimSpace(cols[1]) == "File" {
+			continue
+		}
+		if strings.TrimSpace(cols[2]) != "" {
+			flush()
+			open = true
+			accept.WriteString(strings.TrimSpace(cols[4]))
+		}
+		if open {
+			name.WriteString(strings.TrimSpace(cols[1]))
+			desc.WriteString(strings.TrimSuffix(cols[5], "|"))
+		}
+	}
+	flush()
+	return out, nil
+}
+
+// kositFailure starts the Stopped of a KoSIT result that kositFailures
+// reports.
+const kositFailure = "erreur dynamique (kosit.log) : "
+
+// stagedName is the name of a staged invoice at the end of a path.
+var stagedName = regexp.MustCompile(`(\d{4}\.xml)$`)
 
 func attr(t xml.StartElement, name string) string {
 	for _, a := range t.Attr {

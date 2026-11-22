@@ -195,7 +195,7 @@ func TestStage(t *testing.T) {
 	write(corpus, "ZUGFeRDv2/fail/notes.txt", "x")
 	write(corpus, "ZUGFeRDv1/correct/d.pdf", "%PDF")
 	write(kosit, "src/test/business-cases/standard/01.01a-INVOICE_ubl.xml", "<e/>")
-	if err := stage(corpus, kosit, work, nlInputs{}); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -496,7 +496,7 @@ func TestStageNL(t *testing.T) {
 	write(repo, "internal/rules/nl/testdata/nlcius.xml", cii)
 	write(variants, "ubl-001-x.xml", ubl)
 	nl := nlInputs{npa: npaDir, tests: tests, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nl); err != nil {
+	if err := stage(corpus, kosit, work, nl, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -529,7 +529,7 @@ func TestStageNL(t *testing.T) {
 	}
 
 	write(variants, "bad.xml", "<Order/>")
-	if err := stage(corpus, kosit, work, nl); err == nil {
+	if err := stage(corpus, kosit, work, nl, ""); err == nil {
 		t.Error("a variant that is not an invoice: no error")
 	}
 }

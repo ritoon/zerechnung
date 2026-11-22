@@ -2,11 +2,16 @@
 #
 # Une ligne par écart : référence, facture, écart, raison.
 #   référence : kosit, mustang ou * (les deux)
-#   facture   : origine de la facture (corpus/… ou kosit/…) ; * vaut pour
+#   facture   : origine de la facture (corpus/…, kosit/…, variants/… ou
+#               nl/…) ; * vaut pour
 #               n'importe quelle suite de caractères, / compris
 #   écart     : +RÈGLE en erreur chez ZeRechnung seul, -RÈGLE en erreur chez la
-#               référence seule ; une * finale vaut pour toutes les règles de
-#               ce préfixe ; SCHEMA désigne les erreurs de schéma XSD
+#               référence seule (à tous les niveaux pour les variants et la
+#               NPa : +RÈGLE levée plus haut chez ZeRechnung, -RÈGLE plus haut
+#               chez la référence) ; ?RÈGLE attendue par le test de mutation
+#               d'un variant et que la référence ne lève pas ; une * finale
+#               vaut pour toutes les règles de ce préfixe ; SCHEMA désigne les
+#               erreurs de schéma XSD
 #   raison    : le reste de la ligne, obligatoire
 #
 # Un écart absent de ce fichier fait échouer le job de parité ; une ligne qui
@@ -28,9 +33,44 @@ mustang corpus/XML-Rechnung/UBL/XRECHNUNG_Elektron.ubl.xml -PEPPOL-EN16931-R008 
 mustang corpus/XML-Rechnung/UBL/EN16931_* +PEPPOL-* Facture Peppol BIS 3.0 (CustomizationID) : ZeRechnung applique les règles Peppol, que Mustang n'applique pas ; la suite de tests Peppol officielle les vérifie.
 mustang corpus/XML-Rechnung/UBL/not_validating_* +PEPPOL-* Facture Peppol BIS 3.0 (CustomizationID) : ZeRechnung applique les règles Peppol, que Mustang n'applique pas ; la suite de tests Peppol officielle les vérifie.
 
+# Mustang : factures XRechnung 1.2 et 2.1
+#
+# ZeRechnung range dans le profil XRECHNUNG toute facture dont le BT-24 désigne
+# XRechnung, versions 1.x et 2.x comprises, et lui applique les règles de
+# XRechnung 3.0.2, dont les assertions Peppol des schematrons XRechnung
+# (BR-DE-21 avertit que l'identifiant n'est pas celui de la version 3.0) ; la
+# configuration KoSIT du 2026-08-31 refuse ces factures sans les évaluer
+# (aucun scénario). Mustang ne lève pas ces règles Peppol sur elles. Les mêmes
+# factures en version 3.0 (corpus/XML-Rechnung/CII et UBL) les respectent, et
+# les deux côtés s'y accordent.
+
+mustang corpus/XML-Rechnung/FX/XRECHNUNG_* +PEPPOL-EN16931-* Facture XRechnung 2.1 : ZeRechnung lui applique les règles Peppol de XRechnung 3.0.2 (adresses électroniques, processus métier, prix brut), que Mustang ne lève pas ; KoSIT refuse les factures 2.1 sans les évaluer.
+mustang corpus/ZUGFeRDv2/correct/Mustangproject/testout-XR* +PEPPOL-EN16931-* Facture XRechnung 1.2 : ZeRechnung lui applique les règles Peppol de XRechnung 3.0.2 (adresses électroniques, processus métier, élément vide), que Mustang ne lève pas ; KoSIT refuse les factures 1.2 sans les évaluer.
+mustang corpus/ZUGFeRDv2/correct/symtrax/*XRechnung* +PEPPOL-EN16931-* Facture XRechnung 1.2 : ZeRechnung lui applique les règles Peppol de XRechnung 3.0.2 (adresses électroniques, processus métier, prix brut), que Mustang ne lève pas ; KoSIT refuse les factures 1.2 sans les évaluer.
+
 # Mustang : messages sans identifiant de règle
 
 mustang corpus/ZUGFeRDv2/fail/FX-With-UBL-REC50304330.pdf +SCHEMA Mustang signale la même erreur, une facture UBL dans un PDF Factur-X, par un message sans identifiant de règle (type 17).
+
+# KoSIT, variants : schéma du profil Factur-X EN 16931
+#
+# Le BT-24 urn:cen.eu:en16931:2017 est aussi celui du profil Factur-X EN 16931 :
+# ZeRechnung valide ces factures contre le XSD de ce profil, qui rend
+# obligatoires la devise, les lignes ou la catégorie de TVA d'une ligne, et
+# n'admet pas ram:TestIndicator ; KoSIT les valide contre le XSD CII D16B
+# complet, qui les laisse facultatifs.
+
+kosit variants/en16931/* +SCHEMA XSD du profil Factur-X EN 16931 chez ZeRechnung, XSD CII D16B complet chez KoSIT ; la règle EN 16931 que le variant teste est levée des deux côtés.
+
+# KoSIT, variants : règles EN 16931 (CEN 1.3.16 dans la configuration KoSIT,
+# 1.3.17 dans ZeRechnung)
+
+kosit variants/en16931/cii-*-br-ip-05-igic-rate.xml -BR-AF-05 CEN 1.3.17 renomme en CII les règles IGIC BR-AF-* en BR-IP-* : même assertion (taux IGIC d'une ligne), sous l'identifiant de la version 1.3.16 chez KoSIT.
+kosit variants/en16931/cii-*-br-ip-05-igic-rate.xml +BR-IP-05 CEN 1.3.17 renomme en CII les règles IGIC BR-AF-* en BR-IP-* : même assertion (taux IGIC d'une ligne), sous l'identifiant de la version 1.3.17 chez ZeRechnung.
+kosit variants/de/cii-*-br-de-22-*.xml -CII-SR-476 CEN 1.3.16 compte les pièces jointes de toutes les ram:AdditionalReferencedDocument de type 916, et lève CII-SR-476 dès qu'il y en a deux ; CEN 1.3.17 compte celles de chaque document, une ici.
+kosit variants/de/cii-*-br-dex-15-*.xml +CII-SR-036 CEN 1.3.16 cherche ram:ParentLineID sous ram:IncludedSupplyChainTradeLineItem, où il ne figure jamais, et ne lève jamais CII-SR-036 ; CEN 1.3.17 le cherche sous ram:AssociatedDocumentLineDocument.
+kosit variants/de/cii-*-br-dex-01-no-mime-code.xml +CII-DT-105 CII-DT-105 (code MIME d'une pièce jointe obligatoire) est apparue avec CEN 1.3.17 ; la configuration KoSIT embarque la version 1.3.16.
+kosit variants/de/ubl-*-br-de-16-blank-vat-identifier.xml +BR-CO-09 CEN 1.3.16 cherche les deux premiers caractères du numéro de TVA dans la liste des préfixes sans les entourer d'espaces, et accepte un numéro fait d'une espace ; CEN 1.3.17 les entoure d'espaces (concat), et le refuse.
 
 # XSLT de la NPa : règles EN 16931 (CEN 1.3.16 dans les XSLT, 1.3.17 dans ZeRechnung)
 

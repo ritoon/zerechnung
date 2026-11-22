@@ -7,9 +7,9 @@ Ce dossier mesure l'exactitude du package sur les artefacts officiels, à chaque
 | [`fetch.sh`](fetch.sh) | Récupère les artefacts officiels à des versions figées et les vérifie, puis affiche les variables `FX_*` qui activent les tests optionnels |
 | [`fetch-nl.sh`](fetch-nl.sh) | Récupère les seuls artefacts des règles néerlandaises (`FX_NL`, `FX_NL_TESTS`) ; `fetch.sh` l'appelle, et le job *Tests NLCIUS sur les artefacts officiels* du workflow [CI](../.github/workflows/ci.yml) l'exécute seul, en quelques secondes |
 | [`verapdf.sh`](verapdf.sh) | Convertit en PDF/A-3 les fichiers PDF/A-2b et PDF/A-3b du corpus veraPDF et les PDF non conformes des tests, puis vérifie les fichiers convertis avec veraPDF |
-| [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, et les XSLT de la NPa sur les factures NLCIUS, puis compare leurs règles à celles du package |
+| [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, KoSIT sur les variants des tests de mutation EN 16931 et XRechnung, et les XSLT de la NPa sur les factures NLCIUS, puis compare leurs règles à celles du package |
 | [`parity/`](parity) | Outil Go de comparaison (module séparé) et lanceurs Java de Mustang et des XSLT de la NPa |
-| [`parity/known.txt`](parity/known.txt) | Écarts connus et justifiés, et assertions NLCIUS qu'aucune facture ne déclenche ; tout autre écart fait échouer le job |
+| [`parity/known.txt`](parity/known.txt) | Écarts connus et justifiés, règles attendues par un variant que la référence ne lève pas, et assertions NLCIUS qu'aucune facture ne déclenche ; tout autre écart fait échouer le job |
 | [`signature.sh`](signature.sh) | Fait vérifier par OpenSSL, xmlsec1 et EU DSS les signatures CAdES et XAdES du package `fatturapa`, et fait vérifier par le package les fichiers que ces outils signent |
 | [`signature/`](signature) | Projet Maven d'EU DSS 6.5.1 et son lanceur [`DssCheck.java`](signature/DssCheck.java), qui valide et signe |
 
@@ -98,11 +98,11 @@ Le job écrit le tableau de résultats dans le résumé du run et dépose les ra
 | Référence | Factures comparées | Mêmes erreurs | Écarts justifiés |
 |---|---|---|---|
 | KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 128 | 128 | 0 |
-| Mustang 2.26.0 | 282 | 241 | 41 |
+| Mustang 2.26.0 | 282 | 239 | 43 |
 
 Avec KoSIT, toutes les factures comparées ont les mêmes erreurs.
 
-Les écarts avec Mustang viennent de différences entre les références elles-mêmes : Mustang n'applique pas Peppol BIS 3.0 aux factures UBL Peppol du corpus, ni la configuration KoSIT aux factures XRechnung (niveaux des règles, et XSD CII D16B complet là où Mustang garde le XSD Factur-X EN 16931), et embarque le schematron XRechnung 2.4.0, quand KoSIT et le package appliquent la version 2.6.0.
+Les écarts avec Mustang viennent de différences entre les références elles-mêmes : Mustang n'applique pas Peppol BIS 3.0 aux factures UBL Peppol du corpus, ni la configuration KoSIT aux factures XRechnung (niveaux des règles, et XSD CII D16B complet là où Mustang garde le XSD Factur-X EN 16931), et embarque le schematron XRechnung 2.4.0, quand KoSIT et le package appliquent la version 2.6.0. Enfin, le package range dans le profil XRECHNUNG les factures qui déclarent XRechnung 1.2 ou 2.1, et leur applique les règles de XRechnung 3.0.2, règles Peppol des schematrons XRechnung comprises, que Mustang n'y lève pas ; KoSIT refuse ces factures sans les évaluer.
 
 Le package applique les schematrons Factur-X 1.09.2 comme Mustang à BASIC, à EXTENDED et à EN 16931 dans un PDF Factur-X : mêmes erreurs sur toutes ces factures du corpus, les assertions sur BT-24 étant rapprochées de FX-PROFILE. À un XML EN 16931 seul, il applique les règles CEN 1.3.17 comme KoSIT, là où Mustang garde le schematron Factur-X (voir [Factur-X ou CEN](../README.md#factur-x-ou-cen)) ; sur le corpus, la table `equivalents` rapproche les deux constats (FX-SCH-A-000571 et BR-CL-25 sur les deux exemples au schéma 9958), sans écart.
 
@@ -111,6 +111,56 @@ Le package applique les schematrons Factur-X 1.09.2 comme Mustang à BASIC, à E
 Le tableau *Cas négatifs officiels* du rapport donne, pour chaque facture invalide à dessein du corpus, les erreurs levées par le package et par chaque référence. La suite de tests KoSIT ne contient que des factures valides.
 
 Le test `TestOfficialNegativeCases` ([`negative_test.go`](../negative_test.go)), exécuté par le job *Tests sur les artefacts officiels*, fige ces verdicts : chacune des 24 factures de `ZUGFeRDv2/fail` et des 2 exemples `not_validating` doit lever les règles que lèvent les références (sous le même identifiant ou, pour le même défaut, sous celui du package). Le défaut PDF/A que Mustang relève avec veraPDF sur `ZUGFeRD_2_fully_compliant_complete.pdf`, un CIDSet de police incomplet, est relevé par PDF-72. Sept factures n'ont pas d'erreur, pour une raison donnée dans le test : les cinq exemples FNFE-MPE que le corpus a déplacés sans dire ce qui est faux, où Mustang ne trouve pas d'erreur non plus, un prix net incohérent qu'aucune règle EN 16931 ne contrôle, et un exemple où aucune référence ne trouve d'erreur.
+
+### Variants des tests de mutation EN 16931 et XRechnung
+
+Le corpus et la suite KoSIT contiennent surtout des factures valides : sur ces 128 factures, KoSIT ne lève que 17 de ses 1 936 assertions. Pour comparer aussi les chemins d'erreur, le job fait passer à KoSIT les documents des tests de mutation de trois paquets de règles, que leur test `TestVariants` écrit avec `-variants DIR` (paquet [`internal/variants`](../internal/variants)) :
+
+```bash
+go test ./internal/rules/de -run '^TestVariants$' -variants DIR
+```
+
+| Paquet | Variants | Documents |
+|---|---|---|
+| `internal/rules/de` | 293 | les cas de mutation des factures XRechnung CII et UBL du dépôt, factures de départ comprises ; ceux dont le BT-24 n'est retenu par aucun scénario de la configuration KoSIT (BR-DE-21, extension sur un avoir) sont laissés de côté |
+| `internal/rules/en16931` | 55 | les cas des règles CEN en CII sans profil Factur-X, au BT-24 CEN ou XRechnung |
+| `internal/rules/ubl` | 64 | les cas du contrôle des factures UBL, sauf ceux de l'extension G-rekening |
+
+Chaque variant casse une ou plusieurs règles d'une facture valide (308 variants), ou vérifie qu'un cas limite n'en casse aucune (104) ; le fichier `expected.tsv` que le test écrit à côté donne les règles attendues. KoSIT seul les reçoit. L'outil compare les règles à tous les niveaux, erreurs, avertissements et informations, car beaucoup des règles cassées sont des avertissements. Il vérifie aussi que KoSIT lève chaque règle attendue : sinon l'écart `?RÈGLE` signale un variant qui ne teste plus sa règle chez la référence, et fait échouer le job comme les autres.
+
+Deux comportements de KoSIT demandent un traitement à part :
+
+- il n'exécute pas les schematrons sur un document que le XSD rejette : seules les règles qu'il lève, le schéma, sont alors comparées ;
+- quand un schematron s'arrête sur une erreur dynamique XPath (plusieurs valeurs là où le test en attend une), son rapport XML montre une étape valide, sans message ; seul le tableau final de `kosit.log` indique `UNDEFINED`. L'outil lit ce tableau, et ne compare pour ces documents que les règles que KoSIT lève.
+
+Le rapport donne enfin, pour chaque XSLT de la configuration KoSIT, la part des assertions levées au moins une fois, à n'importe quel niveau, sur le corpus ou sur les variants, par famille de règles, et la liste de celles qui ne le sont jamais.
+
+### Résultats des variants
+
+| Référence | Variants comparés | Mêmes règles | Écarts justifiés | Même verdict |
+|---|---|---|---|---|
+| KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 412 | 398 | 14 | 410 |
+
+| XSLT de la configuration KoSIT | Assertions | Levées sur le corpus et la suite KoSIT | Levées sur les variants | Levées au total |
+|---|---|---|---|---|
+| `EN16931-CII-validation.xsl` (CEN 1.3.16) | 806 | 10 | 66 | 70 (8,7 %) |
+| `EN16931-UBL-validation.xsl` (CEN 1.3.16) | 979 | 4 | 70 | 70 (7,2 %) |
+| `XRechnung-CII-validation.xsl` | 74 | 2 | 70 | 70 (94,6 %) |
+| `XRechnung-UBL-validation.xsl` | 77 | 1 | 73 | 73 (94,8 %) |
+| Total | 1 936 | 17 | 279 | 283 (14,6 %) |
+
+Les variants portent les assertions XRechnung exercées de 3 à 143 sur 151, dont les 43 assertions Peppol (22 en CII, 21 en UBL), et celles du CEN de 14 à 140 sur 1 785. Restent jamais levées en CII BR-DE-21 (un BT-24 qu'aucun scénario ne retient n'est pas évalué), BR-DE-23-a, BR-DEX-05 et BR-TMP-CVD-01, en UBL BR-DE-21, BR-DE-1, BR-DE-2 et BR-TMP-6. Ces chiffres mesurent ce que la référence a confirmé, pas la couverture des tests du package : les familles CII-SR et UBL-CR (482 et 678 assertions) interdisent chacune un élément du schéma, et presque aucune n'est levée ; les règles BR, BR-CO et de catégorie de TVA restent en majorité à exercer par de nouveaux variants.
+
+Les écarts justifiés de [`parity/known.txt`](parity/known.txt) viennent de deux causes :
+
+- le BT-24 `urn:cen.eu:en16931:2017`, qui est aussi celui du profil Factur-X EN 16931 : le package valide ces factures contre le XSD de ce profil, plus strict que le XSD CII D16B complet de KoSIT (7 variants, qui lèvent par ailleurs de part et d'autre la règle qu'ils testent) ;
+- la version CEN 1.3.16 de la configuration KoSIT, quand le package applique la 1.3.17 : règles IGIC renommées de BR-AF en BR-IP, CII-SR-476 comptée par document, contexte de CII-SR-036 corrigé, CII-DT-105 ajoutée, préfixe de BR-CO-09 entouré d'espaces (7 variants).
+
+Deux variants n'ont pas le même verdict : un variant EN 16931 avec `ram:TestIndicator`, que le XSD Factur-X EN 16931 n'admet pas, et le variant de CII-SR-477, que KoSIT n'a pas pu évaluer.
+
+Le package applique aux factures XRechnung les assertions Peppol que les schematrons XRechnung exécutent avant les leurs (`internal/rules/de`, voir sa documentation) : leurs contextes, leurs tests et leurs niveaux diffèrent par endroits de Peppol BIS 3.0 (élément vide de livraison en CII ou de référence de commande en UBL admis, R120 en avertissement, tolérance de 0,5 pour le forint). Leurs variants couvrent chaque assertion et ses cas limites (règle qui s'applique en premier dans un motif, tolérance, quantité de base du prix brut) ; KoSIT lève les mêmes règles sur chacun, sauf sur ceux que son XSD rejette (indicateur `False` ou vide), où seul le schéma est comparé.
+
+Ces variants ont aussi révélé deux écarts, corrigés. En UBL, BR-CO-14 comparait la TVA de chaque `cac:TaxTotal` à la somme des ventilations de tous, alors que le schematron UBL la compare à celle de ses propres `cac:TaxSubtotal` (voir `taxTotal` dans [`business.go`](../internal/rules/ubl/business.go)). En UBL encore, les règles BR-S-01, BR-AE-01, BR-E-01, BR-G-01, BR-IC-01, BR-IG-01, BR-IP-01, BR-O-01 et BR-Z-01 suivaient les tests du schematron CII, alors que ceux du schematron UBL diffèrent. En UBL, une ventilation S exige une ligne, remise ou charge S, et inversement ; il en va de même pour L et M, sur les seules catégories de type TVA ; pour les autres catégories, dès que la catégorie apparaît, il faut exactement une ventilation (voir `categoryPresentUBL` dans [`vat.go`](../internal/rules/en16931/vat.go)).
 
 ## Parité NLCIUS avec les XSLT de la NPa
 
