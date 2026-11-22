@@ -34,18 +34,18 @@ func main() {
 	caseificio := invoice.Party{
 		Name:              "Caseificio Sociale Il Crinale Soc. Agr. Coop.",
 		IDs:               []invoice.Identifier{{ID: "REA:RE#245871"}},
-		LegalRegistration: invoice.Identifier{ID: "02846170351", Scheme: "0210"},
+		LegalRegistration: invoice.Identifier{ID: "02846170351", Scheme: invoice.SchemeCodiceFiscale},
 		VATID:             "IT02846170351",
 		Address: invoice.Address{Line1: "Via del Crinale", Line2: "14", PostCode: "42030",
 			City: "Vezzano sul Crostolo", CountrySubdivision: "RE", CountryCode: "IT"},
 	}
 	trattoria := invoice.Party{
 		Name:              "Trattoria dei Navigli S.r.l.",
-		LegalRegistration: invoice.Identifier{ID: "05172830159", Scheme: "0210"},
+		LegalRegistration: invoice.Identifier{ID: "05172830159", Scheme: invoice.SchemeCodiceFiscale},
 		VATID:             "IT05172830159",
 		Address: invoice.Address{Line1: "Ripa di Porta Ticinese", Line2: "55", PostCode: "20143",
 			City: "Milano", CountrySubdivision: "MI", CountryCode: "IT"},
-		ElectronicAddress: invoice.Identifier{ID: "KRRH6B9", Scheme: "0205"},
+		ElectronicAddress: invoice.Identifier{ID: "KRRH6B9", Scheme: invoice.SchemeCodiceDestinatario},
 	}
 
 	// ## Indicare la fattura differita e i DDT
@@ -120,9 +120,11 @@ func main() {
 
 	// ## Controllare lo schema
 	// validate.XML riconosce una FatturaPA e la controlla rispetto allo
-	// schema XSD 1.2.4. I controlli dello SdI non sono fatti: lo schema
-	// segnala però le date, gli importi e i codici scritti male.
-	report := validate.XML(xml, nil)
+	// schema XSD 1.2.4, che segnala le date, gli importi e i codici scritti
+	// male, e ai controlli dello SdI sul contenuto. Lo SdI scarta una
+	// fattura con una data successiva alla sua ricezione (codice 00403):
+	// ReceivedAt dice quando la riceve, qui il giorno stesso dell'emissione.
+	report := validate.XML(xml, &validate.Options{ReceivedAt: inv.IssueDate.Time(nil)})
 	if !report.Valid() {
 		log.Fatal(report)
 	}

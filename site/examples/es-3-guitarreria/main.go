@@ -40,7 +40,7 @@ func main() {
 		Address: invoice.Address{
 			Line1: "Cuesta de Gomérez, 18", PostCode: "18009", City: "Granada", CountryCode: "ES",
 		},
-		ElectronicAddress: invoice.Identifier{ID: "ESB18726042", Scheme: "9920"},
+		ElectronicAddress: invoice.Identifier{ID: "ESB18726042", Scheme: invoice.SchemeESVAT},
 	}
 	escuela := invoice.Party{
 		Name:  "Escuela de Guitarra Flamenca La Bulería, S.L.",
@@ -48,7 +48,7 @@ func main() {
 		Address: invoice.Address{
 			Line1: "Calle del Ave María, 30", PostCode: "28012", City: "Madrid", CountryCode: "ES",
 		},
-		ElectronicAddress: invoice.Identifier{ID: "ESB87531299", Scheme: "9920"},
+		ElectronicAddress: invoice.Identifier{ID: "ESB87531299", Scheme: invoice.SchemeESVAT},
 	}
 
 	// ## Añadir las menciones de la factura

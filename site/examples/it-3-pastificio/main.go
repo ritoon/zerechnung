@@ -42,7 +42,7 @@ func main() {
 	// merce.
 	pastificio := invoice.Party{
 		Name:              "Pastificio Fratelli Amitrano S.r.l.",
-		LegalRegistration: invoice.Identifier{ID: "07429510634", Scheme: "0210"},
+		LegalRegistration: invoice.Identifier{ID: "07429510634", Scheme: invoice.SchemeCodiceFiscale},
 		VATID:             "IT07429510634",
 		Address: invoice.Address{Line1: "Via Roma", Line2: "48", PostCode: "80054",
 			City: "Gragnano", CountrySubdivision: "NA", CountryCode: "IT"},
@@ -75,7 +75,7 @@ func main() {
 		VATBreakdown: []invoice.VATBreakdown{{
 			CategoryCode:        invoice.VATIntraCommunity,
 			Rate:                d("0"),
-			ExemptionReasonCode: "VATEX-EU-IC",
+			ExemptionReasonCode: invoice.VATEXIntraCommunity,
 			ExemptionReason:     "Cessione intracomunitaria non imponibile, art. 41 D.L. 331/1993",
 		}},
 		PaymentMeans: []invoice.PaymentMeans{{
@@ -112,13 +112,15 @@ func main() {
 	// ## Scrivere la FatturaPA per lo SdI
 	// Il cliente non ha codice destinatario: per un cliente estero Marshal
 	// scrive XXXXXXX, e lo SdI non recapita la fattura, ma ne acquisisce i
-	// dati. Lo schema XSD controlla il documento.
+	// dati. Lo schema XSD e i controlli dello SdI verificano il documento;
+	// ReceivedAt fissa la ricezione al giorno dell'emissione, perché lo SdI
+	// scarta una fattura datata dopo (codice 00403).
 	inv.Calculate()
 	fpa, err := fatturapa.Marshal(inv, &fatturapa.MarshalOptions{Indent: true})
 	if err != nil {
 		log.Fatal(err)
 	}
-	if r := validate.XML(fpa, nil); !r.Valid() {
+	if r := validate.XML(fpa, &validate.Options{ReceivedAt: inv.IssueDate.Time(nil)}); !r.Valid() {
 		log.Fatal(r)
 	}
 

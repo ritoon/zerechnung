@@ -41,16 +41,16 @@ func main() {
 		Contact: &invoice.Contact{
 			PersonName: "Leonor Bastos", Email: "encomendas@leonorbastos.example",
 		},
-		ElectronicAddress: invoice.Identifier{ID: "PT514729384", Scheme: "9946"},
+		ElectronicAddress: invoice.Identifier{ID: "PT514729384", Scheme: invoice.SchemePTVAT},
 	}
 	loja := invoice.Party{
 		Name:              "Maison Lemaire & Benali SRL",
 		VATID:             "BE0728391608",
-		LegalRegistration: invoice.Identifier{ID: "0728391608", Scheme: "0208"},
+		LegalRegistration: invoice.Identifier{ID: "0728391608", Scheme: invoice.SchemeBEEnterprise},
 		Address: invoice.Address{
 			Line1: "Rue du Bailli 54", PostCode: "1050", City: "Ixelles", CountryCode: "BE",
 		},
-		ElectronicAddress: invoice.Identifier{ID: "0728391608", Scheme: "0208"},
+		ElectronicAddress: invoice.Identifier{ID: "0728391608", Scheme: invoice.SchemeBEEnterprise},
 	}
 
 	// ## Preencher o cabeçalho Peppol
@@ -63,7 +63,7 @@ func main() {
 	d := invoice.MustDecimal
 	inv := &invoice.Invoice{
 		Profile:                invoice.ProfilePeppol,
-		BusinessProcess:        "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0",
+		BusinessProcess:        invoice.ProcessPeppolBilling,
 		Number:                 "FT 2026/1209",
 		TypeCode:               invoice.TypeCommercialInvoice,
 		IssueDate:              invoice.NewDate(2026, time.November, 20),
@@ -84,7 +84,7 @@ func main() {
 			CategoryCode:        invoice.VATIntraCommunity,
 			Rate:                d("0"),
 			ExemptionReason:     "Isento nos termos do artigo 14.º do RITI.",
-			ExemptionReasonCode: "VATEX-EU-IC",
+			ExemptionReasonCode: invoice.VATEXIntraCommunity,
 		}},
 		PaymentMeans: []invoice.PaymentMeans{{
 			TypeCode:         invoice.PaymentSEPACreditTransfer,
