@@ -2,8 +2,8 @@
 //
 //   - catalog_gen.go, from the CII validation artefacts of CEN TC 434
 //     (EN 16931);
-//   - ctcfr_gen.go (-ctcfr), from the FNFE-MPE schematron of the French
-//     EXTENDED-CTC-FR profile for CII.
+//   - ctcfr_gen.go (-ctcfr), from the FNFE-MPE schematrons of the French
+//     EXTENDED-CTC-FR profile for CII and UBL.
 //
 // By default it reads the release archive en16931-cii-<version>.zip, either
 // from a local file (-zip) or downloaded from the GitHub release of
@@ -13,11 +13,12 @@
 // identifier, its severity (flag fatal: Error, warning: Warning) and its
 // official message.
 //
-// With -ctcfr, it reads the schematron EXTENDED-CTC-FR-CII.sch of the
-// France_RFE package 1.4.0.04 (FNFE_RFE_INVOICE/CII/EXTENDED-CTC-FR/schematron),
-// either from -src (the file, or a checkout of github.com/fnfempe/France_RFE)
-// or downloaded from the repository at the commit of the release tag, checks
-// its SHA-256 and writes all its assertions the same way: the model, CII
+// With -ctcfr, it reads the schematrons EXTENDED-CTC-FR-CII.sch and
+// EXTENDED-CTC-FR-UBL.sch of the France_RFE package 1.4.0.04
+// (FNFE_RFE_INVOICE/{CII,UBL}/EXTENDED-CTC-FR/schematron), either from -src
+// (a checkout of github.com/fnfempe/France_RFE) or downloaded from the
+// repository at the commit of the release tag, and checks their SHA-256. It
+// writes all the assertions of the CII schematron the same way: the model, CII
 // syntax and code list patterns, which the schematron derives from the CEN
 // ones, and the two patterns of its own (line subtypes, item attribute
 // codes). The assertions commented out in the file are not read. An
@@ -25,7 +26,11 @@
 // ([BR-FXEXT-04]); a message that also holds diagnostics (xsl:value-of) is
 // the text after its last identifier in brackets. The lists of the code list
 // assertions (contains(' A B ', concat(' ', ., ' '))) and of BR-CO-09 are
-// written as a table too.
+// written as a table too. Of the UBL schematron, whose syntax rules, code
+// lists and rules of its own package internal/rules/ubl generates and
+// checks, it writes the identifiers and severities of the model and code
+// list assertions (ctcfrUBLRules): the rules that the package may report on
+// the CII view of an EXTENDED-CTC-FR invoice in UBL.
 //
 // In both cases, the syntax assertions whose test is not(path) or
 // count(path) <= n (also written "le n"), or count(path) = n, are also
@@ -72,9 +77,19 @@ const (
 	ctcfrRelease = "1.4.0.04"
 	ctcfrCommit  = "97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d" // tag v1.4.0.04
 	ctcfrFile    = "FNFE_RFE_INVOICE/CII/EXTENDED-CTC-FR/schematron/EXTENDED-CTC-FR-CII.sch"
-	ctcfrURL     = "https://raw.githubusercontent.com/fnfempe/France_RFE/" + ctcfrCommit + "/" + ctcfrFile
 	ctcfrSum     = "768cd0610d163df37786984f9b9e52e466d1f987a427964161a7ab301ad41c7b"
+
+	ctcfrUBLFile = "FNFE_RFE_INVOICE/UBL/EXTENDED-CTC-FR/schematron/EXTENDED-CTC-FR-UBL.sch"
+	ctcfrUBLSum  = "ba8f8f2611b950519cc1eb88698dec2b1dbf91f7495f55d4b682540f99e6077e"
 )
+
+// ctcfrBase is the base URL of the files of the France_RFE package at the
+// commit of the release tag.
+const ctcfrBase = "https://raw.githubusercontent.com/fnfempe/France_RFE/" + ctcfrCommit + "/"
+
+// ctcfrUBLPatterns are the patterns of the UBL schematron whose assertions
+// ctcfrUBLRules lists.
+var ctcfrUBLPatterns = map[string]bool{"UBL-model": true, "Codesmodel": true}
 
 // skipped lists the assertions of the CEN schematron that never fail in the
 // official artefacts and are therefore not implemented. Assertions whose
@@ -109,7 +124,7 @@ func main() {
 	log.SetPrefix("en16931/gen: ")
 	zipPath := flag.String("zip", "", "path of "+archive+" (downloaded from GitHub when empty)")
 	ctcfr := flag.Bool("ctcfr", false, "generate the EXTENDED-CTC-FR syntax rules from the FNFE-MPE schematron")
-	srcPath := flag.String("src", "", "with -ctcfr: EXTENDED-CTC-FR-CII.sch or a checkout of France_RFE (downloaded when empty)")
+	srcPath := flag.String("src", "", "with -ctcfr: a checkout of France_RFE (the schematrons are downloaded when empty)")
 	out := flag.String("o", "", "output file (default catalog_gen.go, ctcfr_gen.go with -ctcfr)")
 	flag.Parse()
 
@@ -163,27 +178,91 @@ func generateCEN(zipPath string) ([]byte, error) {
 	return generate(sch, cenSource)
 }
 
-// readCTCFR returns the EXTENDED-CTC-FR schematron read from path (the file,
-// or a checkout of France_RFE), or downloaded when path is empty.
-func readCTCFR(path string) ([]byte, error) {
-	if path == "" {
-		return download(ctcfrURL)
+// readCTCFR returns the file of the France_RFE package read from the
+// checkout dir, or downloaded when dir is empty, after checking its SHA-256.
+func readCTCFR(dir, file, sum string) ([]byte, error) {
+	var data []byte
+	var err error
+	if dir == "" {
+		data, err = download(ctcfrBase + file)
+	} else {
+		data, err = os.ReadFile(filepath.Join(dir, filepath.FromSlash(file)))
 	}
-	if fi, err := os.Stat(path); err == nil && fi.IsDir() {
-		path = filepath.Join(path, filepath.FromSlash(ctcfrFile))
-	}
-	return os.ReadFile(path)
-}
-
-func generateCTCFR(path string) ([]byte, error) {
-	sch, err := readCTCFR(path)
 	if err != nil {
 		return nil, err
 	}
-	if err := checkSum(filepath.Base(ctcfrFile), sch, ctcfrSum); err != nil {
+	if err := checkSum(filepath.Base(file), data, sum); err != nil {
 		return nil, err
 	}
-	return generate(sch, ctcfrSource)
+	return data, nil
+}
+
+func generateCTCFR(dir string) ([]byte, error) {
+	sch, err := readCTCFR(dir, ctcfrFile, ctcfrSum)
+	if err != nil {
+		return nil, err
+	}
+	ubl, err := readCTCFR(dir, ctcfrUBLFile, ctcfrUBLSum)
+	if err != nil {
+		return nil, err
+	}
+	src, err := generate(sch, ctcfrSource)
+	if err != nil {
+		return nil, err
+	}
+	table, err := ublRules(ubl)
+	if err != nil {
+		return nil, err
+	}
+	return format.Source(append(src, table...))
+}
+
+// ublRules returns the declaration of ctcfrUBLRules: the identifiers and
+// severities of the assertions of the patterns ctcfrUBLPatterns of the UBL
+// schematron.
+func ublRules(sch []byte) ([]byte, error) {
+	var s schema
+	if err := xml.Unmarshal(sch, &s); err != nil {
+		return nil, err
+	}
+	var b bytes.Buffer
+	fmt.Fprintf(&b, `
+// ctcfrUBLRules maps the model and code list rules of the EXTENDED-CTC-FR
+// schematron for UBL (%s, SHA-256
+// %s) to their severity. For an
+// EXTENDED-CTC-FR invoice in UBL, the package reports, on the CII view, only
+// the rules of this table: package internal/rules/ubl checks the syntax
+// rules, the code lists and the rules of the schematron on the UBL document.
+var ctcfrUBLRules = map[string]rules.Severity{
+`, ctcfrUBLFile, ctcfrUBLSum)
+	seen := map[string]bool{}
+	for _, p := range s.Patterns {
+		if !ctcfrUBLPatterns[p.ID] {
+			continue
+		}
+		for _, r := range p.Rules {
+			for _, a := range r.Asserts {
+				if a.ID == "" || seen[a.ID] {
+					return nil, fmt.Errorf("%s: assertion without identifier or duplicate (%q)", ctcfrUBLFile, a.ID)
+				}
+				seen[a.ID] = true
+				sev := "rules.Error"
+				switch a.Flag {
+				case "fatal":
+				case "warning":
+					sev = "rules.Warning"
+				default:
+					return nil, fmt.Errorf("%s: unknown flag %q", a.ID, a.Flag)
+				}
+				fmt.Fprintf(&b, "\t%q: %s,\n", a.ID, sev)
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return nil, fmt.Errorf("%s: no model assertion found", ctcfrUBLFile)
+	}
+	b.WriteString("}\n")
+	return b.Bytes(), nil
 }
 
 func checkSum(name string, data []byte, want string) error {

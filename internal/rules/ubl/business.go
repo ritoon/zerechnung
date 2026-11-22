@@ -97,6 +97,9 @@ func (k *checker) businessAggregate(n *xmltree.Node) {
 			k.fail("BR-52", n, "an additional supporting document (BG-24) has no supporting document reference (BT-122)")
 		}
 	case "BillingReference":
+		if k.ctcfr && p != k.root {
+			return // (/ubl:Invoice|/cn:CreditNote)/cac:BillingReference: not the line subtypes
+		}
 		if first(n, "cac:InvoiceDocumentReference/cbc:ID") == nil {
 			k.fail("BR-55", n, "a preceding invoice reference (BG-3) has no invoice reference (BT-25)")
 		}

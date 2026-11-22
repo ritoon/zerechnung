@@ -12,11 +12,11 @@ import (
 
 // reference is a reference validator.
 type reference struct {
-	Key     string                       // kosit, mustang, npa, pt: the name used in known.txt
+	Key     string                       // kosit, mustang, npa, fnfe, pt: the name used in known.txt
 	Title   string                       // for the report
 	dir     string                       // sub-directory of the work directory holding its reports
 	report  func(e entry) string         // name of the report of an invoice
-	parse   func([]byte) (result, error) // reads a report; nil for npa and pt, whose reports npaRun.result and ptRun.result read
+	parse   func([]byte) (result, error) // reads a report; nil for npa, fnfe and pt, whose reports xslRun.result and ptRun.result read
 	applies func(e entry) bool           // the validator was given the invoice
 	ours    func(string, []byte) result  // validates the invoice with this package
 	levels  bool                         // warnings and informations are compared too, not only errors
@@ -52,6 +52,15 @@ var references = []reference{
 		levels:  true,
 	},
 	{
+		Key:     "fnfe",
+		Title:   "XSLT EXTENDED-CTC-FR de la FNFE-MPE, France_RFE 1.4.0.04 (Saxon-HE 12.10)",
+		dir:     "fnfe",
+		report:  func(e entry) string { return e.Name + ".svrl" },
+		applies: func(e entry) bool { return e.fr() },
+		ours:    oursFR,
+		levels:  true,
+	},
+	{
 		Key:     "pt",
 		Title:   "Schematron CIUS-PT 2.1.1 d'eSPap (SchXslt 1.10.1, Saxon-HE 12.10)",
 		dir:     "pt",
@@ -80,7 +89,7 @@ func (c *comparison) identical() bool { return len(c.Known) == 0 && len(c.Unexpe
 // knownDiff is a line of known.txt: a difference that is understood and
 // justified.
 type knownDiff struct {
-	ref    string // kosit, mustang, npa, pt or *
+	ref    string // kosit, mustang, npa, fnfe, pt or *
 	glob   string // origin of the invoice, * matching any string (/ included); for ~RULE, syntax/pattern
 	diff   string // +RULE, -RULE (+RULE@PATH, -RULE@PATH for pt), ?RULE (expected by a mutation case, not raised by the reference) or ~RULE (an NLCIUS assertion that the XSLT never raise); a final * matches a prefix
 	reason string
@@ -179,7 +188,11 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	npa, err := newNPaRun(work)
+	npa, err := newXSLRun(work, "npa.list")
+	if err != nil {
+		return false, err
+	}
+	fnfe, err := newXSLRun(work, "fnfe.list")
 	if err != nil {
 		return false, err
 	}
@@ -216,6 +229,8 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 			switch ref.Key {
 			case "npa":
 				r, err = npa.result(e, rdata)
+			case "fnfe":
+				r, err = fnfe.result(e, rdata)
 			case "pt":
 				r, err = pt.result(e, rdata)
 			default:

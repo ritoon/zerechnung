@@ -80,6 +80,17 @@ var vatCategoriesCTCFR = func() [nCat]vatCategory {
 	return c
 }()
 
+// vatCategoriesUBLCTCFR are the category rules of the EXTENDED-CTC-FR
+// schematron for UBL: those of the CEN UBL artefacts (vatCategoriesUBL),
+// whose rules of category L (BR-IG there) and M (BR-IP) it numbers BR-AF
+// and BR-AG.
+var vatCategoriesUBLCTCFR = func() [nCat]vatCategory {
+	c := vatCategoriesUBL
+	c[catL].prefix = "BR-AF-"
+	c[catM].prefix = "BR-AG-"
+	return c
+}()
+
 // ctcfrCategory describes the rules BR-FREXT-*-01 and BR-FXEXT-*-08 of a VAT
 // category.
 type ctcfrCategory struct {

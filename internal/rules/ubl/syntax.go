@@ -109,8 +109,15 @@ func (k *checker) rootRules() {
 	})
 
 	k.crSpecial(r, all)
+	if k.ctcfr {
+		k.ctcfrSyntax(lines)
+	}
 	gaccount := k.d.GAccount()
-	for _, cr := range crRules {
+	crs := crRules
+	if k.ctcfr {
+		crs = ctcfrCRRules
+	}
+	for _, cr := range crs {
 		if gaccount && gaccountDropped[cr.id] {
 			continue
 		}
@@ -132,14 +139,14 @@ func (k *checker) rootRules() {
 			}
 		}
 		if len(found) > 0 {
-			k.fail(cr.id, found[0], "%s (%s)", description[cr.id], cr.path)
+			k.fail(cr.id, found[0], "%s (%s)", k.desc(cr.id), cr.path)
 		}
 	}
 
 	// UBL-SR rules of the document.
 	atMost := func(id string, n int, nodes []*xmltree.Node) {
 		if len(nodes) > n {
-			k.fail(id, nodes[n], "%s (%d found)", description[id], len(nodes))
+			k.fail(id, nodes[n], "%s (%d found)", k.desc(id), len(nodes))
 		}
 	}
 	sel := func(path string) []*xmltree.Node { return selectPath(root, path) }
@@ -203,7 +210,7 @@ func (k *checker) rootRules() {
 		"cac:TaxRepresentativeParty/cac:PartyLegalEntity",
 	} {
 		if nodes := sel(path); len(nodes) > 1 {
-			k.fail("UBL-SR-57", nodes[1], "%s (%d %s)", description["UBL-SR-57"], len(nodes), path)
+			k.fail("UBL-SR-57", nodes[1], "%s (%d %s)", k.desc("UBL-SR-57"), len(nodes), path)
 			break
 		}
 	}
@@ -218,7 +225,7 @@ func (k *checker) crSpecial(r *xmltree.Node, all []*xmltree.Node) {
 			ok = ok || n.Text == "2.1"
 		}
 		if !ok {
-			k.fail("UBL-CR-002", v[0], "%s (%q)", description["UBL-CR-002"], v[0].Text)
+			k.fail("UBL-CR-002", v[0], "%s (%q)", k.desc("UBL-CR-002"), v[0].Text)
 		}
 	}
 	// UBL-CR-412: not(cac:PaymentMeans/cbc:PaymentDueDate) or ../cn:CreditNote
@@ -305,7 +312,7 @@ func (k *checker) contextRules(n *xmltree.Node) {
 	one := []*xmltree.Node{n}
 	atMost := func(id string, max int, path string) {
 		if nodes := selectPath(one, path); len(nodes) > max {
-			k.fail(id, nodes[max], "%s (%d found)", description[id], len(nodes))
+			k.fail(id, nodes[max], "%s (%d found)", k.desc(id), len(nodes))
 		}
 	}
 	switch n.Name {
@@ -328,9 +335,12 @@ func (k *checker) contextRules(n *xmltree.Node) {
 			k.failDesc("UBL-SR-43", n)
 		}
 	case "Delivery":
-		if len(elems(n, "cac", "DeliveryParty")) > 0 {
+		if k.ctcfr {
+			// count(cac:DeliveryParty/cac:PartyName/cbc:Name) <= 1
+			atMost("UBL-SR-25", 1, "cac:DeliveryParty/cac:PartyName/cbc:Name")
+		} else if len(elems(n, "cac", "DeliveryParty")) > 0 {
 			if names := selectPath(one, "cac:DeliveryParty/cac:PartyName/cbc:Name"); len(names) != 1 {
-				k.fail("UBL-SR-25", n, "%s (%d found)", description["UBL-SR-25"], len(names))
+				k.fail("UBL-SR-25", n, "%s (%d found)", k.desc("UBL-SR-25"), len(names))
 			}
 		}
 	case "AllowanceCharge":
@@ -349,8 +359,10 @@ func (k *checker) contextRules(n *xmltree.Node) {
 		atMost("UBL-SR-35", 1, "cac:OrderLineReference/cbc:LineID")
 		atMost("UBL-SR-36", 1, "cac:InvoicePeriod")
 		atMost("UBL-SR-37", 1, "cac:Price/cac:AllowanceCharge/cbc:Amount")
-		if c := selectPath(one, "cac:Item/cac:ClassifiedTaxCategory"); len(c) != 1 {
-			k.fail("UBL-SR-48", n, "%s (%d found)", description["UBL-SR-48"], len(c))
+		if k.ctcfr {
+			k.ctcfrTaxCategories(n)
+		} else if c := selectPath(one, "cac:Item/cac:ClassifiedTaxCategory"); len(c) != 1 {
+			k.fail("UBL-SR-48", n, "%s (%d found)", k.desc("UBL-SR-48"), len(c))
 		}
 		atMost("UBL-SR-50", 1, "cac:Item/cbc:Description")
 		atMost("UBL-SR-52", 1, "cac:DocumentReference")
@@ -394,6 +406,9 @@ func (k *checker) contextRules(n *xmltree.Node) {
 			k.failDesc("UBL-SR-59", n)
 		}
 	case "BillingReference":
+		if k.ctcfr && n.Parent != k.root {
+			return // (/ubl:Invoice|/cn:CreditNote)/cac:BillingReference: not the line subtypes
+		}
 		atMost("UBL-SR-06", 1, "cac:InvoiceDocumentReference")
 		if len(selectPath(one, "cac:InvoiceDocumentReference/cbc:ID")) == 0 {
 			k.failDesc("UBL-SR-07", n)
@@ -412,7 +427,7 @@ func (k *checker) dataType(n *xmltree.Node) {
 	case strings.HasSuffix(n.Name, "Amount") && !strings.HasSuffix(n.Name, "PriceAmount") && !inPriceWithAllowance(n):
 		// string-length(substring-after(., '.')) <= 2
 		if _, frac, ok := strings.Cut(n.Text, "."); ok && len([]rune(frac)) > 2 {
-			k.fail("UBL-DT-01", n, "%s (%q)", description["UBL-DT-01"], n.Text)
+			k.fail("UBL-DT-01", n, "%s (%q)", k.desc("UBL-DT-01"), n.Text)
 		}
 	case strings.HasSuffix(n.Name, "BinaryObject"):
 		if !hasAttr(n, "mimeCode") {
@@ -481,10 +496,10 @@ func (k *checker) attributes() {
 	})
 	for _, f := range forbiddenAttrs {
 		if n := first[f.attr]; n != nil {
-			k.fail(f.id, n, "%s (@%s)", description[f.id], f.attr)
+			k.fail(f.id, n, "%s (@%s)", k.desc(f.id), f.attr)
 		}
 		if f.id == "UBL-DT-17" && name != nil {
-			k.fail("UBL-DT-18", name, "%s (@name)", description["UBL-DT-18"])
+			k.fail("UBL-DT-18", name, "%s (@name)", k.desc("UBL-DT-18"))
 		}
 	}
 }

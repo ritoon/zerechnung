@@ -197,7 +197,7 @@ func TestStage(t *testing.T) {
 	write(corpus, "ZUGFeRDv2/fail/notes.txt", "x")
 	write(corpus, "ZUGFeRDv1/correct/d.pdf", "%PDF")
 	write(kosit, "src/test/business-cases/standard/01.01a-INVOICE_ubl.xml", "<e/>")
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, ""); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, fnfeInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -326,8 +326,8 @@ func TestIndexXSL(t *testing.T) {
 		t.Errorf("assertions:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// The template of the rule Note holds two assertions: its lines locate
-	// none.
-	for line, want := range map[int]string{7: "BR-CO-16", 4: "BR-CO-16", 5: "BR-CO-16", 21: "BR-NL-7", 19: "BR-NL-7", 18: "BR-NL-7", 35: "BR-NL-34", 43: "BR-NL-99", 33: "", 34: "", 8: ""} {
+	// none. The lines of an svrl:failed-assert locate its assertion.
+	for line, want := range map[int]string{7: "BR-CO-16", 4: "BR-CO-16", 5: "BR-CO-16", 8: "BR-CO-16", 9: "BR-CO-16", 21: "BR-NL-7", 19: "BR-NL-7", 18: "BR-NL-7", 35: "BR-NL-34", 43: "BR-NL-99", 33: "", 34: "", 15: ""} {
 		a, ok := idx.at(line)
 		if a.ID != want || ok != (want != "") {
 			t.Errorf("at(%d) = %s, %v, want %s", line, a.ID, ok, want)
@@ -408,7 +408,7 @@ func TestNPaRun(t *testing.T) {
 	os.WriteFile(xsl, []byte(testXSL), 0o644)
 	os.MkdirAll(filepath.Join(dir, "npa"), 0o755)
 	os.WriteFile(filepath.Join(dir, "npa.list"), []byte(xsl+"\t"+filepath.Join(dir, "in", "0001.xml")+"\n"+xsl+"\t"+filepath.Join(dir, "in", "0002.xml")+"\n"), 0o644)
-	run, err := newNPaRun(dir)
+	run, err := newXSLRun(dir, "npa.list")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -436,7 +436,7 @@ func TestNPaRun(t *testing.T) {
 	}
 
 	// No npa.list: no NLCIUS comparison.
-	run, err = newNPaRun(t.TempDir())
+	run, err = newXSLRun(t.TempDir(), "npa.list")
 	if err != nil || len(run.neverFired()) != 0 {
 		t.Errorf("no npa.list: %+v, %v", run, err)
 	}
@@ -498,7 +498,7 @@ func TestStageNL(t *testing.T) {
 	write(repo, "internal/rules/nl/testdata/nlcius.xml", cii)
 	write(variants, "ubl-001-x.xml", ubl)
 	nl := nlInputs{npa: npaDir, tests: tests, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nl, ptInputs{}, ""); err != nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}, fnfeInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -531,7 +531,7 @@ func TestStageNL(t *testing.T) {
 	}
 
 	write(variants, "bad.xml", "<Order/>")
-	if err := stage(corpus, kosit, work, nl, ptInputs{}, ""); err == nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}, fnfeInputs{}, ""); err == nil {
 		t.Error("a variant that is not an invoice: no error")
 	}
 }
@@ -759,7 +759,7 @@ func TestStagePT(t *testing.T) {
 	z.Close()
 	f.Close()
 	pt := ptInputs{examples: examples, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nlInputs{}, pt, ""); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, pt, fnfeInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -792,7 +792,7 @@ func TestStagePT(t *testing.T) {
 		}
 	}
 	pt.examples = filepath.Join(t.TempDir(), "none.zip")
-	if err := stage(corpus, kosit, work, nlInputs{}, pt, ""); err == nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, pt, fnfeInputs{}, ""); err == nil {
 		t.Error("missing archive: no error")
 	}
 }

@@ -42,12 +42,19 @@
 //     are reported as warnings, and the other CII syntax rules (which
 //     restrict CII to the EN 16931 data set) are not reported. The code
 //     lists of EXTENDED-CTC-FR are those of the CEN, as warnings;
-//   - EXTENDED-CTC-FR, in CII: the CII syntax rules are those of the FNFE-MPE
-//     schematron EXTENDED-CTC-FR-CII.sch (France_RFE CTCFRRelease, see
-//     CTCFRCatalog), with its severities and messages, instead of the CEN
-//     ones: they restrict CII to the EXTENDED-CTC-FR data set, as the CEN
-//     rules restrict it to the EN 16931 one. The business rules and code
-//     lists are those of EXTENDED.
+//   - EXTENDED-CTC-FR, in CII: the rules are those of the FNFE-MPE schematron
+//     EXTENDED-CTC-FR-CII.sch (France_RFE CTCFRRelease, see CTCFRCatalog),
+//     with its severities, instead of the CEN ones: the CEN business rules
+//     it keeps, its own versions of those it changes (line subtypes, VAT
+//     breakdowns by rate and exemption reason, totals with a tolerance), its
+//     code lists, and its CII syntax rules, which restrict CII to the
+//     EXTENDED-CTC-FR data set as the CEN rules restrict it to the EN 16931
+//     one (see ctcfr.go);
+//   - EXTENDED-CTC-FR, in UBL: the business rules that the schematron
+//     EXTENDED-CTC-FR-UBL.sch keeps from the CEN UBL artefacts, with its
+//     severities and the identifiers BR-AF and BR-AG of categories L and M
+//     (see ctcfrUBLRules). Package internal/rules/ubl checks the other
+//     rules of the schematron on the UBL document.
 //
 // For a UBL invoice, Check runs on the CII view built by package
 // internal/rules/ubl (rules.Doc.UBL is set) and applies the UBL artefacts of
@@ -105,7 +112,8 @@ const (
 	modeXRechnungExtension
 	modeXRechnungCVD
 	modeExtended
-	modeExtendedCTCFR // modeExtended with the syntax rules of the EXTENDED-CTC-FR schematron
+	modeExtendedCTCFR // the rules of the EXTENDED-CTC-FR schematron for CII
+	modeCTCFRUBL      // the CEN UBL rules kept by the EXTENDED-CTC-FR schematron for UBL
 	modeBasic         // BASIC: the CEN rules kept by the Factur-X schematron of BASIC
 	modeEN16931FX     // EN 16931 in a Factur-X PDF: the CEN rules kept by the Factur-X schematron of EN 16931
 )
@@ -241,11 +249,12 @@ func (k *checker) init(c *rules.Checker) {
 	}
 	k.mode = profileMode(d)
 	k.syn = cenSyntax
-	if k.mode == modeExtendedCTCFR {
+	switch k.mode {
+	case modeExtendedCTCFR:
 		k.syn = ctcfrSyntax
-		if !k.ubl {
-			k.cats = &vatCategoriesCTCFR
-		}
+		k.cats = &vatCategoriesCTCFR
+	case modeCTCFRUBL:
+		k.cats = &vatCategoriesUBLCTCFR
 	}
 
 	seller := d.Agreement.Elem("SellerTradeParty")
@@ -310,9 +319,10 @@ func profileMode(d *rules.Doc) mode {
 			return modeExtended
 		}
 	case invoice.ProfileExtendedCTCFR:
-		if d.UBL == nil {
-			return modeExtendedCTCFR
+		if d.UBL != nil {
+			return modeCTCFRUBL
 		}
+		return modeExtendedCTCFR
 	}
 	return modeCEN
 }
@@ -420,6 +430,15 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 			return
 		}
 		sev = r.Severity
+	case modeCTCFRUBL:
+		// The CEN UBL rules that the EXTENDED-CTC-FR schematron for UBL
+		// keeps, with its severities. BR-CO-09, whose list and test it
+		// changes, is checked by package ubl.
+		s, ok := ctcfrUBLRules[id]
+		if !ok || id == "BR-CO-09" {
+			return
+		}
+		sev = s
 	case modeExtended:
 		if strings.HasPrefix(id, "BR-CL-") {
 			return // the code lists of the Factur-X schematron, see package facturx

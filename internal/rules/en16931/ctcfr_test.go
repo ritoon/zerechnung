@@ -312,7 +312,7 @@ func TestCTCFRNoAllocs(t *testing.T) {
 // checked as EXTENDED-CTC-FR invoices, whatever the profile they declare,
 // none of them breaks a syntax rule of the EXTENDED-CTC-FR schematron, as
 // with the FNFE XSLT. The EXTENDED-CTC-FR examples are also checked with the
-// profile they declare.
+// profile they declare: they report no error and no warning.
 func TestFNFE(t *testing.T) {
 	dir := os.Getenv("FX_FNFE")
 	if dir == "" {
@@ -346,7 +346,11 @@ func TestFNFE(t *testing.T) {
 		for _, p := range profiles {
 			r := check(t, data, p)
 			for _, f := range r.Findings {
-				if strings.HasPrefix(f.Rule, "CII-") {
+				bad := strings.HasPrefix(f.Rule, "CII-")
+				if p == invoice.ProfileUnknown {
+					bad = bad || f.Severity == rules.Error || f.Severity == rules.Warning
+				}
+				if bad {
 					t.Errorf("%s (%v): %s", filepath.Base(path), p, f)
 				}
 			}

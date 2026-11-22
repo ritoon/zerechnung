@@ -1,6 +1,7 @@
 // NPaBatch applies the XSLT of the schematrons of the Dutch Peppol Authority
-// (NPa) to XML files with Saxon, in a single JVM: each stylesheet is compiled
-// once. Used by conformance/parity.sh:
+// (NPa), or those of the EXTENDED-CTC-FR schematrons of the FNFE-MPE, to XML
+// files with Saxon, in a single JVM: each stylesheet is compiled once. Used
+// by conformance/parity.sh:
 //
 //	java -cp Saxon-HE-12.10.jar:xmlresolver-5.3.3.jar:xmlresolver-5.3.3-data.jar NPaBatch.java <out dir> <list>
 //
