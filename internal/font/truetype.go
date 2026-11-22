@@ -6,6 +6,7 @@ package font
 import (
 	"encoding/binary"
 	"errors"
+	"sync"
 )
 
 // ErrFormat is returned for data that is not a font program of the
@@ -17,15 +18,19 @@ var ErrFormat = errors.New("font: malformed font program")
 type TrueType struct {
 	UnitsPerEm  int
 	NumGlyphs   int
-	NumHMetrics int      // numberOfHMetrics of the hhea table
-	advances    []uint16 // advance widths of hmtx, numberOfHMetrics entries
+	NumHMetrics int    // numberOfHMetrics of the hhea table
+	hmtx        []byte // the hmtx table, read by Advance
+	advances    int    // number of advance widths of hmtx: numberOfHMetrics, or fewer in a short table
 	cmaps       []CmapID
 	subtables   map[CmapID][]byte
-	post        []string // glyph names of the post table, by glyph index
+	postOnce    sync.Once // the post table is read on first use
+	post        []string  // glyph names of the post table, by glyph index
 	postFormat  uint32
 	byName      map[string]int
 	data        []byte
-	tables      map[string][]byte
+	n           int // number of tables
+	// The tables read by this package and its users, found once.
+	head, hhea, maxp, cmap, postTable, cff []byte
 }
 
 // CmapID identifies an encoding of a cmap table.
@@ -43,54 +48,105 @@ func ParseTrueType(data []byte) (*TrueType, error) {
 		return nil, ErrFormat
 	}
 	n := int(binary.BigEndian.Uint16(data[4:]))
-	t := &TrueType{data: data, tables: map[string][]byte{}}
+	if 12+16*n > len(data) {
+		return nil, ErrFormat
+	}
+	t := &TrueType{data: data, n: n}
 	for i := 0; i < n; i++ {
-		at := 12 + 16*i
-		if at+16 > len(data) {
-			return nil, ErrFormat
-		}
-		off := uint64(binary.BigEndian.Uint32(data[at+8:]))
-		size := uint64(binary.BigEndian.Uint32(data[at+12:]))
-		if off > uint64(len(data)) {
+		tag, b, ok := t.table(i)
+		if !ok {
 			continue
 		}
-		size = min(size, uint64(len(data))-off)
-		t.tables[string(data[at:at+4])] = data[off : off+size]
+		switch string(tag) {
+		case "head":
+			t.head = b
+		case "hhea":
+			t.hhea = b
+		case "hmtx":
+			t.hmtx = b
+		case "maxp":
+			t.maxp = b
+		case "cmap":
+			t.cmap = b
+		case "post":
+			t.postTable = b
+		case "CFF ":
+			t.cff = b
+		}
 	}
-	if head := t.tables["head"]; len(head) >= 20 {
+	if head := t.head; len(head) >= 20 {
 		t.UnitsPerEm = int(binary.BigEndian.Uint16(head[18:]))
 	}
 	metrics := 0
-	if hhea, hmtx := t.tables["hhea"], t.tables["hmtx"]; len(hhea) >= 36 {
+	if hhea, hmtx := t.hhea, t.hmtx; len(hhea) >= 36 {
 		metrics = int(binary.BigEndian.Uint16(hhea[34:]))
 		t.NumHMetrics = metrics
-		for i := 0; i < metrics && 4*i+2 <= len(hmtx); i++ {
-			t.advances = append(t.advances, binary.BigEndian.Uint16(hmtx[4*i:]))
+		if len(hmtx) >= 2 {
+			t.advances = min(metrics, (len(hmtx)-2)/4+1)
 		}
 	}
-	if maxp := t.tables["maxp"]; len(maxp) >= 6 {
+	if maxp := t.maxp; len(maxp) >= 6 {
 		t.NumGlyphs = int(binary.BigEndian.Uint16(maxp[4:]))
 	} else {
 		t.NumGlyphs = metrics // as veraPDF counts the glyphs of a font without maxp
 	}
 	t.readCmap()
-	t.readPost()
 	return t, nil
 }
 
-// Table returns the data of a table, nil when the font has none.
-func (t *TrueType) Table(tag string) []byte { return t.tables[tag] }
+// table returns the tag and the data of the table i of the table directory;
+// ok is false when the table starts past the end of the data. A table that
+// ends past the end of the data is cut there.
+func (t *TrueType) table(i int) (tag, b []byte, ok bool) {
+	data := t.data
+	at := 12 + 16*i
+	off := uint64(binary.BigEndian.Uint32(data[at+8:]))
+	size := uint64(binary.BigEndian.Uint32(data[at+12:]))
+	if off > uint64(len(data)) {
+		return nil, nil, false
+	}
+	size = min(size, uint64(len(data))-off)
+	return data[at : at+4], data[off : off+size], true
+}
+
+// Table returns the data of a table, nil when the font has none. When the
+// table directory lists a tag twice, the last table is the one.
+func (t *TrueType) Table(tag string) []byte {
+	switch tag {
+	case "head":
+		return t.head
+	case "hhea":
+		return t.hhea
+	case "hmtx":
+		return t.hmtx
+	case "maxp":
+		return t.maxp
+	case "cmap":
+		return t.cmap
+	case "post":
+		return t.postTable
+	case "CFF ":
+		return t.cff
+	}
+	var found []byte
+	for i := 0; i < t.n; i++ {
+		if tg, b, ok := t.table(i); ok && string(tg) == tag {
+			found = b
+		}
+	}
+	return found
+}
 
 // Advance returns the advance width of a glyph, in font units. The glyphs
 // after the last long metric of hmtx have its advance width.
 func (t *TrueType) Advance(gid int) (int, bool) {
-	if gid < 0 || len(t.advances) == 0 || (t.NumGlyphs > 0 && gid >= t.NumGlyphs) {
+	if gid < 0 || t.advances == 0 || (t.NumGlyphs > 0 && gid >= t.NumGlyphs) {
 		return 0, false
 	}
-	if gid >= len(t.advances) {
-		gid = len(t.advances) - 1
+	if gid >= t.advances {
+		gid = t.advances - 1
 	}
-	return int(t.advances[gid]), true
+	return int(binary.BigEndian.Uint16(t.hmtx[4*gid:])), true
 }
 
 // Cmaps returns the encodings of the cmap table, in the order of the table.
@@ -104,6 +160,7 @@ func (t *TrueType) HasCmap(id CmapID) bool {
 
 // PostGID returns the glyph a post table of format 2 names name.
 func (t *TrueType) PostGID(name string) (int, bool) {
+	t.postOnce.Do(t.readPost)
 	if t.postFormat != 0x00020000 {
 		return 0, false
 	}
@@ -120,6 +177,7 @@ func (t *TrueType) PostGID(name string) (int, bool) {
 // GlyphName returns the name the post table gives a glyph, "" when it
 // gives none.
 func (t *TrueType) GlyphName(gid int) string {
+	t.postOnce.Do(t.readPost)
 	if gid < 0 || gid >= len(t.post) {
 		return ""
 	}
@@ -127,7 +185,7 @@ func (t *TrueType) GlyphName(gid int) string {
 }
 
 func (t *TrueType) readCmap() {
-	cmap := t.tables["cmap"]
+	cmap := t.cmap
 	if len(cmap) < 4 {
 		return
 	}
@@ -268,7 +326,7 @@ func (t *TrueType) Lookup(id CmapID, code uint32) int {
 }
 
 func (t *TrueType) readPost() {
-	post := t.tables["post"]
+	post := t.postTable
 	if len(post) < 32 {
 		return
 	}

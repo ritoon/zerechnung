@@ -395,10 +395,13 @@ func (l *lint) scan() (kw string, at int) {
 				l.pos++
 				continue
 			}
-			switch w := string(b[start:l.pos]); w {
+			switch w := b[start:l.pos]; string(w) {
 			case "true", "false", "null", "R":
 			default:
-				return w, start
+				if k, ok := keywords[string(w)]; ok {
+					return string(k.(keyword)), start // no allocation for the known keywords
+				}
+				return string(w), start
 			}
 		}
 	}

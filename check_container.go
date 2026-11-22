@@ -141,6 +141,11 @@ func containerSeverity(id string) rules.Severity {
 type containerCheck struct {
 	findings []rules.Finding
 	level    validate.PDFALevel // the PDF/A checks to apply
+	// The XMP metadata stream as document read it: the packet, nil when
+	// there is none or it cannot be decoded, and what it declares, nil when
+	// the packet cannot be read either.
+	xmp     *xmp.Packet
+	xmpInfo *xmp.Info
 }
 
 func (k *containerCheck) add(id, path, format string, args ...any) {
@@ -231,7 +236,15 @@ func checkContainer(pdfData []byte, national func(xml []byte) countries, level v
 // document checks the XMP identification, the output intent and the file
 // identifier. It returns the parsed XMP metadata, or nil.
 func (k *containerCheck) document(c *container) *xmp.Info {
-	info, present, err := c.xmpInfo()
+	var (
+		info *xmp.Info
+		err  error
+	)
+	p, present := c.xmpParsed()
+	if p != nil {
+		info, err = p.Info()
+	}
+	k.xmp = p
 	switch {
 	case !present:
 		k.add("PDF-02", "catalog /Metadata", "the document catalog has no XMP metadata stream")
@@ -241,6 +254,7 @@ func (k *containerCheck) document(c *container) *xmp.Info {
 		k.add("PDF-03", "catalog /Metadata", "the XMP metadata cannot be read: %v", err)
 		info = nil
 	}
+	k.xmpInfo = info
 	if info != nil {
 		k.identification(c, info)
 		// PDF/A-4 deprecates the document information dictionary: it
