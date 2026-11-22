@@ -58,12 +58,12 @@ Le job *Tests sur les artefacts officiels* lance `go test ./...` avec toutes les
 
 Le job compile aussi la suite avec l'étiquette `ruletrace` : chaque binaire de test écrit alors dans `rules.txt` les règles des findings qu'il rapporte (`ZERECHNUNG_RULE_TRACE`, voir [`internal/rules/trace_ruletrace.go`](../internal/rules/trace_ruletrace.go)), et `TestRuleCoverage` ([`rulecoverage_test.go`](../rulecoverage_test.go)) vérifie ensuite que chaque règle des catalogues (`validate.Catalog` de tous les jeux de règles et `ContainerCatalog`), plus `XML`, `CII` et les règles de `fatturapa.VerifySignature`, est levée par au moins un test. C'est la version dynamique des tests `TestCatalogComplete`, qui lisent les sources : une règle écrite qu'aucun test ne fait échouer peut être inatteignable, ou fausse sans qu'aucun test ne le voie.
 
-La suite lève 2 752 des 3 188 règles. Les 436 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF, de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
+La suite lève 2 847 des 3 188 règles. Les 341 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF, de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
 
 | Jeu de règles | Non levées | Familles |
 |---|---|---|
-| EN 16931 | 85 sur 1 689 | catégories de TVA autres que S et E (55), décimales BR-DEC (15), listes de codes BR-CL (7), motif des remises et majorations de ligne (BR-42, BR-44, BR-CO-23, BR-CO-24), BR-CO-05 à 08, que le schematron UBL EXTENDED-CTC-FR réduit à `true()` |
-| Factur-X | 318 sur 385 | listes de codes du schematron Factur-X 1.09.2 (FX-SCH-A, 304), règles EXTENDED BR-FXEXT (14) |
+| EN 16931 | 4 sur 1 689 | BR-CO-05 à 08, que le schematron UBL EXTENDED-CTC-FR réduit à `true()` |
+| Factur-X | 304 sur 385 | listes de codes du schematron Factur-X 1.09.2 (FX-SCH-A) |
 | CIUS-PT | 32 sur 369 | formats DT-CIUS-PT (29), BR-AA, UBL-SR-38 |
 | FatturaPA (signature) | 1 | IT-SIG-06, que seul le job d'interopérabilité des signatures lève |
 
@@ -146,10 +146,10 @@ go test ./internal/rules/de -run '^TestVariants$' -variants DIR
 | Paquet | Variants | Documents |
 |---|---|---|
 | `internal/rules/de` | 293 | les cas de mutation des factures XRechnung CII et UBL du dépôt, factures de départ comprises ; ceux dont le BT-24 n'est retenu par aucun scénario de la configuration KoSIT (BR-DE-21, extension sur un avoir) sont laissés de côté |
-| `internal/rules/en16931` | 56 | les cas des règles CEN en CII sans profil Factur-X, au BT-24 CEN ou XRechnung |
+| `internal/rules/en16931` | 116 | les cas des règles CEN en CII sans profil Factur-X, au BT-24 CEN ou XRechnung |
 | `internal/rules/ubl` | 64 | les cas du contrôle des factures UBL, sauf ceux de l'extension G-rekening |
 
-Chaque variant casse une ou plusieurs règles d'une facture valide (309 variants), ou vérifie qu'un cas limite n'en casse aucune (104) ; le fichier `expected.tsv` que le test écrit à côté donne les règles attendues. KoSIT seul les reçoit. L'outil compare les règles à tous les niveaux, erreurs, avertissements et informations, car beaucoup des règles cassées sont des avertissements. Il vérifie aussi que KoSIT lève chaque règle attendue : sinon l'écart `?RÈGLE` signale un variant qui ne teste plus sa règle chez la référence, et fait échouer le job comme les autres.
+Chaque variant casse une ou plusieurs règles d'une facture valide (358 variants), ou vérifie qu'un cas limite n'en casse aucune (115) ; le fichier `expected.tsv` que le test écrit à côté donne les règles attendues. KoSIT seul les reçoit. L'outil compare les règles à tous les niveaux, erreurs, avertissements et informations, car beaucoup des règles cassées sont des avertissements. Il vérifie aussi que KoSIT lève chaque règle attendue : sinon l'écart `?RÈGLE` signale un variant qui ne teste plus sa règle chez la référence, et fait échouer le job comme les autres.
 
 Deux comportements de KoSIT demandent un traitement à part :
 
@@ -162,22 +162,22 @@ Le rapport donne enfin, pour chaque XSLT de la configuration KoSIT, la part des 
 
 | Référence | Variants comparés | Mêmes règles | Écarts justifiés | Même verdict |
 |---|---|---|---|---|
-| KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 413 | 399 | 14 | 411 |
+| KoSIT validator 1.6.3, configuration XRechnung 3.0.2 du 2026-08-31 | 473 | 452 | 21 | 471 |
 
 | XSLT de la configuration KoSIT | Assertions | Levées sur le corpus et la suite KoSIT | Levées sur les variants | Levées au total |
 |---|---|---|---|---|
-| `EN16931-CII-validation.xsl` (CEN 1.3.16) | 806 | 10 | 67 | 71 (8,8 %) |
+| `EN16931-CII-validation.xsl` (CEN 1.3.16) | 806 | 10 | 155 | 159 (19,7 %) |
 | `EN16931-UBL-validation.xsl` (CEN 1.3.16) | 979 | 4 | 70 | 70 (7,2 %) |
 | `XRechnung-CII-validation.xsl` | 74 | 2 | 70 | 70 (94,6 %) |
 | `XRechnung-UBL-validation.xsl` | 77 | 1 | 73 | 73 (94,8 %) |
-| Total | 1 936 | 17 | 280 | 284 (14,7 %) |
+| Total | 1 936 | 17 | 368 | 372 (19,2 %) |
 
-Les variants portent les assertions XRechnung exercées de 3 à 143 sur 151, dont les 43 assertions Peppol (22 en CII, 21 en UBL), et celles du CEN de 14 à 141 sur 1 785. Restent jamais levées en CII BR-DE-21 (un BT-24 qu'aucun scénario ne retient n'est pas évalué), BR-DE-23-a, BR-DEX-05 et BR-TMP-CVD-01, en UBL BR-DE-21, BR-DE-1, BR-DE-2 et BR-TMP-6. Ces chiffres mesurent ce que la référence a confirmé, pas la couverture des tests du package : les familles CII-SR et UBL-CR (482 et 678 assertions) interdisent chacune un élément du schéma, et presque aucune n'est levée ; les règles BR, BR-CO et de catégorie de TVA restent en majorité à exercer par de nouveaux variants.
+Les variants portent les assertions XRechnung exercées de 3 à 143 sur 151, dont les 43 assertions Peppol (22 en CII, 21 en UBL), et celles du CEN de 14 à 229 sur 1 785. Restent jamais levées en CII BR-DE-21 (un BT-24 qu'aucun scénario ne retient n'est pas évalué), BR-DE-23-a, BR-DEX-05 et BR-TMP-CVD-01, en UBL BR-DE-21, BR-DE-1, BR-DE-2 et BR-TMP-6. Ces chiffres mesurent ce que la référence a confirmé, pas la couverture des tests du package : les familles CII-SR et UBL-CR (482 et 678 assertions) interdisent chacune un élément du schéma, et presque aucune n'est levée ; en CII, les variants lèvent 76 des 98 assertions de catégorie de TVA, 19 des 23 listes de codes BR-CL et 17 des 21 règles de décimales BR-DEC ; les règles BR, et en UBL les règles BR-CO et de catégorie de TVA, restent en majorité à exercer par de nouveaux variants.
 
 Les écarts justifiés de [`parity/known.txt`](parity/known.txt) viennent de deux causes :
 
-- le BT-24 `urn:cen.eu:en16931:2017`, qui est aussi celui du profil Factur-X EN 16931 : le package valide ces factures contre le XSD de ce profil, plus strict que le XSD CII D16B complet de KoSIT (7 variants, qui lèvent par ailleurs de part et d'autre la règle qu'ils testent) ;
-- la version CEN 1.3.16 de la configuration KoSIT, quand le package applique la 1.3.17 : règles IGIC renommées de BR-AF en BR-IP, CII-SR-476 comptée par document, contexte de CII-SR-036 corrigé, CII-DT-105 ajoutée, préfixe de BR-CO-09 entouré d'espaces (7 variants).
+- le BT-24 `urn:cen.eu:en16931:2017`, qui est aussi celui du profil Factur-X EN 16931 : le package valide ces factures contre le XSD de ce profil, plus strict que le XSD CII D16B complet de KoSIT, par exemple sur une facture sans ventilation de TVA (9 variants, qui lèvent par ailleurs de part et d'autre la règle qu'ils testent, sous son identifiant CEN 1.3.16 chez KoSIT pour deux d'entre eux) ;
+- la version CEN 1.3.16 de la configuration KoSIT, quand le package applique la 1.3.17 : règles IGIC et IPSI renommées en CII de BR-AF en BR-IP et de BR-AG en BR-IG, CII-SR-476 comptée par document, contexte de CII-SR-036 corrigé, CII-DT-105 ajoutée, préfixe de BR-CO-09 entouré d'espaces (14 variants).
 
 Deux variants n'ont pas le même verdict : un variant EN 16931 avec `ram:TestIndicator`, que le XSD Factur-X EN 16931 n'admet pas, et le variant de CII-SR-477, que KoSIT n'a pas pu évaluer.
 

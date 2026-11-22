@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -142,7 +143,7 @@ func ruleCases() []ruleCase {
 	e := func(pairs ...string) func(t *testing.T) string {
 		return func(t *testing.T) string { return edit(t, tBase, pairs...) }
 	}
-	return []ruleCase{
+	return slices.Concat([]ruleCase{
 		// Business rules.
 		{name: "BR-02 invoice number", doc: e("<ram:ID>INV-1</ram:ID>", "<ram:ID> </ram:ID>"), want: "BR-02"},
 		{name: "BR-03 issue date format", doc: e(`format="102">20240115`, `format="610">20240115`), want: "BR-03"},
@@ -232,7 +233,7 @@ func ruleCases() []ruleCase {
 			"<rsm:ExchangedDocumentContext>\n", "<rsm:ExchangedDocumentContext>\n<ram:TestIndicator><udt:Indicator>true</udt:Indicator></ram:TestIndicator>",
 			"<ram:DuePayableAmount>119.00</ram:DuePayableAmount>", "<ram:DuePayableAmount>118.99</ram:DuePayableAmount>",
 			"<ram:Name>Seller</ram:Name>", ""), want: "BR-06 BR-CO-16"},
-	}
+	}, vatCases(), fullCases())
 }
 
 func TestRules(t *testing.T) {
