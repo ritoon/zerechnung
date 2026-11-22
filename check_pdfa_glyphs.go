@@ -75,8 +75,8 @@ type glyphFont struct {
 // font.
 func (s *pdfaScan) glyphFont(o pdf.Object) *glyphFont {
 	cs := s.contentState()
-	id := identity(o)
-	if f := cs.fonts[id]; id != "" && f != nil {
+	id := keyOf(o)
+	if f := cs.fonts[id]; id != (objKey{}) && f != nil {
 		return f
 	}
 	f := &glyphFont{}
@@ -92,7 +92,7 @@ func (s *pdfaScan) glyphFont(o pdf.Object) *glyphFont {
 			s.readTrueType(d, f)
 		}
 	}
-	if id != "" {
+	if id != (objKey{}) {
 		cs.fonts[id] = f
 	}
 	return f
@@ -603,12 +603,12 @@ func (s *pdfaScan) program(fd pdf.Dict) *fontProgram {
 			continue
 		}
 		cs := s.contentState()
-		id := identity(o)
-		if p := cs.programs[id]; id != "" && p != nil {
+		id := keyOf(o)
+		if p := cs.programs[id]; id != (objKey{}) && p != nil {
 			return p
 		}
 		p := &fontProgram{key: key}
-		if id != "" {
+		if id != (objKey{}) {
 			cs.programs[id] = p
 		}
 		if key == "FontFile" {

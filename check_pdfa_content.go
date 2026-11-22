@@ -40,7 +40,29 @@ type contentKey struct {
 	kind     uint8
 	def      uint8
 	noColour bool
-	page     string // identity of the page resources, for a stream without resources of its own
+	page     objKey // the page resources, for a stream without resources of its own
+}
+
+// objKey identifies an object for the caches of the PDF/A scan, as identity
+// does without allocating: the number of an indirect object, or the address
+// of a direct dictionary. The zero objKey identifies nothing.
+type objKey struct {
+	num uint32
+	kv  *pdf.KV
+}
+
+// keyOf returns the objKey of o, the zero one when o is neither a reference
+// nor a dictionary with entries.
+func keyOf(o pdf.Object) objKey {
+	switch v := o.(type) {
+	case pdf.Ref:
+		return objKey{num: v.Num}
+	case pdf.Dict:
+		if len(v) > 0 {
+			return objKey{kv: &v[0]}
+		}
+	}
+	return objKey{}
 }
 
 // Results of reading a content stream.
@@ -53,9 +75,9 @@ const (
 // contentState is the state of the content scan of a document.
 type contentState struct {
 	done      map[contentKey]uint8      // streams read, with their result
-	encodings map[string]*[256]pdf.Name // glyph names of the Type 3 fonts, by font
-	fonts     map[string]*glyphFont     // the fonts the text shows, by font (check_pdfa_glyphs.go)
-	programs  map[string]*fontProgram   // the font programs read, by stream
+	encodings map[objKey]*[256]pdf.Name // glyph names of the Type 3 fonts, by font
+	fonts     map[objKey]*glyphFont     // the fonts the text shows, by font (check_pdfa_glyphs.go)
+	programs  map[objKey]*fontProgram   // the font programs read, by stream
 	bytes     int                       // decoded content read
 }
 
@@ -81,7 +103,7 @@ type gstate struct {
 // pageContent is the page whose content, or the streams it uses, is read.
 type pageContent struct {
 	res pdf.Dict // resources of the page
-	id  string   // identity of the resources
+	id  objKey   // the resources
 }
 
 // contentCtx is the context in which a content stream is read.
@@ -113,8 +135,8 @@ type streamScan struct {
 
 func (s *pdfaScan) contentState() *contentState {
 	if s.content == nil {
-		s.content = &contentState{done: map[contentKey]uint8{}, encodings: map[string]*[256]pdf.Name{},
-			fonts: map[string]*glyphFont{}, programs: map[string]*fontProgram{}}
+		s.content = &contentState{done: map[contentKey]uint8{}, encodings: map[objKey]*[256]pdf.Name{},
+			fonts: map[objKey]*glyphFont{}, programs: map[objKey]*fontProgram{}}
 	}
 	return s.content
 }
@@ -168,7 +190,7 @@ func initialState(def uint8) gstate {
 func (s *pdfaScan) pageContent(page pdf.Dict, res pdf.Object, def uint8, where string) (*pageContent, bool) {
 	r := s.c.r
 	rd, _ := r.Dict(res)
-	pc := &pageContent{res: rd, id: identity(res)}
+	pc := &pageContent{res: rd, id: keyOf(res)}
 	var data []byte
 	switch v := r.Resolve(page.Get("Contents")).(type) {
 	case *pdf.Stream:
@@ -698,8 +720,8 @@ func (sc *streamScan) type3(strs []pdf.String) bool {
 // the differences of its encoding.
 func (s *pdfaScan) type3Names(font pdf.Object, d pdf.Dict) *[256]pdf.Name {
 	cs := s.contentState()
-	id := identity(font)
-	if names := cs.encodings[id]; id != "" && names != nil {
+	id := keyOf(font)
+	if names := cs.encodings[id]; id != (objKey{}) && names != nil {
 		return names
 	}
 	r := s.c.r
@@ -722,7 +744,7 @@ func (s *pdfaScan) type3Names(font pdf.Object, d pdf.Dict) *[256]pdf.Name {
 			}
 		}
 	}
-	if id != "" {
+	if id != (objKey{}) {
 		cs.encodings[id] = names
 	}
 	return names
