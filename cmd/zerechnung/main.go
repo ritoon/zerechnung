@@ -68,9 +68,12 @@ Usage:
 Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it, cius-pt.
 `
 
+// stderr receives the usage, the errors and the warnings of the commands.
+var stderr io.Writer = os.Stderr
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprint(os.Stderr, usage)
+		fmt.Fprint(stderr, usage)
 		os.Exit(2)
 	}
 	cmd, args := os.Args[1], os.Args[2:]
@@ -97,11 +100,11 @@ func main() {
 		fmt.Print(usage)
 		return
 	default:
-		fmt.Fprintf(os.Stderr, "zerechnung: unknown command %q\n\n%s", cmd, usage)
+		fmt.Fprintf(stderr, "zerechnung: unknown command %q\n\n%s", cmd, usage)
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "zerechnung:", err)
+		fmt.Fprintln(stderr, "zerechnung:", err)
 		os.Exit(2)
 	}
 	os.Exit(code)
@@ -276,7 +279,16 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		}
 	}
 	opts.PublicBuyer = validate.PublicBuyer{ServiceCodeRequired: *serviceRequired, EngagementRequired: *engagementRequired}
-	var r *validate.Report
+	return report(data, opts, *asJSON, w)
+}
+
+// report validates data, a PDF or an XML invoice, writes the report to w,
+// as JSON when asJSON is set, and returns the exit code of validate.
+func report(data []byte, opts *validate.Options, asJSON bool, w io.Writer) (int, error) {
+	var (
+		r   *validate.Report
+		err error
+	)
 	var format string            // the format of a FatturaPA (FPA12 or FPR12) or Facturae (3.2, 3.2.1 or 3.2.2) document
 	var signature *signatureInfo // the signature of a Facturae document
 	if isPDF(data) {
@@ -293,7 +305,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 			signature = facturaeSignature(data)
 		}
 	}
-	if *asJSON {
+	if asJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		out := struct {
@@ -430,7 +442,7 @@ func embed(args []string) error {
 		return reasons(err)
 	}
 	if _, sigs, err := zerechnung.VerifySignatures(pdf, nil); err == nil && len(sigs) > 0 {
-		fmt.Fprintf(os.Stderr, "zerechnung: warning: the input PDF holds %d signature(s); they do not cover the invoice embedded after them (SIG-05): sign the hybrid PDF instead\n", len(sigs))
+		fmt.Fprintf(stderr, "zerechnung: warning: the input PDF holds %d signature(s); they do not cover the invoice embedded after them (SIG-05): sign the hybrid PDF instead\n", len(sigs))
 	}
 	return writeOut(*out, res)
 }
@@ -599,6 +611,12 @@ func jsonCmd(args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+	return writeJSON(data, w)
+}
+
+// writeJSON writes to w the invoice of data, a PDF or an XML invoice, in
+// JSON: the invoices of a FatturaPA or Facturae batch as an array.
+func writeJSON(data []byte, w io.Writer) error {
 	switch {
 	case isPDF(data):
 		att, err := zerechnung.Extract(data)
@@ -620,7 +638,7 @@ func jsonCmd(args []string, w io.Writer) error {
 		return err
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "zerechnung: warning:", err)
+		fmt.Fprintln(stderr, "zerechnung: warning:", err)
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
