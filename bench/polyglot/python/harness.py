@@ -7,10 +7,17 @@ faux ou lève une exception.
 
     python harness.py survey [lib…]   relevés d'exactitude -> $OUT/survey_python.jsonl
     python harness.py bench  [lib…]   benchmarks           -> $OUT/bench_python.jsonl
+    python harness.py alloc  [lib…]   allocations par appel -> $OUT/alloc_python.jsonl
 
 Chaque benchmark tourne dans un processus neuf (first_call_ns = vrai premier
 appel), chaque relevé dans un processus par librairie. Variables : OUT,
 COUNT (3), BENCHTIME (1, en secondes), FX_CORPUS (racine du corpus).
+
+« alloc » compte les allocations d'un appel : le processus de mesure tourne
+avec PYTHONMALLOC=malloc et la bibliothèque alloccount (alloccount.c,
+compilée par run.sh setup) insérée par le chargeur, qui compte chaque appel à
+malloc, calloc, realloc… : objets Python, extensions C (libxml2 de lxml, qpdf
+de pikepdf) et Rust comprises.
 """
 
 from __future__ import annotations
@@ -25,6 +32,7 @@ import platform
 import signal
 import subprocess
 import sys
+import ctypes
 import time
 import traceback
 from dataclasses import dataclass
@@ -57,6 +65,8 @@ CHECK_TIMEOUT = float(os.environ.get("CHECK_TIMEOUT", "30"))  # s, appel de cont
 SURVEY_TIMEOUT = float(os.environ.get("SURVEY_TIMEOUT", "10"))  # s, un fichier du relevé
 CHILD_TIMEOUT = float(os.environ.get("CHILD_TIMEOUT", "1800"))  # s, un processus fils
 RESULT_MARK = "@@RESULT "
+ALLOC_LIB = HERE / ".alloc" / "alloccount.so"
+ALLOC_WINDOW_NS = 200_000_000  # durée visée de la série d'appels comptée
 
 
 # ---------------------------------------------------------------- corpus
@@ -196,6 +206,31 @@ def measure(fn, benchtime_s: float, count: int):
     return n, res
 
 
+def measure_alloc(fn):
+    """Allocations d'un appel : échauffement d'au moins 3 appels (jusqu'à 100 appels ou
+    0,2 s), puis une série d'environ 0,2 s (1 à 1000 appels), comptée par alloccount."""
+    lib = ctypes.CDLL(os.environ["ALLOCCOUNT_LIB"])
+    n, b = ctypes.c_ulonglong(), ctypes.c_ulonglong()
+    lib.alloccount_start()
+    probe = bytearray(4096)
+    lib.alloccount_stop(ctypes.byref(n), ctypes.byref(b))
+    del probe
+    if n.value == 0:
+        raise RuntimeError("alloccount ne compte rien : bibliothèque non insérée par le chargeur")
+    clock = time.perf_counter_ns
+    t0, warm = clock(), 0
+    while warm < 3 or (warm < 100 and clock() - t0 < ALLOC_WINDOW_NS):
+        fn()
+        warm += 1
+    per = max(1, (clock() - t0) // warm)
+    calls = max(1, min(1000, ALLOC_WINDOW_NS // per))
+    lib.alloccount_start()
+    for _ in range(calls):
+        fn()
+    lib.alloccount_stop(ctypes.byref(n), ctypes.byref(b))
+    return calls, n.value / calls, b.value / calls
+
+
 # ---------------------------------------------------------------- un benchmark
 
 BENCH_SPEC = {
@@ -236,7 +271,7 @@ def reference_extract(pdf: bytes):
     return xml
 
 
-def run_one(lib: str, bench: str, benchtime: float, count: int) -> dict:
+def run_one(lib: str, bench: str, benchtime: float, count: int, alloc: bool = False) -> dict:
     ad = adapter(lib)
     op, sample_name = BENCH_SPEC[bench]
     rec = {
@@ -313,6 +348,11 @@ def run_one(lib: str, bench: str, benchtime: float, count: int) -> dict:
                 return finish("fail", f"résultat inattendu : {out!r}"[:200])
 
         # 2. mesurer
+        if alloc:
+            calls, allocs, nbytes = measure_alloc(fn)
+            del rec["ns_per_op"], rec["iters"]
+            rec.update(allocs=round(allocs, 1), bytes=round(nbytes), calls=calls)
+            return finish("ok")
         n, res = measure(fn, benchtime, count)
         rec["iters"] = n
         rec["ns_per_op"] = [round(v, 1) for v in res]
@@ -391,6 +431,10 @@ def child(argv: list[str]) -> None:
         _, lib, bench, benchtime, count = argv
         out = run_one(lib, bench, float(benchtime), int(count))
         print(RESULT_MARK + json.dumps(out, ensure_ascii=False), flush=True)
+    elif kind == "alloc":
+        _, lib, bench = argv
+        out = run_one(lib, bench, 0, 0, alloc=True)
+        print(RESULT_MARK + json.dumps(out, ensure_ascii=False), flush=True)
     elif kind == "survey":
         for line in survey_lib(argv[1]):
             print(RESULT_MARK + json.dumps(line, ensure_ascii=False), flush=True)
@@ -398,8 +442,16 @@ def child(argv: list[str]) -> None:
 
 def spawn(args: list[str]) -> tuple[list[dict], str]:
     cmd = [sys.executable, "-I", str(Path(__file__).resolve()), "_child", *args]
+    env = None
+    if args[0] == "alloc":
+        # -I ignorerait PYTHONMALLOC : -s -P isolent sans lui, et l'environnement
+        # est reconstruit sans les autres variables PYTHON*.
+        cmd[1:2] = ["-s", "-P"]
+        env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+        env.update(PYTHONMALLOC="malloc", ALLOCCOUNT_LIB=str(ALLOC_LIB))
+        env["DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"] = str(ALLOC_LIB)
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=CHILD_TIMEOUT, cwd=str(HERE))
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=CHILD_TIMEOUT, cwd=str(HERE), env=env)
     except subprocess.TimeoutExpired:
         return [], f"processus fils interrompu après {CHILD_TIMEOUT:g} s"
     res = [json.loads(l[len(RESULT_MARK):]) for l in p.stdout.splitlines() if l.startswith(RESULT_MARK)]
@@ -434,7 +486,7 @@ def main(argv: list[str]) -> int:
     if argv and argv[0] == "_child":
         child(argv[1:])
         return 0
-    if not argv or argv[0] not in ("survey", "bench"):
+    if not argv or argv[0] not in ("survey", "bench", "alloc"):
         print(__doc__)
         return 2
     cmd, libs = argv[0], argv[1:] or LIBS
@@ -454,6 +506,25 @@ def main(argv: list[str]) -> int:
             for r in res:
                 print(f"   {r['op']}: {r['ok']}/{r['total']}" + (f"  ({r['note']})" if r.get("note") else ""))
             merge_jsonl(path, [lib], res)
+        print(f"== {path}")
+    elif cmd == "alloc":
+        path = out / "alloc_python.jsonl"
+        for lib in libs:
+            print(f"== alloc {lib}", flush=True)
+            res_lib = []
+            for bench in BENCHES:
+                res, diag = spawn(["alloc", lib, bench])
+                if not res:
+                    res = [{"lang": "python", "lib": lib, "pkg": lib, "version": "?", "bench": bench,
+                            "status": "fail", "first_call_ns": None,
+                            "note": "le processus de mesure a échoué : " + diag, "runtime": runtime()}]
+                r = res[0]
+                if r["status"] == "ok":
+                    print(f"   {bench:<20} {r['bytes']:>12.0f} B/op {r['allocs']:>10.1f} allocs/op  (N={r['calls']})")
+                else:
+                    print(f"   {bench:<20} {r['status']} {r['note'][:100]}")
+                res_lib.append(r)
+            merge_jsonl(path, [lib], res_lib)
         print(f"== {path}")
     else:
         count = int(os.environ.get("COUNT", "3"))

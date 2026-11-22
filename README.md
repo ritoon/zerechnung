@@ -20,7 +20,7 @@ Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML 
 - All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS and CIUS-IT, in CII and UBL 2.1.
 - Validation compared with the reference validators (KoSIT, Mustang) on every pull request, with the French 2026 reform, German, Dutch, Italian and Peppol rules built in.
 - PDF/A-3 conversion of the PDFs that need no PDF engine for it, with the reasons for a refusal otherwise, checked by veraPDF in the CI.
-- Fast: reading and validating a typical invoice takes about 25 µs.
+- Fast and light: reading and validating a typical invoice takes about 25 µs and allocates 23 KB.
 
 > **Status: v0.** The API may still change before v1.
 
@@ -347,18 +347,29 @@ A new difference fails the build. The method is described on [Coverage and accur
 
 ## Performance
 
-Measured on an Apple M4 Pro with Go 1.26.4 (v0.1.0), against the fastest other Go package that handles the same operation:
+Measured on an Apple M4 Pro with Go 1.27.4 (commit `3a3b11a`, November 22, 2026), against the fastest other Go package that handles the same operation:
 
 | Operation | ZeRechnung | Best other Go package |
 |---|---|---|
-| Extract the XML from a 149 KB PDF | 30 µs | 75 µs |
-| Read and fully validate a 13 KB invoice | 24 µs | 126 µs |
-| Embed the XML in a PDF | 89 µs | 522 µs |
-| Check a 149 KB hybrid PDF | 74 µs | 1.14 ms |
+| Extract the XML from a 149 KB PDF | 30 µs | 73 µs |
+| Read and fully validate a 13 KB invoice | 25 µs | 128 µs |
+| Embed the XML in a PDF | 99 µs | 529 µs |
+| Check a 149 KB hybrid PDF | 832 µs | 1.11 ms |
 
-Since v0.1.0, `Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included, to catch what veraPDF would reject. Checking the same 149 KB PDF takes about 0.77 ms and allocates 255 KB (Go 1.27.4), most of the time going to decompressing its three font programs. When the PDF/A conformance is checked elsewhere, or only the invoice and its attachment matter, `validate.Options{PDFA: validate.PDFABasic}` (`-pdfa basic` on the command line) skips the checks that read the pages, the fonts and the file structure (PDF-41 to PDF-69, PDF-71, PDF-72): the same check then takes about 80 µs and allocates 87 KB.
+`Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included, to catch what veraPDF would reject; v0.1.0 checked the same PDF in 74 µs without them. Most of the time goes to decompressing its three font programs. Since the measurements below, the buffers of the font programs and content streams are reused from one call to the next: the full check of the same PDF allocates about 256 KB instead of 701 KB. When the PDF/A conformance is checked elsewhere, or only the invoice and its attachment matter, `validate.Options{PDFA: validate.PDFABasic}` (`-pdfa basic` on the command line) skips the checks that read the pages, the fonts and the file structure (PDF-41 to PDF-69, PDF-71, PDF-72): the same check then takes about 80 µs and allocates 87 KB.
 
-The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11-17/tables.md), and a comparison with 32 TypeScript, Python and Rust libraries is in [bench/polyglot](bench/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
+What one call allocates, as `go test -benchmem` counts it, against the other Go package that allocates the least:
+
+| Operation | ZeRechnung | Lightest other Go package |
+|---|---|---|
+| Extract the XML from a 149 KB PDF | 39 KB in 228 allocations | 184 KB in 4,926 |
+| Read a 13 KB invoice | 28 KB in 104 allocations | 53 KB in 1,165 |
+| Read and fully validate a 13 KB invoice | 23 KB in 75 allocations | 67 KB in 1,462 |
+| Write a 13 KB invoice | 8 KB in 1 allocation | 32 KB in 175 |
+| Embed the XML in a PDF | 245 KB in 456 allocations | 1.3 MB in 9,593 |
+| Check a 149 KB hybrid PDF | 701 KB in 2,376 allocations | 896 KB in 24,617 |
+
+The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11-22/tables.md), and a comparison with 32 TypeScript, Python and Rust libraries is in [bench/polyglot](bench/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
 
 ## Limitations
 

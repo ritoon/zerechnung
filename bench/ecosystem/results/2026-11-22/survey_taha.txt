@@ -1,0 +1,74 @@
+FLAG EN16931_AbweichenderZahlungsempf.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Einfach.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Einfach_DueDate.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Einfach_negativePaymentDue.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Elektron.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_ElektronischeAdresse.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Gutschrift.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Haftpflichtversicherung_Versicherungssteuer.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Kraftfahrversicherung_Bruttopreise.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Miete.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Rechnungskorrektur.cii.xml: 5 errors, err=<nil>
+FLAG EN16931_SEPA_Prenotification.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Sachversicherung_berechneter_Steuersatz.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Einfach.cii.xml: 1 errors, err=<nil>
+FLAG XRECHNUNG_Elektron.cii.xml: 1 errors, err=<nil>
+SURVEY validate: 15/26 valid samples flagged
+SURVEY parse: 26/26 CII
+MISS sample_inofficial_20190125_atgp_factur-x_v_1_0.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_BASIC_Einfach.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_BASIC_Rechnungskorrektur.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_BASIC_Taxifahrt.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_1_Teilrechnung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_2_Teilrechnung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_AbweichenderZahlungsempf.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Betriebskostenabrechnung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Einfach.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Elektron.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_ElektronischeAdresse.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Gutschrift.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Haftpflichtversicherung_Versicherungssteuer.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Innergemeinschaftliche_Lieferungen.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Kraftfahrversicherung_Bruttopreise.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Miete.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_OEPNV.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Physiotherapeut.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Rabatte.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_RechnungsUebertragung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Rechnungskorrektur.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Reisekostenabrechnung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_SEPA_Prenotification.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EN16931_Sachversicherung_berechneter_Steuersatz.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EXTENDED_Fremdwaehrung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EXTENDED_InnergemeinschLieferungMehrereBestellungen.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EXTENDED_Kostenrechnung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EXTENDED_Rechnungskorrektur.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_EXTENDED_Warenrechnung.pdf: no embedded CII XML found in PDF
+MISS zugferd_2p0_MINIMUM.pdf: no embedded CII XML found in PDF
+MISS EN16931_1_Teilrechnung.pdf: no embedded CII XML found in PDF
+MISS EN16931_2_Teilrechnung.pdf: no embedded CII XML found in PDF
+MISS EN16931_AbweichenderZahlungsempf.pdf: no embedded CII XML found in PDF
+MISS EN16931_Betriebskostenabrechnung.pdf: no embedded CII XML found in PDF
+MISS EN16931_Einfach.pdf: no embedded CII XML found in PDF
+MISS EN16931_Einfach_DueDate.pdf: no embedded CII XML found in PDF
+MISS EN16931_Einfach_negativePaymentDue.pdf: no embedded CII XML found in PDF
+MISS EN16931_Elektron.pdf: no embedded CII XML found in PDF
+MISS EN16931_ElektronischeAdresse.pdf: no embedded CII XML found in PDF
+MISS EN16931_Gutschrift.pdf: no embedded CII XML found in PDF
+MISS EN16931_Haftpflichtversicherung_Versicherungssteuer.pdf: no embedded CII XML found in PDF
+MISS EN16931_Innergemeinschaftliche_Lieferungen.pdf: no embedded CII XML found in PDF
+MISS EN16931_Kraftfahrversicherung_Bruttopreise.pdf: no embedded CII XML found in PDF
+MISS EN16931_Miete.pdf: no embedded CII XML found in PDF
+MISS EN16931_OEPNV.pdf: no embedded CII XML found in PDF
+MISS EN16931_Physiotherapeut.pdf: no embedded CII XML found in PDF
+MISS EN16931_Rabatte.pdf: no embedded CII XML found in PDF
+MISS EN16931_RechnungsUebertragung.pdf: no embedded CII XML found in PDF
+MISS EN16931_Rechnungskorrektur.pdf: no embedded CII XML found in PDF
+MISS EN16931_Reisekostenabrechnung.pdf: no embedded CII XML found in PDF
+MISS EN16931_SEPA_Prenotification.pdf: no embedded CII XML found in PDF
+MISS EN16931_Sachversicherung_berechneter_Steuersatz.pdf: no embedded CII XML found in PDF
+MISS XRECHNUNG_Betriebskostenabrechnung.pdf: no embedded CII XML found in PDF
+MISS XRECHNUNG_Einfach.pdf: no embedded CII XML found in PDF
+MISS XRECHNUNG_Elektron.pdf: no embedded CII XML found in PDF
+MISS XRECHNUNG_Reisekostenabrechnung.pdf: no embedded CII XML found in PDF
+SURVEY extract: 48/104 PDFs

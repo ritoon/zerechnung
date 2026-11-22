@@ -1,0 +1,34 @@
+go version go1.27.4 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/ritoon/zerechnung/bench/ecosystem/papierleicht
+cpu: Apple M4 Pro
+BenchmarkExtract_Small-14          	   10740	    110241 ns/op	1352.35 MB/s	  426987 B/op	     490 allocs/op
+BenchmarkExtract_Small-14          	   10000	    114697 ns/op	1299.81 MB/s	  426985 B/op	     490 allocs/op
+BenchmarkExtract_Small-14          	   10000	    109659 ns/op	1359.52 MB/s	  426985 B/op	     490 allocs/op
+BenchmarkExtract_Large-14          	     499	   2377228 ns/op	 464.77 MB/s	 4834951 B/op	    1010 allocs/op
+BenchmarkExtract_Large-14          	     507	   2352427 ns/op	 469.67 MB/s	 4834939 B/op	    1010 allocs/op
+BenchmarkExtract_Large-14          	     510	   2362083 ns/op	 467.75 MB/s	 4834935 B/op	    1010 allocs/op
+BenchmarkExtract_Minimum-14        	   34725	     34311 ns/op	2601.09 MB/s	  227514 B/op	     360 allocs/op
+BenchmarkExtract_Minimum-14        	   34341	     34513 ns/op	2585.90 MB/s	  227514 B/op	     360 allocs/op
+BenchmarkExtract_Minimum-14        	   34782	     34827 ns/op	2562.52 MB/s	  227514 B/op	     360 allocs/op
+BenchmarkExtract_Extended-14       	    9798	    117920 ns/op	1335.19 MB/s	  480084 B/op	     695 allocs/op
+BenchmarkExtract_Extended-14       	   10000	    117712 ns/op	1337.54 MB/s	  480084 B/op	     695 allocs/op
+BenchmarkExtract_Extended-14       	   10000	    117169 ns/op	1343.74 MB/s	  480084 B/op	     695 allocs/op
+BenchmarkParseValidate_Small-14    	      81	  13758210 ns/op	   0.96 MB/s	68774272 B/op	  254560 allocs/op
+BenchmarkParseValidate_Small-14    	      91	  13697720 ns/op	   0.96 MB/s	68774659 B/op	  254560 allocs/op
+BenchmarkParseValidate_Small-14    	      86	  13712512 ns/op	   0.96 MB/s	68774653 B/op	  254560 allocs/op
+BenchmarkParseValidate_Lines-14    	      50	  24281343 ns/op	   0.77 MB/s	122875862 B/op	  453519 allocs/op
+BenchmarkParseValidate_Lines-14    	      48	  24230249 ns/op	   0.78 MB/s	122875849 B/op	  453519 allocs/op
+BenchmarkParseValidate_Lines-14    	      49	  24305356 ns/op	   0.77 MB/s	122875846 B/op	  453519 allocs/op
+BenchmarkParseValidate_Large-14    	      84	  14551662 ns/op	  89.70 MB/s	25258812 B/op	   54180 allocs/op
+BenchmarkParseValidate_Large-14    	      86	  14536951 ns/op	  89.79 MB/s	25261686 B/op	   54181 allocs/op
+BenchmarkParseValidate_Large-14    	      86	  14547539 ns/op	  89.73 MB/s	25259156 B/op	   54181 allocs/op
+BenchmarkCheckPDF_Small-14         	      82	  13966178 ns/op	  10.67 MB/s	69201586 B/op	  255047 allocs/op
+BenchmarkCheckPDF_Small-14         	      85	  14099100 ns/op	  10.57 MB/s	69201584 B/op	  255047 allocs/op
+BenchmarkCheckPDF_Small-14         	      82	  14025490 ns/op	  10.63 MB/s	69201581 B/op	  255047 allocs/op
+BenchmarkCheckPDF_Large-14         	      69	  17017635 ns/op	  64.92 MB/s	78332182 B/op	  266256 allocs/op
+BenchmarkCheckPDF_Large-14         	      69	  17052840 ns/op	  64.79 MB/s	78332181 B/op	  266256 allocs/op
+BenchmarkCheckPDF_Large-14         	      72	  17035712 ns/op	  64.86 MB/s	78332338 B/op	  266256 allocs/op
+PASS
+ok  	github.com/ritoon/zerechnung/bench/ecosystem/papierleicht	32.650s

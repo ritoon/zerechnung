@@ -38,7 +38,7 @@ Les chemins `paquet/fichier.py:ligne` ci-dessous sont relatifs à
 
 | Librairie | validate (signalés / 26) | parse (/ 26) | extract (/ 104) |
 |---|---|---|---|
-| factur-x 7.9 | 0 (XSD seule) | 26 | 104 (97 avec `check_xsd=True`, la valeur par défaut) |
+| factur-x 7.10 | 0 (XSD seule) | 26 | 104 (97 avec `check_xsd=True`, la valeur par défaut) |
 | drafthorse 2025.2.0 | 0 (XSD seule) | 26 | — |
 | pycheval 0.4.0 | — | 7 | 65 (39 boucles infinies coupées) |
 | getafix 0.5.0 | 6 (six exceptions, aucune règle détectée) | 20 | 104 |
@@ -96,7 +96,7 @@ Détail des écarts à la référence :
 
 ## Fiches : librairies retenues
 
-### factur-x 7.9 (Akretion)
+### factur-x 7.10 (Akretion)
 
 BSD, dernière version 2026-10-30, 411 142 téléchargements le mois dernier
 (pypistats). La librairie de référence de l'écosystème (Odoo).
@@ -300,7 +300,7 @@ Points à connaître pour lire les chiffres :
 
 | Librairie | Version | Licence | Dernière version | Téléchargements | Lecture CII | Écriture CII | UBL | Extraction PDF | Injection PDF | XSD | EN 16931 (CII) | Profils Factur-X (MINIMUM, BASIC WL, EXTENDED) | BR-FR | BR-DE (XRechnung) | Peppol BIS 3 | Contrôle du conteneur PDF/A-3 | Dépendances externes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| factur-x | 7.9 | BSD | 2026-10-30 | 411 142/mois | oui (dictionnaire) | oui | oui (lecture, écriture ; XSLT CEN UBL 1.3.16 via serveur Saxon) | oui | oui (XMP PDF/A-3, sans conversion) | oui (Factur-X 1.09, 5 profils) | XSLT FNFE-MPE Factur-X 1.09.2 embarqué, exécuté seulement par un serveur Saxon HTTP ; hors ligne : non | XSD des 5 profils ; schematron des 5 profils via serveur Saxon | XSLT BR-FR-Flux2 (124 règles) via serveur Saxon | non | non | non | lxml, pypdf, requests ; serveur Saxon HTTP (JVM) pour tout schematron |
+| factur-x | 7.10 | BSD | 2026-11-19 | 411 142/mois | oui (dictionnaire) | oui | oui (lecture, écriture ; XSLT CEN UBL 1.3.16 via serveur Saxon) | oui | oui (XMP PDF/A-3, sans conversion) | oui (Factur-X 1.09, 5 profils) | XSLT FNFE-MPE Factur-X 1.09.2 embarqué, exécuté seulement par un serveur Saxon HTTP ; hors ligne : non | XSD des 5 profils ; schematron des 5 profils via serveur Saxon | XSLT BR-FR-Flux2 (124 règles) via serveur Saxon | non | non | non | lxml, pypdf, requests ; serveur Saxon HTTP (JVM) pour tout schematron |
 | drafthorse | 2025.2.0 | Apache-2.0 | 2025-09-15 | 156 671/mois | oui | oui (revalidée par XSD) | non | non | oui (XMP PDF/A-3) | oui (Factur-X 1.0.07, 5 profils) | non | XSD des 5 profils | non | non | non | non | lxml, pypdf |
 | pycheval | 0.4.0 | Apache-2.0 | 2026-11-16 | 3 561/mois | partiel (7/26 : refuse EXTENDED, XRECHNUNG, plusieurs TypeCode) | oui | non | partiel (65/104, boucle infinie) | oui (API publique par fichier) | non | non (52 contrôles de structure) | MINIMUM, BASIC WL, BASIC, EN 16931 ; pas EXTENDED | non | non (XRECHNUNG refusé) | non | partiel (AFRelationship selon le pays) | pypdf |
 | getafix | 0.5.0 | Apache-2.0 | 2026-11-10 | 2 092/mois | oui (20/26) | oui | non | oui (chemin seulement) | partiel (pièce jointe sans XMP ni PDF/A-3) | non | partiel (89 des 223 règles BR du CEN, aucune BR-CL ni CII-SR) | 5 profils (Factur-X 1.08) ; EXTENDED : 16 règles BR-FXEXT | non | non | non | non | tagic, pypdf |

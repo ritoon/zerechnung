@@ -65,7 +65,7 @@ Les relevés d'exactitude (`TestSurvey`) portent sur 26 XML CII valides (`XML-Re
 | `papierleicht` | papierleicht/go-e-rechnung-validator v0.1.0 | `validator.ExtractXML`, `Validator.Validate`, `Validator.ValidatePDF` |
 | `dcnws` | DCNWS/invoicekit.go v0.2.13 | `facturx.Extract`, `einvoice.Parse`, `einvoice.Validate`, `einvoice.GenerateCII`, `facturx.Embed`, `hybrid.Check` |
 | `pdf0` | mgilbir/pdf0 v0.9.1 + formalis v0.3.1 | `pdf0.Read` + `pdf0.ValidateFacturX`, `formalis.Validate`, `pdf0.EmbedFacturX` + `Document.Write` |
-| `litho` | gotenberg/litho v0.0.13 | `pdf.Open` + `EmbeddedFiles`, `ValidateFacturXReport`, `Writer.RemediateFacturX` |
+| `litho` | gotenberg/litho v0.0.18 | `pdf.Open` + `EmbeddedFiles`, `ValidateFacturXReport`, `Writer.RemediateFacturX` |
 | `kanjo` | cyprienbrisset/kanjo v0.3.2 | `pdfa.ExtractInvoiceXML`, `read.ReadBytes`, `rules.Validate(doc, "en16931")`, `write.WriteBytes`, `pdfa.EmbedXML` |
 | `taha` | tahayassine/facturx-go v0.1.0 | `facturx.ExtractXML`, `cii.Decode`, `en16931.Validate`, `cii.Encode` |
 | `fx` | solarpush/fX v1.4.0 + 6 commits (`1314f3d`) | `pdf.ExtractXML`, `cii.Parse`, `invoice.ValidateReport`, `cii.Generate` |
@@ -82,6 +82,13 @@ Les relevés d'exactitude (`TestSurvey`) portent sur 26 XML CII valides (`XML-Re
 - **pdfcpu écrit un `config.yml`** et des certificats dans le répertoire de configuration de l'utilisateur (`~/Library/Application Support/pdfcpu` sur macOS), sauf si `model.ConfigPath = "disable"`. Chaque module qui dépend de pdfcpu le positionne dans un `init()` (`noconfig_test.go`). gopdfattach tente de le faire lui-même, mais avec la valeur `"disabled"`, que pdfcpu ne reconnaît pas.
 - **papierleicht compile ses règles au premier appel** (environ une seconde) dans un dossier de cache temporaire ; le benchmark crée le validateur une seule fois.
 - `TestDetail` (dans plusieurs modules) liste les règles qui rejettent des XML valides.
+
+## Résultats du 22/11/2026
+
+Apple M4 Pro sur batterie, mode hautes performances (`powermode 2`), Go 1.27.4 pour tous les modules. Le package de ce dépôt est mesuré au commit `3a3b11a`, en 6 exécutions ; les autres librairies en 3. litho passe de v0.0.13 à v0.0.18. Les tableaux sont dans [`results/2026-11-22/tables.md`](results/2026-11-22/tables.md), avec, pour chaque opération, les octets et le nombre d'allocations d'un appel (`go test -benchmem`) ; l'analyse est sur la page [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks) du wiki.
+
+- Le package est le plus rapide sur chaque opération, et c'est lui qui alloue le moins sur chacune : 28 Ko en 104 allocations pour lire une facture de 13 Ko, quand le seul découpage en jetons d'`encoding/xml` en demande 31 Ko et 711 ; une seule allocation de 8 Ko pour l'écrire ; 245 Ko pour l'injecter dans un PDF, contre 1,3 Mo pour pdf0.
+- Le contrôle complet d'un PDF prend 832 µs, contre 54,8 µs le 16/11 : depuis la PR #73, il vérifie les exigences PDF/A sur tout le fichier (chaque objet, contenu des pages, polices, images JPEG 2000). DCNWS, le suivant, met 1,11 ms.
 
 ## Résultats du 16/11/2026
 

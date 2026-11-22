@@ -4,6 +4,7 @@
 #   ./run.sh setup            cargo build --release, one crate per library
 #   ./run.sh survey [lib…]    correctness surveys  -> $OUT/survey_rust.jsonl
 #   ./run.sh bench  [lib…]    benchmarks           -> $OUT/bench_rust.jsonl
+#   ./run.sh alloc  [lib…]    allocations per call -> $OUT/alloc_rust.jsonl
 #
 # OUT (default ../results/<date>), COUNT (3) and BENCHTIME (seconds, 1) as in
 # PROTOCOL.md. Each library binary writes $OUT/rust-parts/<kind>_<lib>.jsonl;
@@ -79,8 +80,9 @@ case "$cmd" in
 setup) setup "$@" ;;
 survey) each survey "$@" ;;
 bench) each bench "$@" ;;
+alloc) each alloc "$@" ;;
 *)
-	sed -n '2,11p' "$0"
+	sed -n '2,12p' "$0"
 	exit 2
 	;;
 esac

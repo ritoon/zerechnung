@@ -18,14 +18,14 @@ Le relevé (`survey_typescript.jsonl`) compte :
 
 | Librairie | Extract ×4 | Parse ×3 | ParseValidate ×3 | Write Small / Lines | Embed ×2 | CheckPDF ×2 | validate | parse | extract |
 |---|---|---|---|---|---|---|---|---|---|
-| @stackforge-eu/factur-x 1.4.6 | ok | — | ok (XSD seul) | ok (main) / — | ok | — | 0/26 | — | 104/104 |
+| @stackforge-eu/factur-x 1.4.7 | ok | — | ok (XSD seul) | ok (main) / — | ok | — | 0/26 | — | 104/104 |
 | @e-invoice-eu/core 3.4.4 | — | — | — | ok (main) / — | — | — | — | — | — |
 | node-zugferd 0.1.1-beta.1 | — | — | — | ok (main) / — | — | — | — | — | — |
 | @stafyniaksacha/facturx 0.6.1 | ok | ok | ok | ok / ok | **fail** | — | 12/26 | 26/26 | 100/104 |
 | factur-x-kit 0.3.2 | — | ok / **fail** ×2 | ok / **fail** ×2 | ok / **fail** | — | — | 18/26 | 13/26 | — |
 | @lucaapp/zugferd-ts 0.1.0 | ok | ok ×2 / **fail** (Large) | ok | ok / ok | ok | — | 8/26 | 19/26 | 104/104 |
 | @attestwire/en16931 0.14.1 | ok | ok | ok | ok / ok | — | ok | 2/26 | 26/26 | 104/104 |
-| @ekwo-ai/factur-x 0.25.2 | ok | ok | ok (8 règles) | ok (main) / — | ok | — | 3/26 | 26/26 | 104/104 |
+| @ekwo-ai/factur-x 0.27.0 | ok | ok | ok (8 règles) | ok (main) / — | ok | — | 3/26 | 26/26 | 104/104 |
 | @conformo/toolkit 0.2.4 | ok | ok | ok | ok / ok | ok | ok | **6/26** | 26/26 | 104/104 |
 | @kontor-mcp/core 1.0.4 | ok | ok | ok | — | — | — | 2/26 | 26/26 | 104/104 |
 | @sweberdev/summand 2.0.1 | ok | — | ok | — | — | ok | **6/26** | — | 104/104 |
@@ -60,7 +60,7 @@ Trois librairies retrouvent exactement la référence de 6 fichiers signalés : 
 
 ## Fiches des librairies mesurées
 
-### @stackforge-eu/factur-x 1.4.6 (EUPL-1.2, 94 466/semaine)
+### @stackforge-eu/factur-x 1.4.7 (EUPL-1.2, 94 466/semaine)
 
 Génération de XML Factur-X / ZUGFeRD / XRechnung à partir de sa propre saisie (`FacturXInvoiceInput`, `buildXml`). Elle injecte aussi en PDF/A-3 et extrait le XML, avec `pdf-lib`. Elle n'a pas de lecteur CII.
 
@@ -145,7 +145,7 @@ Aucune dépendance : parseur XML, lecteur PDF et décodeur DEFLATE maison. Elle 
 - **PDF hybride.** `validate(pdf)` ajoute six familles de constats `AW-PDF-*` sur le conteneur : pièce jointe, /AF, AFRelationship, type MIME, XMP, profil XMP / BT-24 (`dist/facturx-findings.js`). Ce sont des avertissements, qui ne comptent pas comme erreurs.
 - **Mesure.** La validation est rapide (0,4 ms sur Small). Au relevé, 2/26 (BR-CL-25) : elle ne signale pas CII-SR-465, un avertissement CEN.
 
-### @ekwo-ai/factur-x 0.25.2 (MIT, 521/semaine)
+### @ekwo-ai/factur-x 0.27.0 (MIT, 521/semaine)
 
 Génération CII depuis un objet simple, pour cinq profils. Elle a un lecteur CII (`readCii`), une injection et une extraction avec `pdf-lib` (point d'entrée `/pdf`).
 
@@ -279,14 +279,14 @@ Légende des colonnes « règles » :
 
 | Librairie | Version | Licence | Dernière version | Téléchargements | Lecture CII | Écriture CII | UBL | Extraction PDF | Injection PDF | XSD | EN 16931 (CII) | Profils Factur-X (MINIMUM, BASIC WL, EXTENDED) | BR-FR | BR-DE (XRechnung) | Peppol BIS 3 | Contrôle du conteneur PDF/A-3 | Dépendances externes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| @stackforge-eu/factur-x | 1.4.6 | EUPL-1.2 | 1.4.6 (2026-11-14) | 94 466 | non | oui (saisie propre) | non | oui | oui (XMP PDF/A-3b) | oui, Factur-X 1.09, 5 profils (libxml2-wasm) | non | XSD seulement | non | non | non | non | libxml2-wasm (WASM) |
+| @stackforge-eu/factur-x | 1.4.7 | EUPL-1.2 | 1.4.7 (2026-11-19) | 94 466 | non | oui (saisie propre) | non | oui | oui (XMP PDF/A-3b) | oui, Factur-X 1.09, 5 profils (libxml2-wasm) | non | XSD seulement | non | non | non | non | libxml2-wasm (WASM) |
 | @e-invoice-eu/core | 3.4.4 | WTFPL | 3.4.4 (2026-11-16) | 63 013 | non | oui (JSON façon UBL) | écriture | non | partiel (XML généré seulement) | non | non | génération seulement | non | génération seulement | non | non | LibreOffice si pas de PDF fourni |
 | node-zugferd | 0.1.1-beta.1 | MIT | 0.1.1-beta.1 (`latest`) ; 1.0.0-beta.1 (`beta`, 2026-11-16) | 62 514 | non | oui (saisie par profil) | non | non | partiel (XML généré seulement) | Factur-X 1.07.3, via Java | non | génération 5 profils + XSD (Java) | non | non | non | non | Java pour la validation (optionnel) |
 | @stafyniaksacha/facturx | 0.6.1 | MIT | 0.6.1 (2026-08-28) | 7 339 | oui | oui | non | oui (sauf `xrechnung.xml`) | échoue si l'hôte a un /ID | oui, Factur-X 1.09, 5 profils | schematron officiel Factur-X 1.09 (règles CEN), SEF/SaxonJS, sans sévérités | oui (XSD + schematron par profil) | non | non | non (R008 seulement) | non | SaxonJS (licence Saxonica), libxml2-wasm |
 | factur-x-kit | 0.3.2 | MIT | 0.3.2 (2026-07-31) | 5 067 | partiel (13/26) | oui | non | partiel (dans `fromPDF`) | partiel (réécrit le XML) | non | partiel, réécrit (131 id BR cités, zod) | MINIMUM, BASIC WL ; EXTENDED replié sur EN16931 | non | non | non | non | aucune |
 | @lucaapp/zugferd-ts | 0.1.0 | Apache-2.0 | 0.1.0 (2026-06-13) | 4 395 | partiel (19/26) | oui | oui (lecture, écriture, XSD) | oui | oui (PDF/A-3b) | oui, Factur-X 1.08 + UBL 2.1 (xmllint-wasm) | oui, CEN 1.3.16, 806 asserts (node-schematron, sévérités ignorées) | XSD par profil | non | non (écrit l'XRechnung sans règles KoSIT) | non | partiel (21 règles, conteneur seul) | xmllint-wasm (WASM) |
 | @attestwire/en16931 | 0.14.1 | MIT | 0.14.1 (2026-10-04) | 2 538 | oui | oui | oui (lecture) | oui (lecteur maison) | non | non | réécrit (≈ 217 id EN 16931 ; README : 294 règles en tout) | partiel (AW-PROFILE-*) | non (SIREN/SIRET seulement) | réécrit (24 BR-DE) | UBL seulement, réécrit (27 R) | partiel (6 familles AW-PDF-*, avertissements) | aucune |
-| @ekwo-ai/factur-x | 0.25.2 | MIT | 0.25.2 (2026-11-13) | 521 | oui (`readCii`) | oui (modèle propre) | non | oui | oui (XMP) | non | partiel (8 BR-CO) | génération 5 profils | non | non | non | non | aucune |
+| @ekwo-ai/factur-x | 0.27.0 | MIT | 0.27.0 (2026-11-19) | 521 | oui (`readCii`) | oui (modèle propre) | non | oui | oui (XMP) | non | partiel (8 BR-CO) | génération 5 profils | non | non | non | non | aucune |
 | @conformo/toolkit (+ validate, parse, pdf) | 0.2.4 | Apache-2.0 | 0.2.4 (2026-11-12) | 497 (validate 528) | oui | oui | oui | oui | oui (PDF/A-3, ICC) | oui, CII D16B, Factur-X MINIMUM/BASIC WL/EXTENDED, UBL 2.1 (xmllint-wasm) | oui, CEN 1.3.17, SEF/SaxonJS | XSD seulement (pas de schematron, à dessein) | oui, FNFE-MPE factur-x 6.8, Flux 2 (si `country: "FR"`) | oui, KoSIT 3.0.2 (2026-08-31) | UBL seulement (3.0.22) | partiel (notices XMP / nom de fichier) | SaxonJS (licence Saxonica), xmllint-wasm, pdfjs-dist |
 | @kontor-mcp/core | 1.0.4 | Apache-2.0 | 1.0.4 (2026-08-26) | 337 (rules 554) | oui | partiel (`convertInvoice`) | oui | oui | non (dessine son PDF) | oui, CII D16B + UBL 2.1 (xmllint-wasm) | oui, CEN 1.3.16, SEF/SaxonJS | non | non | oui, XRechnung 3.0.2 (schematron 2.5.0) | non | non | SaxonJS (licence Saxonica), xmllint-wasm |
 | @sweberdev/summand | 2.0.1 | MIT | 2.0.1 (2026-10-13) | 323 | non (version Pro) | non (version Pro) | oui (validation) | oui | non | oui, CII + UBL (validateur maison) | oui, CEN 1.3.16, 806 asserts (moteur maison) | partiel (profil XMP comparé au BT-24) | non | oui, XRechnung 2.6.0 (52 asserts) | non | partiel (profil XMP) | aucune |
