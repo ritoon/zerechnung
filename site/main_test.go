@@ -26,8 +26,8 @@ func TestLoadLangs(t *testing.T) {
 
 func TestLoadLangsReportsMissingTexts(t *testing.T) {
 	fsys := fstest.MapFS{
-		"i18n/en.json": {Data: []byte(`{"lang":"en","name":"English","reviewed":true,"text":{"a":"A","b":"B"}}`)},
-		"i18n/xx.json": {Data: []byte(`{"lang":"xx","name":"Xx","text":{"a":" ","c":"C"}}`)},
+		"i18n/en.json": {Data: []byte(`{"lang":"en","name":"English","flag":"GB","reviewed":true,"text":{"a":"A","b":"B"}}`)},
+		"i18n/xx.json": {Data: []byte(`{"lang":"xx","name":"Xx","flag":"FR","text":{"a":" ","c":"C"}}`)},
 	}
 	_, err := loadLangs(fsys)
 	if err == nil {
@@ -42,8 +42,8 @@ func TestLoadLangsReportsMissingTexts(t *testing.T) {
 
 func TestLoadLangsChecksCode(t *testing.T) {
 	fsys := fstest.MapFS{
-		"i18n/en.json": {Data: []byte(`{"lang":"en","name":"English","text":{}}`)},
-		"i18n/de.json": {Data: []byte(`{"lang":"fr","name":"Français","text":{}}`)},
+		"i18n/en.json": {Data: []byte(`{"lang":"en","name":"English","flag":"GB","text":{}}`)},
+		"i18n/de.json": {Data: []byte(`{"lang":"fr","name":"Français","flag":"FR","text":{}}`)},
 	}
 	if _, err := loadLangs(fsys); err == nil || !strings.Contains(err.Error(), `want "de"`) {
 		t.Fatalf("got %v, want an error on the language code", err)

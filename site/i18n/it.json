@@ -1,6 +1,7 @@
 {
   "lang": "it",
   "name": "Italiano",
+  "flag": "IT",
   "reviewed": false,
   "text": {
     "meta_title": "ZeRechnung · Fatture elettroniche Factur-X, ZUGFeRD e XRechnung in Go",

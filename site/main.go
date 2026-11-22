@@ -69,6 +69,9 @@ type lang struct {
 	Code string `json:"lang"`
 	// Name is the name of the language in that language: "Deutsch".
 	Name string `json:"name"`
+	// Flag is the country whose flag the language menu shows before the
+	// name, as an ISO 3166-1 alpha-2 code of flags.go: "DE", "GB".
+	Flag string `json:"flag"`
 	// Reviewed is false until a native speaker has proofread the texts;
 	// the page then says so and asks for corrections.
 	Reviewed bool              `json:"reviewed"`
@@ -350,6 +353,9 @@ func loadLangs(fsys fs.FS) ([]*lang, error) {
 		}
 		if l.Name == "" {
 			return nil, fmt.Errorf("%s: \"name\" is empty", name)
+		}
+		if _, ok := flags[l.Flag]; !ok {
+			return nil, fmt.Errorf("%s: \"flag\" %q: not a country of flags.go", name, l.Flag)
 		}
 		slugs := make(map[string]string)
 		for _, s := range sections {

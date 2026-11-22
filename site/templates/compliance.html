@@ -51,7 +51,7 @@
       <p class="section-lead">{{.T.cp_details_lead}}</p>
       <div class="cp-cards">
         {{range .Comp.Details}}<article class="cp-card" id="cp-{{.Code}}">
-          <h3><span class="cc">{{.Code}}</span> {{$.Country .Code}}</h3>
+          <h3>{{$.Flag .Code}} {{$.Country .Code}}</h3>
           <p class="cp-intro">{{index $.T (printf "cp_%s_intro" (lower .Code))}}</p>
           <ul class="checks">
             {{range .Checks}}<li class="check-{{.Status}}">
@@ -90,7 +90,7 @@
 </html>
 
 {{define "country"}}{{$p := .Page}}{{with .C}}<tr>
-  <th scope="row"><span class="cc">{{.Code}}</span> {{$p.Country .Code}}</th>
+  <th scope="row">{{$p.Flag .Code}} {{$p.Country .Code}}</th>
   <td>{{$p.Status .B2G}}</td>
   <td>{{$p.Status .B2B}}</td>
   <td class="cover">{{range .Cover}}<span class="fmt-chip st-{{index . 1}}">{{if eq (index . 1) "yes"}}{{template "icon-check"}}{{else if eq (index . 1) "partial"}}{{template "icon-half"}}{{else}}{{template "icon-cross"}}{{end}}{{index . 0}}<span class="sr"> ({{if eq (index . 1) "yes"}}{{$p.T.cp_yes}}{{else if eq (index . 1) "partial"}}{{$p.T.cp_partial}}{{else}}{{$p.T.cp_no}}{{end}})</span></span>{{end}}</td>
