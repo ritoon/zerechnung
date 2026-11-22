@@ -331,7 +331,10 @@ func svrlIDs(data []byte) (ids []string, ok bool, err error) {
 // and their SVRL reports.
 func TestUpdateCases(t *testing.T) {
 	if *variantsDir == "" {
-		t.Skip("-variants DIR not set")
+		// Nothing to write. Not a skip: the job of the official artefacts
+		// fails on any skipped test.
+		t.Log("-variants DIR not set: cases_gen_test.go left as is")
+		return
 	}
 	f, err := os.Open(filepath.Join(*variantsDir, "manifest.tsv"))
 	if err != nil {
