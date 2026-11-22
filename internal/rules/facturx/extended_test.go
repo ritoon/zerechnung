@@ -104,6 +104,18 @@ var extCases = []extCase{
 	// VAT breakdown.
 	{"BR-FXEXT-Z-01 unused breakdown", []string{extTerms, "<ram:ApplicableTradeTax><ram:CalculatedAmount>0.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>0.00</ram:BasisAmount><ram:CategoryCode>Z</ram:CategoryCode><ram:RateApplicablePercent>0</ram:RateApplicablePercent></ram:ApplicableTradeTax>" + extTerms}, "BR-FXEXT-Z-01"},
 	{"BR-FXEXT-Z-01 missing breakdown", []string{extLineTax7, "<ram:CategoryCode>Z</ram:CategoryCode>\n          <ram:RateApplicablePercent>7.00</ram:RateApplicablePercent>"}, "BR-FXEXT-S-08ini BR-FXEXT-S-08rev BR-FXEXT-S08b BR-FXEXT-Z-01"},
+	// A VAT breakdown that no line, allowance or charge uses: its taxable
+	// amount must be 0 (BR-FXEXT-*-08, nothing summed, no tolerance).
+	{"BR-FXEXT-Z-08 unused breakdown with an amount", extUnused("Z", "0", "1.00"), "BR-FXEXT-Z-01 BR-FXEXT-Z-08b BR-FXEXT-Z-08ini BR-FXEXT-Z-08rev"},
+	{"BR-FXEXT-E-01 BR-FXEXT-E-08 unused breakdown", extUnused("E", "0", "1.00"), "BR-FXEXT-E-01 BR-FXEXT-E-08b BR-FXEXT-E-08ini BR-FXEXT-E-08rev"},
+	{"BR-FXEXT-AE-01 BR-FXEXT-AE-08 unused breakdown", extUnused("AE", "0", "1.00"), "BR-FXEXT-AE-01 BR-FXEXT-AE-08b BR-FXEXT-AE-08ini BR-FXEXT-AE-08rev"},
+	{"BR-FXEXT-IC-01 unused breakdown", extUnused("K", "0", "0.00"), "BR-FXEXT-IC-01"},
+	{"BR-FXEXT-G-01 unused breakdown", extUnused("G", "0", "0.00"), "BR-FXEXT-G-01"},
+	{"BR-FXEXT-O-01 BR-FXEXT-O-08 unused breakdown", extUnused("O", "", "1.00"), "BR-FXEXT-O-01 BR-FXEXT-O-08b BR-FXEXT-O-08ini BR-FXEXT-O-08rev"},
+	{"BR-FXEXT-AF-01 BR-FXEXT-AF-08 unused IGIC breakdown", extUnused("L", "7.00", "1.00"), "BR-FXEXT-AF-01 BR-FXEXT-AF-08b BR-FXEXT-AF-08ini BR-FXEXT-AF-08rev"},
+	{"BR-FXEXT-AG-01 BR-FXEXT-AG-08 unused IPSI breakdown", extUnused("M", "10.00", "1.00"), "BR-FXEXT-AG-01 BR-FXEXT-AG-08b BR-FXEXT-AG-08ini BR-FXEXT-AG-08rev"},
+	{"BR-FXEXT-S-01 lines without breakdown", []string{extBreakdowns, "", `currencyID="EUR">56.87`, `currencyID="EUR">0.00`,
+		"<ram:GrandTotalAmount>529.87", "<ram:GrandTotalAmount>473.00", "<ram:DuePayableAmount>529.87", "<ram:DuePayableAmount>473.00"}, "BR-FXEXT-S-01"},
 	{"BR-FXEXT-S-09b within tolerance", []string{"<ram:CalculatedAmount>37.62</ram:CalculatedAmount>", "<ram:CalculatedAmount>37.63</ram:CalculatedAmount>",
 		`currencyID="EUR">56.87`, `currencyID="EUR">56.88`, "<ram:GrandTotalAmount>529.87", "<ram:GrandTotalAmount>529.88", "<ram:DuePayableAmount>529.87", "<ram:DuePayableAmount>529.88"}, ""},
 	{"BR-FXEXT-S-09b", []string{"<ram:CalculatedAmount>37.62</ram:CalculatedAmount>", "<ram:CalculatedAmount>37.64</ram:CalculatedAmount>",
@@ -112,6 +124,35 @@ var extCases = []extCase{
 	// accepts either grouping.
 	{"BR-FXEXT-S-08rev exemption reason", []string{extBreakdown19, extBreakdown19 + "<ram:ExemptionReason>x</ram:ExemptionReason>"}, "BR-FXEXT-S-08rev"},
 	{"BR-FXEXT-S08b missing rate", []string{extBreakdown19 + "\n        <ram:RateApplicablePercent>19.00</ram:RateApplicablePercent>", extBreakdown19}, "BR-FXEXT-S-08ini BR-FXEXT-S-08rev BR-FXEXT-S-09b BR-FXEXT-S08b"},
+}
+
+// extBreakdowns are the two VAT breakdowns of EN16931_Einfach.
+const extBreakdowns = `      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>19.25</ram:CalculatedAmount>
+        <ram:TypeCode>VAT</ram:TypeCode>
+        <ram:BasisAmount>275.00</ram:BasisAmount>
+        <ram:CategoryCode>S</ram:CategoryCode>
+        <ram:RateApplicablePercent>7.00</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>37.62</ram:CalculatedAmount>
+        <ram:TypeCode>VAT</ram:TypeCode>
+        <ram:BasisAmount>198.00</ram:BasisAmount>
+        <ram:CategoryCode>S</ram:CategoryCode>
+        <ram:RateApplicablePercent>19.00</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+`
+
+// extUnused returns the edits that add to EN16931_Einfach a VAT breakdown of
+// category cat at rate ("" for none) with taxable amount basis and no tax,
+// which no line, allowance or charge uses.
+func extUnused(cat, rate, basis string) []string {
+	r := ""
+	if rate != "" {
+		r = "<ram:RateApplicablePercent>" + rate + "</ram:RateApplicablePercent>"
+	}
+	return []string{extTerms, "<ram:ApplicableTradeTax><ram:CalculatedAmount>0.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>" + basis +
+		"</ram:BasisAmount><ram:CategoryCode>" + cat + "</ram:CategoryCode>" + r + "</ram:ApplicableTradeTax>" + extTerms}
 }
 
 // applyEdits replaces each old string of edits once in s.
