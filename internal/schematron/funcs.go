@@ -1,4 +1,4 @@
-package pt
+package schematron
 
 import (
 	"fmt"
@@ -27,7 +27,11 @@ func init() {
 		"true":   {0, 0, func(*ctx, *call, []seq) (seq, error) { return boolSeq(true), nil }},
 		"false":  {0, 0, func(*ctx, *call, []seq) (seq, error) { return boolSeq(false), nil }},
 		"exists": {1, 1, func(_ *ctx, _ *call, a []seq) (seq, error) { return boolSeq(len(a[0]) > 0), nil }},
-		"empty":  {1, 1, func(_ *ctx, _ *call, a []seq) (seq, error) { return boolSeq(len(a[0]) == 0), nil }},
+		"boolean": {1, 1, func(_ *ctx, _ *call, a []seq) (seq, error) {
+			b, err := ebv(a[0])
+			return boolSeq(b), err
+		}},
+		"empty": {1, 1, func(_ *ctx, _ *call, a []seq) (seq, error) { return boolSeq(len(a[0]) == 0), nil }},
 		"count": {1, 1, func(_ *ctx, _ *call, a []seq) (seq, error) {
 			return seq{intItem(int64(len(a[0])))}, nil
 		}},
@@ -149,7 +153,7 @@ func fnName(c *ctx, _ *call, a []seq) (seq, error) {
 	}
 	it := s[0]
 	switch {
-	case it.n == nil:
+	case it.n == nil, it.a == textNode:
 		return strItem(""), nil
 	case it.a > 0:
 		at := it.n.Attrs[it.a-1]

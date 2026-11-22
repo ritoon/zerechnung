@@ -73,7 +73,7 @@ func openAPI(version string) ([]byte, error) {
 	str := obj{"type": "string"}
 	boolean := obj{"type": "boolean"}
 	validationParams := []obj{
-		q("rules", "Rule sets to add, separated by commas: fr, de, choruspro, peppol, nl, it, pt, face.", str),
+		q("rules", "Rule sets to add, separated by commas: fr, de, choruspro, peppol, nl, it, pt, ro, face.", str),
 		q("auto", "Add the national rules of the seller's country.", boolean),
 		q("profile", "Validate against this profile instead of BT-24.", str),
 		q("reject_basicwl", "Report BASIC WL as an error under the French rules.", boolean),
@@ -217,7 +217,7 @@ func (g *schemaGen) schema(t reflect.Type) obj {
 	case reflect.TypeFor[invoice.Date]():
 		return obj{"type": "string", "format": "date"}
 	case reflect.TypeFor[invoice.Profile]():
-		return obj{"type": "string", "description": "Profile: MINIMUM, BASIC WL, BASIC, EN 16931, EXTENDED, XRECHNUNG, EXTENDED-CTC-FR, PEPPOL, NLCIUS, CIUS-IT, CIUS-PT (UBL only), or a specification identifier (BT-24)", "examples": []string{"EN 16931"}}
+		return obj{"type": "string", "description": "Profile: MINIMUM, BASIC WL, BASIC, EN 16931, EXTENDED, XRECHNUNG, EXTENDED-CTC-FR, PEPPOL, NLCIUS, CIUS-IT, CIUS-PT (UBL only), CIUS-RO, or a specification identifier (BT-24)", "examples": []string{"EN 16931"}}
 	case timeType:
 		return obj{"type": "string", "format": "date-time"}
 	case rawJSON:

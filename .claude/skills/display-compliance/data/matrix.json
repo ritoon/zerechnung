@@ -208,9 +208,9 @@
     {"kind": "net", "label": "eSPap, e-fatura", "status": "x"},
     {"kind": "rep", "label": "SAF-T (PT)", "status": "x"}
    ]},
-  {"code": "RO", "name": "Roumanie", "region": "ue", "issues": [101],
+  {"code": "RO", "name": "Roumanie", "region": "ue", "issues": [],
    "norms": [
-    {"label": "CIUS-RO 1.0.1", "status": "p", "note": "règles EN 16931 appliquées, pas les règles roumaines"}
+    {"label": "CIUS-RO 1.0.1", "status": "y", "note": "schematron ANAF 1.0.9, transposé en CII ; CIF en avertissement"}
    ],
    "features": [
     {"kind": "net", "label": "RO e-Factura", "status": "x"},

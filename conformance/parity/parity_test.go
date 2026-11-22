@@ -197,7 +197,7 @@ func TestStage(t *testing.T) {
 	write(corpus, "ZUGFeRDv2/fail/notes.txt", "x")
 	write(corpus, "ZUGFeRDv1/correct/d.pdf", "%PDF")
 	write(kosit, "src/test/business-cases/standard/01.01a-INVOICE_ubl.xml", "<e/>")
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, fnfeInputs{}, ""); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, fnfeInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -498,7 +498,7 @@ func TestStageNL(t *testing.T) {
 	write(repo, "internal/rules/nl/testdata/nlcius.xml", cii)
 	write(variants, "ubl-001-x.xml", ubl)
 	nl := nlInputs{npa: npaDir, tests: tests, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nl, ptInputs{}, fnfeInputs{}, ""); err != nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}, roInputs{}, fnfeInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -531,7 +531,7 @@ func TestStageNL(t *testing.T) {
 	}
 
 	write(variants, "bad.xml", "<Order/>")
-	if err := stage(corpus, kosit, work, nl, ptInputs{}, fnfeInputs{}, ""); err == nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}, roInputs{}, fnfeInputs{}, ""); err == nil {
 		t.Error("a variant that is not an invoice: no error")
 	}
 }
@@ -652,7 +652,7 @@ func TestPTRun(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, ptXSL), []byte(testSchXslt), 0o644)
 	os.WriteFile(filepath.Join(dir, "pt.list"), []byte(filepath.Join(dir, "in", "0001.xml")+"\n"+filepath.Join(dir, "in", "0002.xml")+"\n"), 0o644)
-	run, err := newPTRun(dir)
+	run, err := newSchRun(dir, "pt.list", ptXSL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,12 +692,12 @@ func TestPTRun(t *testing.T) {
 	}
 
 	// No pt.list: no CIUS-PT comparison, and no XSLT to read.
-	if run, err := newPTRun(t.TempDir()); err != nil || len(run.files) != 0 {
+	if run, err := newSchRun(t.TempDir(), "pt.list", ptXSL, nil); err != nil || len(run.files) != 0 {
 		t.Errorf("no pt.list: %+v, %v", run, err)
 	}
 	empty := t.TempDir()
 	os.WriteFile(filepath.Join(empty, "pt.list"), []byte(filepath.Join(empty, "0001.xml")+"\n"), 0o644)
-	if _, err := newPTRun(empty); err == nil {
+	if _, err := newSchRun(empty, "pt.list", ptXSL, nil); err == nil {
 		t.Error("pt.list without the compiled XSLT: no error")
 	}
 }
@@ -759,7 +759,7 @@ func TestStagePT(t *testing.T) {
 	z.Close()
 	f.Close()
 	pt := ptInputs{examples: examples, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nlInputs{}, pt, fnfeInputs{}, ""); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, pt, roInputs{}, fnfeInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -792,7 +792,7 @@ func TestStagePT(t *testing.T) {
 		}
 	}
 	pt.examples = filepath.Join(t.TempDir(), "none.zip")
-	if err := stage(corpus, kosit, work, nlInputs{}, pt, fnfeInputs{}, ""); err == nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, pt, roInputs{}, fnfeInputs{}, ""); err == nil {
 		t.Error("missing archive: no error")
 	}
 }

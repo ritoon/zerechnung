@@ -29,7 +29,10 @@ const ptXSL = "cius-pt.xsl"
 // (succeeds) into an svrl:failed-assert (svrl:successful-report) that holds
 // the id and the flag as attributes, and the message as svrl:text. The lines
 // of each assertion are those of the start tag of its xsl:if, which Saxon
-// gives for an error in the test.
+// gives for an error in the test; it gives those of the start tag of the
+// schxslt:rule element that wraps the assertions of a rule instead when that
+// rule holds a single assertion (BR-27 of the CIUS-RO schematron), which
+// the index records as the template of the assertion.
 func indexSchXslt(file string) (xslIndex, error) {
 	var idx xslIndex
 	data, err := os.ReadFile(file)
@@ -37,8 +40,9 @@ func indexSchXslt(file string) (xslIndex, error) {
 		return idx, err
 	}
 	const (
-		nsXSL  = "http://www.w3.org/1999/XSL/Transform"
-		nsSVRL = "http://purl.oclc.org/dsdl/svrl"
+		nsXSL     = "http://www.w3.org/1999/XSL/Transform"
+		nsSVRL    = "http://purl.oclc.org/dsdl/svrl"
+		nsSchXslt = "https://doi.org/10.5281/zenodo.1495494"
 	)
 	d := xml.NewDecoder(bytes.NewReader(data))
 	var (
@@ -46,6 +50,7 @@ func indexSchXslt(file string) (xslIndex, error) {
 		from, to int // lines of the last xsl:if start tag
 		text     strings.Builder
 		in       bool // reading the svrl:text of cur
+		rule     = -1 // index of the schxslt:rule being read, in idx.templates
 	)
 	for {
 		before, _ := d.InputPos()
@@ -62,8 +67,12 @@ func indexSchXslt(file string) (xslIndex, error) {
 			case t.Name.Space == nsXSL && t.Name.Local == "if":
 				from = before
 				to, _ = d.InputPos()
+			case t.Name.Space == nsSchXslt && t.Name.Local == "rule":
+				after, _ := d.InputPos()
+				idx.templates = append(idx.templates, template{from: before, to: after})
+				rule = len(idx.templates) - 1
 			case t.Name.Space == nsSVRL && (t.Name.Local == "failed-assert" || t.Name.Local == "successful-report"):
-				cur = &xslAssertion{ID: attr(t, "id"), Flag: attr(t, "flag"), from: from, to: to, tmpl: -1}
+				cur = &xslAssertion{ID: attr(t, "id"), Flag: attr(t, "flag"), from: from, to: to, tmpl: rule}
 			case cur != nil && t.Name.Space == nsSVRL && t.Name.Local == "text":
 				in = true
 				text.Reset()
@@ -74,12 +83,17 @@ func indexSchXslt(file string) (xslIndex, error) {
 			}
 		case xml.EndElement:
 			switch {
+			case t.Name.Space == nsSchXslt && t.Name.Local == "rule":
+				rule = -1
 			case cur == nil:
 			case t.Name.Space == nsSVRL && t.Name.Local == "text":
 				cur.Message = normalize(text.String())
 				in = false
 			case t.Name.Space == nsSVRL && (t.Name.Local == "failed-assert" || t.Name.Local == "successful-report"):
 				cur.ID = assertionID(cur.ID, cur.Message)
+				if cur.tmpl >= 0 {
+					idx.templates[cur.tmpl].asserts++
+				}
 				idx.asserts = append(idx.asserts, *cur)
 				cur = nil
 			}
@@ -91,16 +105,22 @@ func indexSchXslt(file string) (xslIndex, error) {
 	return idx, nil
 }
 
-// ptRun is the run of the CIUS-PT schematron: the staged invoices given to
-// Saxon (pt.list), and the assertions of the compiled XSLT.
-type ptRun struct {
-	files map[string]bool // staged name → given to Saxon
-	index xslIndex
+// schRun is the run of a schematron compiled by SchXslt, the CIUS-PT one or
+// the CIUS-RO one: the staged invoices given to Saxon (list), and the
+// assertions of the compiled XSLT (xsl).
+type schRun struct {
+	list, xsl string
+	files     map[string]bool // staged name → given to Saxon
+	index     xslIndex
+	keep      func(id string) bool // the assertions compared; nil for all
 }
 
-func newPTRun(work string) (*ptRun, error) {
-	run := &ptRun{files: map[string]bool{}}
-	data, err := os.ReadFile(filepath.Join(work, "pt.list"))
+// newSchRun reads the list of the invoices given to Saxon and, when there is
+// one, the compiled XSLT, both in the work directory. keep tells the
+// assertions to compare, nil for all.
+func newSchRun(work, list, xsl string, keep func(string) bool) (*schRun, error) {
+	run := &schRun{list: list, xsl: xsl, files: map[string]bool{}, keep: keep}
+	data, err := os.ReadFile(filepath.Join(work, list))
 	if os.IsNotExist(err) {
 		return run, nil
 	}
@@ -115,22 +135,27 @@ func newPTRun(work string) (*ptRun, error) {
 	if len(run.files) == 0 {
 		return run, nil
 	}
-	if run.index, err = indexSchXslt(filepath.Join(work, ptXSL)); err != nil {
+	if run.index, err = indexSchXslt(filepath.Join(work, xsl)); err != nil {
 		return nil, err
 	}
 	return run, nil
 }
 
+// compared reports whether an assertion of the schematron takes part in the
+// comparison.
+func (run *schRun) compared(id string) bool { return run.keep == nil || run.keep(id) }
+
 // result turns the report of an invoice into a result: every failed
-// assertion (fired report), at its level and on its element. When the
-// transformation stopped on a dynamic error, the assertion whose test raised
-// it counts as failed, as the package does (see the package documentation of
-// internal/rules/pt), and the result is partial: it holds that assertion
-// only, without element, as Saxon does not say on which element it stopped.
-func (run *ptRun) result(e entry, data []byte) (result, error) {
+// assertion (fired report) compared, at its level and on its element. When
+// the transformation stopped on a dynamic error, the assertion whose test
+// raised it counts as failed, as the package does (see the package
+// documentation of internal/schematron), and the result is partial: it holds
+// that assertion only, without element, as Saxon does not say on which
+// element it stopped, and nothing when the assertion is not compared.
+func (run *schRun) result(e entry, data []byte) (result, error) {
 	res := newResult()
 	if !run.files[e.Name] {
-		return res, fmt.Errorf("not in pt.list")
+		return res, fmt.Errorf("not in %s", run.list)
 	}
 	rep, err := parseSVRL(data)
 	if err != nil {
@@ -139,14 +164,19 @@ func (run *ptRun) result(e entry, data []byte) (result, error) {
 	if rep.errCode != "" || rep.errMsg != "" {
 		a, ok := run.index.at(rep.errLine)
 		if !ok {
-			res.Failure = fmt.Sprintf("%s, line %d of %s: %s", rep.errCode, rep.errLine, ptXSL, rep.errMsg)
+			res.Failure = fmt.Sprintf("%s, line %d of %s: %s", rep.errCode, rep.errLine, run.xsl, rep.errMsg)
 			return res, nil
 		}
-		res.add(a.ID, flagLevel(a.Flag))
+		if run.compared(a.ID) {
+			res.add(a.ID, flagLevel(a.Flag))
+		}
 		res.Stopped = fmt.Sprintf("%s in the test of %s: %s", rep.errCode, a.ID, rep.errMsg)
 		return res, nil
 	}
 	for _, f := range rep.findings {
+		if !run.compared(f.id) {
+			continue
+		}
 		p, err := saxonPath(f.location)
 		if err != nil {
 			return res, fmt.Errorf("%s: %w", f.id, err)

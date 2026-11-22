@@ -4,7 +4,8 @@
 # XRechnung 3.0.2 configuration of 2026-08-31, and Mustang 2.26.0; for
 # NLCIUS, the XSLT of the schematrons of the Dutch Peppol Authority (NPa),
 # run by Saxon-HE 12.10; for the CIUS-PT, the schematron of eSPap compiled
-# into an XSLT by SchXslt 1.10.1 and run by Saxon-HE 12.10; for
+# into an XSLT by SchXslt 1.10.1 and run by Saxon-HE 12.10; for the CIUS-RO,
+# the ROmodel phase of the schematron of ANAF, compiled and run likewise; for
 # EXTENDED-CTC-FR, the XSLT of the FNFE-MPE (France_RFE 1.4.0.04), run by
 # Saxon-HE 12.10. See README.md.
 #
@@ -15,9 +16,10 @@
 # report is written to dir/parity/report.md and report.json, and appended to
 # $GITHUB_STEP_SUMMARY under GitHub Actions. The script exits with status 1
 # when a difference, or an NLCIUS assertion that no invoice makes fail, is
-# not listed in parity/known.txt. A CIUS-PT invoice on which Saxon stops (an
-# XPath error in the test of an assertion) is no difference when the package
-# holds that assertion failed.
+# not listed in parity/known.txt. A CIUS-PT or CIUS-RO invoice on which Saxon
+# stops (an XPath error in the test of an assertion) is no difference when the
+# package holds that assertion failed, or for the CIUS-RO when the assertion
+# is BR-27, a rule of EN 16931 left out of the comparison.
 #
 # Java 17 or later runs the reference validators; the package itself stays
 # pure Go. Besides java, it needs what fetch.sh needs, and unzip.
@@ -59,8 +61,8 @@ fetch_file "$RESOLVER_JAR" \
 fetch_file "$RESOLVER_DATA_JAR" \
 	https://repo1.maven.org/maven2/org/xmlresolver/xmlresolver/5.3.3/xmlresolver-5.3.3-data.jar \
 	b0c487ad2f3e558be8d829c916d2458d10aca6a5bafa7a4d0524b70845e48a5c
-# SchXslt 1.10.1, from Maven Central: its XSLT compile the CIUS-PT schematron
-# into the XSLT that Saxon runs.
+# SchXslt 1.10.1, from Maven Central: its XSLT compile the CIUS-PT and CIUS-RO
+# schematrons into the XSLT that Saxon runs.
 fetch_file "$SCHXSLT_JAR" \
 	https://repo1.maven.org/maven2/name/dmaus/schxslt/schxslt/1.10.1/schxslt-1.10.1.jar \
 	4f4f21edab7b37f96ad59ae12a344d3510f1092ac46b6d81a4efa0120b73cb58
@@ -74,6 +76,9 @@ unzip -q "$SCHXSLT_JAR" 'xslt/*' -d "$SCHXSLT"
 PT_SCH=$TOOLS/cius-pt-schematron
 rm -rf "$PT_SCH"
 unzip -q "$FX_PT_SCH" -d "$PT_SCH" # fetched and checked by fetch.sh
+RO_SCH=$TOOLS/cius-ro-schematron
+rm -rf "$RO_SCH"
+unzip -q "$FX_RO_SCH" -d "$RO_SCH" # fetched and checked by fetch.sh
 
 WORK=$DEST/parity
 # The documents of the mutation cases of the EN 16931 and XRechnung rules,
@@ -92,6 +97,12 @@ done
 rm -rf "$WORK/pt-variants"
 mkdir -p "$WORK/pt-variants"
 (cd "$here/.." && go test -count=1 -run '^TestVariants$' ./internal/rules/pt -variants "$WORK/pt-variants" >/dev/null)
+# Likewise for the CIUS-RO: the candidate mutations of the UBL invoice and
+# credit note of internal/rules/ro/testdata, compared with the CIUS-RO
+# schematron along with the UBL examples of ANAF and those invoices.
+rm -rf "$WORK/ro-variants"
+mkdir -p "$WORK/ro-variants"
+(cd "$here/.." && go test -count=1 -run '^TestVariants$' ./internal/rules/ro -variants "$WORK/ro-variants" >/dev/null)
 # Likewise for EXTENDED-CTC-FR: the documents of the mutation cases of the
 # CII and UBL rules, one directory per package, compared with the XSLT of the
 # FNFE-MPE along with the EXTENDED-CTC-FR examples of France_RFE and the
@@ -104,9 +115,10 @@ done
 	-variants "$WORK/variants" \
 	-nl "$FX_NL" -nl-tests "$FX_NL_TESTS" -nl-variants "$WORK/nl-variants" \
 	-pt "$FX_PT" -pt-variants "$WORK/pt-variants" \
+	-ro "$FX_RO" -ro-variants "$WORK/ro-variants" \
 	-fnfe "$FX_FNFE" -fnfe-variants "$WORK/fr-variants")
-rm -rf "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/fnfe"
-mkdir -p "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/fnfe"
+rm -rf "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/fnfe"
+mkdir -p "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/fnfe"
 
 # One JVM per validator. The KoSIT validator returns the number of rejected
 # invoices, or a negative status (255, 254) when it cannot run.
@@ -155,13 +167,28 @@ if ! java -Xss8m -cp "$SAXON_CP" "$here/parity/CiusPtBatch.java" "$WORK/cius-pt.
 	tail -20 "$WORK/pt.log" >&2
 	die "the CIUS-PT XSLT failed, see $WORK/pt.log"
 fi
+# The CIUS-RO schematron, compiled and run likewise, its ROmodel phase only:
+# the pattern of the Romanian rules. The full schematron also holds the
+# patterns of EN 16931, of which Saxon stops on many variants, and that the
+# KoSIT validator compares already.
+log "CIUS-RO schematron 1.0.9, phase ROmodel, SchXslt 1.10.1"
+if ! java -Xss8m -cp "$SAXON_CP" net.sf.saxon.Transform -xsl:"$SCHXSLT/xslt/2.0/pipeline-for-svrl.xsl" \
+	-s:"$RO_SCH/ro16931-ubl-1.0.9/EN16931-CIUS_RO-UBL-validation.sch" -o:"$WORK/cius-ro.xsl" phase=romodel_phase >"$WORK/schxslt-ro.log" 2>&1; then
+	tail -20 "$WORK/schxslt-ro.log" >&2
+	die "SchXslt failed on the CIUS-RO schematron, see $WORK/schxslt-ro.log"
+fi
+log "CIUS-RO XSLT, Saxon-HE 12.10 ($(wc -l <"$WORK/ro.list" | tr -d ' ') XML files)"
+if ! java -Xss8m -cp "$SAXON_CP" "$here/parity/CiusPtBatch.java" "$WORK/cius-ro.xsl" "$WORK/ro" "$WORK/ro.list" >"$WORK/ro.log" 2>&1; then
+	tail -20 "$WORK/ro.log" >&2
+	die "the CIUS-RO XSLT failed, see $WORK/ro.log"
+fi
 
 log "comparison"
 status=0
 (cd "$here/parity" && go run . compare -work "$WORK" -kosit-config "$CONFIG" -known "$here/parity/known.txt" -md "$WORK/report.md" -json "$WORK/report.json") || status=$?
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f "$WORK/report.md" ]; then
 	{
-		echo "## Parité avec KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE, et le schematron CIUS-PT"
+		echo "## Parité avec KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE, et les schematrons CIUS-PT et CIUS-RO"
 		echo
 		cat "$WORK/report.md"
 	} >>"$GITHUB_STEP_SUMMARY"

@@ -116,5 +116,8 @@ manque pour un `p`, l'API ou la PR pour un `y`, l'échéance pour un `n` (« B2B
   pas une transmission.
 - **ATCUD + QR code (Portugal)**, **Swiss QR Code (Suisse)** : `p`, l'encodeur
   `internal/qr` existe mais aucune API publique ne produit le contenu.
-- **CIUS-HR, CIUS-RO, Peppol BIS SK** : `p`, la syntaxe passe les règles EN 16931 mais
+- **CIUS-HR, Peppol BIS SK** : `p`, la syntaxe passe les règles EN 16931 mais
   pas les règles nationales.
+- **CIUS-RO (Roumanie)** : `p` avec l'issue #101, puis `y` après la PR qui applique
+  les règles du schematron 1.0.9 de l'ANAF (jeu `validate.Romania`) ; #101 fermée et
+  retirée de la liste.

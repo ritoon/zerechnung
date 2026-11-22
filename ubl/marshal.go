@@ -156,12 +156,12 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 func customizationID(inv *invoice.Invoice) string {
 	if inv.SpecificationID != "" {
 		switch invoice.DetectProfile(inv.SpecificationID) {
-		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
+		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
 			return strings.TrimSpace(inv.SpecificationID)
 		}
 	}
 	switch inv.Profile {
-	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileExtendedCTCFR:
+	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileExtendedCTCFR:
 		return inv.Profile.URNFor(inv.Seller.Address.CountryCode)
 	}
 	return invoice.URNEN16931

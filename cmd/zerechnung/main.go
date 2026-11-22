@@ -10,11 +10,11 @@
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
-//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-face] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
+//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-ro] [-face] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
 //	zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-o out.pdf] input.pdf
 //	zerechnung sign -key key.pem -cert cert.pem [-reason r] [-location l] [-certify 1|2|3] [-o out.pdf] input.pdf
 //	zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
-//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt] [-face]
+//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt] [-ro] [-face]
 //
 // validate exits with status 1 when the invoice has errors. It checks the
 // signatures of a signed PDF, and with -face the signature of a Facturae
@@ -58,14 +58,14 @@ invoices and also opens a FatturaPA file signed in CAdES (.xml.p7m).
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
   zerechnung info invoice.pdf
-  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-face] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
+  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-ro] [-face] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
   zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-convert-pdfa] [-o out.pdf] input.pdf
   zerechnung sign -key key.pem -cert cert.pem [-reason r] [-location l] [-contact c] [-name n] [-field f] [-certify 1|2|3] [-hash sha256|sha384|sha512] [-pss] [-o out.pdf] input.pdf
   zerechnung pdfa [-o out.pdf] input.pdf
   zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
-  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt] [-face]
+  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt] [-ro] [-face]
 
-Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it, cius-pt.
+Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it, cius-pt, cius-ro.
 `
 
 func main() {
@@ -210,6 +210,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	nl := fs.Bool("nl", false, "apply the Dutch rules BR-NL of NLCIUS (applied anyway when BT-24 is the NLCIUS identifier)")
 	ita := fs.Bool("it", false, "apply the Italian rules BR-IT of the CIUS-IT (applied anyway when BT-24 is a CIUS-IT identifier)")
 	por := fs.Bool("pt", false, "apply the Portuguese rules of the CIUS-PT (applied anyway when BT-24 is a CIUS-PT identifier)")
+	rou := fs.Bool("ro", false, "apply the Romanian rules BR-RO of the CIUS-RO and the check of the CIF (applied anyway when BT-24 is a CIUS-RO identifier)")
 	face := fs.Bool("face", false, "apply the FACe checks of Spanish B2G invoices: a Facturae document must be signed in XAdES-EPES under the signature policy of Facturae, and its signature verify (trust in the certificate and its revocation are not checked)")
 	profile := fs.String("profile", "", "validate against this profile instead of BT-24")
 	hybrid := fs.Bool("hybrid", false, "the XML is the invoice of a Factur-X PDF: check an EN 16931 invoice against the Factur-X schematron (always the case for a PDF)")
@@ -248,7 +249,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 			return 0, fmt.Errorf("unknown profile %q", *profile)
 		}
 	}
-	if *fr || *de || *cpro || *pep || *nl || *ita || *por || *face {
+	if *fr || *de || *cpro || *pep || *nl || *ita || *por || *rou || *face {
 		opts.Rules = validate.Default
 		if *fr {
 			opts.Rules |= validate.France
@@ -270,6 +271,9 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		}
 		if *por {
 			opts.Rules |= validate.Portugal
+		}
+		if *rou {
+			opts.Rules |= validate.Romania
 		}
 		if *face {
 			opts.Rules |= validate.FACe
@@ -666,6 +670,7 @@ func rulesCmd(args []string) error {
 	nl := fs.Bool("nl", false, "include the Dutch rules of NLCIUS")
 	ita := fs.Bool("it", false, "include the Italian rules of the CIUS-IT")
 	por := fs.Bool("pt", false, "include the Portuguese rules of the CIUS-PT")
+	rou := fs.Bool("ro", false, "include the Romanian rules of the CIUS-RO")
 	face := fs.Bool("face", false, "include the FACe checks of the signature of a Facturae document")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -691,6 +696,9 @@ func rulesCmd(args []string) error {
 	}
 	if *por {
 		set |= validate.Portugal
+	}
+	if *rou {
+		set |= validate.Romania
 	}
 	if *face {
 		set |= validate.FACe

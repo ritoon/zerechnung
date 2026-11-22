@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/ritoon/zerechnung/internal/rules"
+	"github.com/ritoon/zerechnung/internal/schematron"
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
 
@@ -24,7 +25,7 @@ var nifParties = []struct{ path, bt string }{
 func checkNIF(c *rules.Checker, root *xmltree.Node) {
 	for _, p := range nifParties {
 		for _, n := range root.FindAll(p.path) {
-			v := normalizeSpace(stringValue(item{k: kNode, n: n}))
+			v := schematron.NormalizeSpace(schematron.StringValue(n))
 			nif, ok := strings.CutPrefix(v, "PT")
 			if !ok {
 				continue
