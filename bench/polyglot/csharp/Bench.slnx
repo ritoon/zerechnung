@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/libs/">
+    <Project Path="libs/antiphon/antiphon.csproj" />
+    <Project Path="libs/balsoft/balsoft.csproj" />
+    <Project Path="libs/en16931/en16931.csproj" />
+    <Project Path="libs/facturxdotnet/facturxdotnet.csproj" />
+    <Project Path="libs/international-einvoicing/international-einvoicing.csproj" />
+    <Project Path="libs/officeimo/officeimo.csproj" />
+    <Project Path="libs/pax-xrechnung/pax-xrechnung.csproj" />
+    <Project Path="libs/pdfpig/pdfpig.csproj" />
+    <Project Path="libs/pdfsharp/pdfsharp.csproj" />
+    <Project Path="libs/saxoncs/saxoncs.csproj" />
+    <Project Path="libs/securibox/securibox.csproj" />
+    <Project Path="libs/xsd/xsd.csproj" />
+    <Project Path="libs/zugferd-csharp/zugferd-csharp.csproj" />
+  </Folder>
+  <Project Path="harness/Harness.csproj" />
+</Solution>

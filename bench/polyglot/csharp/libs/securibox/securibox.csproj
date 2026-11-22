@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bench-securibox</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../harness/Harness.csproj" />
+    <PackageReference Include="Securibox.FacturX" Version="[0.6.0-alpha-3]" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bench-antiphon</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../harness/Harness.csproj" />
+    <PackageReference Include="Antiphon.Invoicing" Version="[1.0.0]" />
+    <PackageReference Include="Antiphon.Invoicing.Parsing.Cii" Version="[1.0.0]" />
+    <PackageReference Include="Antiphon.Invoicing.Generation.Cii" Version="[1.0.0]" />
+    <PackageReference Include="Antiphon.Invoicing.Validation.Pipeline" Version="[1.0.0]" />
+    <PackageReference Include="Antiphon.Invoicing.Rules.Cen.Cii" Version="[1.0.0]" />
+    <PackageReference Include="Antiphon.Invoicing.Rules.XRechnung.Cii" Version="[1.0.0]" />
+    <PackageReference Include="Antiphon.Invoicing.Xsd.Cii" Version="[1.0.0]" />
+    <PackageReference Include="Antiphon.Invoicing.Pdf" Version="[1.0.0]" />
+  </ItemGroup>
+</Project>

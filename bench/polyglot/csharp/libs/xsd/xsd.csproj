@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Floor: System.Xml.Schema (BCL) with the UN/CEFACT CII D16B schemas. No package. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bench-xsd</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../harness/Harness.csproj" />
+  </ItemGroup>
+</Project>

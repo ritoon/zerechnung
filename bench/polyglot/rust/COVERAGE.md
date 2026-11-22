@@ -320,6 +320,16 @@ l'ordre :
 - `RAYON_NUM_THREADS=1` : lopdf, avec ses features par défaut (zugferd-rs,
   pdf-invoice, einvoice), analyse les objets avec rayon. Le protocole demande
   un seul fil.
+- Temps CPU et pic mémoire : `getrusage(RUSAGE_SELF)` (crate `libc` 0.2.191
+  épinglé), temps utilisateur + système de tous les fils, lu avant et après
+  chaque série (`cpu_ns_per_op`) ; `ru_maxrss` (octets sur macOS) lu à la fin
+  de la série dans la passe `resources`, où `run.sh` lance directement
+  `target/release/bench-<lib> resources <Bench>`, un processus par benchmark.
+  Même avec `RAYON_NUM_THREADS=1`, rayon garde un fil de travail à côté du fil
+  mesuré : l'analyse lopdf y tourne pendant que le fil mesuré attend, d'où un
+  temps CPU d'environ 105 % du temps réel en extraction et injection pour
+  zugferd-rs. Aucune librairie ne lance de processus enfant (l'option Saxon
+  de zugferd-rs n'est pas utilisée).
 - Le corps de chaque binaire tourne dans un fil à pile de 512 Mio. Les
   stylesheets officielles récursent profondément : erechnung-validator
   demande 64 Mio.

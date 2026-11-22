@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net11.0": {
+      "Antiphon.Invoicing": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "3wxVEI5mlWyCBQScvNzZdSuB/beBH6+UbljSfIUiMKT3Wov0Ql4iMtg1JE29M6Rh/n49jkUldg0WpewDGY8RIA=="
+      },
+      "Antiphon.Invoicing.Generation.Cii": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "9rYhqlUSphyJLszjSync5yj/JU3GC0wSwX0Hsrl9T1cFHQEeapYzp2Df1kUHEPumORAf/+uI+pt4ugObaq7S8w==",
+        "dependencies": {
+          "Antiphon.Invoicing": "1.0.0",
+          "Antiphon.Invoicing.Licensing": "1.0.0"
+        }
+      },
+      "Antiphon.Invoicing.Parsing.Cii": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "whWPpkiaQa7+XCPSJz/xXXYtoQXRmTOhy15q1AvjTkf2Tr5g9R3Et//CEb98EP8eHCKaeBU8nBltwuhdpMWgfw==",
+        "dependencies": {
+          "Antiphon.Invoicing": "1.0.0"
+        }
+      },
+      "Antiphon.Invoicing.Pdf": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "HeNbFnOAYKMLuDu9kBApKOwzo+ZPiTy34gXWftqNpnNLuoTOXkyl1Tl7486NzyMjfkB3teuzR4DAt3k0/td/6w==",
+        "dependencies": {
+          "Antiphon.Invoicing.Licensing": "1.0.0",
+          "PdfSharp": "6.2.4"
+        }
+      },
+      "Antiphon.Invoicing.Rules.Cen.Cii": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "uAF0412Zul6wJvU30yIDM3R4EZXiK4YLcY7+MsYKalnfClf9X+vBIvo4DjLEE+bZMrp3dA+Zd0uHP65VniTQlw==",
+        "dependencies": {
+          "Antiphon.Invoicing.Rules.Ir": "1.0.0"
+        }
+      },
+      "Antiphon.Invoicing.Rules.XRechnung.Cii": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "LKCi2LOC2fffRiA450szowA88eKKKlCitMI0dBZcVkamMcvysNsSUISj0aift0fdo6HkD2WbbrHBCQ5YnGPaVQ==",
+        "dependencies": {
+          "Antiphon.Invoicing.Rules.Ir": "1.0.0"
+        }
+      },
+      "Antiphon.Invoicing.Validation.Pipeline": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "x0WM7eQ/tJHhSvC7CF8m7H6HGEZvuMf6q1b63U6BAupAiKxCYztA/uQ/CYQwJEyUfB1x6fHCyGxSDpMnj4Qwxg==",
+        "dependencies": {
+          "Antiphon.Invoicing.Licensing": "1.0.0",
+          "Antiphon.Invoicing.Rules.Ir": "1.0.0",
+          "Antiphon.Invoicing.Validation": "1.0.0",
+          "Antiphon.Invoicing.Xsd.Cii": "1.0.0",
+          "Antiphon.Invoicing.Xsd.Ubl": "1.0.0"
+        }
+      },
+      "Antiphon.Invoicing.Xsd.Cii": {
+        "type": "Direct",
+        "requested": "[1.0.0, 1.0.0]",
+        "resolved": "1.0.0",
+        "contentHash": "fFWNk/387hyMjJC3zc54mTXAvBzsazBvvFFHXvSo/dpty1NbxUIlufqQp9dtarM/S/ju7IYbXy/1IYdWvI4oKQ==",
+        "dependencies": {
+          "Antiphon.Invoicing.Xsd.Core": "1.0.0"
+        }
+      },
+      "Antiphon.Invoicing.Licensing": {
+        "type": "Transitive",
+        "resolved": "1.0.0",
+        "contentHash": "LQICK1XjYBi5V76S6glYuwagB2Kzn6fEhTXMt0iFnMe9HYk2YfZeCrPn0omoHo2BMHRGO6pQ1aiKGulmKbx1/g=="
+      },
+      "Antiphon.Invoicing.Rules.Ir": {
+        "type": "Transitive",
+        "resolved": "1.0.0",
+        "contentHash": "xsGv876V5Dr5DZKquzIVYXuYfa1mM8trJoIjXcQmPhzy5J6femLqIKOOjQaTmBdDOLsxIRj36WjConcwwuICDw=="
+      },
+      "Antiphon.Invoicing.Validation": {
+        "type": "Transitive",
+        "resolved": "1.0.0",
+        "contentHash": "uI8CBavqjqDNoXlktxdJp1zPpEaIsi0vC1VBB4IfJiSG9oKaO+SI1uj1HHb4m+JHBms/dqTAdj4ufhTf4Va9pw==",
+        "dependencies": {
+          "Antiphon.Invoicing.Rules.Ir": "1.0.0"
+        }
+      },
+      "Antiphon.Invoicing.Xsd.Core": {
+        "type": "Transitive",
+        "resolved": "1.0.0",
+        "contentHash": "oxG2PIiMDf2Je6O0dU0d2lWB490CkUZz7DWdSVU0EJQZTvfZXXQEHDB8q6gSYXVwzxN7UM0uD+QnaTgsx5HEzQ=="
+      },
+      "Antiphon.Invoicing.Xsd.Ubl": {
+        "type": "Transitive",
+        "resolved": "1.0.0",
+        "contentHash": "Noof0iNa0vbvmx4JwexX1zwfD4gw8t49SRYsQG1PfUXD0AtfjLcfsKYhIifYBlOsCs7eTS5HmehB5IsJnlPP3Q==",
+        "dependencies": {
+          "Antiphon.Invoicing.Xsd.Core": "1.0.0"
+        }
+      },
+      "PDFsharp": {
+        "type": "Transitive",
+        "resolved": "6.2.4",
+        "contentHash": "GhTr9F1uOYXHCIEOB5PXIgqn5a8WLsJL2m0eewTA0IvY1j6N4HGXHKKmEyB90/N6vrjmYamf41V9zbmdW2HY3g==",
+        "dependencies": {
+          "System.Security.Cryptography.Pkcs": "8.0.1"
+        }
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Transitive",
+        "resolved": "8.0.1",
+        "contentHash": "CoCRHFym33aUSf/NtWSVSZa99dkd0Hm7OCZUxORBjRB16LNhIEOf8THPqzIYlvKM0nNDAPTRBa1FxEECrgaxxA=="
+      },
+      "Bench.Harness": {
+        "type": "Project"
+      }
+    }
+  }
+}

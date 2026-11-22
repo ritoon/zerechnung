@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>bench.polyglot</groupId>
+    <artifactId>java-bench-parent</artifactId>
+    <version>1.0.0</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  <artifactId>bench-gallop</artifactId>
+  <name>Gallop e-invoice writer</name>
+  <dependencies>
+    <dependency>
+      <groupId>bench.polyglot</groupId>
+      <artifactId>harness</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>de.codebarista</groupId>
+      <artifactId>gallop</artifactId>
+      <version>3.0.0</version>
+    </dependency>
+  </dependencies>
+</project>

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net11.0": {
+      "OfficeIMO.Invoicing": {
+        "type": "Direct",
+        "requested": "[3.6.2, 3.6.2]",
+        "resolved": "3.6.2",
+        "contentHash": "M0hxZz8U/KLhDEaOrPanj5vVc+s06onlMOehCoM38xPzI0rxiqAvX3gTaez6BCjTyTE306mb2FOdRFYz6WdtXA=="
+      },
+      "OfficeIMO.Invoicing.Pdf": {
+        "type": "Direct",
+        "requested": "[3.6.2, 3.6.2]",
+        "resolved": "3.6.2",
+        "contentHash": "7MZZzL57CJsSd2NPeb0dBrcGvrtEKB1ailxOfDzdeMdFKUDucjaF349Om/LqZk7psTPMDMCkl8pmOUV4vlRhsQ==",
+        "dependencies": {
+          "OfficeIMO.Core": "3.6.2",
+          "OfficeIMO.Invoicing": "3.6.2",
+          "OfficeIMO.Pdf": "3.6.2"
+        }
+      },
+      "OfficeIMO.Invoicing.Validation": {
+        "type": "Direct",
+        "requested": "[3.6.2, 3.6.2]",
+        "resolved": "3.6.2",
+        "contentHash": "4+DMs8e8QOBdk0PrSBUAiPPeo1Q0e3pXr7Od1tyRHjyLj2C1q3BobFX1vxPS8JVtYA73TR2VbuDFxeLWgjMQSA==",
+        "dependencies": {
+          "OfficeIMO.Invoicing": "3.6.2"
+        }
+      },
+      "OfficeIMO.Core": {
+        "type": "Transitive",
+        "resolved": "3.6.2",
+        "contentHash": "g1vThR3DWAIlFBf7NujMtYdWtYVx5bsKPKDU0I1SVCvmDGLEhr1ezPxXlYnBJSOlMagY1WmTuMJPMfGv9NxyCw=="
+      },
+      "OfficeIMO.Pdf": {
+        "type": "Transitive",
+        "resolved": "3.6.2",
+        "contentHash": "rtxi8acLI8NvJlZQ66C5dxjJeVyuVk7Sa9bhotamlGx1Qhp4nW3Xa3zlm+8NA1Pjq+2xt/HRuTVIVBD3rqOayA==",
+        "dependencies": {
+          "OfficeIMO.Core": "3.6.2"
+        }
+      },
+      "Bench.Harness": {
+        "type": "Project"
+      }
+    }
+  }
+}

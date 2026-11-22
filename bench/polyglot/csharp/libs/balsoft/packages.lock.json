@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net11.0": {
+      "Balsoft.Hive.EInvoice": {
+        "type": "Direct",
+        "requested": "[1.1.0, 1.1.0]",
+        "resolved": "1.1.0",
+        "contentHash": "+zZlba8M3rSUH2yP5JdSgBo5o/Ko5i7NFt3oLgxxUEbcq3akSBTI1BCyid47ZqGs7uYWBhOqdJBC975AlanndQ=="
+      },
+      "Balsoft.Hive.EInvoice.Pdf": {
+        "type": "Direct",
+        "requested": "[1.1.0, 1.1.0]",
+        "resolved": "1.1.0",
+        "contentHash": "ZQGqMhIjWjuAOla8U2H2Zb5jLn1htToenNaQSNZLhr1/4xhpQgzdAAmU0GVmXYKH7ZPIcSoSnxVk8FHoyGsVSA==",
+        "dependencies": {
+          "Balsoft.Hive.EInvoice": "1.1.0",
+          "PDFsharp": "6.2.4",
+          "System.Security.Cryptography.Pkcs": "8.0.2"
+        }
+      },
+      "PDFsharp": {
+        "type": "Transitive",
+        "resolved": "6.2.4",
+        "contentHash": "GhTr9F1uOYXHCIEOB5PXIgqn5a8WLsJL2m0eewTA0IvY1j6N4HGXHKKmEyB90/N6vrjmYamf41V9zbmdW2HY3g==",
+        "dependencies": {
+          "System.Security.Cryptography.Pkcs": "8.0.1"
+        }
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Transitive",
+        "resolved": "8.0.2",
+        "contentHash": "VWACYq0JGxi9sw3TonSSV4B2MfhYk5nhgOtp9wbrt5NFOtUetFqHkMZylcCwPX+117cBJH5EnIzIy6X4OKn/kA=="
+      },
+      "Bench.Harness": {
+        "type": "Project"
+      }
+    }
+  }
+}

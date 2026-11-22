@@ -3,8 +3,35 @@ package common
 import (
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
+
+// cpuMetric starts measuring the process CPU time (user + system, all
+// threads, so the GC workers too) when FX_CPU is set, and returns the function
+// that reports it per iteration as "cpu-ns/op". Call it right before the
+// b.Loop loop and the returned function right after: with b.Loop, b.N is then
+// the number of iterations of the timed window. Off by default, so the output
+// of the usual campaigns keeps its format; bench/polyglot sets it.
+func cpuMetric(b *testing.B) func() {
+	if os.Getenv("FX_CPU") == "" {
+		return func() {}
+	}
+	start := cpuNow()
+	return func() {
+		if b.N > 0 {
+			b.ReportMetric(float64(cpuNow()-start)/float64(b.N), "cpu-ns/op")
+		}
+	}
+}
+
+func cpuNow() int64 {
+	var ru syscall.Rusage
+	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) != nil {
+		return 0
+	}
+	return ru.Utime.Nano() + ru.Stime.Nano()
+}
 
 // Extract benchmarks fn on s after a correctness check.
 func Extract(b *testing.B, s Sample, fn func([]byte) ([]byte, error)) {
@@ -13,6 +40,7 @@ func Extract(b *testing.B, s Sample, fn func([]byte) ([]byte, error)) {
 	}
 	b.SetBytes(int64(len(s.Data)))
 	b.ReportAllocs()
+	defer cpuMetric(b)()
 	for b.Loop() {
 		if _, err := fn(s.Data); err != nil {
 			b.Fatal(err)
@@ -27,6 +55,7 @@ func Bytes[T any](b *testing.B, s Sample, fn func([]byte) (T, error)) {
 	}
 	b.SetBytes(int64(len(s.Data)))
 	b.ReportAllocs()
+	defer cpuMetric(b)()
 	for b.Loop() {
 		fn(s.Data)
 	}
@@ -42,6 +71,7 @@ func Write[M any](b *testing.B, s Sample, parse func([]byte) (M, error), write f
 		b.Skipf("UNSUPPORTED write on %s: %v", s.Name, err)
 	}
 	b.ReportAllocs()
+	defer cpuMetric(b)()
 	for b.Loop() {
 		write(m)
 	}
@@ -60,6 +90,7 @@ func Embed(b *testing.B, host, xml Sample, fn func(pdf, xml []byte) ([]byte, err
 	}
 	b.SetBytes(int64(len(host.Data)))
 	b.ReportAllocs()
+	defer cpuMetric(b)()
 	for b.Loop() {
 		if _, err := fn(host.Data, xml.Data); err != nil {
 			b.Fatal(err)

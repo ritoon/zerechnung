@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bench-officeimo</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../harness/Harness.csproj" />
+    <PackageReference Include="OfficeIMO.Invoicing" Version="[3.6.2]" />
+    <PackageReference Include="OfficeIMO.Invoicing.Validation" Version="[3.6.2]" />
+    <PackageReference Include="OfficeIMO.Invoicing.Pdf" Version="[3.6.2]" />
+  </ItemGroup>
+</Project>

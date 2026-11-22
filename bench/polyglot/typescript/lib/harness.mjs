@@ -3,7 +3,8 @@
 // is first_call_ns), "unsupported" when the library cannot do the operation,
 // "fail" when it throws or returns a wrong result, then N found by steps
 // 1, 2, 5, 10, 20, 50… until one series lasts BENCHTIME seconds, then COUNT
-// timed series of N calls on the monotonic clock. One thread, no forced GC.
+// timed series of N calls on the monotonic clock, with the process CPU time
+// of each series (cpu_ns_per_op). One thread, no forced GC.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +34,12 @@ export function pkgVersion(pkg) {
 
 const isThenable = (v) => v != null && typeof v.then === 'function';
 const now = process.hrtime.bigint;
+// Process CPU time in microseconds: user + system of every thread of the
+// process (main thread, V8 GC and compiler threads, libuv pool).
+const cpuNow = () => {
+	const u = process.cpuUsage();
+	return u.user + u.system;
+};
 export let sink; // keeps results alive so that no call is optimised away
 
 export function errMessage(e) {
@@ -44,15 +51,19 @@ export function errMessage(e) {
 export class Unsupported extends Error {}
 export class Wrong extends Error {}
 
-// series runs n calls and returns the elapsed nanoseconds.
+// series runs n calls and returns the elapsed nanoseconds and the process CPU
+// nanoseconds of the same window (CPU clock read once on each side of the
+// wall-clock reads, outside them).
 async function series(fn, n, isAsync) {
 	let r;
+	const c0 = cpuNow();
 	const t0 = now();
 	if (isAsync) for (let i = 0; i < n; i++) r = await fn();
 	else for (let i = 0; i < n; i++) r = fn();
 	const dt = now() - t0;
+	const dc = cpuNow() - c0;
 	sink = r;
-	return Number(dt);
+	return [Number(dt), dc * 1000];
 }
 
 const STEPS = [1, 2, 5];
@@ -75,19 +86,27 @@ export async function measure(fn, check) {
 	const target = BENCHTIME * 1e9;
 	let N = 1;
 	for (const n of steps()) {
-		const dt = await series(fn, n, isAsync);
+		const [dt] = await series(fn, n, isAsync);
 		N = n;
 		if (dt >= target) break;
 	}
 	const ns = [];
+	const cpu = [];
 	for (let i = 0; i < COUNT; i++) {
-		const dt = await series(fn, N, isAsync);
+		const [dt, dc] = await series(fn, N, isAsync);
 		ns.push(Math.round((dt / N) * 10) / 10);
+		cpu.push(Math.round((dc / N) * 10) / 10);
 	}
-	return { ns_per_op: ns, iters: N, first_call_ns: first };
+	return { ns_per_op: ns, cpu_ns_per_op: cpu, iters: N, first_call_ns: first };
 }
 
-// record builds one bench_typescript.jsonl line.
+// maxRSSBytes is the peak resident set size of this process
+// (process.resourceUsage().maxRSS is in kilobytes on every OS).
+export function maxRSSBytes() {
+	return process.resourceUsage().maxRSS * 1024;
+}
+
+// record builds one bench_typescript.jsonl (or resources_typescript.jsonl) line.
 export function record(adapter, bench, fields) {
 	return {
 		lang: LANG,
@@ -97,6 +116,7 @@ export function record(adapter, bench, fields) {
 		bench,
 		status: fields.status,
 		ns_per_op: fields.ns_per_op ?? [],
+		cpu_ns_per_op: fields.cpu_ns_per_op ?? [],
 		iters: fields.iters ?? 0,
 		first_call_ns: fields.first_call_ns ?? null,
 		note: fields.note ?? '',

@@ -1,10 +1,13 @@
-// node bench.mjs <lib> <Benchmark>  →  one line of bench_typescript.jsonl
+// node bench.mjs <lib> <Benchmark>              →  one line of bench_typescript.jsonl
+// node bench.mjs --resources <lib> <Benchmark>  →  one line of resources_typescript.jsonl
 //
 // One process per library and benchmark, so that first_call_ns is the first
 // call of the operation in a fresh process and no benchmark warms another.
+// With --resources the line also carries max_rss_bytes, the peak resident
+// memory of this process, read after the series.
 import { pathToFileURL } from 'node:url';
 import * as corpus from './lib/corpus.mjs';
-import { emit, errMessage, measure, record, silenceConsole, Unsupported, Wrong } from './lib/harness.mjs';
+import { emit, errMessage, maxRSSBytes, measure, record, silenceConsole, Unsupported, Wrong } from './lib/harness.mjs';
 import { loadAdapter } from './adapters/index.mjs';
 import { HAND_NOTE } from './lib/handmodels.mjs';
 
@@ -124,7 +127,8 @@ async function fallbackExtract(pdf) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-	const [lib, bench] = process.argv.slice(2);
+	const resources = process.argv[2] === '--resources';
+	const [lib, bench] = process.argv.slice(resources ? 3 : 2);
 	if (process.argv[2] === '--list') {
 		process.stdout.write(Object.keys(BENCHMARKS).join(' ') + '\n');
 		process.exit(0);
@@ -156,6 +160,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	process.on('exit', (code) => crash(`processus terminé (code ${code}) sans résultat`));
 	const r = await runBenchmark(adapter, bench);
 	done = true;
+	if (resources && r.status === 'ok') r.max_rss_bytes = maxRSSBytes();
 	emit(r);
 	process.exit(0);
 }

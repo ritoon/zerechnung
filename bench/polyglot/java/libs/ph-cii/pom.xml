@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>bench.polyglot</groupId>
+    <artifactId>java-bench-parent</artifactId>
+    <version>1.0.0</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+  <artifactId>bench-ph-cii</artifactId>
+  <name>ph-cii: JAXB binding of UN/CEFACT CII D16B</name>
+  <dependencies>
+    <dependency>
+      <groupId>bench.polyglot</groupId>
+      <artifactId>harness</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.helger.cii</groupId>
+      <artifactId>ph-cii-d16b</artifactId>
+      <version>10.1.0</version>
+    </dependency>
+    <!-- ph-jaxb only depends on the JAXB API; the implementation is the
+         application's choice. 4.0.6: the version of the JAXB BOM imported by
+         ph-commons-parent-pom 12.1.0, which ph-cii 10.1.0 is built on. -->
+    <dependency>
+      <groupId>org.glassfish.jaxb</groupId>
+      <artifactId>jaxb-runtime</artifactId>
+      <version>4.0.6</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+</project>

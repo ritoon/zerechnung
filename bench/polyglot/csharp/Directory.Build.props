@@ -1,0 +1,28 @@
+<Project>
+  <!--
+    C# part of the cross-language benchmark (see ../PROTOCOL.md). One console
+    project per library under libs/, the shared timing loop and JSONL writer in
+    harness/. Versions are pinned exactly (Version="[x.y.z]") and every project
+    has a packages.lock.json; run.sh restores in locked mode.
+
+    Runtime settings are the .NET defaults (tiered compilation, dynamic PGO,
+    workstation concurrent GC): nothing here changes them.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);NU1603;NU1701;CS1591;SYSLIB0014</NoWarn>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- All build outputs under csharp/artifacts/ (ignored by git). -->
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+    <!-- Exact versions, recorded in a lock file per project. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+</Project>

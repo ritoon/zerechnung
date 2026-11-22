@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net11.0": {
+      "Securibox.FacturX": {
+        "type": "Direct",
+        "requested": "[0.6.0-alpha-3, 0.6.0-alpha-3]",
+        "resolved": "0.6.0-alpha-3",
+        "contentHash": "FrmyvdWrsmCgDpyucc+HXAH8lApPRBiEPsP9R/ZG8noOzXBDR8eaen0YLKegPRtPVsl9iaK3Weu+mwZS3Yl9Uw==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "10.0.11",
+          "PdfSharp": "7.0.0-preview-1",
+          "XPath2": "1.1.5",
+          "XmpCore": "6.1.10.1"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "PSmotV19c7E3lKed++uYo1kSiXFI+uTl37CBSrhq+CfLC3FCHjG7R91+xPnNehQfHS1b0Tzo/CCLPWH3qaEheg=="
+      },
+      "Microsoft.Extensions.Logging": {
+        "type": "Transitive",
+        "resolved": "10.0.11",
+        "contentHash": "nUOJwgFkSiLHiVGFpU22pIJtuWYewuSYQ3JVuP/gdK8ASMT807Px+TYQiRWs6uSsOmoyFTaVCwKXTasczV6BpA==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "10.0.11"
+        }
+      },
+      "PDFsharp": {
+        "type": "Transitive",
+        "resolved": "7.0.0-preview-1",
+        "contentHash": "HluwO+KMXSWTzi0hOIk2zW35SeYMBTPFoJ1itW4sGLTPeaFYOrs7PhWCy7HLAcPtmohOJm8/sp3V9ZPLiexdIA==",
+        "dependencies": {
+          "System.Security.Cryptography.Pkcs": "10.0.5"
+        }
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Transitive",
+        "resolved": "10.0.5",
+        "contentHash": "BJEYUZfXpkPIHo2+oFoUemD5CPMFHPJOkRzXrbj/iZrWsjga3ypj8Rqd9bFlSLupEH4IIdD/aBWm/V1gCiBL9w=="
+      },
+      "XmpCore": {
+        "type": "Transitive",
+        "resolved": "6.1.10.1",
+        "contentHash": "/Tp2/e39e7z8hLtS4TXt0FNNZHbf5yNFfHS0/59soXlgOzZlyRZivvzWpvujyaWkTWWgecp/1nHxkuc5vntn7A=="
+      },
+      "XPath2": {
+        "type": "Transitive",
+        "resolved": "1.1.5",
+        "contentHash": "LQg7kZyAmmb+qvv5TiOuuijxN97rRbR05qbMkVIH+i+sx9CA2UNUKGNtdVxWEXOabS8BIwlXm6ox1OOTjvZ6jw=="
+      },
+      "Bench.Harness": {
+        "type": "Project"
+      }
+    }
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net11.0": {
+      "International.EInvoicing": {
+        "type": "Direct",
+        "requested": "[1.1.0, 1.1.0]",
+        "resolved": "1.1.0",
+        "contentHash": "He2DTGx4Oel78JA81lMLpanUUyxabU+NGwwHUI1Emj88ebjBZ7vqqH0VAGAcBvGIYbfKsPgAskiNzOAnSHecnw==",
+        "dependencies": {
+          "International.EInvoicing.Cdar": "1.1.0",
+          "International.EInvoicing.Cii": "1.1.0",
+          "International.EInvoicing.FacturX": "1.1.0",
+          "International.EInvoicing.OrderX": "1.1.0",
+          "International.EInvoicing.Ubl": "1.1.0",
+          "International.EInvoicing.Validation.En16931": "1.1.0",
+          "International.EInvoicing.Zugferd1": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Countries.Germany": {
+        "type": "Direct",
+        "requested": "[1.1.0, 1.1.0]",
+        "resolved": "1.1.0",
+        "contentHash": "C+wELIlpHqqPN/AJdW3B2Q1aNaylVmMU6WW+wdXKQvSqNSF0r14BT37IJm6pv8ISZjApLMOzi7meF4nYd/JjEg==",
+        "dependencies": {
+          "International.EInvoicing": "1.1.0",
+          "International.EInvoicing.Validation.XRechnung": "1.1.0"
+        }
+      },
+      "International.EInvoicing.FacturX.PdfSharp": {
+        "type": "Direct",
+        "requested": "[1.1.0, 1.1.0]",
+        "resolved": "1.1.0",
+        "contentHash": "JwhlCNPj8Zn7SQJD1va5aeEIalqPXi1lC1iWfwbIsRgHc61zwBEwwYPTzij9jFyEOsZfJyf37M7v69ky64Xx+A==",
+        "dependencies": {
+          "International.EInvoicing.FacturX": "1.1.0",
+          "PDFsharp": "6.2.4"
+        }
+      },
+      "International.EInvoicing.Validation.XRechnung": {
+        "type": "Direct",
+        "requested": "[1.1.0, 1.1.0]",
+        "resolved": "1.1.0",
+        "contentHash": "5e7fV8M3yqwQmm7xEVpjy5CRlyWuG0ooEMK79e+lqnlxvLcEsIxIGMBKKts71vBdTZOvtU/vOzM95IEmXRu74w==",
+        "dependencies": {
+          "International.EInvoicing.Validation.Schematron": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Validation.Xsd": {
+        "type": "Direct",
+        "requested": "[1.1.0, 1.1.0]",
+        "resolved": "1.1.0",
+        "contentHash": "a25rRiglX3hdPAr3lVYbpg6B7LAR8Eg9wFOxzbEocWxiSnRn9XwaME7O2yCk6d0YRlOqaNSqy5KTl0G4zpcT2A==",
+        "dependencies": {
+          "International.EInvoicing.Core": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Cdar": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "NzI7MSogE2qrvTGm6iVUV/u7WEXTS/bE/g5ynCOLaPE/SPOUIVsu3y2OIuRzxLezdp9h+5YE+MrihERnyWuEuA==",
+        "dependencies": {
+          "International.EInvoicing.Core": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Cii": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "/L650oIg3a8NLOYXyxB3kCxH7KurvJQQXNggooIPxN//NWrgYhac4k1KykuutFTQf4hs64rV/G91Lk5DOMXP1Q==",
+        "dependencies": {
+          "International.EInvoicing.Core": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Core": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "sCmq6l84DZkf2mNhKxi7Hfhj/9Z1Qa3+6UBYh/hvEGtVWOeG76mrDg3pHd9cGdrOS9/yVvt0Bv2FQy6yi9niOw=="
+      },
+      "International.EInvoicing.FacturX": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "Z8xFyNsIKrG64eDoh+1RgzZy2VoNB5NBPxLZEJp8d8mRSgAE8xV3id7Gb+Pd9f/2TJY7IexIdGJnwOw7mCxlsQ==",
+        "dependencies": {
+          "International.EInvoicing.Cii": "1.1.0",
+          "International.EInvoicing.Validation.Schematron": "1.1.0"
+        }
+      },
+      "International.EInvoicing.OrderX": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "TAFp+G/3+InEsZ+TXRVMrgs3hIftdqyZ3hfhPhKywNIfvsCutkA+VAwIVPxP5cdF/dpWQYy+6C1Ecuf2h1YSdg==",
+        "dependencies": {
+          "International.EInvoicing.Cii": "1.1.0",
+          "International.EInvoicing.Core": "1.1.0",
+          "International.EInvoicing.Validation.Schematron": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Ubl": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "kUjeM5DjQ/e0Ay5GMd6Y+ctjLGgjZLVFg+nxbNGOQfcYlco3Dz5FIw8d//uE6JuMZ0WZ5Vyri4Qcw7IGGvzVjQ==",
+        "dependencies": {
+          "International.EInvoicing.Core": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Validation.En16931": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "qjLbXtm4zO44Gr4n4j8dCFHN681WkH7ZV+Ud+R8wb+Lm8gAakWDIhl8SdK0Bqh5CH/DqHv/0B5ohBuzJMqlANw==",
+        "dependencies": {
+          "International.EInvoicing.Validation.Schematron": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Validation.Schematron": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "CKMMMiCLbfmrtlUfU56y/+wXEhUCFLXei/ctpIkNjLjWM3hiRA0TBOlOCDC4fXv8BvETzgxO1P9WnYF1RHXV7w==",
+        "dependencies": {
+          "International.EInvoicing.Core": "1.1.0"
+        }
+      },
+      "International.EInvoicing.Zugferd1": {
+        "type": "Transitive",
+        "resolved": "1.1.0",
+        "contentHash": "SkXK4S13xGIK2WZDr2eiXHxeEJoMvuJiRmWa/L6lU9PA6PaY88dfdfbxi/4xnbvaRbqCSbnExuQ0eTs4dMmOUg==",
+        "dependencies": {
+          "International.EInvoicing.Cii": "1.1.0",
+          "International.EInvoicing.Core": "1.1.0",
+          "International.EInvoicing.Validation.Schematron": "1.1.0"
+        }
+      },
+      "PDFsharp": {
+        "type": "Transitive",
+        "resolved": "6.2.4",
+        "contentHash": "GhTr9F1uOYXHCIEOB5PXIgqn5a8WLsJL2m0eewTA0IvY1j6N4HGXHKKmEyB90/N6vrjmYamf41V9zbmdW2HY3g==",
+        "dependencies": {
+          "System.Security.Cryptography.Pkcs": "8.0.1"
+        }
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Transitive",
+        "resolved": "8.0.1",
+        "contentHash": "CoCRHFym33aUSf/NtWSVSZa99dkd0Hm7OCZUxORBjRB16LNhIEOf8THPqzIYlvKM0nNDAPTRBa1FxEECrgaxxA=="
+      },
+      "Bench.Harness": {
+        "type": "Project"
+      }
+    }
+  }
+}

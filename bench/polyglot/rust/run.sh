@@ -4,11 +4,13 @@
 #   ./run.sh setup            cargo build --release, one crate per library
 #   ./run.sh survey [lib…]    correctness surveys  -> $OUT/survey_rust.jsonl
 #   ./run.sh bench  [lib…]    benchmarks           -> $OUT/bench_rust.jsonl
+#   ./run.sh resources [lib…] CPU time and peak RSS, one process per benchmark
+#                                                  -> $OUT/resources_rust.jsonl
 #
 # OUT (default ../results/<date>), COUNT (3) and BENCHTIME (seconds, 1) as in
-# PROTOCOL.md. Each library binary writes $OUT/rust-parts/<kind>_<lib>.jsonl;
-# the parts present are merged after every run, so one library can be rerun
-# alone.
+# PROTOCOL.md. Each library binary writes $OUT/rust-parts/<kind>_<lib>.jsonl
+# ($OUT/rust-res-parts/resources_<lib>.jsonl for resources); the parts present
+# are merged after every run, so one library can be rerun alone.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -48,10 +50,10 @@ setup() {
 }
 
 merge() {
-	local kind=$1 dst="$OUT/${1}_rust.jsonl"
+	local kind=$1 parts=$OUT/${2:-rust-parts} dst="$OUT/${1}_rust.jsonl"
 	: >"$dst"
 	for l in "${LIBS[@]}"; do
-		[ -f "$OUT/rust-parts/${kind}_$l.jsonl" ] && cat "$OUT/rust-parts/${kind}_$l.jsonl" >>"$dst"
+		[ -f "$parts/${kind}_$l.jsonl" ] && cat "$parts/${kind}_$l.jsonl" >>"$dst"
 	done
 	echo "== $dst ($(wc -l <"$dst" | tr -d ' ') lines)"
 }
@@ -73,14 +75,53 @@ each() {
 	merge "$kind"
 }
 
+# Benchmarks in the protocol's order, the order of the bench pass.
+BENCHES=(Extract_Small Extract_Large Extract_Minimum Extract_Extended Parse_Small Parse_Lines Parse_Large
+	ParseValidate_Small ParseValidate_Lines ParseValidate_Large Write_Small Write_Lines Embed_Small
+	EmbedClassic_Small CheckPDF_Small CheckPDF_Large)
+
+# resources: for each library and benchmark, one process, the compiled binary
+# itself (`target/release/bench-<lib> resources <Bench>`, never cargo run),
+# runs that benchmark exactly as bench does and appends its record, with
+# cpu_ns_per_op and the peak RSS of the process (getrusage), to
+# $OUT/rust-res-parts/resources_<lib>.jsonl. A process that ends without a
+# record (an abort, a stack overflow) gets a "fail" record here.
+resources() {
+	if [ -z "${ZUGFERD_SCHEMAS_DIR:-}" ]; then
+		ZUGFERD_SCHEMAS_DIR=$(schemas_dir) && export ZUGFERD_SCHEMAS_DIR
+	fi
+	mkdir -p "$OUT/rust-res-parts"
+	for l in $(libs "$@"); do
+		local bin="target/release/bench-$l" part="$OUT/rust-res-parts/resources_$l.jsonl" b n rc
+		if [ ! -x "$bin" ]; then
+			echo "== resources $l: $bin missing (./run.sh setup)" >&2
+			continue
+		fi
+		echo "== resources $l" >&2
+		: >"$part"
+		for b in "${BENCHES[@]}"; do
+			n=$(wc -l <"$part")
+			rc=0
+			"$bin" resources "$b" || rc=$?
+			if [ "$(wc -l <"$part")" -eq "$n" ]; then
+				echo "   $b: exit $rc without a record" >&2
+				printf '{"lang":"rust","lib":"%s","bench":"%s","status":"fail","ns_per_op":[],"cpu_ns_per_op":[],"iters":0,"first_call_ns":0,"note":"process ended without a record (exit %s)"}\n' \
+					"$l" "$b" "$rc" >>"$part"
+			fi
+		done
+	done
+	merge resources rust-res-parts
+}
+
 cmd=${1:-}
 shift || true
 case "$cmd" in
 setup) setup "$@" ;;
 survey) each survey "$@" ;;
 bench) each bench "$@" ;;
+resources) resources "$@" ;;
 *)
-	sed -n '2,11p' "$0"
+	sed -n '2,13p' "$0"
 	exit 2
 	;;
 esac

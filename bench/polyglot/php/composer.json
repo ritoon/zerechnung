@@ -1,0 +1,39 @@
+{
+    "name": "zerechnung/bench-polyglot-php",
+    "description": "PHP part of the cross-language benchmark (see ../PROTOCOL.md). Versions pinned exactly; install with ./run.sh setup.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.4",
+        "ext-dom": "*",
+        "ext-libxml": "*",
+        "ext-pcntl": "*",
+        "atgp/factur-x": "3.5.0",
+        "daniel-jorg-schuppelius/php-erechnung-toolkit": "0.23.1",
+        "daniel-jorg-schuppelius/php-pdf-toolkit": "0.33.0",
+        "dealerweb/einvoice": "1.2.3",
+        "easybill/e-invoicing": "0.4.0",
+        "easybill/zugferd-php": "6.0.0",
+        "horstoeko/zugferd": "1.0.135",
+        "intragile/einvoicing-rules-en16931": "1.0.0",
+        "intragile/einvoicing-rules-facturx": "1.0.0",
+        "intragile/einvoicing-rules-xrechnung": "1.0.0",
+        "intragile/php-einvoicing": "1.0.2",
+        "invoicepress/vampire-php": "1.3.0",
+        "john-wink/en16931-php": "0.4.1",
+        "mahdiabderraouf/facturx-php": "2.4.0",
+        "pat-o-dev/factur-x": "0.8.0",
+        "pnscripts/pn-invoice": "0.2.1",
+        "quittio/core": "1.1.0",
+        "quittio/country-de": "1.1.0",
+        "smalot/pdfparser": "2.13.1",
+        "stann/factur-x": "2.0.0",
+        "tiime/cross-industry-invoice": "0.3.11.1",
+        "tiime/factur-x": "0.3.2"
+    },
+    "config": {
+        "allow-plugins": false,
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}

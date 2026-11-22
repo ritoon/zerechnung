@@ -5,12 +5,16 @@ d'entrée, contrôle du résultat avant la mesure, « unsupported » si la
 librairie ne sait pas faire l'opération, « fail » si elle renvoie un résultat
 faux ou lève une exception.
 
-    python harness.py survey [lib…]   relevés d'exactitude -> $OUT/survey_python.jsonl
-    python harness.py bench  [lib…]   benchmarks           -> $OUT/bench_python.jsonl
+    python harness.py survey    [lib…]   relevés d'exactitude -> $OUT/survey_python.jsonl
+    python harness.py bench     [lib…]   benchmarks           -> $OUT/bench_python.jsonl
+    python harness.py resources [lib…]   CPU et pic mémoire   -> $OUT/resources_python.jsonl
 
 Chaque benchmark tourne dans un processus neuf (first_call_ns = vrai premier
-appel), chaque relevé dans un processus par librairie. Variables : OUT,
-COUNT (3), BENCHTIME (1, en secondes), FX_CORPUS (racine du corpus).
+appel), chaque relevé dans un processus par librairie. Chaque série mesurée
+relève aussi le temps CPU du processus (cpu_ns_per_op) ; « resources » relance
+les mêmes processus et ajoute leur pic de mémoire résidente (max_rss_bytes),
+lu par le processus fils lui-même à la fin. Variables : OUT, COUNT (3),
+BENCHTIME (1, en secondes), FX_CORPUS (racine du corpus).
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ import io
 import json
 import os
 import platform
+import resource
 import signal
 import subprocess
 import sys
@@ -176,10 +181,30 @@ def ramp_steps():
         n *= 10
 
 
+def children_usage() -> tuple[int, int]:
+    """CPU (ns, utilisateur + système) et pic RSS (octets) des processus enfants terminés."""
+    u = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return int((u.ru_utime + u.ru_stime) * 1e9), rss_bytes(u.ru_maxrss)
+
+
+def rss_bytes(ru_maxrss: int) -> int:
+    """ru_maxrss est en octets sous macOS, en kilo-octets sous Linux."""
+    return ru_maxrss if sys.platform == "darwin" else ru_maxrss * 1024
+
+
 def measure(fn, benchtime_s: float, count: int):
-    """Montée en charge 1, 2, 5, 10, 20, 50… jusqu'à une série >= benchtime, puis count séries."""
+    """Montée en charge 1, 2, 5, 10, 20, 50… jusqu'à une série >= benchtime, puis count séries.
+
+    Chaque série mesurée lit aussi le temps CPU du processus (utilisateur +
+    système, tous les fils), une fois avant et une fois après, autour des
+    lectures de l'horloge monotone. Renvoie aussi (CPU en ns, pic RSS en
+    octets) des processus enfants terminés pendant les séries, None si la
+    librairie n'en lance pas : ils ne sont comptés ni dans le CPU ni dans le
+    pic RSS du processus mesuré.
+    """
     target = int(benchtime_s * 1e9)
     clock = time.perf_counter_ns
+    cpu = time.process_time_ns
     n = 1
     for n in ramp_steps():
         t0 = clock()
@@ -187,13 +212,20 @@ def measure(fn, benchtime_s: float, count: int):
             fn()
         if clock() - t0 >= target:
             break
-    res = []
+    res, cpu_res = [], []
+    ch_cpu0, ch_rss0 = children_usage()
     for _ in range(count):
+        c0 = cpu()
         t0 = clock()
         for _ in range(n):
             fn()
-        res.append((clock() - t0) / n)
-    return n, res
+        t1 = clock()
+        c1 = cpu()
+        res.append((t1 - t0) / n)
+        cpu_res.append((c1 - c0) / n)
+    ch_cpu1, ch_rss1 = children_usage()
+    spawned = ch_cpu1 > ch_cpu0 or ch_rss1 > ch_rss0
+    return n, res, cpu_res, (ch_cpu1 - ch_cpu0, ch_rss1) if spawned else None
 
 
 # ---------------------------------------------------------------- un benchmark
@@ -227,6 +259,12 @@ def notes_for(ad, op: str, bench: str) -> list[str]:
     return out
 
 
+def children_note(children: tuple[int, int], calls: int) -> str:
+    cpu_ns, rss = children
+    return (f"la librairie lance des processus enfants : leur CPU (≈ {cpu_ns / calls:.0f} ns/op) "
+            f"et leur mémoire (pic {rss / 2**20:.1f} Mio) ne sont comptés ni dans cpu_ns_per_op ni dans max_rss_bytes")
+
+
 def reference_extract(pdf: bytes):
     """Relecture d'un PDF produit par Embed quand la librairie ne sait pas extraire."""
     import facturx  # autre librairie du même langage
@@ -241,7 +279,7 @@ def run_one(lib: str, bench: str, benchtime: float, count: int) -> dict:
     op, sample_name = BENCH_SPEC[bench]
     rec = {
         "lang": "python", "lib": lib, "pkg": ad.PKG, "version": lib_version(ad), "bench": bench,
-        "status": "ok", "ns_per_op": [], "iters": 0, "first_call_ns": None, "note": "",
+        "status": "ok", "ns_per_op": [], "cpu_ns_per_op": [], "iters": 0, "first_call_ns": None, "note": "",
         "runtime": runtime(),
     }
     notes = notes_for(ad, op, bench)
@@ -313,9 +351,12 @@ def run_one(lib: str, bench: str, benchtime: float, count: int) -> dict:
                 return finish("fail", f"résultat inattendu : {out!r}"[:200])
 
         # 2. mesurer
-        n, res = measure(fn, benchtime, count)
+        n, res, cpu_res, children = measure(fn, benchtime, count)
         rec["iters"] = n
         rec["ns_per_op"] = [round(v, 1) for v in res]
+        rec["cpu_ns_per_op"] = [round(v, 1) for v in cpu_res]
+        if children is not None:
+            notes.append(children_note(children, n * count))
         return finish("ok")
     except BaseException as e:  # noqa: BLE001
         if isinstance(e, KeyboardInterrupt):
@@ -387,9 +428,12 @@ def survey_lib(lib: str) -> list[dict]:
 def child(argv: list[str]) -> None:
     sys.path.insert(0, str(HERE))
     kind = argv[0]
-    if kind == "bench":
+    if kind in ("bench", "resources"):
         _, lib, bench, benchtime, count = argv
         out = run_one(lib, bench, float(benchtime), int(count))
+        if kind == "resources" and out["status"] == "ok":
+            # pic de mémoire résidente de ce processus, celui qui a exécuté le benchmark
+            out["max_rss_bytes"] = rss_bytes(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
         print(RESULT_MARK + json.dumps(out, ensure_ascii=False), flush=True)
     elif kind == "survey":
         for line in survey_lib(argv[1]):
@@ -434,7 +478,7 @@ def main(argv: list[str]) -> int:
     if argv and argv[0] == "_child":
         child(argv[1:])
         return 0
-    if not argv or argv[0] not in ("survey", "bench"):
+    if not argv or argv[0] not in ("survey", "bench", "resources"):
         print(__doc__)
         return 2
     cmd, libs = argv[0], argv[1:] or LIBS
@@ -456,23 +500,30 @@ def main(argv: list[str]) -> int:
             merge_jsonl(path, [lib], res)
         print(f"== {path}")
     else:
+        # bench et resources : un processus fils par benchmark ; pour resources,
+        # le fils ajoute son propre pic RSS (python -I harness.py _child resources …).
         count = int(os.environ.get("COUNT", "3"))
         benchtime = float(os.environ.get("BENCHTIME", "1").rstrip("s"))
-        path = out / "bench_python.jsonl"
+        path = out / f"{cmd}_python.jsonl"
         for lib in libs:
-            print(f"== bench {lib}", flush=True)
+            print(f"== {cmd} {lib}", flush=True)
             res_lib = []
             for bench in BENCHES:
-                res, diag = spawn(["bench", lib, bench, str(benchtime), str(count)])
+                res, diag = spawn([cmd, lib, bench, str(benchtime), str(count)])
                 if not res:
                     ad_pkg = lib
                     res = [{"lang": "python", "lib": lib, "pkg": ad_pkg, "version": "?", "bench": bench,
-                            "status": "fail", "ns_per_op": [], "iters": 0, "first_call_ns": None,
+                            "status": "fail", "ns_per_op": [], "cpu_ns_per_op": [], "iters": 0, "first_call_ns": None,
                             "note": "le processus de mesure a échoué : " + diag, "runtime": runtime()}]
                 r = res[0]
                 if r["status"] == "ok":
                     med = sorted(r["ns_per_op"])[len(r["ns_per_op"]) // 2]
-                    print(f"   {bench:<20} {med:>14.0f} ns/op  x{r['iters']}")
+                    if cmd == "resources":
+                        cpu_med = sorted(r["cpu_ns_per_op"])[len(r["cpu_ns_per_op"]) // 2]
+                        print(f"   {bench:<20} {med:>14.0f} ns/op {cpu_med:>14.0f} cpu-ns/op "
+                              f"{r['max_rss_bytes'] / 2**20:>8.1f} MiB")
+                    else:
+                        print(f"   {bench:<20} {med:>14.0f} ns/op  x{r['iters']}")
                 elif r["status"] == "fail":
                     print(f"   {bench:<20} FAIL {r['note']}")
                 else:

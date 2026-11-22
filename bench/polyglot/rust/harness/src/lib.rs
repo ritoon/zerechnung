@@ -9,13 +9,21 @@
 //! `bench-<lib> bench` measures the operations and writes one JSON line per
 //! benchmark to `$OUT/rust-parts/bench_<lib>.jsonl`; `bench-<lib> survey` runs
 //! the correctness surveys and writes `$OUT/rust-parts/survey_<lib>.jsonl`.
-//! `run.sh` merges the parts into `bench_rust.jsonl` and `survey_rust.jsonl`.
+//! `bench-<lib> resources <Bench>` runs that one benchmark as `bench` does and
+//! appends its line, with the peak RSS of the process (`max_rss_bytes`, from
+//! `getrusage` at the end of the series), to
+//! `$OUT/rust-res-parts/resources_<lib>.jsonl`; `run.sh` starts one such
+//! process per benchmark. `run.sh` merges the parts into `bench_rust.jsonl`,
+//! `survey_rust.jsonl` and `resources_rust.jsonl`.
 //!
 //! Rules, as in the Go harness: a first call outside the measurement checks the
 //! result (`fail` with the message when it is wrong or an error, `unsupported`
 //! when the library cannot do the operation), then N is found by steps
 //! 1, 2, 5, 10, 20, 50… until one series of N calls lasts at least `BENCHTIME`
 //! seconds, then `COUNT` series of N calls are timed with `std::time::Instant`.
+//! Next to it, the CPU time of the process (`getrusage(RUSAGE_SELF)`, user +
+//! system, all threads) is read before and after each series:
+//! `cpu_ns_per_op`, parallel to `ns_per_op`.
 
 use std::fs::{self, File, OpenOptions};
 use std::hint::black_box;
@@ -195,6 +203,42 @@ pub fn looks_like_cii(b: &[u8]) -> bool {
     has(b"CrossIndustryInvoice") || has(b"CrossIndustryDocument")
 }
 
+// ---------------------------------------------------------------- resources
+
+fn rusage() -> libc::rusage {
+    // SAFETY: getrusage fills the zeroed struct it is given.
+    unsafe {
+        let mut ru: libc::rusage = std::mem::zeroed();
+        libc::getrusage(libc::RUSAGE_SELF, &mut ru);
+        ru
+    }
+}
+
+/// CPU time of the process, user + system, all its threads, in ns. It ticks in
+/// microseconds, negligible over a series of `BENCHTIME` seconds.
+fn cpu_ns() -> u128 {
+    let ru = rusage();
+    let us = |t: libc::timeval| t.tv_sec as u128 * 1_000_000 + t.tv_usec as u128;
+    (us(ru.ru_utime) + us(ru.ru_stime)) * 1_000
+}
+
+/// Peak resident set size of the process (`ru_maxrss`: bytes on macOS,
+/// kilobytes on Linux).
+fn max_rss_bytes() -> u64 {
+    let rss = rusage().ru_maxrss as u64;
+    if cfg!(target_os = "macos") { rss } else { rss * 1024 }
+}
+
+fn median(v: &[f64]) -> f64 {
+    let mut s = v.to_vec();
+    s.sort_by(f64::total_cmp);
+    match s.len() {
+        0 => 0.0,
+        n if n % 2 == 1 => s[n / 2],
+        n => (s[n / 2 - 1] + s[n / 2]) / 2.0,
+    }
+}
+
 // ---------------------------------------------------------------- output
 
 static PANIC_MSG: Mutex<Option<String>> = Mutex::new(None);
@@ -229,6 +273,9 @@ fn shorten(s: &str) -> String {
 pub struct Harness {
     lib: Lib,
     mode: Mode,
+    /// The resources pass: one benchmark in this process (mode `Bench`), its
+    /// record with `max_rss_bytes`.
+    resources: bool,
     count: usize,
     benchtime: Duration,
     out: File,
@@ -242,22 +289,38 @@ impl Harness {
         self.out.flush().ok();
     }
 
-    fn bench_line(&mut self, bench: &str, status: &str, ns: &[f64], iters: u64, first: u128, note: &str) {
-        let v = json!({
+    /// One record: `ns` and `cpu` are the wall and CPU ns/op of the series
+    /// (empty when nothing was timed). In the resources pass, the record of a
+    /// measured benchmark also carries the peak RSS of the process, read here,
+    /// after the series.
+    fn bench_line(&mut self, bench: &str, status: &str, ns: &[f64], cpu: &[f64], iters: u64, first: u128, note: &str) {
+        let round = |v: &[f64]| v.iter().map(|x| (x * 10.0).round() / 10.0).collect::<Vec<_>>();
+        let rss = (self.resources && status == "ok").then(max_rss_bytes);
+        let mut v = json!({
             "lang": "rust",
             "lib": self.lib.lib,
             "pkg": self.lib.pkg,
             "version": self.lib.version,
             "bench": bench,
             "status": status,
-            "ns_per_op": ns.iter().map(|x| (x * 10.0).round() / 10.0).collect::<Vec<_>>(),
+            "ns_per_op": round(ns),
+            "cpu_ns_per_op": round(cpu),
             "iters": iters,
             "first_call_ns": first as u64,
             "note": note,
         });
-        let tag = match status {
-            "ok" => format!("{:>14.1} ns/op  (N={iters})", ns.iter().copied().fold(f64::INFINITY, f64::min)),
-            s => format!("{s:>14}  {}", shorten(note).chars().take(100).collect::<String>()),
+        if let Some(rss) = rss {
+            v["max_rss_bytes"] = json!(rss);
+        }
+        let tag = match (status, rss) {
+            ("ok", Some(rss)) => format!(
+                "{:>14.1} ns/op {:>14.1} cpu ns/op {:>9.1} MiB  (N={iters})",
+                median(ns),
+                median(cpu),
+                rss as f64 / 1_048_576.0
+            ),
+            ("ok", None) => format!("{:>14.1} ns/op  (N={iters})", ns.iter().copied().fold(f64::INFINITY, f64::min)),
+            (s, _) => format!("{s:>14}  {}", shorten(note).chars().take(100).collect::<String>()),
         };
         eprintln!("   {:<22} {tag}", bench);
         self.line(v);
@@ -274,7 +337,7 @@ impl Harness {
             return false;
         }
         if let Some((_, note)) = self.skipped.iter().find(|(b, _)| b == bench).cloned() {
-            self.bench_line(bench, "unsupported", &[], 0, 0, &note);
+            self.bench_line(bench, "unsupported", &[], &[], 0, 0, &note);
             return false;
         }
         true
@@ -291,7 +354,7 @@ impl Harness {
         if self.mode == Mode::Bench {
             for b in op.benches() {
                 if self.wanted(b) {
-                    self.bench_line(b, "unsupported", &[], 0, 0, note);
+                    self.bench_line(b, "unsupported", &[], &[], 0, 0, note);
                 }
             }
         }
@@ -313,14 +376,19 @@ impl Harness {
             n = [1, 2, 5][step % 3] * 10u64.pow((step / 3) as u32);
         }
         let mut ns = Vec::with_capacity(self.count);
+        let mut cpu = Vec::with_capacity(self.count);
         for _ in 0..self.count {
+            let c = cpu_ns();
             let t = Instant::now();
             for _ in 0..n {
                 black_box(f());
             }
-            ns.push(t.elapsed().as_nanos() as f64 / n as f64);
+            let wall = t.elapsed();
+            let c = cpu_ns() - c;
+            ns.push(wall.as_nanos() as f64 / n as f64);
+            cpu.push(c as f64 / n as f64);
         }
-        self.bench_line(bench, "ok", &ns, n, first, note);
+        self.bench_line(bench, "ok", &ns, &cpu, n, first, note);
     }
 
     /// Runs the first call and either measures or records the failure.
@@ -338,7 +406,7 @@ impl Harness {
             Ok(()) => self.measure(bench, first, note, || f()),
             Err(e) => {
                 let msg = if note.is_empty() { shorten(&e) } else { format!("{} — {note}", shorten(&e)) };
-                self.bench_line(bench, "fail", &[], 0, first, &msg);
+                self.bench_line(bench, "fail", &[], &[], 0, first, &msg);
             }
         }
     }
@@ -475,7 +543,7 @@ impl Harness {
             let model = match guarded(|| parse(&data)) {
                 Ok(m) => m,
                 Err(e) => {
-                    self.bench_line(b, "fail", &[], 0, 0, &format!("parse: {}", shorten(&e)));
+                    self.bench_line(b, "fail", &[], &[], 0, 0, &format!("parse: {}", shorten(&e)));
                     continue;
                 }
             };
@@ -537,22 +605,33 @@ impl Harness {
     }
 }
 
-/// Entry point of every library binary: `bench-<lib> bench|survey [Bench…]`.
+/// Entry point of every library binary: `bench-<lib> bench|survey [Bench…]`
+/// or `bench-<lib> resources Bench`.
 pub fn run(lib: Lib, body: impl FnOnce(&mut Harness) + Send + 'static) {
     let args: Vec<String> = std::env::args().collect();
-    let mode = match args.get(1).map(String::as_str) {
-        Some("bench") => Mode::Bench,
-        Some("survey") => Mode::Survey,
+    let (mode, resources) = match args.get(1).map(String::as_str) {
+        Some("bench") => (Mode::Bench, false),
+        Some("survey") => (Mode::Survey, false),
+        // The resources pass: this process runs one benchmark exactly as
+        // bench does, and its record adds the peak RSS of the process.
+        Some("resources") if args.len() == 3 => (Mode::Bench, true),
         _ => {
-            eprintln!("usage: {} bench|survey [BenchName…]", args[0]);
+            eprintln!("usage: {} bench|survey [BenchName…] | resources BenchName", args[0]);
             std::process::exit(2);
         }
     };
     let only = (args.len() > 2).then(|| args[2..].to_vec());
-    let out_dir = PathBuf::from(std::env::var("OUT").unwrap_or_else(|_| "results".into())).join("rust-parts");
-    fs::create_dir_all(&out_dir).expect("create OUT/rust-parts");
-    let kind = if mode == Mode::Bench { "bench" } else { "survey" };
+    let parts = if resources { "rust-res-parts" } else { "rust-parts" };
+    let out_dir = PathBuf::from(std::env::var("OUT").unwrap_or_else(|_| "results".into())).join(parts);
+    fs::create_dir_all(&out_dir).unwrap_or_else(|e| panic!("create OUT/{parts}: {e}"));
+    let kind = match (mode, resources) {
+        (_, true) => "resources",
+        (Mode::Bench, _) => "bench",
+        (Mode::Survey, _) => "survey",
+    };
     let path = out_dir.join(format!("{kind}_{}.jsonl", lib.lib));
+    // A run limited to some benchmarks (always the case for resources)
+    // appends to the part file.
     let out = if only.is_some() {
         OpenOptions::new().create(true).append(true).open(&path)
     } else {
@@ -572,8 +651,20 @@ pub fn run(lib: Lib, body: impl FnOnce(&mut Harness) + Send + 'static) {
         }
     }));
 
-    eprintln!("== {} {} ({}@{})", kind, lib.lib, lib.pkg, lib.version);
-    let mut h = Harness { lib, mode, count, benchtime: Duration::from_secs_f64(benchtime), out, only, skipped: Vec::new() };
+    if !resources {
+        // run.sh prints "== resources <lib>" once for its processes.
+        eprintln!("== {} {} ({}@{})", kind, lib.lib, lib.pkg, lib.version);
+    }
+    let mut h = Harness {
+        lib,
+        mode,
+        resources,
+        count,
+        benchtime: Duration::from_secs_f64(benchtime),
+        out,
+        only,
+        skipped: Vec::new(),
+    };
     std::thread::Builder::new()
         .name("bench".into())
         .stack_size(STACK_BYTES)
