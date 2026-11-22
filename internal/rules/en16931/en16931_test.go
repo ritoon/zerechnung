@@ -15,7 +15,10 @@ import (
 )
 
 // The unit tests mutate a small valid EN 16931 invoice. Each case lists the
-// exact set of rules it must report. The expected sets of the cases checked
+// exact set of rules it must report. The invoice has a payment due date
+// (BT-9), as BR-CO-25 requires of a positive amount due: no CEN artefact
+// checks BR-CO-25 on CII, but the documents of the cases go to other
+// validators (TestVariants), which may. The expected sets of the cases checked
 // in CEN mode are the verdicts of the official CEN XSLT 1.3.17, except for
 // CII-SR-010 and CII-SR-477, on which the XSLT stops with a type error.
 
@@ -52,6 +55,7 @@ const (
 	tSettlement = `<ram:ApplicableHeaderTradeSettlement>
 <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
 <ram:ApplicableTradeTax><ram:CalculatedAmount>19.00</ram:CalculatedAmount><ram:TypeCode>VAT</ram:TypeCode><ram:BasisAmount>100.00</ram:BasisAmount><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>
+` + tPaymentTerms + `
 <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
 <ram:LineTotalAmount>100.00</ram:LineTotalAmount>
 <ram:TaxBasisTotalAmount>100.00</ram:TaxBasisTotalAmount>
@@ -65,6 +69,8 @@ const (
 </rsm:CrossIndustryInvoice>
 `
 	tBase = tHeader + tLine + tAgreement + tSettlement + tFooter
+	// tPaymentTerms is the payment due date (BT-9) of tBase and tFull.
+	tPaymentTerms = `<ram:SpecifiedTradePaymentTerms><ram:DueDateDateTime><udt:DateTimeString format="102">20240215</udt:DateTimeString></ram:DueDateDateTime></ram:SpecifiedTradePaymentTerms>`
 )
 
 // edit replaces each old string of pairs (old, new, old, new...) in s; every
@@ -189,7 +195,7 @@ func ruleCases() []ruleCase {
 		}, want: ""},
 		// VAT categories.
 		{name: "BR-S-05 zero rate", doc: e(lineTax, `<ram:ApplicableTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>0</ram:RateApplicablePercent></ram:ApplicableTradeTax>`), want: "BR-S-05 BR-S-08"},
-		{name: "BR-S-10 exemption", doc: e("<ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>\n<ram:SpecifiedTradeSettlementHeader", "<ram:CategoryCode>S</ram:CategoryCode><ram:ExemptionReason>x</ram:ExemptionReason><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>\n<ram:SpecifiedTradeSettlementHeader"), want: "BR-S-10"},
+		{name: "BR-S-10 exemption", doc: e("<ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>\n"+tPaymentTerms, "<ram:CategoryCode>S</ram:CategoryCode><ram:ExemptionReason>x</ram:ExemptionReason><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:ApplicableTradeTax>\n"+tPaymentTerms), want: "BR-S-10"},
 		{name: "BR-Z valid", doc: func(t *testing.T) string { return zeroRated(t, "Z", "") }, want: ""},
 		{name: "BR-Z-10 exemption", doc: func(t *testing.T) string { return zeroRated(t, "Z", "<ram:ExemptionReason>x</ram:ExemptionReason>") }, want: "BR-Z-10"},
 		{name: "BR-E-10 no exemption", doc: func(t *testing.T) string { return zeroRated(t, "E", "") }, want: "BR-E-10"},
