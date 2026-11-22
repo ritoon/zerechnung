@@ -106,46 +106,64 @@ func TestBuild(t *testing.T) {
 		read(name)
 	}
 
-	hrefRE := regexp.MustCompile(`(?:href|src)="([^"]+)"`)
+	var en *lang
 	for _, l := range langs {
-		name := filepath.Join(l.Code, "index.html")
-		html := read(name)
-		if !strings.Contains(html, `<html lang="`+l.Code+`">`) {
-			t.Errorf("%s: no <html lang=%q>", name, l.Code)
+		if l.Code == sourceLang {
+			en = l
 		}
-		if !strings.Contains(html, `<link rel="canonical" href="`+base+l.Code+`/">`) {
-			t.Errorf("%s: no canonical link", name)
-		}
-		for _, alt := range langs {
-			if !strings.Contains(html, `hreflang="`+alt.Code+`" href="`+base+alt.Code+`/"`) {
-				t.Errorf("%s: no hreflang link to %s", name, alt.Code)
+	}
+	hrefRE := regexp.MustCompile(`(?:href|src)="([^"]+)"`)
+	preRE := regexp.MustCompile(`(?s)<pre>.*?</pre>`)
+	for _, l := range langs {
+		for _, sec := range sections {
+			name := filepath.Join(filepath.FromSlash(sec.path(l)), "index.html")
+			html := read(name)
+			if !strings.Contains(html, `<html lang="`+l.Code+`">`) {
+				t.Errorf("%s: no <html lang=%q>", name, l.Code)
 			}
-		}
-		if strings.Contains(html, "{{") || strings.Contains(html, "`") {
-			t.Errorf("%s: unrendered template or markup", name)
-		}
-		if got, want := strings.Contains(html, `class="notice"`), !l.Reviewed; got != want {
-			t.Errorf("%s: review notice shown = %v, want %v", name, got, want)
-		}
-		// Every relative link leads to a generated file.
-		for _, m := range hrefRE.FindAllStringSubmatch(html, -1) {
-			href := m[1]
-			if strings.Contains(href, ":") || strings.HasPrefix(href, "#") {
-				continue
+			if !strings.Contains(html, `<link rel="canonical" href="`+base+sec.path(l)+`">`) {
+				t.Errorf("%s: no canonical link", name)
 			}
-			href, _, _ = strings.Cut(href, "?")
-			target := filepath.Join(out, l.Code, filepath.FromSlash(href))
-			if strings.HasSuffix(href, "/") {
-				target = filepath.Join(target, "index.html")
+			for _, alt := range langs {
+				if !strings.Contains(html, `hreflang="`+alt.Code+`" href="`+base+sec.path(alt)+`"`) {
+					t.Errorf("%s: no hreflang link to %s", name, alt.Code)
+				}
 			}
-			if _, err := os.Stat(target); err != nil {
-				t.Errorf("%s: link %q leads nowhere", name, m[1])
+			xDefault := base + sec.path(en)
+			if sec.slug == "" {
+				xDefault = base
+			}
+			if !strings.Contains(html, `hreflang="x-default" href="`+xDefault+`"`) {
+				t.Errorf("%s: x-default is not %s", name, xDefault)
+			}
+			// Go code may contain {{ and backquotes; the texts may not.
+			if text := preRE.ReplaceAllString(html, ""); strings.Contains(text, "{{") || strings.Contains(text, "`") {
+				t.Errorf("%s: unrendered template or markup", name)
+			}
+			if got, want := strings.Contains(html, `class="notice"`), !l.Reviewed; got != want {
+				t.Errorf("%s: review notice shown = %v, want %v", name, got, want)
+			}
+			// Every relative link leads to a generated file.
+			for _, m := range hrefRE.FindAllStringSubmatch(html, -1) {
+				href := m[1]
+				if strings.Contains(href, ":") || strings.HasPrefix(href, "#") {
+					continue
+				}
+				href, _, _ = strings.Cut(href, "?")
+				href, _, _ = strings.Cut(href, "#")
+				target := filepath.Join(out, filepath.FromSlash(sec.path(l)), filepath.FromSlash(href))
+				if strings.HasSuffix(href, "/") {
+					target = filepath.Join(target, "index.html")
+				}
+				if _, err := os.Stat(target); err != nil {
+					t.Errorf("%s: link %q leads nowhere", name, m[1])
+				}
 			}
 		}
 	}
 
 	sitemap := read("sitemap.xml")
-	if got, want := strings.Count(sitemap, "<loc>"), len(langs); got != want {
+	if got, want := strings.Count(sitemap, "<loc>"), len(langs)*len(sections); got != want {
 		t.Errorf("sitemap has %d pages, want %d", got, want)
 	}
 	if !strings.Contains(read("robots.txt"), "Sitemap: "+base+"sitemap.xml") {

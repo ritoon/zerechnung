@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ritoon/zerechnung/invoice"
 )
@@ -38,5 +39,36 @@ func TestFatturaPA(t *testing.T) {
 	r := XML([]byte(`<FatturaElettronica versione="FPR12"/>`), nil)
 	if len(r.Findings) != 1 || r.Findings[0].Rule != "CII" || !strings.Contains(r.Findings[0].Message, "FatturaPA FatturaElettronica") {
 		t.Errorf("FatturaElettronica outside its namespace: findings:\n%s", r)
+	}
+}
+
+// TestFatturaPASDI checks that the controls of the SdI on the content of a
+// FatturaPA document apply whatever the rule sets, and that the date of the
+// invoice is compared with Options.ReceivedAt.
+func TestFatturaPASDI(t *testing.T) {
+	data, err := os.ReadFile(fatturaPAFiles[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	bad := []byte(strings.Replace(string(data), "<Imposta>225.50</Imposta>", "<Imposta>225.60</Imposta>", 1))
+	for _, opts := range []*Options{nil, {Rules: EN16931}, {Rules: Italy}} {
+		r := XML(bad, opts)
+		if len(r.Findings) != 1 || r.Findings[0].Rule != "00421" || r.Findings[0].Source != SourceSDI || r.Valid() {
+			t.Errorf("Imposta not consistent with %+v: findings:\n%s", opts, r)
+		}
+	}
+
+	// The invoice is dated 20 November 2026, in Italy.
+	for _, tc := range []struct {
+		at   time.Time
+		want int
+	}{
+		{time.Date(2026, time.November, 19, 21, 59, 0, 0, time.UTC), 1},
+		{time.Date(2026, time.November, 19, 22, 0, 0, 0, time.UTC), 0},
+	} {
+		r := XML(data, &Options{ReceivedAt: tc.at})
+		if len(r.Findings) != tc.want || tc.want == 1 && r.Findings[0].Rule != "00403" {
+			t.Errorf("received at %s: findings:\n%s", tc.at, r)
+		}
 	}
 }

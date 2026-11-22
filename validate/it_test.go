@@ -175,8 +175,8 @@ func TestCatalogIT(t *testing.T) {
 			t.Errorf("Catalog(Italy) lists %s %d times", id, ids[id])
 		}
 	}
-	if len(ids) != 109 {
-		t.Errorf("Catalog(Italy): %d rules, want 109", len(ids))
+	if len(ids) != 149 {
+		t.Errorf("Catalog(Italy): %d rules, want 149", len(ids))
 	}
 	// The Italian national rules of Peppol (IT-R-*) are Peppol rules.
 	for _, r := range Catalog(Default | Peppol | Netherlands) {

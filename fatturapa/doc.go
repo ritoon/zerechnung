@@ -30,9 +30,15 @@
 // MarshalOptions.Strict is set.
 //
 // Package validate checks a FatturaPA document against the FatturaPA schema
-// 1.2.4 (validate.XML); the documents that Marshal writes are valid against
-// it. Neither package applies the checks of the SDI on the content of a
-// document.
+// 1.2.4 (validate.XML), and against the checks of the SDI on its content
+// that need none of its data (codes 00300 to 00476 of appendix 1 of the
+// technical specifications): the tax codes by their format and check
+// character, without looking them up in the Anagrafe tributaria, and
+// neither the duplicates (00404) nor the recipient codes (00311, 00312). The
+// documents that Marshal writes are valid against the schema, and pass these
+// checks when the invoice is consistent: a line amount that is not its price
+// times its quantity, for instance, is written as it is and rejected
+// (00423).
 //
 // # Signatures
 //
@@ -47,7 +53,8 @@
 // and returns the document; Parse reads a document signed in XAdES as an
 // unsigned one, without keeping the signature in the invoice read.
 // VerifySignature checks a signed file as the SDI does on reception
-// (§5.1.1) and reports each problem under the error code of the SDI: the
+// (§5.1.1), and its size (00003), and reports each problem under the error
+// code of the SDI: the
 // trust in the certificate and its revocation are checked against the
 // roots, CRLs and OCSP responses the caller gives, since the package does
 // not access the network. CMS, BER, XML canonicalization and XML signatures

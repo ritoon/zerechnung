@@ -3,13 +3,17 @@ name: Site
 # Builds the presentation site from site/ and publishes it on GitHub Pages.
 # Pull requests only build and test it; pushes to main also deploy it. The
 # repository settings must use "GitHub Actions" as the source of Pages.
+#
+# The examples of the site are programs that call the package: a change to
+# its Go code runs the workflow too, so that an API change cannot break them
+# unnoticed.
 
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/site.yml']
+    paths: ['site/**', '**.go', 'go.mod', '.github/workflows/site.yml']
   pull_request:
-    paths: ['site/**', '.github/workflows/site.yml']
+    paths: ['site/**', '**.go', 'go.mod', '.github/workflows/site.yml']
   workflow_dispatch:
 
 permissions:
@@ -31,7 +35,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
-          # The site module has no dependency, hence no go.sum to key a cache on.
+          # The site module depends only on the package of this repository,
+          # which has no dependency: there is no go.sum to key a cache on.
           cache: false
       - name: go vet
         run: go vet ./...

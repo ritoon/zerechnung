@@ -4,7 +4,7 @@
 <meta name="description" content="{{.Description}}">
 {{with .Canonical}}<link rel="canonical" href="{{.}}">
 {{end}}{{range .Langs}}<link rel="alternate" hreflang="{{.Code}}" href="{{$.Abs .}}">
-{{end}}<link rel="alternate" hreflang="x-default" href="{{.Base}}">
+{{end}}<link rel="alternate" hreflang="x-default" href="{{.XDefault}}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ZeRechnung">
 <meta property="og:title" content="{{.Title}}">
@@ -37,3 +37,64 @@
 {{define "yes"}}<td class="c yes">{{template "icon-check"}}<span class="sr">{{.T.yes}}</span></td>{{end}}
 
 {{define "langlist"}}{{range .Langs}}<li><a href="{{$.Href .}}" lang="{{.Code}}" hreflang="{{.Code}}" data-lang="{{.Code}}"{{if eq .Code $.Lang.Code}} aria-current="true"{{end}}>{{.Name}}</a></li>{{end}}{{end}}
+
+{{define "icon-cross"}}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>{{end}}
+
+{{define "icon-half"}}<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path fill="currentColor" d="M12 4.5a7.5 7.5 0 0 1 0 15z"/></svg>{{end}}
+
+{{define "icon-example"}}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/></svg>{{end}}
+
+{{define "icon-speed"}}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="m12 13 4-5"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg>{{end}}
+
+{{define "icon-map"}}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/></svg>{{end}}
+
+{{/* status writes yes, partial or no as an icon and a word. */}}
+{{define "status"}}{{if eq .S "yes"}}<span class="st st-yes">{{template "icon-check"}}<span>{{.T.cp_yes}}</span></span>{{else if eq .S "partial"}}<span class="st st-partial">{{template "icon-half"}}<span>{{.T.cp_partial}}</span></span>{{else}}<span class="st st-no">{{template "icon-cross"}}<span>{{.T.cp_no}}</span></span>{{end}}{{end}}
+
+{{define "header"}}<a class="skip" href="#main">{{.T.skip}}</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="{{.Link "home"}}">{{template "boat"}}<span>ZeRechnung</span></a>
+    <nav class="nav" aria-label="{{.P.nav_label}}">
+      <a href="{{.Link "home"}}#features">{{.T.nav_features}}</a>
+      <a href="{{.Link "examples"}}"{{if eq .Section "examples"}} aria-current="page"{{end}}>{{.T.nav_examples}}</a>
+      <a href="{{.Link "benchmarks"}}"{{if eq .Section "benchmarks"}} aria-current="page"{{end}}>{{.T.nav_benchmarks}}</a>
+      <a href="{{.Link "compliance"}}"{{if eq .Section "compliance"}} aria-current="page"{{end}}>{{.T.nav_compliance}}</a>
+      <a href="{{.Link "home"}}#start">{{.T.nav_start}}</a>
+    </nav>
+    <details class="lang">
+      <summary>{{template "icon-globe"}}<span class="sr">{{.T.lang_label}}:</span> <span>{{.Lang.Name}}</span></summary>
+      <ul style="--rows: {{.MenuRows}}">{{template "langlist" .}}</ul>
+    </details>
+    <a class="gh" href="{{.Repo}}" aria-label="GitHub">{{template "icon-github"}}</a>
+  </div>
+</header>
+
+{{if not .Lang.Reviewed}}<div class="notice" role="note">
+  <div class="wrap">{{.T.review_notice}} <a href="{{.EditURL .Lang}}">{{.T.review_link}}</a></div>
+</div>
+{{end}}{{end}}
+
+{{define "footer"}}<footer>
+  <div class="wrap foot">
+    <p>ZeRechnung · {{.T.footer_license}}</p>
+    <nav aria-label="ZeRechnung">
+      <a href="{{.Link "examples"}}">{{.T.nav_examples}}</a>
+      <a href="{{.Link "benchmarks"}}">{{.T.nav_benchmarks}}</a>
+      <a href="{{.Link "compliance"}}">{{.T.nav_compliance}}</a>
+      <a href="{{.Repo}}">GitHub</a>
+      <a href="https://pkg.go.dev/github.com/ritoon/zerechnung">pkg.go.dev</a>
+      <a href="{{.Repo}}/wiki">Wiki</a>
+    </nav>
+  </div>
+</footer>{{end}}
+
+{{/* intro opens a page other than the home page. */}}
+{{define "intro"}}<section class="page-intro">
+  <div class="wrap">
+    <p class="kicker">{{.Kicker}}</p>
+    <h1>{{.Title}}</h1>
+    <p class="lead">{{.Lead}}</p>
+  </div>
+</section>{{end}}

@@ -1,0 +1,121 @@
+{
+  "asof": "2026-11-22",
+  "countries": [
+    {"code": "AT", "eu": true, "b2g": "since 2014", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"], ["ebInterface", "no"]]},
+    {"code": "BE", "eu": true, "b2g": "since 2022", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"]]},
+    {"code": "BG", "eu": true, "b2g": "reception 2019", "b2b": "planned 2028", "cover": [["EN 16931", "yes"]]},
+    {"code": "HR", "eu": true, "b2g": "since 2019", "b2b": "since 2026", "cover": [["CIUS-HR", "partial"]]},
+    {"code": "CY", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"], ["Peppol BIS 3.0", "yes"]]},
+    {"code": "CZ", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"], ["ISDOC", "no"]]},
+    {"code": "DK", "eu": true, "b2g": "since 2005", "b2b": "voluntary", "cover": [["Peppol BIS 3.0", "yes"], ["OIOUBL 2.1", "no"]]},
+    {"code": "EE", "eu": true, "b2g": "since 2019", "b2b": "request 2025", "cover": [["EN 16931", "yes"]]},
+    {"code": "FI", "eu": true, "b2g": "since 2019", "b2b": "request 2020", "cover": [["Peppol BIS 3.0", "yes"], ["Finvoice", "no"], ["TEAPPSXML", "no"]]},
+    {"code": "FR", "eu": true, "b2g": "since 2017", "b2b": "since 2026", "cover": [["Factur-X", "yes"], ["UBL", "yes"], ["CII", "yes"]]},
+    {"code": "DE", "eu": true, "b2g": "since 2020", "b2b": "from 2027", "cover": [["XRechnung", "yes"], ["ZUGFeRD", "yes"]]},
+    {"code": "GR", "eu": true, "b2g": "since 2023", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"], ["myDATA", "no"]]},
+    {"code": "HU", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"], ["Online Számla", "no"]]},
+    {"code": "IE", "eu": true, "b2g": "reception 2019", "b2b": "from 2028", "cover": [["Peppol BIS 3.0", "yes"], ["EN 16931", "yes"]]},
+    {"code": "IT", "eu": true, "b2g": "since 2014", "b2b": "since 2019", "cover": [["FatturaPA", "yes"], ["CIUS-IT", "yes"]]},
+    {"code": "LV", "eu": true, "b2g": "since 2025", "b2b": "from 2028", "cover": [["Peppol BIS 3.0", "yes"]]},
+    {"code": "LT", "eu": true, "b2g": "since 2017", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"]]},
+    {"code": "LU", "eu": true, "b2g": "since 2022", "b2b": "planned 2028", "cover": [["Peppol BIS 3.0", "yes"], ["XRechnung", "yes"]]},
+    {"code": "MT", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"]]},
+    {"code": "NL", "eu": true, "b2g": "since 2017", "b2b": "planned 2030", "cover": [["NLCIUS", "yes"], ["Peppol BIS 3.0", "yes"]]},
+    {"code": "PL", "eu": true, "b2g": "since 2026", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"], ["KSeF FA(3)", "no"]]},
+    {"code": "PT", "eu": true, "b2g": "since 2021", "b2b": "none", "cover": [["CIUS-PT", "partial"]]},
+    {"code": "RO", "eu": true, "b2g": "since 2022", "b2b": "since 2024", "cover": [["CIUS-RO", "partial"]]},
+    {"code": "SK", "eu": true, "b2g": "from 2027", "b2b": "from 2027", "cover": [["Peppol BIS 3.0", "partial"]]},
+    {"code": "SI", "eu": true, "b2g": "since 2015", "b2b": "from 2028", "cover": [["Peppol BIS 3.0", "yes"], ["e-SLOG 2.0", "no"]]},
+    {"code": "ES", "eu": true, "b2g": "since 2015", "b2b": "from 2027", "cover": [["UBL", "yes"], ["CII", "yes"], ["Facturae", "yes"]]},
+    {"code": "SE", "eu": true, "b2g": "since 2019", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"]]},
+    {"code": "IS", "eu": false, "b2g": "since 2020", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"]]},
+    {"code": "LI", "eu": false, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"]]},
+    {"code": "NO", "eu": false, "b2g": "since 2019", "b2b": "from 2027", "cover": [["EHF (Peppol BIS 3.0)", "yes"]]},
+    {"code": "CH", "eu": false, "b2g": "since 2016", "b2b": "none", "cover": [["QR-bill, eBill", "no"]]},
+    {"code": "GB", "eu": false, "b2g": "reception 2019", "b2b": "from 2029", "cover": [["Peppol BIS 3.0", "yes"]]}
+  ],
+  "details": [
+    {
+      "code": "FR",
+      "guide": "Facturer-en-France",
+      "checks": [
+        {"text": "cp_fr_profiles", "status": "yes", "rules": ["FacturX"]},
+        {"text": "cp_fr_brfr", "status": "yes", "rules": ["France"]},
+        {"text": "cp_fr_syntax", "status": "yes", "rules": ["EN16931", "France"]},
+        {"text": "cp_fr_chorus", "status": "yes", "rules": ["ChorusPro"]},
+        {"text": "cp_fr_pdf", "status": "yes", "rules": ["Check"]},
+        {"text": "cp_fr_send", "status": "no"}
+      ]
+    },
+    {
+      "code": "DE",
+      "guide": "E-Rechnungen-in-Deutschland",
+      "checks": [
+        {"text": "cp_de_xrechnung", "status": "yes", "rules": ["Germany"]},
+        {"text": "cp_de_ids", "status": "yes", "rules": ["Germany"]},
+        {"text": "cp_de_profiles", "status": "yes", "rules": ["GermanyProfile"]},
+        {"text": "cp_de_en16931", "status": "yes", "rules": ["EN16931"]},
+        {"text": "cp_de_zf1", "status": "partial", "rules": ["Schema"]},
+        {"text": "cp_de_send", "status": "no"}
+      ]
+    },
+    {
+      "code": "IT",
+      "guide": "Fatturazione-elettronica-in-Italia",
+      "checks": [
+        {"text": "cp_it_fatturapa", "status": "yes", "rules": ["fatturapa", "Schema"]},
+        {"text": "cp_it_cius", "status": "yes", "rules": ["Italy"]},
+        {"text": "cp_it_ext", "status": "yes", "rules": ["Italy"]},
+        {"text": "cp_it_split", "status": "yes", "rules": ["Calculate"]},
+        {"text": "cp_it_sign", "status": "yes", "rules": ["SignCAdES", "SignXAdES", "VerifySignature"]},
+        {"text": "cp_it_sdi", "status": "no"},
+        {"text": "cp_it_send", "status": "no"}
+      ]
+    },
+    {
+      "code": "NL",
+      "guide": "E-facturen-in-Nederland",
+      "checks": [
+        {"text": "cp_nl_nlcius", "status": "yes", "rules": ["Netherlands"]},
+        {"text": "cp_nl_grek", "status": "yes", "rules": ["Netherlands"]},
+        {"text": "cp_nl_peppol", "status": "yes", "rules": ["Peppol"]},
+        {"text": "cp_nl_send", "status": "no"}
+      ]
+    },
+    {
+      "code": "BE",
+      "checks": [
+        {"text": "cp_be_peppol", "status": "yes", "rules": ["Peppol"]},
+        {"text": "cp_be_kbo", "status": "yes", "rules": ["Peppol"]},
+        {"text": "cp_be_en16931", "status": "yes", "rules": ["EN16931"]},
+        {"text": "cp_be_report", "status": "no"}
+      ]
+    },
+    {
+      "code": "ES",
+      "checks": [
+        {"text": "cp_es_en16931", "status": "yes", "rules": ["EN16931"]},
+        {"text": "cp_es_peppol", "status": "yes", "rules": ["Peppol"]},
+        {"text": "cp_es_facturae", "status": "yes", "rules": ["facturae", "Schema"]},
+        {"text": "cp_es_verifactu", "status": "no"}
+      ]
+    },
+    {
+      "code": "PT",
+      "checks": [
+        {"text": "cp_pt_cius", "status": "partial", "rules": ["EN16931"]},
+        {"text": "cp_pt_atcud", "status": "no"},
+        {"text": "cp_pt_saft", "status": "no"},
+        {"text": "cp_pt_sign", "status": "no"}
+      ]
+    },
+    {
+      "code": "IE",
+      "checks": [
+        {"text": "cp_ie_b2g", "status": "yes", "rules": ["Peppol", "EN16931"]},
+        {"text": "cp_ie_b2b", "status": "partial", "rules": ["EN16931", "Peppol"]},
+        {"text": "cp_ie_report", "status": "no"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# What the examples write when they run. Their input PDFs are kept.
+*.pdf
+*.xml
+!*/facture.pdf
+!*/rechnung.pdf
+!*/fattura.pdf
+!*/factura.pdf
+!*/fatura.pdf
+!*/invoice.pdf

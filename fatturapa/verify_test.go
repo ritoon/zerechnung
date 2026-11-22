@@ -254,11 +254,29 @@ func TestSignatureRulesCatalog(t *testing.T) {
 		}
 		seen[r.ID] = true
 	}
-	for _, id := range []string{RuleFileName, RuleCertExpired, RuleCertRevoked, RuleSignatureInvalid, RuleNoSigningTime,
+	for _, id := range []string{RuleFileName, RuleFileSize, RuleCertExpired, RuleCertRevoked, RuleSignatureInvalid, RuleNoSigningTime,
 		RuleUntrustedCA, RuleSigningTimeAfter, RuleCertInvalid, RuleNotSigned, RuleNotQualified, RuleSeal,
 		RuleTrustNotChecked, RuleRevocationUnknown, RuleNotBaselineB, RuleNotFatturaPA} {
 		if !seen[id] {
 			t.Errorf("rule %s not in SignatureRules", id)
+		}
+	}
+}
+
+// TestVerifyFileSize checks the size of the file: 00003 above MaxSDIFileSize.
+func TestVerifyFileSize(t *testing.T) {
+	fpr := readTestdata(t, "fpr12.xml")
+	for _, tc := range []struct {
+		size int
+		want string
+	}{
+		{len(fpr), "IT-SIG-01:info"},
+		{MaxSDIFileSize, "IT-SIG-01:info"},
+		{MaxSDIFileSize + 1, "00003:error IT-SIG-01:info"},
+	} {
+		file := append(bytes.Clone(fpr), bytes.Repeat([]byte(" "), tc.size-len(fpr))...)
+		if got := findings(VerifySignature(file, nil)); got != tc.want {
+			t.Errorf("%d bytes: %s, want %s", tc.size, got, tc.want)
 		}
 	}
 }
