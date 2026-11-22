@@ -169,6 +169,7 @@ func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, e
 		// A Factur-X or ZUGFeRD PDF embeds a CII invoice: a UBL invoice is
 		// validated as such, but the PDF is not a valid hybrid invoice.
 		if ublrules.IsUBL(root) {
+			rules.Trace("CII")
 			findings = append(findings, validate.Finding{Rule: "CII", Severity: validate.Error, Source: validate.SourceSyntax,
 				Path: "/" + root.Name, Line: root.Line,
 				Message: "the embedded XML is a UBL invoice: a Factur-X or ZUGFeRD PDF embeds a CII invoice (rsm:CrossIndustryInvoice)"})

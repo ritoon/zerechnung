@@ -38,17 +38,25 @@ jobs:
       - name: go test with every artefact
         run: |
           set -o pipefail
-          go test -count=1 -v ./... 2>&1 | tee test.log | grep -E '^(ok|FAIL|--- FAIL|--- SKIP|panic)' || true
+          # Built with the tag ruletrace, each test binary appends the rules
+          # it raises to rules.txt, for TestRuleCoverage.
+          ZERECHNUNG_RULE_TRACE=$PWD/rules.txt go test -tags ruletrace -count=1 -v ./... 2>&1 | tee test.log | grep -E '^(ok|FAIL|--- FAIL|--- SKIP|panic)' || true
           grep -q -E '^(FAIL|panic)' test.log && exit 1
           if grep -q -- '--- SKIP' test.log; then
             echo "::error::tests skipped although every artefact is available"
             exit 1
           fi
+      - name: Rules raised by the test suite
+        # Each rule of the catalogs is raised by a test, unless
+        # testdata/rule-coverage.txt lists it.
+        run: go test -count=1 -v -run '^TestRuleCoverage$' . -rule-coverage rules.txt
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: go-test-artifacts
-          path: test.log
+          path: |
+            test.log
+            rules.txt
           retention-days: 30
 
   verapdf:

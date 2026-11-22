@@ -149,6 +149,7 @@ type containerCheck struct {
 }
 
 func (k *containerCheck) add(id, path, format string, args ...any) {
+	rules.Trace(id)
 	k.findings = append(k.findings, rules.Finding{
 		Rule:     id,
 		Severity: containerSeverity(id),

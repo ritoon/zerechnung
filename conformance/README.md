@@ -54,6 +54,25 @@ Les validateurs de référence, téléchargés par `parity.sh` depuis leurs publ
 
 Le job *Tests sur les artefacts officiels* lance `go test ./...` avec toutes les variables `FX_*` définies (voir la section Tests du [README](../README.md#tests)) et échoue si un test est ignoré : chaque test optionnel tourne donc à chaque pull request.
 
+### Règles levées par la suite
+
+Le job compile aussi la suite avec l'étiquette `ruletrace` : chaque binaire de test écrit alors dans `rules.txt` les règles des findings qu'il rapporte (`ZERECHNUNG_RULE_TRACE`, voir [`internal/rules/trace_ruletrace.go`](../internal/rules/trace_ruletrace.go)), et `TestRuleCoverage` ([`rulecoverage_test.go`](../rulecoverage_test.go)) vérifie ensuite que chaque règle des catalogues (`validate.Catalog` de tous les jeux de règles et `ContainerCatalog`), plus `XML`, `CII` et les règles de `fatturapa.VerifySignature`, est levée par au moins un test. C'est la version dynamique des tests `TestCatalogComplete`, qui lisent les sources : une règle écrite qu'aucun test ne fait échouer peut être inatteignable, ou fausse sans qu'aucun test ne le voie.
+
+La suite lève 2 038 des 3 098 règles. Les 1 060 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT) sont toutes levées. Les manques sont dans :
+
+| Jeu de règles | Non levées | Familles |
+|---|---|---|
+| EN 16931 | 686 sur 1 566 | règles de syntaxe CII-SR (455) et CII-DT (95) du schematron CEN, UBL-CR (30), UBL-SR (19) et UBL-DT (2), catégories de TVA autres que S et E (55), décimales BR-DEC (16), listes de codes BR-CL (10), motif des remises et majorations de ligne (BR-42, BR-44, BR-CO-23, BR-CO-24) |
+| Factur-X | 339 sur 415 | listes de codes du schematron Factur-X 1.09.2 (FX-SCH-A, 304), règles EXTENDED BR-FXEXT (25), IGIC et IPSI (10) |
+| CIUS-PT | 34 sur 372 | formats DT-CIUS-PT (29), BR-AA, BR-CO-07, BR-CO-08, UBL-SR-38 |
+| FatturaPA (signature) | 1 | IT-SIG-06, que seul le job d'interopérabilité des signatures lève |
+
+```bash
+eval "$(conformance/fetch.sh)"
+ZERECHNUNG_RULE_TRACE=$PWD/rules.txt go test -tags ruletrace ./...
+go test -run '^TestRuleCoverage$' . -rule-coverage rules.txt
+```
+
 ## veraPDF sur les PDF convertis
 
 Le job *veraPDF sur les PDF convertis* exécute [`verapdf.sh`](verapdf.sh), qui vérifie avec veraPDF 1.30.3 les fichiers qu'écrit `ConvertPDFA`. veraPDF tourne depuis l'image Docker du consortium veraPDF, figée par son empreinte (`verapdf/cli:v1.30.3@sha256:d74b7026…`) : le package reste en pur Go. Le script :
