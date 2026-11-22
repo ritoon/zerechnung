@@ -18,6 +18,13 @@
 //
 // Sub-packages give direct access to each layer: invoice (the EN 16931
 // model), cii (CII XML), validate (validation of XML invoices).
+//
+// The functions of this package and of packages cii, ubl, facturae,
+// fatturapa and validate can be called from several goroutines at once, on
+// the same arguments: they only read the byte slices and the invoices they
+// are given. The exception is Create with CreateOptions.Calculate, which
+// fills in the amounts of the invoice: that invoice must not be used by
+// another goroutine meanwhile.
 package zerechnung
 
 import (
@@ -51,7 +58,8 @@ type CreateOptions struct {
 	// Profile is the profile to write; zero means inv.Profile, or EN 16931
 	// when inv.Profile is not set.
 	Profile invoice.Profile
-	// Calculate runs inv.Calculate before writing the XML.
+	// Calculate runs inv.Calculate before writing the XML, so that Create
+	// modifies inv.
 	Calculate bool
 	// Validate, when not nil, validates the XML before embedding it and makes
 	// Create fail with a *ValidationError when the report has errors.
