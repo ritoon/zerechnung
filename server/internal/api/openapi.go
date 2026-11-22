@@ -216,7 +216,7 @@ func (g *schemaGen) schema(t reflect.Type) obj {
 	case reflect.TypeFor[invoice.Date]():
 		return obj{"type": "string", "format": "date"}
 	case reflect.TypeFor[invoice.Profile]():
-		return obj{"type": "string", "description": "Profile: MINIMUM, BASIC WL, BASIC, EN 16931, EXTENDED, XRECHNUNG, EXTENDED-CTC-FR, PEPPOL, NLCIUS, CIUS-IT, or a specification identifier (BT-24)", "examples": []string{"EN 16931"}}
+		return obj{"type": "string", "description": "Profile: MINIMUM, BASIC WL, BASIC, EN 16931, EXTENDED, XRECHNUNG, EXTENDED-CTC-FR, PEPPOL, NLCIUS, CIUS-IT, CIUS-PT (UBL only), or a specification identifier (BT-24)", "examples": []string{"EN 16931"}}
 	case timeType:
 		return obj{"type": "string", "format": "date-time"}
 	case rawJSON:

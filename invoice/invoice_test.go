@@ -109,7 +109,7 @@ func TestProfile(t *testing.T) {
 		if got := ParseProfile(p.String()); got != p {
 			t.Errorf("ParseProfile(%q) = %s", p.String(), got)
 		}
-		if p != ProfileExtendedCTCFR && p != ProfilePeppol && p != ProfileNLCIUS && p != ProfileCIUSIT {
+		if p != ProfileExtendedCTCFR && p != ProfilePeppol && p != ProfileNLCIUS && p != ProfileCIUSIT && p != ProfileCIUSPT {
 			if got := ProfileFromConformanceLevel(p.ConformanceLevel()); got != p {
 				t.Errorf("ProfileFromConformanceLevel(%q) = %s", p.ConformanceLevel(), got)
 			}
@@ -132,6 +132,9 @@ func TestProfile(t *testing.T) {
 		"urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:2.0.0#conformant#urn:fatturapa.gov.it:EXT-IT:1.0.0": ProfileCIUSIT,
 		" urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:CIUS-IT:1.0.0.20170801 ":                                   ProfileCIUSIT,
 		"urn:fatturapa.gov.it:CIUS-IT:2.0.0":                                                                                ProfileUnknown,
+		"urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:2.1.1":                                                   ProfileCIUSPT,
+		" urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:1.0.0. ":                                                ProfileCIUSPT,
+		"urn:feap.gov.pt:CIUS-PT:2.1.1":                                                                                     ProfileUnknown,
 		"urn:example":                                                                                                       ProfileUnknown,
 	} {
 		if got := ProfileFromURN(urn); got != want {
@@ -176,6 +179,12 @@ func TestProfile(t *testing.T) {
 		ParseProfile("cius-it") != ProfileCIUSIT || ParseProfile("CIUSIT") != ProfileCIUSIT || ProfileFromConformanceLevel("CIUS-IT") != ProfileUnknown ||
 		DetectProfile("urn:cen.eu:en16931:2017#compliant#urn:fatturapa.gov.it:cius-it") != ProfileCIUSIT {
 		t.Error("CIUS-IT profile")
+	}
+	if ProfileCIUSPT.ConformanceLevel() != "EN 16931" || ProfileCIUSPT.Filename() != "factur-x.xml" || ProfileCIUSPT.String() != "CIUS-PT" ||
+		!ProfileCIUSPT.AtLeast(ProfileEN16931) || ProfileCIUSPT.AtLeast(ProfileExtendedCTCFR) || !ProfileCIUSPT.EN16931() ||
+		ParseProfile("cius-pt") != ProfileCIUSPT || ParseProfile("CIUSPT") != ProfileCIUSPT || ProfileFromConformanceLevel("CIUS-PT") != ProfileUnknown ||
+		DetectProfile("urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:cius-pt") != ProfileCIUSPT || ProfileCIUSPT.URNFor("PT") != URNCIUSPT {
+		t.Error("CIUS-PT profile")
 	}
 	if ProfileCIUSIT.URNFor(" it ") != URNCIUSIT+ItalianExtension || ProfileCIUSIT.URNFor("FR") != URNCIUSIT ||
 		ProfileCIUSIT.URNFor("") != URNCIUSIT || ProfilePeppol.URNFor("IT") != URNPeppol {
