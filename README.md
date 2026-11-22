@@ -389,7 +389,7 @@ What one call allocates, as `go test -benchmem` counts it, against the other Go 
 | Embed the XML in a PDF | 245 KB in 456 allocations | 1.3 MB in 9,593 |
 | Check a 149 KB hybrid PDF | 701 KB in 2,376 allocations | 896 KB in 24,617 |
 
-The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11-22/tables.md), and a comparison with 32 TypeScript, Python and Rust libraries is in [bench/polyglot](bench/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
+The benchmarks have their own repository, [ritoon/invoice-bench](https://github.com/ritoon/invoice-bench): the full tables are in [ecosystem/results](https://github.com/ritoon/invoice-bench/blob/main/ecosystem/results/2026-11-22/tables.md), and the comparison with the TypeScript, Python, Rust, Java, C#, C, C++ and PHP libraries is in [polyglot](https://github.com/ritoon/invoice-bench/tree/main/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
 
 ## Limitations
 

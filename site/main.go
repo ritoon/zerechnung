@@ -59,6 +59,7 @@ var dataFS embed.FS
 const (
 	defaultBase = "https://ritoon.github.io/zerechnung/"
 	repoURL     = "https://github.com/ritoon/zerechnung"
+	benchURL    = "https://github.com/ritoon/invoice-bench" // the benchmarks
 	sourceLang  = "en"
 	// menuRows is the number of languages per column in the language menu.
 	menuRows = 12
@@ -171,6 +172,9 @@ func (p *page) EditURL(l *lang) string {
 
 // ExamplesURL returns the GitHub folder of the example programs.
 func (p *page) ExamplesURL() string { return p.Repo + "/tree/main/site/examples" }
+
+// BenchURL returns the repository of the benchmarks.
+func (p *page) BenchURL() string { return benchURL }
 
 // Codes returns the language codes, for the redirection of the root page.
 func (p *page) Codes() []string {

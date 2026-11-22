@@ -5,7 +5,6 @@
 .github
 .claude
 **/.DS_Store
-bench
 conformance
 docs
 site

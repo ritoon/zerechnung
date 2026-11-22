@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <!-- Shared harness: corpus, timing loop, checks and JSONL output. BCL only. -->
-  <PropertyGroup>
-    <OutputType>Library</OutputType>
-    <RootNamespace>Bench</RootNamespace>
-    <AssemblyName>Bench.Harness</AssemblyName>
-  </PropertyGroup>
-</Project>
