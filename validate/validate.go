@@ -1,5 +1,5 @@
 // Package validate checks CII and UBL invoices: CII invoices against the XML
-// schema of their Factur-X profile, the EN 16931 business rules, the
+// schema of their profile, the EN 16931 business rules, the
 // Factur-X profile rules, and optionally the French (BR-FR) and German
 // (BR-DE) rules, the profiles that France and Germany admit, the checks of
 // Chorus Pro for French B2G invoices, the Peppol BIS Billing 3.0 rules, the
@@ -57,8 +57,13 @@
 // (Options.Hybrid, which zerechnung.Check sets). Otherwise an EN 16931 CII
 // invoice, whose specification identifier urn:cen.eu:en16931:2017 says
 // nothing more than "EN 16931 without a CIUS", is checked against the CEN
-// rules, as the KoSIT validator does. See packages internal/rules/en16931
-// and internal/rules/facturx.
+// rules, as the KoSIT validator does. The schema follows: the Factur-X
+// schema of the EN 16931 profile in a Factur-X PDF, the complete CII D16B
+// schema of the CEN syntax binding otherwise, which accepts the elements of
+// D16B outside the EN 16931 data set (the CEN syntax rules CII-SR report
+// them, mostly as warnings) but a single preceding invoice reference (BG-3).
+// See packages internal/rules/en16931, internal/rules/facturx and
+// internal/schema.
 //
 // A FatturaPA document, the national format of the Italian SDI, is checked
 // against the FatturaPA 1.2 schema (the Schema rule set, with the same XSD-*
@@ -193,12 +198,13 @@ type Options struct {
 	RejectBasicWL bool
 	// Hybrid tells that the XML is the invoice of a Factur-X or ZUGFeRD PDF.
 	// An EN 16931 invoice is then checked against the Factur-X 1.09.2
-	// schematron of the EN 16931 profile instead of the CEN rules alone:
-	// its specification identifier (BT-24) does not tell a Factur-X invoice
-	// from a plain EN 16931 CII invoice, the PDF does. zerechnung.Check and
-	// zerechnung.Create set it; set it when validating the XML of a Factur-X
-	// PDF extracted by other means. BASIC and EXTENDED invoices are checked
-	// against their Factur-X schematron whatever Hybrid.
+	// schematron and schema of the EN 16931 profile instead of the CEN rules
+	// alone and the CII D16B schema: its specification identifier (BT-24)
+	// does not tell a Factur-X invoice from a plain EN 16931 CII invoice, the
+	// PDF does. zerechnung.Check and zerechnung.Create set it; set it when
+	// validating the XML of a Factur-X PDF extracted by other means. BASIC
+	// and EXTENDED invoices are checked against their Factur-X schematron
+	// whatever Hybrid.
 	Hybrid bool
 	// PDFA selects the PDF/A checks zerechnung.Check applies to the PDF
 	// container: all of them by default (PDFAFull), or those that need not
