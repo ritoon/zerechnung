@@ -43,7 +43,11 @@
 // package facturae) is checked against the XML schema of its version, part
 // of the Schema rule set, and for values that can be read (FE-01). Facturae
 // is not a syntax of EN 16931: the other rule sets do not apply, which the
-// warning FE-02 says whatever the rule sets.
+// warning FE-02 says whatever the rule sets. The FACe rule set, for the
+// invoices sent to the Spanish public administrations, requires its XAdES
+// signature and checks it against the signature policy of Facturae (the
+// ES-SIG rules of facturae.VerifySignature); without it, the signature is
+// not checked, as an invoice between businesses need not be signed yet.
 //
 // A CII invoice of the BASIC or EXTENDED profile is checked against the
 // Factur-X 1.09.2 schematron of its profile, the reference of these
@@ -130,6 +134,7 @@ const (
 	SourcePT        = rules.SourcePT
 	SourceSDI       = rules.SourceSDI
 	SourceSignature = rules.SourceSignature
+	SourceFacturae  = rules.SourceFacturae
 )
 
 // RuleSet selects groups of rules.
@@ -148,6 +153,7 @@ const (
 	Netherlands                        // Dutch rules of NLCIUS (BR-NL), and for UBL the SI-UBL 2.0 version check (SI-V20-INV-R000) and the rules of the G-account extension (BR-GA)
 	Italy                              // Italian rules of the CIUS-IT (BR-IT) and of its extensions (BR-IT-DE), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
 	Portugal                           // Portuguese rules of the CIUS-PT schematron of eSPap (BR-CIUS-PT, DT-CIUS-PT), the check of the NIF (PT-NIF-*) and of the UBL syntax of a CIUS-PT invoice (PT-SYNTAX-01)
+	FACe                               // Spanish B2G checks for FACe on a Facturae document: its XAdES-EPES signature is required and checked against the signature policy of Facturae (ES-SIG-*, see facturae.VerifySignature)
 
 	// Default is the set used when Options.Rules is zero: schema, EN 16931
 	// and profile rules. Whatever the rule sets, the German rules apply to
@@ -205,12 +211,16 @@ type Options struct {
 	PublicBuyer PublicBuyer
 
 	// ReceivedAt is the time the SdI receives a FatturaPA document: the date
-	// of the invoice must not be later (00403). The current time when zero.
+	// of the invoice must not be later (00403). Under the FACe rule set, it
+	// is the time FACe receives a Facturae document: the signing
+	// certificate must be valid then, and the signing time not later. The
+	// current time when zero.
 	ReceivedAt time.Time
 
 	// Trust gives what zerechnung.Check verifies the certificates of the
-	// signatures of a PDF against. It has no effect on the validation of
-	// an XML document.
+	// signatures of a PDF against, and, under the FACe rule set, what XML
+	// verifies the certificate of the signature of a Facturae document
+	// against. It has no effect on the validation of other XML documents.
 	Trust TrustOptions
 }
 
@@ -288,11 +298,17 @@ func XML(data []byte, opts *Options) *Report {
 		r.Add(Finding{Rule: "XML", Severity: Error, Source: SourceSyntax, Message: err.Error()})
 		return r
 	}
-	return Tree(root, opts)
+	r := Tree(root, opts)
+	if facturae.IsFacturae(root) && opts.Rules&FACe != 0 && signedTree(root) {
+		checkFacturaeSignature(data, opts, r)
+	}
+	return r
 }
 
 // Tree validates an already parsed CII or UBL invoice, a ZUGFeRD 1.0
-// invoice, a FatturaPA document or a Facturae document.
+// invoice, a FatturaPA document or a Facturae document. A tree does not
+// keep what the signature of a Facturae document covers: under the FACe
+// rule set, Tree only reports a missing signature, XML checks it.
 func Tree(root *xmltree.Node, opts *Options) *Report {
 	if opts == nil {
 		opts = &Options{}
@@ -471,6 +487,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	// define (BR-AA-*, UBL-SR-38…): CheckCEN reports them in the EN 16931
 	// rule set for a CIUS-PT invoice.
 	add(Portugal, newRules(pt.CENCatalog, slices.Concat(en16931.Catalog, ubl.Catalog)))
+	add(FACe, faceCatalog())
 	return out
 }
 

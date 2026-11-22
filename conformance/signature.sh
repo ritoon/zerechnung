@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Checks that the CAdES and XAdES signatures of package fatturapa
-# interoperate with OpenSSL, xmlsec1 and EU DSS 6.5.1, and the PAdES
-# signatures of package zerechnung with pdfsig (Poppler) and EU DSS, both
-# ways.
+# Checks that the CAdES and XAdES signatures of package fatturapa and the
+# XAdES-EPES signatures of package facturae interoperate with OpenSSL,
+# xmlsec1 and EU DSS 6.5.1, and the PAdES signatures of package zerechnung
+# with pdfsig (Poppler) and EU DSS, both ways.
 #
 #   conformance/signature.sh [dir]
 #
@@ -32,6 +32,14 @@
 #  7. signs the unsigned invoice with DSS in PAdES Baseline B (RSA, RSA-PSS,
 #     ECDSA), and verifies those files with VerifySignatures
 #     (TestForeignPAdES, FX_PADES_FOREIGN).
+#  8. does the same for Facturae, in dir/signature/facturae: the files that
+#     facturae.Sign produces are verified by xmlsec1 and by DSS
+#     (conformance/signature/FacturaeCheck.java), which must find each one
+#     XAdES-EPES under the signature policy of Facturae v3.1, with the role
+#     emisor and ds:KeyInfo signed; xmlsec1 signs the invoice (a plain XML
+#     signature, and a template with the XAdES-EPES properties) and DSS
+#     signs it under the policy (EN 319 132-1 and XAdES 1.3.2, RSA, RSA-PSS,
+#     ECDSA); facturae.VerifySignature verifies those files.
 #
 # It needs go, openssl 3, xmlsec1, pdfsig, java 21 and mvn (Maven). Java,
 # xmlsec1 and pdfsig run in the CI only: the packages stay pure Go.
@@ -181,3 +189,98 @@ dss sign-pades "$KEYS/pades/signer-ec.p12" test "$PADES/invoice.pdf" "$PADES_FOR
 log "the package verifies $(find "$PADES_FOREIGN" -name 'dss-pades-*.pdf' | wc -l | tr -d ' ') PDF signed by DSS"
 (cd "$here/.." && FX_PADES_FOREIGN="$PADES_FOREIGN" go test -count=1 -v -run '^TestForeignPAdES$' . |
 	grep -E '^(ok|FAIL|---|\s+---|\s+sign_interop_test)')
+
+# Facturae: XAdES-EPES under the signature policy of Facturae v3.1.
+FWORK=$WORK/facturae
+FOURS=$FWORK/ours
+FFOREIGN=$FWORK/foreign
+FKEYS=$KEYS/facturae
+mkdir -p "$FOURS" "$FFOREIGN" "$FKEYS"
+policy=http://www.facturae.es/politica_de_firma_formato_facturae/politica_de_firma_formato_facturae_v3_1.pdf
+
+log "Facturae files signed by the package"
+(cd "$here/.." && FX_SIG_OUT="$FOURS" go test -count=1 -run '^TestWriteInteropFiles$' ./facturae)
+mv "$FOURS"/signer-*.key "$FKEYS"/
+cp "$FOURS"/b2g.xml "$FOURS"/root.pem "$FOURS"/intermediate.pem "$FFOREIGN"/
+fdoc=$FOURS/b2g.xml
+facturae_dss() { java -cp "$(cat "$WORK/classpath.txt")" "$here/signature/FacturaeCheck.java" "$@"; }
+
+log "$(xmlsec1 --version) verifies the Facturae files"
+for f in "$FOURS"/facturae-*.xml; do
+	case $f in *-pss.xml) $xmlsec13 || { echo "SKIP ${f##*/}: $(xmlsec1 --version) does not know RSA-PSS"; continue; } ;; esac
+	xmlsec1 --verify --trusted-pem "$FOURS/root.pem" --id-attr:Id "http://uri.etsi.org/01903/v1.3.2#:SignedProperties" \
+		--id-attr:Id "http://www.w3.org/2000/09/xmldsig#:KeyInfo" \
+		"$f" >"$WORK/xmlsec1.log" 2>&1 || { cat "$WORK/xmlsec1.log" >&2; die "xmlsec1: ${f##*/} does not verify"; }
+	echo "PASS ${f##*/}"
+done
+
+log "DSS verifies the Facturae files as XAdES-EPES"
+facturae_dss verify "$FOURS/root.pem" "$FOURS/intermediate.pem" "$FOURS"/facturae-*.xml
+
+log "xmlsec1 signs Facturae"
+# sign_xmlsec1_facturae out key signature-file: b2g.xml with the signature
+# template of signature-file as the last child of the root, signed by
+# xmlsec1.
+sign_xmlsec1_facturae() {
+	local out=$1 key=$2 sig=$3
+	awk -v sig="$sig" '
+		/^<\/fe:Facturae>/ { while ((getline line < sig) > 0) print line }
+		{ print }' "$fdoc" >"$FWORK/template.xml"
+	xmlsec1 --sign "${lax[@]}" --privkey-pem "$FKEYS/signer-$key.key,$FOURS/signer-$key.pem" \
+		--id-attr:Id "http://uri.etsi.org/01903/v1.3.2#:SignedProperties" --output "$FFOREIGN/$out" "$FWORK/template.xml"
+	echo "wrote $out"
+}
+# A plain XML signature, without XAdES properties.
+cat >"$FWORK/plain.xml" <<SIG
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"/>
+<ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></ds:Transforms>
+<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue/></ds:Reference>
+</ds:SignedInfo><ds:SignatureValue/>
+<ds:KeyInfo><ds:X509Data><ds:X509Certificate/></ds:X509Data></ds:KeyInfo></ds:Signature>
+SIG
+sign_xmlsec1_facturae xmlsec1-plain-ec.xml ec "$FWORK/plain.xml"
+# A template with the XAdES-EPES properties of the policy. xmlsec1 fills
+# ds:KeyInfo after it computes the digests: no reference covers it, and
+# xades:SigningCertificateV2 binds the certificate.
+certdigest=$(openssl x509 -in "$FOURS/signer-rsa.pem" -outform DER | openssl dgst -sha256 -binary | openssl base64 -A)
+cat >"$FWORK/epes.xml" <<SIG
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="Signature">
+<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
+<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+<ds:Reference Id="Reference-Document" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></ds:Transforms>
+<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue/></ds:Reference>
+<ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SignedProperties">
+<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue/></ds:Reference>
+</ds:SignedInfo><ds:SignatureValue/>
+<ds:KeyInfo><ds:X509Data><ds:X509Certificate/></ds:X509Data></ds:KeyInfo>
+<ds:Object><xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Target="#Signature">
+<xades:SignedProperties Id="SignedProperties"><xades:SignedSignatureProperties>
+<xades:SigningTime>$(date -u +%Y-%m-%dT%H:%M:%SZ)</xades:SigningTime>
+<xades:SigningCertificateV2><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>$certdigest</ds:DigestValue></xades:CertDigest></xades:Cert></xades:SigningCertificateV2>
+<xades:SignaturePolicyIdentifier><xades:SignaturePolicyId><xades:SigPolicyId><xades:Identifier>$policy</xades:Identifier></xades:SigPolicyId>
+<xades:SigPolicyHash><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><ds:DigestValue>Ohixl6upD6av8N7pEvDABhEL6hM=</ds:DigestValue></xades:SigPolicyHash>
+</xades:SignaturePolicyId></xades:SignaturePolicyIdentifier>
+<xades:SignerRole><xades:ClaimedRoles><xades:ClaimedRole>emisor</xades:ClaimedRole></xades:ClaimedRoles></xades:SignerRole>
+</xades:SignedSignatureProperties><xades:SignedDataObjectProperties>
+<xades:DataObjectFormat ObjectReference="#Reference-Document"><xades:MimeType>text/xml</xades:MimeType></xades:DataObjectFormat>
+</xades:SignedDataObjectProperties></xades:SignedProperties></xades:QualifyingProperties></ds:Object></ds:Signature>
+SIG
+sign_xmlsec1_facturae xmlsec1-epes-rsa.xml rsa "$FWORK/epes.xml"
+
+log "DSS signs Facturae under the policy"
+for key in rsa ec; do
+	openssl pkcs12 -export -inkey "$FKEYS/signer-$key.key" -in "$FOURS/signer-$key.pem" -certfile "$FOURS/intermediate.pem" \
+		-passout pass:test -out "$FKEYS/signer-$key.p12"
+done
+facturae_dss sign "$FKEYS/signer-rsa.p12" test "$fdoc" "$FFOREIGN" rsa
+facturae_dss sign "$FKEYS/signer-rsa.p12" test "$fdoc" "$FFOREIGN" rsa-v1 v1
+facturae_dss sign "$FKEYS/signer-rsa.p12" test "$fdoc" "$FFOREIGN" pss pss
+facturae_dss sign "$FKEYS/signer-ec.p12" test "$fdoc" "$FFOREIGN" ec
+log "DSS verifies the Facturae files it signed"
+facturae_dss verify "$FOURS/root.pem" "$FOURS/intermediate.pem" "$FFOREIGN"/dss-*.xml
+
+log "the package verifies $(find "$FFOREIGN" -name '*-*' | wc -l | tr -d ' ') Facturae files signed by the other tools"
+(cd "$here/.." && FX_SIG_FOREIGN="$FFOREIGN" go test -count=1 -v -run '^TestForeignSignatures$' ./facturae |
+	grep -E '^(ok|FAIL|---|\s+---|\s+interop_test)')

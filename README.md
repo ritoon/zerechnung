@@ -14,7 +14,7 @@
 
 ZeRechnung is a Go package for e-invoices in the Factur-X, ZUGFeRD and XRechnung formats.
 
-Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL), signs hybrid PDFs in PAdES and verifies their signatures. It reads, writes, validates, signs and verifies FatturaPA, the national format of the Italian SDI, and reads, writes and validates Facturae, the Spanish format of FACe and of the B2B reform.
+Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL), signs hybrid PDFs in PAdES and verifies their signatures. It reads, writes, validates, signs and verifies FatturaPA, the national format of the Italian SDI, and Facturae, the Spanish format of FACe and of the B2B reform.
 
 - Pure Go, standard library only. No CGO, no Java, no external binary, no network calls.
 - All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS and CIUS-IT, in CII and UBL 2.1, and CIUS-PT in UBL 2.1.
@@ -297,6 +297,20 @@ doc, sig, err := fatturapa.Unwrap(p7m)
 report := fatturapa.VerifySignature(p7m, &fatturapa.VerifyOptions{Roots: qualifiedCAs, OCSP: responses, Name: name})
 ```
 
+### Sign and verify a Facturae invoice
+
+FACe only receives signed Facturae invoices, and the Spanish B2B reform asks for an advanced electronic signature too (Real Decreto 238/2026, article 7.3). `facturae.Sign` writes the XAdES-EPES signature of the signature policy of Facturae v3.1, enveloped in the document; the key can stay in its device here too:
+
+```go
+signed, err := facturae.Sign(faceXML, &facturae.SignOptions{Signer: key, Chain: []*x509.Certificate{cert, issuingCA}})
+
+// On reception: who signed, when, as what, under which policy, once the signature verifies.
+sig, err := facturae.ReadSignature(signed)
+
+// The policy, the signing time, the role and the certificate (ES-SIG-01 not signed, ES-SIG-03 policy, ES-SIG-09 untrusted...).
+report := facturae.VerifySignature(signed, &facturae.VerifyOptions{Roots: qualifiedCAs, OCSP: responses})
+```
+
 The runnable examples are in [example_test.go](example_test.go) and on [pkg.go.dev](https://pkg.go.dev/github.com/ritoon/zerechnung).
 
 ## Command line
@@ -331,7 +345,7 @@ warning [PDF] PDF-06: the catalog has no PDF/A output intent (/S /GTS_PDFA1) (ca
 |---|---|
 | `zerechnung info invoice.pdf` | Summarises the PDF and the invoice |
 | `zerechnung extract [-o out.xml] invoice.pdf` | Extracts the XML |
-| `zerechnung validate [-fr] [-de] [-auto] [-pdfa basic] [-roots roots.pem] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae), and exits with code 1 on errors; `-pdfa basic` skips the PDF/A checks that read the pages and the fonts, `-roots` checks the signatures of a PDF against trusted roots |
+| `zerechnung validate [-fr] [-de] [-auto] [-face] [-pdfa basic] [-roots roots.pem] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae, whose signature it describes), and exits with code 1 on errors; `-face` requires the signature of a Facturae invoice and checks it, `-pdfa basic` skips the PDF/A checks that read the pages and the fonts, `-roots` checks the signatures of a PDF, and with `-face` that of a Facturae invoice, against trusted roots |
 | `zerechnung embed -xml invoice.xml [-attach file]... [-convert-pdfa] input.pdf` | Embeds an XML invoice in a PDF, converting it to PDF/A-3 first with `-convert-pdfa` |
 | `zerechnung pdfa [-o out.pdf] input.pdf` | Converts a PDF to PDF/A-3, or prints why it cannot, one reason per line |
 | `zerechnung sign -key key.pem -cert cert.pem [-certify 1\|2\|3] [-o out.pdf] input.pdf` | Signs a PDF in PAdES Baseline B-B with a PEM key and its certificate chain, or certifies it |
@@ -372,9 +386,10 @@ The [server's README](server/README.md) documents the endpoints, the settings an
 | FatturaPA signatures, CAdES (`.xml.p7m`) and XAdES | yes | yes, Baseline B | the SDI checks (§5.1.1) and the file size |
 | PAdES signatures of hybrid PDFs | yes | yes, Baseline B-B, B-T, B-LT and B-LTA, approval or certification | integrity, PAdES baseline level, DocMDP, the changes after each signature, trust and revocation against the data you pass |
 | Facturae 3.2, 3.2.1 and 3.2.2, Spain | yes | yes (3.2.2) | XSD of its version; EN 16931 rules through CII or UBL |
+| Facturae signatures, XAdES-EPES | yes | yes, under the policy of Facturae v3.1 | the policy, the role of the signer and the certificate (FACe rule set) |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
 
-Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the EXTENDED-CTC-FR rules of the FNFE-MPE (France_RFE 1.4.0.04, CII and UBL), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Portuguese CIUS-PT rules (schematron 2.1.1 of eSPap), the Chorus Pro checks, 72 checks of the PDF container and 14 checks of its signatures. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
+Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the EXTENDED-CTC-FR rules of the FNFE-MPE (France_RFE 1.4.0.04, CII and UBL), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Portuguese CIUS-PT rules (schematron 2.1.1 of eSPap), the Chorus Pro checks, the FACe checks of the Facturae signature, 72 checks of the PDF container and 14 checks of its signatures. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
 
 ## How accurate is it?
 
@@ -388,6 +403,7 @@ Every pull request runs the reference validators on the official test corpora an
 - veraPDF corpus, PDF/A-2b and PDF/A-3b: `Check` reports 609 of the 614 invalid test files under a rule of the right clause, and no PDF/A error on the 384 valid ones. The 5 files it misses are listed with their reason in [check_pdfa_corpus_test.go](check_pdfa_corpus_test.go).
 - OpenSSL, xmlsec1 and EU DSS on FatturaPA signatures, both ways: each verifies the CAdES and XAdES files the package signs (DSS finds them CAdES and XAdES Baseline B), and the package verifies the 13 files they sign.
 - pdfsig and EU DSS on PAdES signatures, both ways: pdfsig verifies the signed hybrid invoices, DSS finds them PAdES-BASELINE-B, -T and -LTA as written (TOTAL_PASSED for B-LTA, which carries its revocation data), and the package verifies the PDF that DSS signs. veraPDF passes the signed PDF/A-3 invoices.
+- xmlsec1 and EU DSS on Facturae signatures, both ways: each verifies the files `facturae.Sign` writes (DSS finds them XAdES Baseline B under the policy of Facturae v3.1, with the role of the signer and `ds:KeyInfo` signed), and the package verifies the 6 files they sign.
 - veraPDF on the files `ConvertPDFA` writes: of the 998 test files of the same corpus, 836 are converted and 835 of them pass; the other one is a known failure (a value type of an XMP extension schema), listed in [convert_corpus_test.go](convert_corpus_test.go). The non-conforming PDFs the tests generate all pass once converted.
 
 A new difference fails the build. The method is described on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy#measured-accuracy).
@@ -427,7 +443,8 @@ The benchmarks have their own repository, [ritoon/invoice-bench](https://github.
 - ZUGFeRD 1.0 is read only, and written back as Factur-X.
 - FatturaPA is validated against its XSD schema 1.2.4 (the content of the XML signature excepted) and against the 40 checks of the SDI on the content that need none of its data (codes 00300 to 00476 of appendix 1 of its technical specifications, under these codes): the tax codes are checked by their format and check character, not looked up in the Anagrafe tributaria, and neither the duplicate invoices (00404) nor the recipient codes (00311, 00312) are checked. The date of the invoice is compared with `Options.ReceivedAt`, the current time by default (00403). Convert it to UBL to apply the CIUS-IT rules and those of its extensions. `Marshal` writes one invoice per file. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry, and against the 45 rules of the Italian extensions of appendix 3 (BR-IT-DE-*, EXT-IT) when the seller is in Italy: on the UBL extensions and elements of the domestic invoice, which only UBL carries (BR-IT-DE-052 also applies to CII). `ubl.Parse` and `ubl.Marshal` map them to the FatturaPA data of the model (appendix 4.2) when the specification identifier declares the extension, so FatturaPA converted to UBL and back keeps what they carry; the rest, such as the bank details of FatturaPA or the CIG and CUP codes that BT-17 and BT-11 cannot hold, is reported by strict mode. CII carries none of it.
 - FatturaPA signatures are written in Baseline B, without timestamps (B-T and above). `VerifySignature` fetches nothing: it checks trust against the roots you pass (the list of qualified authorities the SDI accepts is not embedded) and revocation against the CRLs and OCSP responses you pass.
-- Facturae is validated against the XSD schema of its version (the content of the XML signature and of the extensions excepted): no official mapping to EN 16931 is published, so the `facturae` package follows its own, described in its documentation, and the EN 16931 rules apply once the invoice is converted to UBL or CII. The XAdES signature is neither created nor verified. Spain has published no Schematron nor NIF check for its B2B invoices, so there is no Spanish rule set.
+- Facturae is validated against the XSD schema of its version (the content of the XML signature and of the extensions excepted): no official mapping to EN 16931 is published, so the `facturae` package follows its own, described in its documentation, and the EN 16931 rules apply once the invoice is converted to UBL or CII. Spain has published no Schematron nor NIF check for its B2B invoices, so there is no Spanish rule set: the FACe rule set only checks the signature.
+- Facturae signatures are written in the basic format of the signature policy of Facturae v3.1 (XAdES-EPES), without the timestamp and validation data of its second format (XAdES-X-L). `VerifySignature` fetches nothing, as for FatturaPA: trust against the roots you pass (neither the Spanish trusted list nor @firma is embedded), revocation against the CRLs and OCSP responses you pass. A signature in SHA-1 is refused. Rewriting a signed invoice with `Marshal` drops its signature: sign the new document again.
 - CIUS-PT invoices are checked against the schematron 2.1.1 of eSPap, which replaces the CEN artefacts for them, as on the validator of the Portuguese public administration; the CIUS-PT has no CII binding, so a CII invoice that declares it gets `PT-SYNTAX-01`. The check digit of a Portuguese VAT identifier (NIF) is only a warning (`PT-NIF-02`), as the official examples carry invented NIFs. The CIUS-PT does not put the ATCUD, the QR code or the certificate of the invoicing software in the XML: only the format of the structured notes that carry the number and hash of a certified program is checked. SAF-T (PT), the e-fatura communication and the transmission are out of scope.
 - PAdES signatures are qualified only if your certificate and signing device are: the package reads what the certificate declares (QCStatements), and checks trust against the roots you pass, as no EU trusted list is embedded. Nothing is fetched: time-stamp tokens come from your `Timestamper`, revocation data from you. Signature fields are invisible, without an appearance. `VerifySignatures` classifies the changes after a signature by the objects they touch, without rendering the pages. Encrypted PDFs are refused, and veraPDF checks the signed PDF/A-3 files only, not PDF/A-4.
 - Only EN 16931-1:2017 is supported. An invoice whose specification identifier (BT-24) names EN 16931-1:2026, such as `urn:cen.eu:en16931:2026`, gets the error `EN16931-EDITION-01` and no other rule, since the 2026 validation artefacts are not published yet. Force a profile (`Options.Profile`, `-profile`) to apply the 2017 rules anyway. `Create` and `embed` do not write this edition.
@@ -444,7 +461,7 @@ The full list is on [Coverage and accuracy](https://github.com/ritoon/zerechnung
 | `cii` | Read and write CII XML, profile by profile |
 | `ubl` | Read and write UBL 2.1 XML (Invoice, CreditNote) |
 | `fatturapa` | Read, write, sign and verify FatturaPA 1.2 files (Italy) |
-| `facturae` | Read Facturae 3.2, 3.2.1 and 3.2.2 XML and write Facturae 3.2.2 (Spain) |
+| `facturae` | Read Facturae 3.2, 3.2.1 and 3.2.2 XML, write Facturae 3.2.2, sign and verify it in XAdES-EPES (Spain) |
 | `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-DE, Peppol, BR-NL, BR-IT, Chorus Pro |
 | `cmd/zerechnung` | The command-line tool |
 | `server` | The HTTP server and its Docker image (a module of its own) |

@@ -133,13 +133,13 @@ jobs:
           retention-days: 30
 
   signature:
-    # The CAdES and XAdES signatures of package fatturapa against OpenSSL
-    # 3.0, xmlsec1 1.2 and EU DSS 6.5.1, and the PAdES signatures of package
-    # zerechnung against pdfsig (Poppler) and EU DSS, both ways: each tool
-    # verifies the files the packages sign, and the packages verify the
-    # files the tools sign. Java, xmlsec1 and pdfsig run in the CI only: the
-    # packages are pure Go.
-    name: Interopérabilité des signatures FatturaPA et PAdES
+    # The CAdES and XAdES signatures of package fatturapa, the XAdES-EPES
+    # signatures of package facturae and the PAdES signatures of package
+    # zerechnung against OpenSSL 3.0, xmlsec1 1.2, pdfsig (Poppler) and EU
+    # DSS 6.5.1, both ways: each tool verifies the files the packages sign,
+    # and the packages verify the files the tools sign. Java, xmlsec1 and
+    # pdfsig run in the CI only: the packages are pure Go.
+    name: Interopérabilité des signatures FatturaPA, Facturae et PAdES
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

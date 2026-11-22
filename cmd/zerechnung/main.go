@@ -3,20 +3,22 @@
 // invoice, a FatturaPA document (Italy) and a Facturae document (Spain),
 // whose syntax is detected from the root element; validate checks a
 // FatturaPA or Facturae document against its XML schema, and a FatturaPA
-// document against the checks of the SDI on its content too, and json also
-// opens a FatturaPA file signed in CAdES (.xml.p7m).
+// document against the checks of the SDI on its content too, describes the
+// XAdES signature of a Facturae document, which -face requires and checks
+// as FACe does, and json also opens a FatturaPA file signed in CAdES
+// (.xml.p7m).
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
-//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
+//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-face] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
 //	zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-o out.pdf] input.pdf
 //	zerechnung sign -key key.pem -cert cert.pem [-reason r] [-location l] [-certify 1|2|3] [-o out.pdf] input.pdf
 //	zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
-//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt]
+//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt] [-face]
 //
 // validate exits with status 1 when the invoice has errors. It checks the
-// signatures of a signed PDF, against the trusted roots of -roots when
-// given. sign signs a PDF in PAdES Baseline B-B with a key and its
+// signatures of a signed PDF, and with -face the signature of a Facturae
+// invoice, against the trusted roots of -roots when given. sign signs a PDF in PAdES Baseline B-B with a key and its
 // certificate chain in PEM files.
 package main
 
@@ -49,18 +51,19 @@ const usage = `zerechnung reads, validates and creates Factur-X / ZUGFeRD / XRec
 validate and json also accept an XML invoice in CII or UBL 2.1 syntax, a
 FatturaPA document and a Facturae document: validate checks them against
 their XML schema, and FatturaPA against the checks of the SDI on its content
-too, json gives an array when one holds several invoices and also opens a
-FatturaPA file signed in CAdES (.xml.p7m).
+too, and describe the XAdES signature of a Facturae document (-face requires
+it and checks it as FACe does), json gives an array when one holds several
+invoices and also opens a FatturaPA file signed in CAdES (.xml.p7m).
 
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
   zerechnung info invoice.pdf
-  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
+  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-face] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-roots roots.pem] [-json] invoice.pdf|invoice.xml
   zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-convert-pdfa] [-o out.pdf] input.pdf
   zerechnung sign -key key.pem -cert cert.pem [-reason r] [-location l] [-contact c] [-name n] [-field f] [-certify 1|2|3] [-hash sha256|sha384|sha512] [-pss] [-o out.pdf] input.pdf
   zerechnung pdfa [-o out.pdf] input.pdf
   zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
-  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt]
+  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt] [-face]
 
 Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it, cius-pt.
 `
@@ -207,10 +210,11 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	nl := fs.Bool("nl", false, "apply the Dutch rules BR-NL of NLCIUS (applied anyway when BT-24 is the NLCIUS identifier)")
 	ita := fs.Bool("it", false, "apply the Italian rules BR-IT of the CIUS-IT (applied anyway when BT-24 is a CIUS-IT identifier)")
 	por := fs.Bool("pt", false, "apply the Portuguese rules of the CIUS-PT (applied anyway when BT-24 is a CIUS-PT identifier)")
+	face := fs.Bool("face", false, "apply the FACe checks of Spanish B2G invoices: a Facturae document must be signed in XAdES-EPES under the signature policy of Facturae, and its signature verify (trust in the certificate and its revocation are not checked)")
 	profile := fs.String("profile", "", "validate against this profile instead of BT-24")
 	hybrid := fs.Bool("hybrid", false, "the XML is the invoice of a Factur-X PDF: check an EN 16931 invoice against the Factur-X schematron (always the case for a PDF)")
 	pdfa := fs.String("pdfa", "full", "PDF/A checks of a PDF: full, or basic to skip those that read the pages and the font programs (PDF-41 to PDF-69, PDF-71, PDF-72), about ten times faster")
-	roots := fs.String("roots", "", "PEM file of the trusted root certificates the signatures of a PDF are checked against")
+	roots := fs.String("roots", "", "PEM file of the trusted root certificates the signatures of a PDF, and of a Facturae invoice with -face, are checked against")
 	asJSON := fs.Bool("json", false, "print the report as JSON")
 	_, data, err := oneFile(fs, args)
 	if err != nil {
@@ -244,7 +248,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 			return 0, fmt.Errorf("unknown profile %q", *profile)
 		}
 	}
-	if *fr || *de || *cpro || *pep || *nl || *ita || *por {
+	if *fr || *de || *cpro || *pep || *nl || *ita || *por || *face {
 		opts.Rules = validate.Default
 		if *fr {
 			opts.Rules |= validate.France
@@ -267,10 +271,14 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		if *por {
 			opts.Rules |= validate.Portugal
 		}
+		if *face {
+			opts.Rules |= validate.FACe
+		}
 	}
 	opts.PublicBuyer = validate.PublicBuyer{ServiceCodeRequired: *serviceRequired, EngagementRequired: *engagementRequired}
 	var r *validate.Report
-	var format string // the format of a FatturaPA (FPA12 or FPR12) or Facturae (3.2, 3.2.1 or 3.2.2) document
+	var format string            // the format of a FatturaPA (FPA12 or FPR12) or Facturae (3.2, 3.2.1 or 3.2.2) document
+	var signature *signatureInfo // the signature of a Facturae document
 	if isPDF(data) {
 		r, _, err = zerechnung.Check(data, opts)
 		if err != nil {
@@ -282,17 +290,19 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 			format = strings.TrimSpace("FatturaPA " + root.Attr("versione"))
 		} else if perr == nil && facturae.IsFacturae(root) {
 			format = "Facturae " + facturae.Version(root)
+			signature = facturaeSignature(data)
 		}
 	}
 	if *asJSON {
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		out := struct {
-			Profile  string             `json:"profile"`
-			Format   string             `json:"format,omitempty"`
-			Valid    bool               `json:"valid"`
-			Findings []validate.Finding `json:"findings"`
-		}{r.Profile.String(), format, r.Valid(), r.Findings}
+			Profile   string             `json:"profile"`
+			Format    string             `json:"format,omitempty"`
+			Signature *signatureInfo     `json:"signature,omitempty"`
+			Valid     bool               `json:"valid"`
+			Findings  []validate.Finding `json:"findings"`
+		}{r.Profile.String(), format, signature, r.Valid(), r.Findings}
 		if out.Findings == nil {
 			out.Findings = []validate.Finding{}
 		}
@@ -305,6 +315,9 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		} else {
 			fmt.Fprintf(w, "Profile: %s\n", r.Profile)
 		}
+		if signature != nil {
+			fmt.Fprintf(w, "Signature: %s\n", signature)
+		}
 		for _, f := range r.Findings {
 			fmt.Fprintln(w, f)
 		}
@@ -314,6 +327,62 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+// signatureInfo describes the XAdES signature of a Facturae document, once
+// its integrity is checked (facturae.ReadSignature).
+type signatureInfo struct {
+	Signer    string     `json:"signer,omitempty"`
+	Time      *time.Time `json:"time,omitempty"`
+	Role      string     `json:"role,omitempty"`
+	Policy    string     `json:"policy,omitempty"`
+	Qualified bool       `json:"qualified"`
+	Error     string     `json:"error,omitempty"`
+}
+
+// facturaeSignature describes the signature of a Facturae document, nil
+// when it is not signed.
+func facturaeSignature(data []byte) *signatureInfo {
+	sig, err := facturae.ReadSignature(data)
+	switch {
+	case errors.Is(err, facturae.ErrNotSigned):
+		return nil
+	case err != nil:
+		return &signatureInfo{Error: strings.TrimPrefix(err.Error(), "facturae: ")}
+	}
+	info := &signatureInfo{Signer: sig.Certificate.Subject.String(), Role: string(sig.Role), Qualified: sig.Qualified}
+	if t := sig.SigningTime; !t.IsZero() {
+		info.Time = &t
+	}
+	if sig.Policy != nil {
+		info.Policy = sig.Policy.Identifier
+	}
+	return info
+}
+
+func (s *signatureInfo) String() string {
+	if s.Error != "" {
+		return "not valid: " + s.Error
+	}
+	out := "XAdES by " + s.Signer
+	if s.Time != nil {
+		out += ", signed " + s.Time.UTC().Format(time.RFC3339)
+	}
+	if s.Role != "" {
+		out += ", role " + s.Role
+	}
+	switch s.Policy {
+	case "":
+		out += ", no signature policy"
+	case facturae.PolicyIdentifier:
+		out += ", policy of Facturae v3.1"
+	default:
+		out += ", policy " + s.Policy
+	}
+	if s.Qualified {
+		out += ", qualified certificate"
+	}
+	return out + " (integrity checked; -face checks it as FACe does)"
 }
 
 // fileList is a repeatable flag.
@@ -597,6 +666,7 @@ func rulesCmd(args []string) error {
 	nl := fs.Bool("nl", false, "include the Dutch rules of NLCIUS")
 	ita := fs.Bool("it", false, "include the Italian rules of the CIUS-IT")
 	por := fs.Bool("pt", false, "include the Portuguese rules of the CIUS-PT")
+	face := fs.Bool("face", false, "include the FACe checks of the signature of a Facturae document")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -621,6 +691,9 @@ func rulesCmd(args []string) error {
 	}
 	if *por {
 		set |= validate.Portugal
+	}
+	if *face {
+		set |= validate.FACe
 	}
 	for _, r := range validate.Catalog(set) {
 		fmt.Printf("%-28s %-8s %s\n", r.ID, r.Severity, strings.TrimSpace(r.Description))

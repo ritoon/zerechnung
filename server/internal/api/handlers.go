@@ -544,8 +544,36 @@ func (s *Server) signingProblem(w http.ResponseWriter, r *http.Request, err erro
 
 var errNotSignable = errors.New("not signable")
 
+// signFacturae answers POST /v1/sign for a Facturae document: XAdES-EPES
+// under the signature policy of Facturae (?format=xades or no format),
+// with the role of the signer of ?role (emisor, receptor or tercero; by
+// default the one that InvoiceIssuerType gives).
+func (s *Server) signFacturae(w http.ResponseWriter, r *http.Request, data []byte, now time.Time) {
+	q := r.URL.Query()
+	if f := strings.ToLower(q.Get("format")); f != "" && f != "xades" {
+		s.problem(w, r, http.StatusBadRequest, "bad_request", "invalid query", fmt.Sprintf("a Facturae document is signed in XAdES only, not %q", f))
+		return
+	}
+	role := facturae.SignerRole(strings.ToLower(q.Get("role")))
+	if role != "" && !role.Valid() {
+		s.problem(w, r, http.StatusBadRequest, "bad_request", "invalid query", fmt.Sprintf("unknown role %q (emisor, receptor, tercero)", q.Get("role")))
+		return
+	}
+	out, err := facturae.Sign(data, &facturae.SignOptions{Signer: s.Signer.Key, Chain: s.Signer.Chain, SigningTime: now, Role: role, PSS: s.Sign.PSS})
+	if err != nil {
+		s.signingProblem(w, r, fmt.Errorf("%w: %w", errNotSignable, err))
+		return
+	}
+	s.Metrics.Add("zerechnung_signatures_total", "Signatures by format.", metrics.Labels("format", "xades-epes"), 1)
+	s.count("sign", "xades-epes")
+	w.Header().Set("Content-Type", "application/xml")
+	_, _ = w.Write(out)
+}
+
 // sign is POST /v1/sign: a PDF is signed in PAdES, a FatturaPA document
-// in CAdES (.xml.p7m, ?format=cades, the default) or XAdES (?format=xades).
+// in CAdES (.xml.p7m, ?format=cades, the default) or XAdES (?format=xades),
+// a Facturae document in XAdES-EPES under the signature policy of Facturae
+// (see signFacturae).
 func (s *Server) sign(w http.ResponseWriter, r *http.Request) {
 	if err := s.signerReady(); err != nil {
 		s.signingProblem(w, r, err)
@@ -572,6 +600,10 @@ func (s *Server) sign(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/pdf")
 		_, _ = w.Write(out)
 	case looksXML(data):
+		if root, perr := xmltree.Parse(data); perr == nil && facturae.IsFacturae(root) {
+			s.signFacturae(w, r, data, now)
+			return
+		}
 		opts := &fatturapa.SignOptions{Signer: s.Signer.Key, Chain: s.Signer.Chain, SigningTime: now, PSS: s.Sign.PSS}
 		format := strings.ToLower(q.Get("format"))
 		var out []byte
@@ -626,6 +658,10 @@ type SignatureInfo struct {
 	Location      string       `json:"location,omitempty"`
 	WholeDocument *bool        `json:"whole_document,omitempty"`
 	Qualified     *bool        `json:"qualified,omitempty"`
+	// Policy and Role are the signature policy and the role of the signer
+	// of a Facturae signature (XAdES-EPES).
+	Policy string `json:"policy,omitempty"`
+	Role   string `json:"role,omitempty"`
 }
 
 // VerifyResponse is the response of POST /v1/verify.
@@ -636,8 +672,8 @@ type VerifyResponse struct {
 }
 
 // verify is POST /v1/verify: the integrity of the signatures of a PDF
-// (PAdES) or of a FatturaPA file (CAdES, XAdES). Trust in the certificates
-// is not checked.
+// (PAdES), of a FatturaPA file (CAdES, XAdES) or of a Facturae document
+// (XAdES-EPES). Trust in the certificates is not checked.
 func (s *Server) verify(w http.ResponseWriter, r *http.Request) {
 	data, err := document(r)
 	if err != nil {
@@ -660,6 +696,23 @@ func (s *Server) verify(w http.ResponseWriter, r *http.Request) {
 			resp.Error = err.Error()
 		} else if len(sigs) == 0 {
 			resp.Error = "the PDF is not signed"
+		}
+	} else if root, perr := xmltree.Parse(data); perr == nil && facturae.IsFacturae(root) {
+		sig, err := facturae.ReadSignature(data)
+		if sig != nil {
+			q := sig.Qualified
+			info := SignatureInfo{Format: "XAdES", Signer: describe(sig.Certificate), Qualified: &q, Role: string(sig.Role)}
+			if sig.Policy != nil {
+				info.Policy = sig.Policy.Identifier
+			}
+			if t := sig.SigningTime; !t.IsZero() {
+				info.Time = &t
+			}
+			resp.Signatures = append(resp.Signatures, info)
+		}
+		resp.Valid = err == nil
+		if err != nil {
+			resp.Error = err.Error()
 		}
 	} else {
 		_, sig, err := fatturapa.Unwrap(data)
@@ -830,7 +883,7 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 		Languages:    render.Languages(),
 		Formats:      []string{"cii", "ubl", "fatturapa", "facturae"},
 		Profiles:     []string{"minimum", "basicwl", "basic", "en16931", "extended", "xrechnung", "extended-ctc-fr", "peppol", "nlcius", "cius-it", "cius-pt"},
-		RuleSets:     []string{"fr", "de", "choruspro", "peppol", "nl", "it", "pt"},
+		RuleSets:     []string{"fr", "de", "choruspro", "peppol", "nl", "it", "pt", "face"},
 		MaxBodyBytes: s.MaxBodyBytes,
 	}
 	if ri := reqInfoOf(r); ri != nil && ri.principal != nil {

@@ -73,7 +73,7 @@ func openAPI(version string) ([]byte, error) {
 	str := obj{"type": "string"}
 	boolean := obj{"type": "boolean"}
 	validationParams := []obj{
-		q("rules", "Rule sets to add, separated by commas: fr, de, choruspro, peppol, nl, it.", str),
+		q("rules", "Rule sets to add, separated by commas: fr, de, choruspro, peppol, nl, it, pt, face.", str),
 		q("auto", "Add the national rules of the seller's country.", boolean),
 		q("profile", "Validate against this profile instead of BT-24.", str),
 		q("reject_basicwl", "Report BASIC WL as an error under the French rules.", boolean),
@@ -130,9 +130,10 @@ func openAPI(version string) ([]byte, error) {
 			}},
 			"/v1/sign": obj{"post": obj{
 				"operationId": "sign",
-				"summary":     "Sign a PDF (PAdES B-B) or a FatturaPA document (CAdES or XAdES B-B)",
+				"summary":     "Sign a PDF (PAdES B-B), a FatturaPA document (CAdES or XAdES B-B) or a Facturae document (XAdES-EPES)",
 				"parameters": []obj{
-					q("format", "For a FatturaPA document: cades (.xml.p7m, default) or xades.", obj{"type": "string", "enum": []string{"cades", "xades"}}),
+					q("format", "For a FatturaPA document: cades (.xml.p7m, default) or xades. A Facturae document is signed in XAdES only.", obj{"type": "string", "enum": []string{"cades", "xades"}}),
+					q("role", "For a Facturae document: the role of the signer, emisor, receptor or tercero (default: from InvoiceIssuerType).", obj{"type": "string", "enum": []string{"emisor", "receptor", "tercero"}}),
 					q("reason", "Reason of a PDF signature.", str),
 					q("location", "Location of a PDF signature.", str),
 				},
@@ -144,7 +145,7 @@ func openAPI(version string) ([]byte, error) {
 			}},
 			"/v1/verify": obj{"post": obj{
 				"operationId": "verify",
-				"summary":     "Check the integrity of the signatures of a PDF or a FatturaPA file (not the trust in the certificates)",
+				"summary":     "Check the integrity of the signatures of a PDF, a FatturaPA file or a Facturae document (not the trust in the certificates)",
 				"requestBody": document,
 				"responses":   merge(obj{"200": obj{"description": "The signatures", "content": obj{"application/json": obj{"schema": ref("VerifyResponse")}}}}, errs()),
 			}},

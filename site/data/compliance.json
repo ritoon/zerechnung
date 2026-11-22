@@ -98,6 +98,7 @@
         {"text": "cp_es_en16931", "status": "yes", "rules": ["EN16931"]},
         {"text": "cp_es_peppol", "status": "yes", "rules": ["Peppol"]},
         {"text": "cp_es_facturae", "status": "yes", "rules": ["facturae", "Schema"]},
+        {"text": "cp_es_sign", "status": "yes", "rules": ["facturae.Sign", "facturae.VerifySignature", "FACe"]},
         {"text": "cp_es_verifactu", "status": "no"}
       ]
     },

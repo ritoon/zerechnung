@@ -227,8 +227,10 @@ func (v *Validation) options() (*validate.Options, error) {
 				o.Rules |= validate.Italy
 			case "pt", "portugal":
 				o.Rules |= validate.Portugal
+			case "face":
+				o.Rules |= validate.FACe
 			default:
-				return nil, fmt.Errorf("unknown rule set %q (fr, de, choruspro, peppol, nl, it, pt)", r)
+				return nil, fmt.Errorf("unknown rule set %q (fr, de, choruspro, peppol, nl, it, pt, face)", r)
 			}
 		}
 	}
