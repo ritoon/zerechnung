@@ -456,7 +456,7 @@ What one call allocates, as `go test -benchmem` counts it, against the other Go 
 | Embed the XML in a PDF | 245 KB in 456 allocations | 1.3 MB in 9,593 |
 | Check a 149 KB hybrid PDF | 701 KB in 2,376 allocations | 896 KB in 24,617 |
 
-Importing the package allocates about 125 KB at startup, instead of 2.9 MB before: the tables of the schemas, the rule sets and their regular expressions are built at their first use, which adds about 0.2 ms to the first invoice of each format. The tests fail when an import goes beyond its budget (`internal/initcost`), or when `Extract`, `Check`, `cii.Parse` or `validate.XML` goes beyond its budget of allocations (`TestAllocs`). The `zerechnung` command is built with a CPU profile ([PGO](CONTRIBUTING.md#profil-pgo-de-la-commande)), which makes it 1 to 3 % faster.
+Importing the package allocates about 180 KB at startup, standard library included, instead of 2.9 MB before: the tables of the schemas, the rule sets and their regular expressions are built at their first use, which adds about 0.2 ms to the first invoice of each format. The tests fail when an import goes beyond its budget (`internal/initcost`), or when `Extract`, `Check`, `cii.Parse` or `validate.XML` goes beyond its budget of allocations (`TestAllocs`). The `zerechnung` command is built with a CPU profile ([PGO](CONTRIBUTING.md#profil-pgo-de-la-commande)), which makes it 1 to 3 % faster.
 
 A large PDF need not be copied to the heap: the package never writes to its input, and the streams it reads point into it, so the input can be a file mapped in memory with `syscall.Mmap` on Unix systems ([`Example_mmap`](example_mmap_test.go)).
 
