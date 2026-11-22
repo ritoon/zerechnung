@@ -1152,8 +1152,9 @@ func (w *writer) line(l *invoice.Line, number string, i int) {
 
 // unitPrice returns the unit price of a line and the discounts and
 // surcharges on it: the gross price (BT-148) with the native discounts, or
-// with the price discount (BT-147) as a discount by an amount, or the net
-// price (BT-146) per unit of the price base quantity (BT-149). The unit
+// with the price discount (BT-147) as a discount by an amount when the two
+// give the net price of a unit, or the net price (BT-146) per unit of the
+// price base quantity (BT-149). The unit
 // price of a line with allowances or charges is its net amount divided by
 // its quantity.
 func (w *writer) unitPrice(l *invoice.Line, li *invoice.ItalyLine) (invoice.Decimal, []invoice.Discount) {
@@ -1170,11 +1171,17 @@ func (w *writer) unitPrice(l *invoice.Line, li *invoice.ItalyLine) (invoice.Deci
 		}
 		return l.NetPrice, nil
 	}
-	if l.GrossPrice.IsSet() && l.PriceDiscount.IsSet() && !l.PriceDiscount.IsZero() {
+	// The gross price and its discount (BT-148, BT-147), when they give the
+	// net price of a unit: PrezzoTotale must be their difference times the
+	// quantity (SdI control 00423). A price for another base quantity, or
+	// with charges beside the discount (EXTENDED), is written net.
+	one := invoice.DecimalFromInt(1)
+	if b := l.PriceBaseQuantity; l.GrossPrice.IsSet() && l.PriceDiscount.IsSet() && !l.PriceDiscount.IsZero() &&
+		(!b.IsSet() || b.Equal(one)) && (!l.NetPrice.IsSet() || l.GrossPrice.Sub(l.PriceDiscount).Equal(l.NetPrice)) {
 		return l.GrossPrice, []invoice.Discount{{Type: "SC", Amount: l.PriceDiscount}}
 	}
 	price := l.NetPrice
-	if b := l.PriceBaseQuantity; b.IsSet() && !b.IsZero() && !b.Equal(invoice.DecimalFromInt(1)) && price.IsSet() {
+	if b := l.PriceBaseQuantity; b.IsSet() && !b.IsZero() && !b.Equal(one) && price.IsSet() {
 		price = trim(price.Div(b, 8))
 	}
 	if !price.IsSet() {
