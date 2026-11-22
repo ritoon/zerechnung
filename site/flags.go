@@ -10,9 +10,9 @@ import (
 // it too, so that they line up in a table.
 const flagBox = "0 0 27 18"
 
-// flags is the flag of each country of the compliance page and of each
-// language of the site, keyed by ISO 3166-1 alpha-2 code: the content of an
-// SVG image of flagBox. The flags are shown at the size of a letter, so the
+// flags is the flag of each country of the site (compliance page, formats
+// of the home page) and of each language, keyed by ISO 3166-1 alpha-2 code,
+// EU for the European Union: the content of an SVG image of flagBox. The flags are shown at the size of a letter, so the
 // coats of arms are simplified. They are inline images, not emoji, which
 // Windows shows as two letters.
 var flags = map[string]string{
@@ -48,7 +48,10 @@ var flags = map[string]string{
 	// is above it.
 	"GB": `<path fill="#012169" d="M0 0h27v18H0z"/><path stroke="#fff" stroke-width="3.6" d="M0 0l27 18M27 0 0 18"/><path fill="#c8102e" d="M0 0l13.5 9-.67 1L-.67 1zM0 18l13.5-9 .67 1L.67 19zM27 0 13.5 9l-.67-1L26.33-1zM27 18 13.5 9l.67-1 13.5 9z"/><path fill="#fff" d="M10.5 0h6v18h-6zM0 6h27v6H0z"/><path fill="#c8102e" d="M11.7 0h3.6v18h-3.6zM0 7.2h27v3.6H0z"/>`,
 
-	// Coats of arms and emblems.
+	// The European Union: twelve stars on a circle of a third of the height,
+	// each of a ninth.
+	"EU": `<path fill="#039" d="M0 0h27v18H0z"/><path fill="#fc0" d="M13.5 2 13.72 2.69 14.45 2.69 13.86 3.12 14.09 3.81 13.5 3.38 12.91 3.81 13.14 3.12 12.55 2.69 13.28 2.69zM16.5 2.8 16.72 3.49 17.45 3.49 16.86 3.92 17.09 4.61 16.5 4.19 15.91 4.61 16.14 3.92 15.55 3.49 16.28 3.49zM18.7 5 18.92 5.69 19.65 5.69 19.06 6.12 19.28 6.81 18.7 6.38 18.11 6.81 18.33 6.12 17.75 5.69 18.47 5.69zM19.5 8 19.72 8.69 20.45 8.69 19.86 9.12 20.09 9.81 19.5 9.38 18.91 9.81 19.14 9.12 18.55 8.69 19.28 8.69zM18.7 11 18.92 11.69 19.65 11.69 19.06 12.12 19.28 12.81 18.7 12.38 18.11 12.81 18.33 12.12 17.75 11.69 18.47 11.69zM16.5 13.2 16.72 13.89 17.45 13.89 16.86 14.31 17.09 15.01 16.5 14.58 15.91 15.01 16.14 14.31 15.55 13.89 16.28 13.89zM13.5 14 13.72 14.69 14.45 14.69 13.86 15.12 14.09 15.81 13.5 15.38 12.91 15.81 13.14 15.12 12.55 14.69 13.28 14.69zM10.5 13.2 10.72 13.89 11.45 13.89 10.86 14.31 11.09 15.01 10.5 14.58 9.91 15.01 10.14 14.31 9.55 13.89 10.28 13.89zM8.3 11 8.53 11.69 9.25 11.69 8.67 12.12 8.89 12.81 8.3 12.38 7.72 12.81 7.94 12.12 7.35 11.69 8.08 11.69zM7.5 8 7.72 8.69 8.45 8.69 7.86 9.12 8.09 9.81 7.5 9.38 6.91 9.81 7.14 9.12 6.55 8.69 7.28 8.69zM8.3 5 8.53 5.69 9.25 5.69 8.67 6.12 8.89 6.81 8.3 6.38 7.72 6.81 7.94 6.12 7.35 5.69 8.08 5.69zM10.5 2.8 10.72 3.49 11.45 3.49 10.86 3.92 11.09 4.61 10.5 4.19 9.91 4.61 10.14 3.92 9.55 3.49 10.28 3.49z"/>`,
+	// Coats of arms.
 	"CY": `<path fill="#fff" d="M0 0h27v18H0z"/><path fill="#d57800" stroke="#d57800" stroke-width=".4" stroke-linejoin="round" d="M7.2 8.6 8.6 7.3l2.4-.7 4-.4 5-2-2.8 2.6-.6 1.4-2.1 1.4-2.5.4-2.8-.2-1.8-.7z"/><path fill="none" stroke="#4e5b31" stroke-width=".6" stroke-linecap="round" d="M9.5 12q1.8 2.4 4 2.6M17.5 12q-1.8 2.4-4 2.6"/><path fill="#4e5b31" d="M10.43 13.06a.6.6 0 0 1-.53-.86.6.6 0 0 1 .53.86zM11.4 13.85a.6.6 0 0 1-.4-.9.6.6 0 0 1 .4.9zM12.43 14.36a.6.6 0 0 1-.18-.91.6.6 0 0 1 .18.91zM10.43 13.06a.6.6 0 0 1-.45.75.6.6 0 0 1 .45-.75zM11.4 13.85a.6.6 0 0 1-.25.8.6.6 0 0 1 .25-.8zM16.57 13.06a.6.6 0 0 1 .53-.86.6.6 0 0 1-.53.86zM15.6 13.85a.6.6 0 0 1 .4-.9.6.6 0 0 1-.4.9zM14.57 14.36a.6.6 0 0 1 .18-.91.6.6 0 0 1-.18.91zM16.57 13.06a.6.6 0 0 1 .45.75.6.6 0 0 1-.45-.75zM15.6 13.85a.6.6 0 0 1 .25.8.6.6 0 0 1-.25-.8z"/>`,
 	"ES": `<path fill="#aa151b" d="M0 0h27v18H0z"/><path fill="#f1bf00" d="M0 4.5h27v9H0z"/><path fill="#9c9c9c" d="M5.9 6.4h.7V12h-.7zM11.4 6.4h.7V12h-.7z"/><path fill="#c8102e" d="M7.2 6.4h3.6v3.2c0 1.3-.8 2.1-1.8 2.5-1-.4-1.8-1.2-1.8-2.5z"/><path fill="#fff" d="M9 6.4h1.8V9H9z"/><path fill="#f1bf00" d="M7.2 9H9v2.4H7.2z"/><path fill="#b8860b" d="M7.4 6.2l-.2-1.3.9.5.9-.9.9.9.9-.5-.2 1.3z"/>`,
 	"HR": `<path fill="#f00" d="M0 0h27v6H0z"/><path fill="#fff" d="M0 6h27v6H0z"/><path fill="#171796" d="M0 12h27v6H0z"/><path fill="#f00" d="M10.5 4.5h6v5a3 3 0 0 1-6 0z"/><path fill="#fff" d="M12 4.5h1.5V6H12zM15 4.5h1.5V6H15zM10.5 6H12v1.5h-1.5zM13.5 6H15v1.5h-1.5zM12 7.5h1.5V9H12zM15 7.5h1.5V9H15zM10.5 9H12v1.5h-1.5zM13.5 9H15v1.5h-1.5zM12 10.5h1.5V12H12zM15 10.5h1.5V12H15z"/>`,
@@ -65,4 +68,20 @@ func (p *page) Flag(code string) (template.HTML, error) {
 		return "", fmt.Errorf("no flag for %q in flags.go", code)
 	}
 	return template.HTML(`<svg class="flag-icon" viewBox="` + flagBox + `" aria-hidden="true">` + f + `</svg>`), nil
+}
+
+// NamedFlag returns the flag of a country for a place where its name is not
+// written next to it: the name, the text country_<code>, shows on hover
+// and is read by screen readers.
+func (p *page) NamedFlag(code string) (template.HTML, error) {
+	f, err := p.Flag(code)
+	if err != nil {
+		return "", err
+	}
+	name, ok := p.P["country_"+code]
+	if !ok {
+		return "", fmt.Errorf("no text country_%s", code)
+	}
+	name = template.HTMLEscapeString(name)
+	return `<span class="flag-named" title="` + template.HTML(name) + `">` + f + `<span class="sr">` + template.HTML(name) + `</span></span>`, nil
 }

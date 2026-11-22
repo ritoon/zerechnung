@@ -538,16 +538,6 @@ th[scope="row"] { font-weight: 400; }
 .fmt { display: block; font-weight: 650; }
 .fmt-note { display: block; color: var(--ink-3); font-size: 0.84rem; }
 
-.cc {
-  display: inline-block;
-  margin: 2px 4px 2px 0;
-  padding: 3px 6px;
-  border-radius: 4px;
-  background: var(--sky-soft);
-  color: var(--slate);
-  font: 650 0.75rem/1.2 var(--mono);
-}
-
 /* Flag of a country or a language, an inline SVG of 3:2 at the size of a
    capital letter (see flags.go). The outline keeps white stripes visible. */
 .flag-icon {
@@ -558,6 +548,9 @@ th[scope="row"] { font-weight: 400; }
   box-shadow: 0 0 0 1px var(--line);
   vertical-align: -0.1em;
 }
+
+.flag-named { display: inline-block; margin: 2px 6px 2px 0; }
+.flag-named .flag-icon { width: 1.5em; height: 1em; }
 
 .yes svg { width: 18px; height: 18px; color: var(--olive); vertical-align: middle; }
 .partial { color: var(--ink-2); font-size: 0.85rem; }
