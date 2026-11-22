@@ -7,8 +7,8 @@ Ce dossier mesure l'exactitude du package sur les artefacts officiels, à chaque
 | [`fetch.sh`](fetch.sh) | Récupère les artefacts officiels à des versions figées et les vérifie, puis affiche les variables `FX_*` qui activent les tests optionnels |
 | [`fetch-nl.sh`](fetch-nl.sh) | Récupère les seuls artefacts des règles néerlandaises (`FX_NL`, `FX_NL_TESTS`) ; `fetch.sh` l'appelle, et le job *Tests NLCIUS sur les artefacts officiels* du workflow [CI](../.github/workflows/ci.yml) l'exécute seul, en quelques secondes |
 | [`verapdf.sh`](verapdf.sh) | Convertit en PDF/A-3 les fichiers PDF/A-2b et PDF/A-3b du corpus veraPDF et les PDF non conformes des tests, puis vérifie les fichiers convertis avec veraPDF |
-| [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, et les XSLT de la NPa sur les factures NLCIUS, puis compare leurs règles à celles du package |
-| [`parity/`](parity) | Outil Go de comparaison (module séparé) et lanceurs Java de Mustang et des XSLT de la NPa |
+| [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, les XSLT de la NPa sur les factures NLCIUS et le schematron CIUS-PT d'eSPap, compilé par SchXslt, sur les factures CIUS-PT, puis compare leurs règles à celles du package |
+| [`parity/`](parity) | Outil Go de comparaison (module séparé) et lanceurs Java de Mustang, des XSLT de la NPa et du schematron CIUS-PT |
 | [`parity/known.txt`](parity/known.txt) | Écarts connus et justifiés, et assertions NLCIUS qu'aucune facture ne déclenche ; tout autre écart fait échouer le job |
 | [`qr/`](qr) | Tests Go (module séparé) qui font lire les QR codes du package `internal/qr` par gozxing, portage de ZXing, et par le décodeur de piglig/go-qr, dont l'encodeur est issu ; job *Lecture des QR codes par deux décodeurs* |
 | [`signature.sh`](signature.sh) | Fait vérifier par OpenSSL, xmlsec1 et EU DSS les signatures CAdES et XAdES du package `fatturapa`, et fait vérifier par le package les fichiers que ces outils signent |
@@ -40,7 +40,7 @@ Ce dossier mesure l'exactitude du package sur les artefacts officiels, à chaque
 
 FeRD et FNFE-MPE ne distribuent leurs paquets qu'au travers d'un formulaire : les 20 XSD et les 6 fichiers de schematron viennent de deux copies publiques de ces paquets sous Apache-2.0 ([LandrixSoftware/validator-configuration-zugferd](https://github.com/LandrixSoftware/validator-configuration-zugferd), [backoffice-plus/e-invoice-validator](https://github.com/backoffice-plus/e-invoice-validator)), à des commits figés. Chaque XSD est vérifié par le SHA-256 du fichier officiel, celui-là même dont `internal/schema/tables_gen.go` a été généré. Les schematrons et leurs listes de codes sont ceux que Mustang 2.26.0 embarque (`schematron/ZF_250`) et que contient le paquet officiel, aux fins de ligne près (CRLF dans le paquet et dans Mustang, LF dans la copie git) : leur SHA-256, sur le texte en LF, est vérifié par `fetch.sh` et par le générateur `internal/rules/facturx/gen`, dont `codedb_gen.go` est la sortie.
 
-Les validateurs de référence, téléchargés par `parity.sh` depuis leurs publications GitHub, et Saxon depuis Maven Central, sont vérifiés de la même façon ; KoSIT s'exécute avec la configuration XRechnung 3.0.2 du 2026-08-31 récupérée par `fetch.sh`, Saxon avec les XSLT du dépôt de la NPa (`FX_NL`) :
+Les validateurs de référence, téléchargés par `parity.sh` depuis leurs publications GitHub, et Saxon et SchXslt depuis Maven Central, sont vérifiés de la même façon ; KoSIT s'exécute avec la configuration XRechnung 3.0.2 du 2026-08-31 récupérée par `fetch.sh`, Saxon avec les XSLT du dépôt de la NPa (`FX_NL`) et avec celle que SchXslt compile du schematron CIUS-PT (`FX_PT_SCH`) :
 
 | Validateur | Fichier | SHA-256 |
 |---|---|---|
@@ -48,6 +48,7 @@ Les validateurs de référence, téléchargés par `parity.sh` depuis leurs publ
 | Mustang 2.26.0 | `Mustang-CLI-2.26.0.jar` | `42d7868c…` |
 | Saxon-HE 12.10 | `Saxon-HE-12.10.jar` | `b571af28…` |
 | XML Resolver 5.3.3, que Saxon 12 demande | `xmlresolver-5.3.3.jar`, `xmlresolver-5.3.3-data.jar` | `1fe4d5b9…`, `b0c487ad…` |
+| SchXslt 1.10.1, qui compile le schematron CIUS-PT en XSLT | `schxslt-1.10.1.jar` | `4f4f21ed…` |
 
 ## Tests sur les artefacts
 
@@ -75,7 +76,7 @@ Le seul échec connu porte sur ce que la conversion ne lit pas : un type de vale
 
 ## Parité avec KoSIT et Mustang
 
-Le job *Parité avec KoSIT, Mustang et la NPa* exécute les deux validateurs de référence et le package sur le même jeu de 282 factures :
+Le job *Parité avec KoSIT, Mustang, la NPa et eSPap* exécute les deux validateurs de référence et le package sur le même jeu de 282 factures :
 
 - corpus ZUGFeRD : `XML-Rechnung/CII`, `XML-Rechnung/UBL`, `XML-Rechnung/FX`, `ZUGFeRDv2/correct` et `ZUGFeRDv2/fail` (factures invalides à dessein) ;
 - suite de tests KoSIT : `src/test` (cas métier et cas techniques, toutes valides).
@@ -149,17 +150,32 @@ Les 5 autres arrêts sont rendus à l'identique : BR-NL-7 sur un code de type `3
 
 ## Parité CIUS-PT avec le schematron d'eSPap
 
-Le validateur de l'administration publique portugaise applique aux factures CIUS-PT le schematron d'eSPap (`FX_PT_SCH`), que le package reproduit dans `internal/rules/pt` avec un interpréteur du sous-ensemble de XPath 2.0 qu'il emploie. La référence est ce schematron compilé en XSLT par SchXslt 1.10.1 et exécuté par Saxon-HE 12.10 ; la comparaison porte sur les règles levées, en erreur et en avertissement, et sur l'élément où elles le sont :
+Le validateur de l'administration publique portugaise applique aux factures CIUS-PT le schematron d'eSPap (`FX_PT_SCH`), que le package reproduit dans `internal/rules/pt` avec un interpréteur du sous-ensemble de XPath 2.0 qu'il emploie. Le même job compile ce schematron (`urn_feap.gov.pt_CIUS-PT_2.1.1.sch` et les motifs qu'il inclut) en XSLT avec SchXslt 1.10.1, dont Saxon exécute le pipeline `xslt/2.0/pipeline-for-svrl.xsl`, puis [`parity/CiusPtBatch.java`](parity/CiusPtBatch.java) exécute cette XSLT avec Saxon-HE 12.10, dans une seule JVM et sur un fil par processeur, sur 5 783 fichiers :
 
-| Fichiers | Comparés | Mêmes règles, aux mêmes éléments | Arrêts de Saxon |
-|---|---|---|---|
-| Exemples d'eSPap (`FX_PT`) | 15 | 15 (aucune règle levée) | 0 |
-| Factures du dépôt (`internal/rules/pt/testdata`) | 3 | 3 (aucune règle levée) | 0 |
-| Variantes de ces factures, écrites par `go test ./internal/rules/pt -run '^TestVariants$' -variants DIR` | 5 765 | 5 462 | 303 |
+- les 15 exemples d'eSPap (`FX_PT`), lus dans l'archive : 13 factures, une note de débit et une note de crédit ;
+- les 3 factures CIUS-PT du dépôt (`internal/rules/pt/testdata` : une facture, une note de crédit et une facture plus complète) ;
+- les 5 765 variantes de ces factures que `go test ./internal/rules/pt -run '^TestVariants$' -variants DIR` écrit, avec leur liste (`manifest.tsv`, déposée en artefact : document de base, élément remplacé et remplacement) ; chacune supprime, répète, vide ou remplace un élément ou un attribut (nombres voisins, codes d'autres listes, notes structurées mal formées, éléments que la syntaxe UBL interdit).
 
-Une variante supprime, répète, vide ou remplace un élément ou un attribut (nombres voisins, codes d'autres listes, notes structurées mal formées, éléments que la syntaxe UBL interdit). Saxon s'arrête sur 303 d'entre elles, sur une erreur de type XPath (plusieurs valeurs là où le test n'en attend qu'une, une valeur qui ne se convertit pas en nombre) : le package tient l'assertion pour échouée, ce que le rapport de Saxon ne permet pas de comparer. Une erreur dans le contexte d'une règle n'arrête pas Saxon, qui considère que l'élément ne correspond pas à la règle (XSLT 3.0) : le package fait de même. Pendant le développement, environ 18 000 autres variantes ont été comparées de la même façon, sans écart.
+Le lanceur ne garde du rapport SVRL que les assertions échouées et les rapports déclenchés, avec leur identifiant, leur `flag` et leur emplacement. Pour chaque fichier, l'outil compare les règles levées **en erreur et en avertissement**, chacune **sur l'élément où elle est levée** :
 
-Cette comparaison n'est pas encore dans `parity.sh` : elle est figée par les 1 077 cas de `internal/rules/pt/cases_gen_test.go`, chacun une variante et les règles que Saxon lève pour elle, que `go test` vérifie (1 105 des 1 154 identifiants du schematron). Les 49 autres n'ont pas de variante à une seule modification qui les lève : ils demandent deux modifications à la fois (BR-CO-03 : date et code de date d'exigibilité de la TVA ; BR-42, BR-44, BR-CO-23, BR-CO-24 : motif et code de motif d'une remise ou d'une charge de ligne), ou portent sur un élément qu'aucune des trois factures ne contient (devise de TVA BT-6 et notes structurées `#SOURCECURRENCYCODE#` et `#CALCULATIONRATE#`, répétitions que vérifient certaines règles de syntaxe UBL-SR). `cases_gen_test.go` les liste.
+- côté Saxon, chaque assertion échouée au niveau de son `flag` (`fatal` : erreur, `warning` : avertissement), sur l'élément que donne son attribut `location` (`/Q{…}Invoice[1]/Q{…}InvoiceLine[2]/…`) ;
+- côté package, les constats de `validate.XML` avec `Profile: invoice.ProfileCIUSPT` et `Rules: validate.EN16931 | validate.Portugal`, sur l'élément que donne leur `Path` : ceux du jeu EN 16931, que le schematron remplace pour une facture CIUS-PT, et ceux du jeu `Portugal`, sauf les contrôles propres au package (PT-NIF, PT-SYNTAX). Le profil est imposé : une variante peut retirer ou changer BT-24, et Saxon applique le schematron à tout fichier qu'il reçoit.
+
+Les deux emplacements sont ramenés à la même forme, un pas par élément avec son nom local et son rang parmi ses frères de même nom (`/Invoice[1]/InvoiceLine[2]/ID[1]`). Une règle levée d'un seul côté, à un autre niveau ou sur un autre élément est un écart, noté `+RÈGLE@ÉLÉMENT` (package seul, ou niveau plus élevé) ou `-RÈGLE@ÉLÉMENT` dans le rapport et dans `known.txt`.
+
+Quand Saxon s'arrête sur une erreur de type XPath dans le test d'une assertion (plusieurs valeurs là où le test n'en attend qu'une, `XPTY0004` ; une valeur qui ne se convertit pas en nombre, `FORG0001`), son rapport ne contient que l'erreur et la ligne de la XSLT où elle survient. L'outil retrouve l'assertion dont l'`xsl:if` occupe cette ligne ; le package tient cette assertion pour échouée (voir la documentation de `internal/rules/pt`), et seule elle est comparée, sans son élément, que Saxon ne donne pas. L'arrêt n'est pas un écart quand le package lève l'assertion ; il en est un quand le package ne la lève pas, ou quand la ligne ne désigne aucune assertion. Une erreur dans le contexte d'une règle n'arrête pas Saxon, qui considère que l'élément ne correspond pas à la règle (XSLT 3.0) : le package fait de même.
+
+### Résultats CIUS-PT
+
+| Fichiers | Comparés | Mêmes règles, aux mêmes éléments | Arrêts de Saxon, assertion tenue pour échouée par le package | Écarts |
+|---|---|---|---|---|
+| Exemples d'eSPap (`FX_PT`) | 15 | 15 (aucune règle levée) | 0 | 0 |
+| Factures du dépôt (`internal/rules/pt/testdata`) | 3 | 3 (aucune règle levée) | 0 | 0 |
+| Variantes de ces factures | 5 765 | 5 462 | 303 | 0 |
+
+Des 5 462 variantes que Saxon mène à terme, 3 878 lèvent au moins une règle : 10 546 constats, 8 699 en erreur et 1 847 en avertissement, chacun sur le même élément de part et d'autre. Les 303 arrêts portent sur 31 assertions : 171 `FORG0001`, une valeur vide ou textuelle convertie en `xs:decimal` ou en `xs:double` (règles de calcul et de tolérance des totaux DT-CIUS-PT-157 à DT-CIUS-PT-175, BR-27, BR-28, BR-S-06, BR-E-05…), et 132 `XPTY0004`, un élément répété dont le test attend une seule valeur (BR-61, BR-AA-01 à BR-AA-04, BR-E-02 à BR-E-04, DT-CIUS-PT-157 à DT-CIUS-PT-175) ; le package lève chaque fois l'assertion. Le rapport du job les compte par erreur et par assertion. Pendant le développement, environ 18 000 autres variantes ont été comparées de la même façon, sans écart.
+
+Les 1 077 cas de `internal/rules/pt/cases_gen_test.go`, chacun une variante et les règles que Saxon lève pour elle, figent en plus ce résultat dans `go test`, sans Java (1 105 des 1 154 identifiants du schematron) ; `go test ./internal/rules/pt -run '^TestUpdateCases$' -variants DIR` les régénère à partir des rapports SVRL des variantes. Les 49 autres identifiants n'ont pas de variante à une seule modification qui les lève : ils demandent deux modifications à la fois (BR-CO-03 : date et code de date d'exigibilité de la TVA ; BR-42, BR-44, BR-CO-23, BR-CO-24 : motif et code de motif d'une remise ou d'une charge de ligne), ou portent sur un élément qu'aucune des trois factures ne contient (devise de TVA BT-6 et notes structurées `#SOURCECURRENCYCODE#` et `#CALCULATIONRATE#`, répétitions que vérifient certaines règles de syntaxe UBL-SR). `cases_gen_test.go` les liste.
 
 ## Interopérabilité des signatures FatturaPA
 
@@ -190,4 +206,4 @@ conformance/parity.sh
 conformance/signature.sh
 ```
 
-`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang et les XSLT de la NPa ; `signature.sh` demande Go, OpenSSL 3, xmlsec1, Java 21 et Maven. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.
+`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang, les XSLT de la NPa et le schematron CIUS-PT ; `signature.sh` demande Go, OpenSSL 3, xmlsec1, Java 21 et Maven. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.
