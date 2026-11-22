@@ -209,6 +209,7 @@ type checker struct {
 
 	// Facts collected during the walk.
 	catHdr, catLine, catTax [nCat]int // ApplicableTradeTax / CategoryTradeTax elements per category
+	catDetail               [nCat]int // ApplicableTradeTax elements of plain and DETAIL lines per category (EXTENDED-CTC-FR)
 	anyCode                 [nCat]bool
 	countryNotIT            bool // a ram:CountryID is not IT (BR-B-01)
 	taxPointDate            bool // a ram:TaxPointDate exists (BR-CO-03)
@@ -242,6 +243,9 @@ func (k *checker) init(c *rules.Checker) {
 	k.syn = cenSyntax
 	if k.mode == modeExtendedCTCFR {
 		k.syn = ctcfrSyntax
+		if !k.ubl {
+			k.cats = &vatCategoriesCTCFR
+		}
 	}
 
 	seller := d.Agreement.Elem("SellerTradeParty")
@@ -406,20 +410,16 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 	}
 	switch k.mode {
 	case modeExtendedCTCFR:
-		if strings.HasPrefix(id, "CII-") {
-			// The syntax rules of the EXTENDED-CTC-FR schematron, with its
-			// severities.
-			r := ctcfrRules[id]
-			if r == nil {
-				return
-			}
-			sev = r.Severity
-			break
+		// The rules of the EXTENDED-CTC-FR schematron, with its identifiers
+		// and severities: the CEN rules it removes are not reported.
+		if r, ok := ctcfrRenamed[id]; ok {
+			id = r
 		}
-		if !extendedRules[id] {
-			sev = rules.Warning
-			format += " (not enforced for Factur-X EXTENDED)"
+		r := ctcfrRules[id]
+		if r == nil {
+			return
 		}
+		sev = r.Severity
 	case modeExtended:
 		if strings.HasPrefix(id, "BR-CL-") {
 			return // the code lists of the Factur-X schematron, see package facturx

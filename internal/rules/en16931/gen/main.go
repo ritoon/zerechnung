@@ -2,8 +2,8 @@
 //
 //   - catalog_gen.go, from the CII validation artefacts of CEN TC 434
 //     (EN 16931);
-//   - ctcfr_gen.go (-ctcfr), from the CII syntax rules of the FNFE-MPE
-//     schematron of the French EXTENDED-CTC-FR profile.
+//   - ctcfr_gen.go (-ctcfr), from the FNFE-MPE schematron of the French
+//     EXTENDED-CTC-FR profile for CII.
 //
 // By default it reads the release archive en16931-cii-<version>.zip, either
 // from a local file (-zip) or downloaded from the GitHub release of
@@ -17,9 +17,15 @@
 // France_RFE package 1.4.0.04 (FNFE_RFE_INVOICE/CII/EXTENDED-CTC-FR/schematron),
 // either from -src (the file, or a checkout of github.com/fnfempe/France_RFE)
 // or downloaded from the repository at the commit of the release tag, checks
-// its SHA-256 and writes the assertions of its CII syntax pattern
-// (EN16931-CII-Syntax) the same way. The schematron derives that pattern
-// from the CEN one: the assertions commented out in the file are not read.
+// its SHA-256 and writes all its assertions the same way: the model, CII
+// syntax and code list patterns, which the schematron derives from the CEN
+// ones, and the two patterns of its own (line subtypes, item attribute
+// codes). The assertions commented out in the file are not read. An
+// assertion without identifier gets the one its message starts with
+// ([BR-FXEXT-04]); a message that also holds diagnostics (xsl:value-of) is
+// the text after its last identifier in brackets. The lists of the code list
+// assertions (contains(' A B ', concat(' ', ., ' '))) and of BR-CO-09 are
+// written as a table too.
 //
 // In both cases, the syntax assertions whose test is not(path) or
 // count(path) <= n (also written "le n"), or count(path) = n, are also
@@ -86,13 +92,16 @@ var skipped = map[string]string{
 	"BR-IP-08": "always true", "BR-IG-08": "always true",
 }
 
-// skippedCTCFR lists the syntax assertions of the EXTENDED-CTC-FR
-// schematron that never fail. The schematron gives CII-SR-035..038 and
-// CII-SR-221 the context of the line (ram:IncludedSupplyChainTradeLineItem):
-// CII-SR-042..044, whose context is ram:AssociatedDocumentLineDocument, are
-// no longer shadowed and do run (CII-SR-039..041 are commented out).
+// skippedCTCFR lists the assertions of the EXTENDED-CTC-FR schematron that
+// never fail. The schematron gives CII-SR-035..038 and CII-SR-221 the
+// context of the line (ram:IncludedSupplyChainTradeLineItem): CII-SR-042..044,
+// whose context is ram:AssociatedDocumentLineDocument, are no longer shadowed
+// and do run (CII-SR-039..041 are commented out).
 var skippedCTCFR = map[string]string{
 	"CII-DT-010": "shadowed", "CII-DT-011": "shadowed", "CII-DT-012": "shadowed",
+	// The test starts with not(self::ram:ContractReferencedDocument), whose
+	// context node is a ram:ReferenceTypeCode: always true.
+	"BR-EXT-CL-07": "always true",
 }
 
 func main() {
@@ -230,6 +239,16 @@ type schema struct {
 
 var (
 	rePrefix = regexp.MustCompile(`^\s*\[[^\]]+\]\s*-?\s*`)
+	// The identifier a message starts with.
+	reID = regexp.MustCompile(`^\s*\[([A-Z][A-Z0-9-]*)\]`)
+	// The last rule identifier in brackets of a message that also holds
+	// diagnostics (xsl:value-of): the text after it is the message proper.
+	reLastID = regexp.MustCompile(`\[[A-Z]+-[^\]]*\]\s*(?:warning\s*)?-?\s*`)
+	// contains(' A B C ', concat(' ', ..., ' ')): the list of a code list
+	// assertion.
+	reList = regexp.MustCompile(`contains\(\s*'( [^']* )'\s*,\s*concat\(`)
+	// @mimeCode = 'type': the values of BR-FREXT-CL-24.
+	reMime = regexp.MustCompile(`@mimeCode\s*=\s*'([^']*)'`)
 	// not(path): an element or attribute that must not exist.
 	reNot = regexp.MustCompile(`^not\s*\(\s*((?:[a-z]+:[A-Za-z]+)(?:/[a-z]+:[A-Za-z]+)*(?:/@[A-Za-z]+)?|@[A-Za-z]+)\s*\)$`)
 	// count(path) <= n (or le n) or count(path) = n.
@@ -240,12 +259,43 @@ const syntaxPattern = "EN16931-CII-Syntax"
 
 // source describes the generated file of one schematron.
 type source struct {
-	header     string            // comments and declarations before the catalog
-	catalog    string            // name and documentation of the catalog variable
-	nots       string            // name of the not(path) table
-	counts     string            // name of the count(path) table
-	syntaxOnly bool              // only the syntax pattern is read
-	skipped    map[string]string // assertions left out
+	header  string            // comments and declarations before the catalog
+	catalog string            // name and documentation of the catalog variable
+	nots    string            // name of the not(path) table
+	counts  string            // name of the count(path) table
+	lists   string            // name of the code list table, if any
+	skipped map[string]string // assertions left out
+}
+
+// message returns the message of an assertion without its leading
+// identifier. When the message also holds diagnostics (xsl:value-of
+// elements, whose text is empty here), the message proper follows the last
+// identifier in brackets.
+func message(text, inner string) string {
+	if strings.Contains(inner, "<") {
+		if loc := reLastID.FindAllStringIndex(text, -1); loc != nil {
+			text = text[loc[len(loc)-1][1]:]
+		}
+	}
+	return strings.Join(strings.Fields(rePrefix.ReplaceAllString(text, "")), " ")
+}
+
+// codeList returns the list of a code list assertion of the EXTENDED-CTC-FR
+// schematron, as written in its test (codes separated by single spaces, with
+// a leading and a trailing space), or "" when the test holds none.
+func codeList(test string) string {
+	if m := reList.FindStringSubmatch(test); m != nil {
+		return m[1]
+	}
+	if m := reMime.FindAllStringSubmatch(test, -1); m != nil {
+		var b strings.Builder
+		for _, v := range m {
+			b.WriteString(" ")
+			b.WriteString(v[1])
+		}
+		return b.String() + " "
+	}
+	return ""
 }
 
 var cenSource = source{
@@ -281,8 +331,7 @@ var ctcfrSource = source{
 
 // Source: FNFE-MPE France_RFE %s (tag v%s, commit %s),
 // file %s
-// (SHA-256 %s),
-// pattern %s.
+// (SHA-256 %s).
 // The schematron is derived from the EN 16931 schematron, licensed under the
 // European Union Public Licence (EUPL); the rule identifiers, severities and
 // messages are reproduced from it.
@@ -292,19 +341,21 @@ package en16931
 import "github.com/ritoon/zerechnung/internal/rules"
 
 // CTCFRRelease is the release of the FNFE-MPE France_RFE package whose
-// EXTENDED-CTC-FR syntax rules the package implements.
+// EXTENDED-CTC-FR rules the package implements.
 const CTCFRRelease = %q
 
-`, ctcfrRelease, ctcfrRelease, ctcfrCommit, ctcfrFile, ctcfrSum, syntaxPattern, ctcfrRelease),
-	catalog: `// CTCFRCatalog lists the CII syntax rules of the EXTENDED-CTC-FR schematron
+`, ctcfrRelease, ctcfrRelease, ctcfrCommit, ctcfrFile, ctcfrSum, ctcfrRelease),
+	catalog: `// CTCFRCatalog lists the rules of the EXTENDED-CTC-FR schematron for CII
 // (EXTENDED-CTC-FR-CII.sch), which apply to EXTENDED-CTC-FR invoices instead
-// of the CEN ones, in the order of the schematron. Its descriptions are the
-// messages of the schematron.
+// of the CEN ones, in the order of the schematron: model rules (the CEN
+// rules it keeps, changes or replaces, and its BR-FREXT and BR-FXEXT rules),
+// CII syntax rules, code lists, line subtypes and item attribute codes. Its
+// descriptions are the messages of the schematron.
 var CTCFRCatalog`,
-	nots:       "ctcfrNots",
-	counts:     "ctcfrCounts",
-	syntaxOnly: true,
-	skipped:    skippedCTCFR,
+	nots:    "ctcfrNots",
+	counts:  "ctcfrCounts",
+	lists:   "ctcfrLists",
+	skipped: skippedCTCFR,
 }
 
 func generate(sch []byte, src source) ([]byte, error) {
@@ -318,13 +369,17 @@ func generate(sch []byte, src source) ([]byte, error) {
 	b.WriteString(" = []rules.RuleInfo{\n")
 	seen := map[string]bool{}
 	n := 0
-	var nots, counts bytes.Buffer
+	var nots, counts, lists bytes.Buffer
 	for _, p := range s.Patterns {
-		if src.syntaxOnly && p.ID != syntaxPattern {
-			continue
-		}
 		for _, r := range p.Rules {
 			for _, a := range r.Asserts {
+				if a.ID == "" {
+					m := reID.FindStringSubmatch(a.Text)
+					if m == nil {
+						return nil, fmt.Errorf("pattern %q: assertion without identifier", p.ID)
+					}
+					a.ID = m[1]
+				}
 				if seen[a.ID] {
 					return nil, fmt.Errorf("duplicate assertion %s", a.ID)
 				}
@@ -340,7 +395,12 @@ func generate(sch []byte, src source) ([]byte, error) {
 				default:
 					return nil, fmt.Errorf("%s: unknown flag %q", a.ID, a.Flag)
 				}
-				msg := strings.Join(strings.Fields(rePrefix.ReplaceAllString(a.Text, "")), " ")
+				msg := message(a.Text, a.Inner)
+				if src.lists != "" && p.ID != syntaxPattern {
+					if l := codeList(a.Test); l != "" {
+						fmt.Fprintf(&lists, "\t%q: %q,\n", a.ID, l)
+					}
+				}
 				if p.ID == syntaxPattern {
 					if strings.Contains(a.Inner, "<") {
 						return nil, fmt.Errorf("%s: the message holds markup", a.ID)
@@ -368,6 +428,11 @@ func generate(sch []byte, src source) ([]byte, error) {
 	fmt.Fprintf(&b, "// %s lists the CII syntax assertions count(path) <= n and\n// count(path) = n.\nvar %s = []syntaxCount{\n", src.counts, src.counts)
 	b.Write(counts.Bytes())
 	b.WriteString("}\n")
+	if src.lists != "" {
+		fmt.Fprintf(&b, "\n// %s maps the code list assertions to their list: the codes\n// separated by single spaces, with a leading and a trailing space.\nvar %s = map[string]string{\n", src.lists, src.lists)
+		b.Write(lists.Bytes())
+		b.WriteString("}\n")
+	}
 	for id := range src.skipped {
 		if !seen[id] {
 			return nil, fmt.Errorf("skipped assertion %s not found", id)

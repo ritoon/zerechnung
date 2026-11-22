@@ -1,6 +1,7 @@
 package en16931
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,10 +28,19 @@ const (
 	lineAllowance      = `<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator><ram:ActualAmount>0.00</ram:ActualAmount><ram:Reason>Discount</ram:Reason>`
 )
 
+// tCTCFRBase turns the base invoice into a valid EXTENDED-CTC-FR invoice: it
+// declares the profile and, for BR-CO-25, has a payment due date.
+var tCTCFRBase = []string{
+	"urn:cen.eu:en16931:2017", invoice.URNExtendedCTCFR,
+	sumStart, tPaymentTerms + sumStart,
+}
+
+const tPaymentTerms = `<ram:SpecifiedTradePaymentTerms><ram:DueDateDateTime><udt:DateTimeString format="102">20240215</udt:DateTimeString></ram:DueDateDateTime></ram:SpecifiedTradePaymentTerms>`
+
 // ctcfr returns the base invoice declared EXTENDED-CTC-FR, edited by pairs.
 func ctcfr(t *testing.T, pairs ...string) string {
 	t.Helper()
-	return edit(t, tBase, append([]string{"urn:cen.eu:en16931:2017", invoice.URNExtendedCTCFR}, pairs...)...)
+	return edit(t, tBase, append(tCTCFRBase[:len(tCTCFRBase):len(tCTCFRBase)], pairs...)...)
 }
 
 func ctcfrCases() []ruleCase {
@@ -46,7 +56,7 @@ func ctcfrCases() []ruleCase {
 			// schematron, where they never run).
 			tLineID, tLineID+"<ram:IncludedNote><ram:Content>a</ram:Content><ram:SubjectCode>AAI</ram:SubjectCode></ram:IncludedNote><ram:IncludedNote><ram:Content>b</ram:Content></ram:IncludedNote>",
 			// Item attribute type and measure (CII-SR-068, CII-SR-070).
-			tItemName, tItemName+`<ram:ApplicableProductCharacteristic><ram:TypeCode>COLOR_TEXT</ram:TypeCode><ram:Description>Colour</ram:Description><ram:ValueMeasure unitCode="MTR">1</ram:ValueMeasure><ram:Value>Red</ram:Value></ram:ApplicableProductCharacteristic>`,
+			tItemName, tItemName+`<ram:ApplicableProductCharacteristic><ram:TypeCode>COLOR_TEXT</ram:TypeCode><ram:Description>Colour</ram:Description><ram:ValueMeasure unitCode="MTR">1</ram:ValueMeasure></ram:ApplicableProductCharacteristic>`,
 			// Line order reference and Incoterm (CII-SR-106, CII-SR-108).
 			tLineAgreement, tLineAgreement+"<ram:BuyerOrderReferencedDocument><ram:IssuerAssignedID>PO-1</ram:IssuerAssignedID><ram:LineID>1</ram:LineID></ram:BuyerOrderReferencedDocument><ram:ApplicableTradeDeliveryTerms><ram:DeliveryTypeCode>FCA</ram:DeliveryTypeCode></ram:ApplicableTradeDeliveryTerms>",
 			// Credit transfer without account (CII-SR-470).
@@ -77,10 +87,12 @@ func ctcfrCases() []ruleCase {
 }
 
 func TestCTCFRRules(t *testing.T) {
-	for _, tc := range ctcfrCases() {
+	for _, tc := range append(ctcfrCases(), ctcfrModelCases()...) {
 		t.Run(tc.name, func(t *testing.T) {
 			r, got := findings(t, tc.doc(t), tc.profile)
-			if g := strings.Join(got, " "); g != tc.want {
+			want := strings.Fields(tc.want)
+			sort.Strings(want)
+			if g := strings.Join(got, " "); g != strings.Join(want, " ") {
 				t.Errorf("got %q, want %q", g, tc.want)
 				for _, f := range r.Findings {
 					t.Logf("  %s", f)
@@ -147,7 +159,7 @@ func TestCTCFROtherProfiles(t *testing.T) {
 		{invoice.URNExtended, ""},
 		{invoice.URNEN16931, "CII-DT-018 CII-SR-069"},
 	} {
-		doc := edit(t, tBase, append([]string{"urn:cen.eu:en16931:2017", c.urn}, extra...)...)
+		doc := edit(t, tBase, append([]string{"urn:cen.eu:en16931:2017", c.urn, sumStart, tPaymentTerms + sumStart}, extra...)...)
 		r, got := findings(t, doc, invoice.ProfileUnknown)
 		if g := strings.Join(got, " "); g != c.want {
 			t.Errorf("%s: got %q, want %q", c.urn, g, c.want)
@@ -160,8 +172,9 @@ func TestCTCFROtherProfiles(t *testing.T) {
 
 // TestCTCFRCatalog checks that the rules reported for EXTENDED-CTC-FR are in
 // CTCFRCatalog, that every rule of CTCFRCatalog can be reported, and that
-// the catalog is the syntax pattern of the FNFE schematron: 434 CII-SR (38
-// errors), 95 CII-DT and 9 rules of its own, less the 3 CII-DT it shadows.
+// the catalog holds the assertions of the FNFE schematron: 434 CII-SR (38
+// errors), 95 CII-DT and 9 syntax rules of its own, less the 3 CII-DT it
+// shadows, and 228 business rules and code lists.
 func TestCTCFRCatalog(t *testing.T) {
 	reported := map[string]bool{}
 	for _, r := range ctcfrNots {
@@ -170,18 +183,45 @@ func TestCTCFRCatalog(t *testing.T) {
 	for _, r := range ctcfrCounts {
 		reported[r.Rule] = true
 	}
-	// The hand written rules: the identifiers of syntax.go that are in
-	// CTCFRCatalog.
-	data, err := os.ReadFile("syntax.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, m := range ruleID.FindAllStringSubmatch(string(data), -1) {
-		if ctcfrRules[m[1]] != nil {
-			reported[m[1]] = true
+	// The hand written rules: the identifiers of the source files that are
+	// in CTCFRCatalog, under their EXTENDED-CTC-FR name.
+	files, _ := filepath.Glob("*.go")
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") || strings.HasSuffix(f, "_gen.go") {
+			continue
+		}
+		data, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range ruleID.FindAllStringSubmatch(string(data), -1) {
+			id := m[1]
+			if r, ok := ctcfrRenamed[id]; ok {
+				id = r
+			}
+			if ctcfrRules[id] != nil {
+				reported[id] = true
+			}
 		}
 	}
 	reported["CII-DT-097"] = true // reported from kindChecks, written in syntax.go too
+	// The rules built from a prefix and a number, or named in tables.
+	for _, v := range vatCategoriesCTCFR {
+		for n := 1; n <= 12; n++ {
+			if id := fmt.Sprintf("%s%02d", v.prefix, n); ctcfrRules[id] != nil {
+				reported[id] = true
+			}
+		}
+	}
+	for _, c := range ctcfrCategories {
+		for _, id := range []string{c.one, c.b, c.ini, c.rev} {
+			reported[id] = true
+		}
+	}
+	reported["BR-FXEXT-S-09"] = true
+	for id := range ctcfrCodeListText {
+		reported[id] = true
+	}
 	counts := map[string]int{}
 	errs := 0
 	seen := map[string]bool{}
@@ -204,17 +244,50 @@ func TestCTCFRCatalog(t *testing.T) {
 			}
 		case strings.HasPrefix(r.ID, "CII-DT-"):
 			counts["CII-DT"]++
+		case strings.HasPrefix(r.ID, "CII-"):
+			counts["CII"]++
 		default:
-			counts["other"]++
+			counts["BR"]++
 		}
 	}
-	if counts["CII-SR"] != 434 || errs != 38 || counts["CII-DT"] != 92 || counts["other"] != 9 {
-		t.Errorf("CTCFRCatalog: %v, %d CII-SR errors; want 434 CII-SR (38 errors), 92 CII-DT, 9 others", counts, errs)
+	if counts["CII-SR"] != 434 || errs != 38 || counts["CII-DT"] != 92 || counts["CII"] != 9 || counts["BR"] != 228 {
+		t.Errorf("CTCFRCatalog: %v, %d CII-SR errors; want 434 CII-SR (38 errors), 92 CII-DT, 9 CII, 228 BR", counts, errs)
 	}
 	for id := range reported {
 		if !seen[id] {
 			t.Errorf("%s is reported for EXTENDED-CTC-FR but not in CTCFRCatalog", id)
 		}
+	}
+}
+
+// TestCTCFRCoverage checks that each business rule that the EXTENDED-CTC-FR
+// schematron adds or whose test it changes has a case that breaks it. The
+// CEN rules it keeps as they are have theirs in ruleCases.
+func TestCTCFRCoverage(t *testing.T) {
+	broken := map[string]bool{}
+	for _, tc := range append(ctcfrCases(), ctcfrModelCases()...) {
+		for _, id := range strings.Fields(tc.want) {
+			broken[id] = true
+		}
+	}
+	changed := []string{"BR-CO-09", "BR-CO-14", "BR-DEC-13", "BR-DEC-15", "BR-CL-22"}
+	for _, id := range changed {
+		if !broken[id] {
+			t.Errorf("%s: no EXTENDED-CTC-FR case breaks it", id)
+		}
+	}
+	n := 0
+	for _, r := range CTCFRCatalog {
+		if _, cen := severity[r.ID]; cen || strings.HasPrefix(r.ID, "CII-") {
+			continue
+		}
+		n++
+		if !broken[r.ID] {
+			t.Errorf("%s: no EXTENDED-CTC-FR case breaks it", r.ID)
+		}
+	}
+	if n != 77 {
+		t.Errorf("%d rules of the EXTENDED-CTC-FR schematron are not CEN rules, want 77", n)
 	}
 }
 

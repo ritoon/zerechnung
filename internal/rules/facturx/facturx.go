@@ -39,14 +39,15 @@
 // calendar days, and FX-MIN-CO-15 (a warning) applies BR-CO-15 to MINIMUM
 // invoices, which the official MINIMUM schematron does not.
 //
-// For EXTENDED and EXTENDED-CTC-FR it implements the 61 BR-FXEXT-*
+// For EXTENDED it implements the 61 BR-FXEXT-*
 // assertions of the EXTENDED validation XSLT of Factur-X 1.09.2 (FeRD,
 // ZUGFeRD 2.5.2), with the severities of the XSLT: line subtypes and groups
 // (BT-X-8, BT-X-304), totals with tolerances, logistics service charges
 // (BG-X-42) and charges on behalf of a third party (BG-34), VAT breakdown
 // per category, rate and exemption reason, item attributes, notes and tax
 // registrations (see extended.go). Package en16931 checks the CEN rules that
-// the XSLT keeps for this profile.
+// the XSLT keeps for this profile. EXTENDED-CTC-FR has its own schematron,
+// which package en16931 implements with the CEN rules it keeps.
 //
 // For BASIC, EN 16931 and EXTENDED, where the Factur-X 1.09.2 schematron of
 // the profile applies (rules.Doc.FacturX: always for BASIC and EXTENDED, for
@@ -95,7 +96,7 @@ func Check(c *rules.Checker) {
 	if k.p&mLight != 0 {
 		k.light()
 	}
-	if k.p == mExt {
+	if k.p == mExt && d.Profile != invoice.ProfileExtendedCTCFR {
 		k.extended()
 	}
 	if d.FacturX() {

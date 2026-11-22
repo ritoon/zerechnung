@@ -501,7 +501,11 @@ func (k *checker) document() {
 		k.fail("BR-63", u, "the buyer electronic address (BT-49) has no scheme identifier")
 	}
 	k.totalWithVAT()
-	k.categoriesPresent()
+	if k.mode == modeExtendedCTCFR {
+		k.ctcfrDocument()
+	} else {
+		k.categoriesPresent()
+	}
 	if k.anyCode[catB] {
 		if k.countryNotIT {
 			k.fail("BR-B-01", root, "an invoice with VAT category B (split payment) must be a domestic Italian invoice: all country codes must be IT")
@@ -761,21 +765,11 @@ func (k *checker) summation(m *xmltree.Node) {
 	}
 
 	// BR-CO-14 (context TaxTotalAmount[@currencyID = InvoiceCurrencyCode]).
-	vat := zero
-	for it, t := elems(k.d.Settlement, "ApplicableTradeTax"); t != nil; t = it.next() {
-		for it, c := elems(t, "CalculatedAmount"); c != nil; c = it.next() {
-			if v, ok := dec(c); ok {
-				vat = vat.Add(v)
-			}
-		}
-	}
-	for it, t := elems(m, "TaxTotalAmount"); t != nil; t = it.next() {
-		if v, ok := t.LookupAttr("currencyID"); !ok || !textIn(v, st, "InvoiceCurrencyCode") {
-			continue
-		}
-		if v, ok := dec(t); !ok || !v.Equal(round2(vat)) {
-			k.fail("BR-CO-14", t, "invoice total VAT amount (BT-110) %q is not the sum of the VAT category tax amounts (BT-117) %s", quote(t.Text), round2(vat).String())
-		}
+	if k.mode == modeExtendedCTCFR {
+		k.ctcfrVATTotal(m)
+		k.ctcfrTotals(m)
+	} else {
+		k.vatTotal(m)
 	}
 
 	// BR-DEC
@@ -800,6 +794,10 @@ func (k *checker) summation(m *xmltree.Node) {
 	// BR-DEC-13: one TaxTotalAmount in the invoice currency with at most two
 	// significant decimals, or one in another currency.
 	if taxTotal != nil {
+		twoDecimals := twoDecimals
+		if k.mode == modeExtendedCTCFR {
+			twoDecimals = twoDecimalsDouble
+		}
 		ok13, ok15 := false, false
 		for it, t := elems(m, "TaxTotalAmount"); t != nil; t = it.next() {
 			cur, has := t.LookupAttr("currencyID")
@@ -816,6 +814,29 @@ func (k *checker) summation(m *xmltree.Node) {
 		}
 		if !ok15 {
 			k.fail("BR-DEC-15", taxTotal, "invoice total VAT amount in accounting currency (BT-111) has more than 2 decimals or is missing")
+		}
+	}
+}
+
+// vatTotal checks BR-CO-14 on the summation m: the invoice total VAT amount
+// (BT-110) in the invoice currency equals the sum of the VAT category tax
+// amounts (BT-117), rounded to 2 decimals.
+func (k *checker) vatTotal(m *xmltree.Node) {
+	st := k.d.Settlement
+	vat := zero
+	for it, t := elems(st, "ApplicableTradeTax"); t != nil; t = it.next() {
+		for it, c := elems(t, "CalculatedAmount"); c != nil; c = it.next() {
+			if v, ok := dec(c); ok {
+				vat = vat.Add(v)
+			}
+		}
+	}
+	for it, t := elems(m, "TaxTotalAmount"); t != nil; t = it.next() {
+		if v, ok := t.LookupAttr("currencyID"); !ok || !textIn(v, st, "InvoiceCurrencyCode") {
+			continue
+		}
+		if v, ok := dec(t); !ok || !v.Equal(round2(vat)) {
+			k.fail("BR-CO-14", t, "invoice total VAT amount (BT-110) %q is not the sum of the VAT category tax amounts (BT-117) %s", quote(t.Text), round2(vat).String())
 		}
 	}
 }

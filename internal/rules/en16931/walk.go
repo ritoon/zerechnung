@@ -47,6 +47,10 @@ func (k *checker) visit(n *xmltree.Node) {
 			k.codeList("BR-CL-01", n, n.Text)
 		case "SpecifiedTradeSettlementPaymentMeans":
 			k.codeList("BR-CL-16", n, n.Text)
+		case "ApplicableProductCharacteristic":
+			if k.mode == modeExtendedCTCFR {
+				k.codeList("BR-FXEXT-04", n, n.Text)
+			}
 		}
 	case "TaxTotalAmount":
 		if v, ok := n.LookupAttr("currencyID"); ok {
@@ -116,6 +120,10 @@ func (k *checker) visit(n *xmltree.Node) {
 			k.anyCode[i] = true
 		}
 	case "ReasonCode":
+		if k.mode == modeExtendedCTCFR {
+			k.ctcfrReasonCode(n)
+			break
+		}
 		if n.Parent.Name == "SpecifiedTradeAllowanceCharge" {
 			allowance, charge := chargeIndicator(n.Parent)
 			switch {
@@ -140,6 +148,10 @@ func (k *checker) visit(n *xmltree.Node) {
 			if v, ok := n.LookupAttr("schemeID"); ok {
 				k.codeList("BR-CL-25", n, v)
 			}
+		}
+	case "DeliveryTypeCode":
+		if k.mode == modeExtendedCTCFR && n.Parent.Name == "ApplicableTradeDeliveryTerms" {
+			k.codeList("BR-FREXT-CL-27", n, n.Text)
 		}
 	case "TaxPointDate":
 		k.taxPointDate = true
@@ -182,7 +194,9 @@ func (k *checker) visit(n *xmltree.Node) {
 			k.period(n, "BR-29", "BR-CO-19", "invoicing period (BG-14)")
 		}
 	case "ApplicableProductCharacteristic":
-		if n.Elem("Description") == nil || n.Elem("Value") == nil {
+		if k.mode == modeExtendedCTCFR {
+			k.ctcfrCharacteristic(n)
+		} else if n.Elem("Description") == nil || n.Elem("Value") == nil {
 			k.fail("BR-54", n, "an item attribute (BG-32) lacks its name (BT-160) or its value (BT-161)")
 		}
 	case "PayeeTradeParty":
@@ -197,6 +211,9 @@ func (k *checker) visit(n *xmltree.Node) {
 		k.settl.add(n)
 	case "IncludedSupplyChainTradeLineItem":
 		k.line(n)
+		if k.mode == modeExtendedCTCFR {
+			k.ctcfrLine(n)
+		}
 	}
 }
 
@@ -208,6 +225,10 @@ func (k *checker) finish() {
 		k.summation(k.summ.at(i))
 	}
 	for i := 0; i < k.settl.n; i++ {
-		k.breakdowns(k.settl.at(i))
+		if k.mode == modeExtendedCTCFR {
+			k.ctcfrBreakdowns(k.settl.at(i))
+		} else {
+			k.breakdowns(k.settl.at(i))
+		}
 	}
 }
