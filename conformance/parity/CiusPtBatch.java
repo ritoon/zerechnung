@@ -3,7 +3,7 @@
 // thread per processor: the stylesheet is compiled once. Used by
 // conformance/parity.sh:
 //
-//	java -cp Saxon-HE-12.10.jar:xmlresolver-5.3.3.jar:xmlresolver-5.3.3-data.jar CiusPtBatch.java <xslt> <out dir> <list>
+//	java -Xss8m -cp Saxon-HE-12.10.jar:xmlresolver-5.3.3.jar:xmlresolver-5.3.3-data.jar CiusPtBatch.java <xslt> <out dir> <list>
 //
 // The list gives one file per line. The report of a file goes to
 // <out dir>/<file name>.svrl: an svrl:schematron-output element holding the
