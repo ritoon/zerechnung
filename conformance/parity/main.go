@@ -7,6 +7,7 @@
 //
 //	parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-fnfe DIR -fnfe-variants DIR]
 //	parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]
+//	parity badge -report report.json -o badge.json
 //
 // stage copies the invoices of the ZUGFeRD corpus and of the KoSIT test suite
 // into DIR/in under short unique names (0001.xml, 0002.pdf…), lists them in
@@ -45,6 +46,11 @@
 // one invoice raises. A difference, a rule expected and not raised, or an
 // assertion that never fails, that known.txt does not justify makes the
 // command exit with status 1.
+//
+// badge reads the JSON report of compare and writes the endpoint badge of
+// shields.io that sums it up: the number of reference validators and of
+// invoices compared, green when every difference is justified, red with the
+// number of comparisons with an unexplained difference otherwise.
 package main
 
 import (
@@ -114,6 +120,15 @@ func main() {
 		if err == nil && !ok {
 			os.Exit(1)
 		}
+	case "badge":
+		fs := flag.NewFlagSet("badge", flag.ExitOnError)
+		rep := fs.String("report", "", "JSON report of compare")
+		out := fs.String("o", "", "badge file")
+		fs.Parse(os.Args[2:])
+		if *rep == "" || *out == "" {
+			usage()
+		}
+		err = badge(*rep, *out)
 	default:
 		usage()
 	}
@@ -126,6 +141,7 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-fnfe DIR -fnfe-variants DIR]
-  parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]`)
+  parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]
+  parity badge -report report.json -o badge.json`)
 	os.Exit(2)
 }

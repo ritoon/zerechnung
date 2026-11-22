@@ -132,6 +132,45 @@ jobs:
             conformance/.artifacts/parity/pt-variants/manifest.tsv
           retention-days: 30
 
+  parity-badge:
+    # The endpoint badge of shields.io that sums up report.json, force-pushed
+    # alone to the orphan branch badges, which the README reads. On main only,
+    # in a job of its own, so that no pull request code runs with write
+    # access; also when parity fails, so that the badge turns red.
+    name: Badge de parité
+    needs: parity
+    if: >-
+      always() && github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      (needs.parity.result == 'success' || needs.parity.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - uses: actions/download-artifact@v5
+        with:
+          name: parity-reports
+          path: ${{ runner.temp }}/parity
+      - name: Write the badge
+        run: |
+          mkdir -p "$RUNNER_TEMP/badges"
+          cd conformance/parity
+          go run . badge -report "$RUNNER_TEMP/parity/report.json" -o "$RUNNER_TEMP/badges/badge-parity.json"
+          cat "$RUNNER_TEMP/badges/badge-parity.json"
+      - name: Push it to the branch badges
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/badges"
+          git init -q -b badges
+          git add badge-parity.json
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "Parity badge for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
+
   signature:
     # The CAdES and XAdES signatures of package fatturapa, the XAdES-EPES
     # signatures of package facturae and the PAdES signatures of package

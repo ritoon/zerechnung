@@ -29,13 +29,11 @@ const (
 )
 
 // tCTCFRBase turns the base invoice into a valid EXTENDED-CTC-FR invoice: it
-// declares the profile and, for BR-CO-25, has a payment due date.
+// declares the profile. The payment due date that BR-CO-25 requires is
+// already in the base invoice (tPaymentTerms).
 var tCTCFRBase = []string{
 	"urn:cen.eu:en16931:2017", invoice.URNExtendedCTCFR,
-	sumStart, tPaymentTerms + sumStart,
 }
-
-const tPaymentTerms = `<ram:SpecifiedTradePaymentTerms><ram:DueDateDateTime><udt:DateTimeString format="102">20240215</udt:DateTimeString></ram:DueDateDateTime></ram:SpecifiedTradePaymentTerms>`
 
 // ctcfr returns the base invoice declared EXTENDED-CTC-FR, edited by pairs.
 func ctcfr(t *testing.T, pairs ...string) string {
@@ -159,7 +157,7 @@ func TestCTCFROtherProfiles(t *testing.T) {
 		{invoice.URNExtended, ""},
 		{invoice.URNEN16931, "CII-DT-018 CII-SR-069"},
 	} {
-		doc := edit(t, tBase, append([]string{"urn:cen.eu:en16931:2017", c.urn, sumStart, tPaymentTerms + sumStart}, extra...)...)
+		doc := edit(t, tBase, append([]string{"urn:cen.eu:en16931:2017", c.urn}, extra...)...)
 		r, got := findings(t, doc, invoice.ProfileUnknown)
 		if g := strings.Join(got, " "); g != c.want {
 			t.Errorf("%s: got %q, want %q", c.urn, g, c.want)

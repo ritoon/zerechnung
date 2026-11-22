@@ -1,0 +1,345 @@
+{
+ "repo": "ritoon/zerechnung",
+ "asof": {"commit": "9b9f489", "date": "2026-11-22", "wiki": "Normes européennes par pays, état au 21/11/2026"},
+ "countries": [
+  {"code": "DE", "name": "Allemagne", "region": "ue", "issues": [124],
+   "norms": [
+    {"label": "XRechnung 3.0", "status": "y", "note": "CII et UBL, mêmes erreurs que KoSIT sur 128 factures"},
+    {"label": "ZUGFeRD 2.5.2", "status": "y", "note": "= Factur-X 1.09.2"},
+    {"label": "ZUGFeRD 2.0.1 à 2.5", "status": "y", "note": "encore admises par le BMF"},
+    {"label": "XRechnung 4.0", "status": "n", "note": "version finale attendue au printemps 2027", "future": true}
+   ],
+   "features": [
+    {"kind": "pdf", "label": "PDF/A-3 hybride", "status": "y"},
+    {"kind": "sig", "label": "PAdES facultative", "status": "y", "note": "zerechnung.Sign, PAdES B-B (#122)"},
+    {"kind": "net", "label": "ZRE, OZG-RE, Peppol", "status": "x"},
+    {"kind": "rep", "label": "Meldesystem (annoncé)", "status": "x"}
+   ]},
+  {"code": "AT", "name": "Autriche", "region": "ue", "issues": [125],
+   "norms": [
+    {"label": "ebInterface 6.1", "status": "n", "note": "versions 4.3 à 6.1 en vigueur"},
+    {"label": "ebInterface 7.0", "status": "n", "note": "alignée sur EN 16931:2026", "future": true},
+    {"label": "Peppol BIS 3.0", "status": "y"},
+    {"label": "UBL 2.1 EN 16931", "status": "y"}
+   ],
+   "features": [
+    {"kind": "net", "label": "ERB, USP, Peppol", "status": "x"}
+   ]},
+  {"code": "BE", "name": "Belgique", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "Peppol BIS 3.0", "status": "y", "note": "B2B obligatoire depuis le 01/01/2026"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol, Mercurius", "status": "x"},
+    {"kind": "rep", "label": "E-reporting 5 coins (2028)", "status": "x"}
+   ]},
+  {"code": "BG", "name": "Bulgarie", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "EN 16931 UBL/CII", "status": "y"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "SAF-T", "status": "x"}
+   ]},
+  {"code": "CY", "name": "Chypre", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "EN 16931", "status": "y"},
+    {"label": "Peppol BIS 3.0", "status": "y"}
+   ],
+   "features": []},
+  {"code": "HR", "name": "Croatie", "region": "ue", "issues": [103],
+   "norms": [
+    {"label": "CIUS-HR + extension", "status": "p", "note": "règles EN 16931 appliquées, pas les règles croates"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Fiskalizacija 2.0, eRačun", "status": "x"},
+    {"kind": "rep", "label": "eIzvještavanje", "status": "x"}
+   ]},
+  {"code": "DK", "name": "Danemark", "region": "ue", "issues": [126],
+   "norms": [
+    {"label": "OIOUBL 2.1", "status": "n", "note": "UBL 2.0, fin prévue en 2028-2029"},
+    {"label": "Peppol BIS 3.0", "status": "y", "note": "règles DK comprises"},
+    {"label": "Nemhandel Faktura (4)", "status": "n", "note": "Peppol BIS 4 et PINT", "future": true}
+   ],
+   "features": [
+    {"kind": "net", "label": "Nemhandel, Peppol", "status": "x"}
+   ]},
+  {"code": "ES", "name": "Espagne", "region": "ue", "issues": [127],
+   "norms": [
+    {"label": "Facturae 3.2.2", "status": "y", "note": "3.2, 3.2.1 et 3.2.2 lus, écrit en 3.2.2, signé et vérifié"},
+    {"label": "UBL solution AEAT", "status": "p", "note": "BT-ES/BG-ES non écrits ; B2B au 06/10/2027"},
+    {"label": "CII EN 16931", "status": "y"},
+    {"label": "EDIFACT", "status": "n", "note": "4e syntaxe B2B admise"},
+    {"label": "VERI*FACTU", "status": "n", "note": "reporté : 01/2027, octobre 2028 annoncé"},
+    {"label": "TicketBAI", "status": "n", "note": "Pays basque"}
+   ],
+   "features": [
+    {"kind": "sig", "label": "XAdES-EPES (FACe, B2B)", "status": "y", "note": "facturae.Sign et VerifySignature (#121, PR #123)"},
+    {"kind": "qr", "label": "QR VERI*FACTU, TicketBAI", "status": "n"},
+    {"kind": "net", "label": "FACe, solution AEAT", "status": "x"},
+    {"kind": "rep", "label": "SII", "status": "x"}
+   ]},
+  {"code": "EE", "name": "Estonie", "region": "ue", "issues": [128],
+   "norms": [
+    {"label": "EN 16931", "status": "y"},
+    {"label": "e-arve (EVS 923)", "status": "n"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "TVA fondée sur les données (2027)", "status": "x"}
+   ]},
+  {"code": "FI", "name": "Finlande", "region": "ue", "issues": [129],
+   "norms": [
+    {"label": "Finvoice 3.0", "status": "n"},
+    {"label": "TEAPPSXML 3.0", "status": "n"},
+    {"label": "Peppol BIS 3.0", "status": "y"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Opérateurs, Peppol", "status": "x"}
+   ]},
+  {"code": "FR", "name": "France", "region": "ue", "issues": [109, 110, 111],
+   "norms": [
+    {"label": "Factur-X 1.09", "status": "y", "note": "tous les profils, MINIMUM à EXTENDED"},
+    {"label": "CII EN 16931", "status": "y"},
+    {"label": "UBL EN 16931", "status": "y"},
+    {"label": "EXTENDED-CTC-FR", "status": "y", "note": "schématron FNFE appliqué en CII et UBL (#116), parité Saxon : 223 fichiers sur 224, 1 écart justifié"},
+    {"label": "Règles BR-FR", "status": "y", "note": "schematrons FNFE 1.4.0.04"}
+   ],
+   "features": [
+    {"kind": "pdf", "label": "PDF/A-3 hybride", "status": "y"},
+    {"kind": "sig", "label": "PAdES facultative", "status": "y", "note": "zerechnung.Sign, PAdES B-B (#122)"},
+    {"kind": "net", "label": "Mode plateforme agréée", "status": "n", "note": "validate.Options.Platform (#111)"},
+    {"kind": "net", "label": "Transmission Chorus Pro, PA", "status": "x"},
+    {"kind": "rep", "label": "Statuts du cycle de vie (CDAR)", "status": "n", "note": "lire, écrire et valider (#109)"},
+    {"kind": "rep", "label": "E-reporting (flux 10)", "status": "n", "note": "lire, écrire et valider (#110)"}
+   ]},
+  {"code": "GR", "name": "Grèce", "region": "ue", "issues": [130],
+   "norms": [
+    {"label": "Peppol BIS 3.0 (règles GR)", "status": "y", "note": "B2G"},
+    {"label": "Facture B2B des prestataires", "status": "n", "note": "format de la décision A.1112/2025, non lu"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Prestataires certifiés", "status": "x"},
+    {"kind": "rep", "label": "myDATA", "status": "x"}
+   ]},
+  {"code": "HU", "name": "Hongrie", "region": "ue", "issues": [131],
+   "norms": [
+    {"label": "Online Számla 3.0", "status": "n"},
+    {"label": "EN 16931", "status": "y"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "Déclaration temps réel NAV", "status": "x"}
+   ]},
+  {"code": "IE", "name": "Irlande", "region": "ue", "issues": [132],
+   "norms": [
+    {"label": "Peppol BIS 3.0", "status": "y"},
+    {"label": "CIUS irlandaises", "status": "n", "note": "collectivités, NSSO, éducation"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol", "status": "x"},
+    {"kind": "rep", "label": "Temps réel Revenue (2028)", "status": "x"}
+   ]},
+  {"code": "IT", "name": "Italie", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "FatturaPA 1.2", "status": "y", "note": "FPA12, FPR12, XSD 1.2.4, contrôles SDI hors ligne"},
+    {"label": "CIUS-IT", "status": "y", "note": "UBL et CII"},
+    {"label": "EXT-IT", "status": "y", "note": "extensions UBL domestiques"}
+   ],
+   "features": [
+    {"kind": "sig", "label": "CAdES, XAdES", "status": "y", "note": "Baseline B, vérifiées par DSS, OpenSSL, xmlsec1"},
+    {"kind": "net", "label": "SDI", "status": "x"},
+    {"kind": "rep", "label": "SDI, corrispettivi", "status": "x"}
+   ]},
+  {"code": "LV", "name": "Lettonie", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "Peppol BIS 3.0", "status": "y"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "Données au VID", "status": "x"}
+   ]},
+  {"code": "LT", "name": "Lituanie", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "Peppol BIS 3.0 (SABIS)", "status": "y"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "i.SAF, i.VAZ", "status": "x"}
+   ]},
+  {"code": "LU", "name": "Luxembourg", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "Peppol BIS 3.0", "status": "y"},
+    {"label": "XRechnung 3.0", "status": "y"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol", "status": "x"}
+   ]},
+  {"code": "MT", "name": "Malte", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "EN 16931", "status": "y"},
+    {"label": "Peppol BIS 3.0", "status": "y"}
+   ],
+   "features": []},
+  {"code": "NL", "name": "Pays-Bas", "region": "ue", "issues": [],
+   "norms": [
+    {"label": "SI-UBL 2.0", "status": "y"},
+    {"label": "NLCIUS-CII", "status": "y"},
+    {"label": "G-rekening", "status": "y"},
+    {"label": "Peppol BIS 3.0", "status": "y"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol", "status": "x"},
+    {"kind": "rep", "label": "Déclaration numérique (2031)", "status": "x"}
+   ]},
+  {"code": "PL", "name": "Pologne", "region": "ue", "issues": [133],
+   "norms": [
+    {"label": "FA(3)", "status": "n", "note": "schéma KSeF obligatoire"},
+    {"label": "FA_RR(1)", "status": "n", "note": "factures VAT RR"},
+    {"label": "Peppol BIS 3.0 (PEF)", "status": "y"}
+   ],
+   "features": [
+    {"kind": "qr", "label": "Codes QR KSeF", "status": "n", "note": "à confirmer dans la documentation du MF"},
+    {"kind": "net", "label": "KSeF", "status": "x"},
+    {"kind": "rep", "label": "JPK_V7", "status": "x"}
+   ]},
+  {"code": "PT", "name": "Portugal", "region": "ue", "issues": [134],
+   "norms": [
+    {"label": "CIUS-PT", "status": "y", "note": "schematron eSPap 2.1.1"}
+   ],
+   "features": [
+    {"kind": "sig", "label": "PDF signé (PAdES)", "status": "y", "note": "zerechnung.Sign (#122) ; certificat qualifié à fournir"},
+    {"kind": "qr", "label": "ATCUD + QR code", "status": "p", "note": "encodeur internal/qr prêt, aucune API publique"},
+    {"kind": "net", "label": "eSPap, e-fatura", "status": "x"},
+    {"kind": "rep", "label": "SAF-T (PT)", "status": "x"}
+   ]},
+  {"code": "RO", "name": "Roumanie", "region": "ue", "issues": [101],
+   "norms": [
+    {"label": "CIUS-RO 1.0.1", "status": "p", "note": "règles EN 16931 appliquées, pas les règles roumaines"}
+   ],
+   "features": [
+    {"kind": "net", "label": "RO e-Factura", "status": "x"},
+    {"kind": "rep", "label": "e-Transport, SAF-T D406", "status": "x"}
+   ]},
+  {"code": "SK", "name": "Slovaquie", "region": "ue", "issues": [102],
+   "norms": [
+    {"label": "Peppol BIS SK 1.13", "status": "p", "note": "transposition SK non appliquée ; échéance 01/01/2027"}
+   ],
+   "features": [
+    {"kind": "net", "label": "eFaktúra, Peppol", "status": "x"},
+    {"kind": "rep", "label": "SK Tax Data Document", "status": "x"}
+   ]},
+  {"code": "SI", "name": "Slovénie", "region": "ue", "issues": [135],
+   "norms": [
+    {"label": "e-SLOG 2.0", "status": "n", "note": "B2B obligatoire au 01/01/2028"},
+    {"label": "Peppol BIS 3.0", "status": "y"}
+   ],
+   "features": [
+    {"kind": "net", "label": "UJP, Peppol", "status": "x"}
+   ]},
+  {"code": "SE", "name": "Suède", "region": "ue", "issues": [136],
+   "norms": [
+    {"label": "Peppol BIS 3.0", "status": "y", "note": "règles SE comprises"},
+    {"label": "SFTI Fulltextfaktura", "status": "n", "note": "héritée, tolérée"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol", "status": "x"}
+   ]},
+  {"code": "CZ", "name": "Tchéquie", "region": "ue", "issues": [137],
+   "norms": [
+    {"label": "ISDOC 6.0.2", "status": "n"},
+    {"label": "EN 16931", "status": "y"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "EET 2.0 (2027)", "status": "x"}
+   ]},
+  {"code": "IS", "name": "Islande", "region": "aele", "issues": [],
+   "norms": [
+    {"label": "TS 236 (Peppol BIS)", "status": "y"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol", "status": "x"}
+   ]},
+  {"code": "LI", "name": "Liechtenstein", "region": "aele", "issues": [],
+   "norms": [
+    {"label": "EN 16931", "status": "y"}
+   ],
+   "features": []},
+  {"code": "NO", "name": "Norvège", "region": "aele", "issues": [],
+   "norms": [
+    {"label": "EHF Billing 3.0", "status": "y", "note": "= Peppol BIS 3.0 et règles NO"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol, ELMA", "status": "x"}
+   ]},
+  {"code": "CH", "name": "Suisse", "region": "aele", "issues": [138],
+   "norms": [
+    {"label": "QR-facture 2.4", "status": "p", "note": "encodeur prêt, contenu SPC non écrit"}
+   ],
+   "features": [
+    {"kind": "qr", "label": "Swiss QR Code", "status": "p", "note": "encodeur internal/qr prêt"},
+    {"kind": "net", "label": "eBill", "status": "x"}
+   ]},
+  {"code": "GB", "name": "Royaume-Uni", "region": "aele", "issues": [],
+   "norms": [
+    {"label": "Peppol BIS 3.0", "status": "y"},
+    {"label": "BS EN 16931", "status": "y"}
+   ],
+   "features": [
+    {"kind": "net", "label": "Peppol", "status": "x"}
+   ]},
+  {"code": "AL", "name": "Albanie", "region": "autre", "issues": [139],
+   "norms": [
+    {"label": "UBL 2.1 / CII fiscal", "status": "p", "note": "règles EN 16931 seules"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "Fiscalisation", "status": "x"}
+   ]},
+  {"code": "BA", "name": "Bosnie-Herzégovine", "region": "autre", "issues": [],
+   "norms": [
+    {"label": "EN 16931 (FBiH)", "status": "y", "note": "en cours de mise en place", "future": true}
+   ],
+   "features": [
+    {"kind": "rep", "label": "Fiscalisation (CPF)", "status": "x"}
+   ]},
+  {"code": "MK", "name": "Macédoine du Nord", "region": "autre", "issues": [140],
+   "norms": [
+    {"label": "e-Faktura", "status": "n", "note": "en test", "future": true}
+   ],
+   "features": []},
+  {"code": "MD", "name": "Moldavie", "region": "autre", "issues": [141],
+   "norms": [
+    {"label": "e-Factura", "status": "n"}
+   ],
+   "features": [
+    {"kind": "sig", "label": "Signature e-Factura", "status": "n"},
+    {"kind": "net", "label": "SFS", "status": "x"}
+   ]},
+  {"code": "ME", "name": "Monténégro", "region": "autre", "issues": [143],
+   "norms": [
+    {"label": "Facture structurée", "status": "n", "note": "annoncée, sans loi", "future": true}
+   ],
+   "features": [
+    {"kind": "rep", "label": "Fiscalisation", "status": "x"}
+   ]},
+  {"code": "RS", "name": "Serbie", "region": "autre", "issues": [142],
+   "norms": [
+    {"label": "CIUS serbe (UBL 2.1)", "status": "p", "note": "règles EN 16931 seules"}
+   ],
+   "features": [
+    {"kind": "net", "label": "SEF", "status": "x"},
+    {"kind": "rep", "label": "TVA pré-remplie (2027)", "status": "x"}
+   ]},
+  {"code": "TR", "name": "Turquie", "region": "autre", "issues": [144],
+   "norms": [
+    {"label": "UBL-TR 1.2.1 (e-Fatura)", "status": "n"},
+    {"label": "e-Arşiv", "status": "n"}
+   ],
+   "features": [
+    {"kind": "sig", "label": "Cachet financier (XAdES ?)", "status": "n", "note": "forme à vérifier"},
+    {"kind": "net", "label": "GİB", "status": "x"}
+   ]},
+  {"code": "UA", "name": "Ukraine", "region": "autre", "issues": [145],
+   "norms": [
+    {"label": "Facture fiscale TVA (XML)", "status": "n"}
+   ],
+   "features": [
+    {"kind": "rep", "label": "SAF-T UA, ЄРПН", "status": "x"}
+   ]}
+ ]
+}
