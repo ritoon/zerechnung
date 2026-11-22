@@ -83,6 +83,7 @@ import (
 
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/facturae"
+	"github.com/ritoon/zerechnung/fatturapa"
 	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/internal/rules/choruspro"
 	"github.com/ritoon/zerechnung/internal/rules/de"
@@ -289,10 +290,16 @@ type PublicBuyer struct {
 // XML validates a CII or UBL invoice, a ZUGFeRD 1.0 invoice, a FatturaPA
 // document or a Facturae document.
 func XML(data []byte, opts *Options) *Report {
+	root, err := xmltree.Parse(data)
+	return xmlReport(data, root, err, opts)
+}
+
+// xmlReport returns the report of XML on data, which xmltree.Parse read as
+// root, or failed to read with err.
+func xmlReport(data []byte, root *xmltree.Node, err error, opts *Options) *Report {
 	if opts == nil {
 		opts = &Options{}
 	}
-	root, err := xmltree.Parse(data)
 	if err != nil {
 		r := &Report{}
 		r.Add(Finding{Rule: "XML", Severity: Error, Source: SourceSyntax, Message: err.Error()})
@@ -324,7 +331,7 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	case cii.IsZUGFeRD1(root):
 		checkZUGFeRD1(root, opts, r)
 		return r
-	case isFatturaPA(root):
+	case fatturapa.IsFatturaPA(root):
 		if set := opts.Rules; set == 0 || set&Schema != 0 {
 			schema.CheckFatturaPA(&rules.Checker{Report: r, Source: SourceSyntax}, root)
 		}
@@ -399,16 +406,6 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	// The CIUS-PT schematron is a UBL one, checked on the UBL document.
 	run(Portugal, SourcePT, pt.Check)
 	return r
-}
-
-// nsFatturaPA is the namespace of the root element of FatturaPA 1.2 (see
-// package fatturapa, which this package does not import).
-const nsFatturaPA = "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
-
-// isFatturaPA reports whether root is the root element of a FatturaPA
-// document, p:FatturaElettronica.
-func isFatturaPA(root *xmltree.Node) bool {
-	return root != nil && root.Name == "FatturaElettronica" && root.Space == nsFatturaPA
 }
 
 // RulesFor returns the rule sets that apply to doc with opts: opts.Rules

@@ -16,7 +16,6 @@ import (
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/invoice"
 	"github.com/ritoon/zerechnung/ubl"
-	"github.com/ritoon/zerechnung/validate"
 )
 
 // The test invoices are written by hand, in the layout of Marshal with
@@ -50,14 +49,20 @@ func parse(t *testing.T, name string) *invoice.Invoice {
 	return inv
 }
 
+// ValidateXML validates a document with validate.XML and returns the
+// profile of the report, the rule of each finding and the report, printed.
+// Package validate imports this package: validate_test.go, in the external
+// test package, sets it.
+var ValidateXML func(xml []byte) (profile invoice.Profile, rules []string, report string)
+
 // checkSchema checks that a document written by Marshal is valid against
 // the FatturaPA schema.
 func checkSchema(t *testing.T, name string, out []byte, allowed ...string) {
 	t.Helper()
-	r := validate.XML(out, nil)
-	r.Findings = slices.DeleteFunc(r.Findings, func(f validate.Finding) bool { return slices.Contains(allowed, f.Rule) })
-	if len(r.Findings) > 0 {
-		t.Errorf("%s: the document written is not valid against the FatturaPA schema and the SDI controls:\n%s\n%s", name, r, out)
+	_, rules, report := ValidateXML(out)
+	rules = slices.DeleteFunc(rules, func(rule string) bool { return slices.Contains(allowed, rule) })
+	if len(rules) > 0 {
+		t.Errorf("%s: the document written is not valid against the FatturaPA schema and the SDI controls:\n%s\n%s", name, report, out)
 	}
 }
 
@@ -332,8 +337,8 @@ func TestCIUSIT(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r := validate.XML(back, nil); r.Profile != invoice.ProfileCIUSIT || len(r.Findings) > 0 {
-		t.Errorf("CII written back: profile %s\n%s", r.Profile, r)
+	if profile, rules, report := ValidateXML(back); profile != invoice.ProfileCIUSIT || len(rules) > 0 {
+		t.Errorf("CII written back: profile %s\n%s", profile, report)
 	}
 }
 

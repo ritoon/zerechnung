@@ -167,6 +167,14 @@ To pick the rules yourself:
 
 XRechnung, Peppol, NLCIUS, CIUS-IT and CIUS-PT invoices declare themselves, so their rules apply without any option. All the options and rule sets are described in [Validating invoices](https://github.com/ritoon/zerechnung/wiki/Validating-invoices).
 
+### Read and validate at once
+
+```go
+inv, report, _, err := zerechnung.ReadAndCheck(pdf, &validate.Options{Auto: true})
+```
+
+`ReadAndCheck` reads the PDF and parses the XML once, where `Read` followed by `Check` does both twice: the invoice and the error are those of `Read`, the report that of `Check`. For an XML file, `validate.Parse(xml, opts)` does the same with the `Parse` function of its syntax (`cii`, `ubl`, `fatturapa` or `facturae`) and `validate.XML`. On the 13 KB example invoice, reading and validating the XML takes 30 µs instead of 40 µs; with `PDFA: validate.PDFABasic`, reading and checking the 149 KB PDF takes 87 µs instead of 131 µs.
+
 ### Work with the XML directly
 
 The `cii`, `ubl`, `fatturapa` and `facturae` packages read and write the XML with the same `invoice.Invoice` model, so converting between syntaxes is a parse and a marshal:

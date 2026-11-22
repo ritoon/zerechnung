@@ -56,6 +56,46 @@ func Read(pdf []byte) (*invoice.Invoice, *Attachment, error) {
 	return inv, att, nil
 }
 
+// ReadAndCheck reads and checks a hybrid PDF, reading the PDF and parsing
+// its XML once instead of twice for Read followed by Check. The report and
+// the attachment are those of Check, the invoice and the error those of
+// Read: a PDF without an invoice (ErrNoInvoice), an encrypted PDF
+// (ErrEncrypted) or an XML that cannot be read comes with an error and the
+// report that says why. Only a PDF that cannot be read at all gives no
+// report, with the error of Check.
+func ReadAndCheck(pdf []byte, opts *validate.Options) (*invoice.Invoice, *validate.Report, *Attachment, error) {
+	return readAndCheck(pdf, opts, nil)
+}
+
+// readAndCheck implements ReadAndCheck, with the font cache of a Checker
+// when fonts is not nil.
+func readAndCheck(pdf []byte, opts *validate.Options, fonts *fontCache) (*invoice.Invoice, *validate.Report, *Attachment, error) {
+	c, err := checkTree(pdf, opts, fonts)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if c.att == nil {
+		return nil, c.report, nil, c.noInvoice
+	}
+	inv, err := readTree(c.root, c.att.XML)
+	return inv, c.report, c.att, err
+}
+
+// readTree reads the invoice of an attachment as Read does, from root, the
+// XML parsed, when it is a CII invoice.
+func readTree(root *xmltree.Node, xml []byte) (*invoice.Invoice, error) {
+	if root == nil || !(root.Name == "CrossIndustryInvoice" && root.Space == cii.NamespaceRSM || cii.IsZUGFeRD1(root)) {
+		// The XML cannot be parsed, or is not a CII invoice: cii.Parse
+		// says why, as for Read.
+		return cii.Parse(xml)
+	}
+	inv, issues := cii.ParseTree(root)
+	if len(issues) > 0 {
+		return inv, &cii.IssuesError{Issues: issues}
+	}
+	return inv, nil
+}
+
 // CreateOptions tune Create.
 type CreateOptions struct {
 	// Profile is the profile to write; zero means inv.Profile, or EN 16931
@@ -152,6 +192,21 @@ func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, e
 // check implements Check, with the font cache of a Checker when fonts is
 // not nil.
 func check(pdf []byte, opts *validate.Options, fonts *fontCache) (*validate.Report, *Attachment, error) {
+	c, err := checkTree(pdf, opts, fonts)
+	return c.report, c.att, err
+}
+
+// checked is what checkTree finds: the report and the attachment of Check,
+// and what ReadAndCheck reads besides.
+type checked struct {
+	report    *validate.Report
+	att       *Attachment
+	root      *xmltree.Node // the invoice XML, nil when it cannot be parsed
+	noInvoice error         // why the PDF has no invoice attachment, as Extract returns it
+}
+
+// checkTree implements Check and ReadAndCheck.
+func checkTree(pdf []byte, opts *validate.Options, fonts *fontCache) (checked, error) {
 	o := validate.Options{}
 	if opts != nil {
 		o = *opts
@@ -161,7 +216,8 @@ func check(pdf []byte, opts *validate.Options, fonts *fontCache) (*validate.Repo
 	// The XML is parsed once: to find the national rules that apply to the
 	// container, then to validate it.
 	var root *xmltree.Node
-	att, findings, err := checkContainer(pdf, func(xml []byte) countries {
+	k := &containerCheck{level: opts.PDFA, fonts: fonts}
+	att, err := k.check(pdf, func(xml []byte) countries {
 		t, err := xmltree.Parse(xml)
 		if err != nil {
 			return 0
@@ -171,9 +227,10 @@ func check(pdf []byte, opts *validate.Options, fonts *fontCache) (*validate.Repo
 			return 0
 		}
 		return countriesOf(validate.RulesFor(rules.NewDoc(t, opts.Profile), opts))
-	}, opts.PDFA, fonts)
+	})
+	findings := k.findings
 	if err != nil && att == nil && len(findings) == 0 {
-		return nil, nil, err
+		return checked{}, err
 	}
 	r := &validate.Report{}
 	switch {
@@ -196,7 +253,7 @@ func check(pdf []byte, opts *validate.Options, fonts *fontCache) (*validate.Repo
 		findings = append(findings, sr.Findings...)
 	}
 	r.Findings = append(findings, r.Findings...)
-	return r, att, nil
+	return checked{report: r, att: att, root: root, noInvoice: k.noInvoice}, nil
 }
 
 // DetectProfile returns the profile declared by the BT-24 of a CII invoice,

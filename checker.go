@@ -10,6 +10,7 @@ import (
 
 	"github.com/ritoon/zerechnung/internal/font"
 	"github.com/ritoon/zerechnung/internal/pdf"
+	"github.com/ritoon/zerechnung/invoice"
 	"github.com/ritoon/zerechnung/validate"
 )
 
@@ -54,11 +55,20 @@ func NewChecker(opts *CheckerOptions) *Checker {
 
 // Check is Check with the cache of c.
 func (c *Checker) Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, error) {
-	var fonts *fontCache
-	if c != nil {
-		fonts = c.fonts
+	return check(pdf, opts, c.cache())
+}
+
+// ReadAndCheck is ReadAndCheck with the cache of c.
+func (c *Checker) ReadAndCheck(pdf []byte, opts *validate.Options) (*invoice.Invoice, *validate.Report, *Attachment, error) {
+	return readAndCheck(pdf, opts, c.cache())
+}
+
+// cache returns the font cache of c, nil when it has none.
+func (c *Checker) cache() *fontCache {
+	if c == nil {
+		return nil
 	}
-	return check(pdf, opts, fonts)
+	return c.fonts
 }
 
 // fontEntryOverhead is what an entry of the font cache counts besides its

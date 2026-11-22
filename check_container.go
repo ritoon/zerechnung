@@ -142,6 +142,9 @@ type containerCheck struct {
 	findings []rules.Finding
 	level    validate.PDFALevel // the PDF/A checks to apply
 	fonts    *fontCache         // the font programs of a Checker, or nil
+	// noInvoice is why the PDF has no invoice attachment, as Extract
+	// returns it: ErrEncrypted, ErrNoInvoice, or why it cannot be decoded.
+	noInvoice error
 	// The XMP metadata stream as document read it: the packet, nil when
 	// there is none or it cannot be decoded, and what it declares, nil when
 	// the packet cannot be read either.
@@ -186,13 +189,22 @@ func CheckContainer(pdfData []byte) (*Attachment, []rules.Finding, error) {
 // nil, is the cache of font programs of a Checker.
 func checkContainer(pdfData []byte, national func(xml []byte) countries, level validate.PDFALevel, fonts *fontCache) (*Attachment, []rules.Finding, error) {
 	k := &containerCheck{level: level, fonts: fonts}
+	a, err := k.check(pdfData, national)
+	return a, k.findings, err
+}
+
+// check checks the container, as checkContainer does, and returns the
+// invoice attachment. The error is reserved for PDFs that cannot be read
+// at all; k.noInvoice says why there is no attachment.
+func (k *containerCheck) check(pdfData []byte, national func(xml []byte) countries) (*Attachment, error) {
 	c, err := openContainer(pdfData)
 	if err != nil {
 		if errors.Is(err, ErrEncrypted) {
 			k.add("PDF-01", "trailer /Encrypt", "the PDF is encrypted")
-			return nil, k.findings, nil
+			k.noInvoice = err
+			return nil, nil
 		}
-		return nil, nil, err
+		return nil, err
 	}
 
 	info := k.document(c)
@@ -204,8 +216,9 @@ func checkContainer(pdfData []byte, national func(xml []byte) countries, level v
 		} else {
 			k.add("PDF-09", specPath(fs), "the invoice attachment cannot be decoded: %v", err)
 		}
+		k.noInvoice = err
 		k.pdfa(c, fs, info)
-		return nil, k.findings, nil
+		return nil, nil
 	}
 	a := c.attachment(fs, data, st, metadataOf(info))
 	var others []string
@@ -233,7 +246,7 @@ func checkContainer(pdfData []byte, national func(xml []byte) countries, level v
 	// Last: the scan adds the files of page-level /AF arrays to c.specs,
 	// which PDF-28 does not look at.
 	k.pdfa(c, fs, info)
-	return a, k.findings, nil
+	return a, nil
 }
 
 // document checks the XMP identification, the output intent and the file
