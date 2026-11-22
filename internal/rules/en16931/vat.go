@@ -228,11 +228,15 @@ func (k *checker) applicableTradeTax(n *xmltree.Node) {
 			}
 		}
 	case "SpecifiedLineTradeSettlement":
+		plain := k.mode == modeExtendedCTCFR && n.Parent.Parent != nil && detail(n.Parent.Parent)
 		for i, p := range present {
 			if p {
 				k.catLine[i]++
 				if vat {
 					k.catLineVAT[i]++
+				}
+				if plain {
+					k.catDetail[i]++
 				}
 			}
 		}
@@ -461,32 +465,42 @@ func (k *checker) breakdowns(s *xmltree.Node) {
 		default:
 			k.breakdown(t)
 		}
-		for _, c := range t.Children {
-			if c.Name != "CategoryCode" {
-				continue
+		k.categoryCodeRules(s, t)
+	}
+}
+
+// categoryCodeRules checks the rules of contexts on the ram:CategoryCode of
+// a VAT breakdown t of header settlement s: BR-AE-08 to BR-AE-10, BR-E-08 to
+// BR-E-10, BR-G-08 to BR-G-10 and BR-IC-08 to BR-IC-12 for the breakdowns of
+// type VAT of the transaction, BR-Z-08 to BR-Z-10 and BR-S-08 to BR-S-10 for
+// all.
+func (k *checker) categoryCodeRules(s, t *xmltree.Node) {
+	special := isVAT(t) && s.Parent != nil && s.Parent.Name == "SupplyChainTradeTransaction"
+	for _, c := range t.Children {
+		if c.Name != "CategoryCode" {
+			continue
+		}
+		switch c.Text {
+		case "AE":
+			if special {
+				k.zeroBreakdown(s, t, catAE, true)
 			}
-			switch c.Text {
-			case "AE":
-				if special {
-					k.zeroBreakdown(s, t, catAE, true)
-				}
-			case "E":
-				if special {
-					k.zeroBreakdown(s, t, catE, true)
-				}
-			case "G":
-				if special {
-					k.zeroBreakdown(s, t, catG, true)
-				}
-			case "K":
-				if special {
-					k.zeroBreakdown(s, t, catK, true)
-				}
-			case "Z":
-				k.zeroBreakdown(s, t, catZ, false)
-			case "S":
-				k.standardBreakdown(t)
+		case "E":
+			if special {
+				k.zeroBreakdown(s, t, catE, true)
 			}
+		case "G":
+			if special {
+				k.zeroBreakdown(s, t, catG, true)
+			}
+		case "K":
+			if special {
+				k.zeroBreakdown(s, t, catK, true)
+			}
+		case "Z":
+			k.zeroBreakdown(s, t, catZ, false)
+		case "S":
+			k.standardBreakdown(t)
 		}
 	}
 }

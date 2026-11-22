@@ -31,3 +31,19 @@ func TestVariants(t *testing.T) {
 	}
 	w.Close(t)
 }
+
+// TestCTCFRVariants builds the document of every EXTENDED-CTC-FR mutation
+// case, and writes them to -variants when it is set:
+//
+//	go test ./internal/rules/en16931 -run '^TestCTCFRVariants$' -variants DIR
+//
+// cii-000-<case>.xml, numbered in the order of the cases. The parity job
+// (conformance/parity.sh) compares them with the EXTENDED-CTC-FR XSLT of the
+// FNFE-MPE, which must raise the rules each case expects.
+func TestCTCFRVariants(t *testing.T) {
+	w := variants.New(t)
+	for i, c := range append(ctcfrCases(), ctcfrModelCases()...) {
+		w.Add(t, "cii", i, c.name, []byte(c.doc(t)), strings.Fields(c.want))
+	}
+	w.Close(t)
+}

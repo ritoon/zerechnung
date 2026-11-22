@@ -52,9 +52,13 @@ func (e entry) variant() bool { return strings.HasPrefix(e.Source, "variants/") 
 // the CIUS-PT schematron receives.
 func (e entry) pt() bool { return strings.HasPrefix(e.Source, "pt/") }
 
-// national reports whether the invoice is one of the NLCIUS or CIUS-PT
-// comparisons, which KoSIT and Mustang do not receive.
-func (e entry) national() bool { return e.nl() || e.pt() }
+// fr reports whether the invoice is one of the EXTENDED-CTC-FR comparison,
+// which only the XSLT of the FNFE-MPE receive.
+func (e entry) fr() bool { return strings.HasPrefix(e.Source, "fr/") }
+
+// national reports whether the invoice is one of the NLCIUS, CIUS-PT or
+// EXTENDED-CTC-FR comparisons, which KoSIT and Mustang do not receive.
+func (e entry) national() bool { return e.nl() || e.pt() || e.fr() }
 
 // nlTestDirs are the directories of the SimplerInvoicing test files (FX_NL_TESTS)
 // for the versions of the NPa artefacts: SI-UBL 2.0.3, NLCIUS-CII 1.0.3 and
@@ -86,7 +90,7 @@ type ptInputs struct {
 // for the KoSIT validator. The rules that each mutation case expects, read
 // from the expected.tsv of its directory (package internal/variants), are
 // written to DIR/expected.tsv by origin.
-func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string) error {
+func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, fr fnfeInputs, variants string) error {
 	var sources []string                        // origin
 	read := map[string]func() ([]byte, error){} // origin → contents
 	var expected strings.Builder
@@ -107,6 +111,22 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string
 				return fmt.Errorf("%s: bad line %q", filepath.Join(dir, "expected.tsv"), line)
 			}
 			fmt.Fprintf(&expected, "%s/%s\t%s\n", prefix, file, rules)
+		}
+		return nil
+	}
+	// readExpectedPackages reads the expected.tsv of each directory of root,
+	// one per rule package.
+	readExpectedPackages := func(root, prefix string) error {
+		dirs, err := os.ReadDir(root)
+		if err != nil {
+			return err
+		}
+		for _, d := range dirs {
+			if d.IsDir() {
+				if err := readExpected(filepath.Join(root, d.Name()), prefix+"/"+d.Name()); err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	}
@@ -186,16 +206,8 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string
 		if err := add(variants, "variants", ".", ".xml"); err != nil {
 			return err
 		}
-		dirs, err := os.ReadDir(variants)
-		if err != nil {
+		if err := readExpectedPackages(variants, "variants"); err != nil {
 			return err
-		}
-		for _, d := range dirs {
-			if d.IsDir() {
-				if err := readExpected(filepath.Join(variants, d.Name()), "variants/"+d.Name()); err != nil {
-					return err
-				}
-			}
 		}
 	}
 	if pt.examples != "" {
@@ -209,6 +221,35 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string
 			return err
 		}
 	}
+	if fr.rfe != "" {
+		for _, d := range fnfeExampleDirs {
+			if err := add(fr.rfe, "fr/fnfe", d, ".xml"); err != nil {
+				return err
+			}
+		}
+		if err := add(fr.repo, "fr/zerechnung", fnfeRepoDir, ".xml"); err != nil {
+			return err
+		}
+		if err := add(fr.variants, "fr/variants", ".", ".xml"); err != nil {
+			return err
+		}
+		if err := readExpectedPackages(fr.variants, "fr/variants"); err != nil {
+			return err
+		}
+		// Of the French invoices of the repository, the EXTENDED-CTC-FR ones.
+		var err error
+		sources = slices.DeleteFunc(sources, func(src string) bool {
+			if err != nil || !strings.HasPrefix(src, "fr/zerechnung/") {
+				return false
+			}
+			var data []byte
+			data, err = read[src]()
+			return err == nil && !declaresCTCFR(data)
+		})
+		if err != nil {
+			return err
+		}
+	}
 	sort.Strings(sources)
 
 	in := filepath.Join(work, "in")
@@ -218,8 +259,8 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string
 	if err := os.MkdirAll(in, 0o755); err != nil {
 		return err
 	}
-	var index, kositList, mustangList, npaList, ptList strings.Builder
-	nlFiles, ptFiles, variantFiles := 0, 0, 0
+	var index, kositList, mustangList, npaList, ptList, fnfeList strings.Builder
+	nlFiles, ptFiles, frFiles, variantFiles := 0, 0, 0, 0
 	for i, src := range sources {
 		ext := strings.ToLower(filepath.Ext(src))
 		e := entry{Name: fmt.Sprintf("%04d%s", i+1, ext), Source: src}
@@ -247,6 +288,13 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string
 		case e.pt():
 			fmt.Fprintln(&ptList, abs)
 			ptFiles++
+		case e.fr():
+			line, err := fnfeListLine(fr.rfe, src, abs, data)
+			if err != nil {
+				return err
+			}
+			fnfeList.WriteString(line)
+			frFiles++
 		case e.variant():
 			fmt.Fprintln(&kositList, abs)
 			variantFiles++
@@ -257,12 +305,12 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string
 			fmt.Fprintln(&mustangList, abs)
 		}
 	}
-	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "expected.tsv": expected.String()} {
+	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "fnfe.list": fnfeList.String(), "expected.tsv": expected.String()} {
 		if err := os.WriteFile(filepath.Join(work, name), []byte(s), 0o644); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, variantFiles)
+	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d for the EXTENDED-CTC-FR XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, frFiles, variantFiles)
 	return nil
 }
 

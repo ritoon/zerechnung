@@ -1,17 +1,18 @@
 # Écarts connus et justifiés entre ZeRechnung et les validateurs de référence.
 #
 # Une ligne par écart : référence, facture, écart, raison.
-#   référence : kosit, mustang, npa (XSLT de la NPa), pt (schematron CIUS-PT
+#   référence : kosit, mustang, npa (XSLT de la NPa), fnfe (XSLT
+#               EXTENDED-CTC-FR de la FNFE-MPE), pt (schematron CIUS-PT
 #               d'eSPap) ou * (toutes)
-#   facture   : origine de la facture (corpus/…, kosit/…, variants/…, nl/… ou
-#               pt/…) ; * vaut pour n'importe quelle suite de caractères, /
-#               compris
+#   facture   : origine de la facture (corpus/…, kosit/…, variants/…, nl/…,
+#               fr/… ou pt/…) ; * vaut pour n'importe quelle suite de
+#               caractères, / compris
 #   écart     : +RÈGLE en erreur chez ZeRechnung seul, -RÈGLE en erreur chez la
-#               référence seule (avec les variants, npa et pt, à tout niveau :
-#               + ou - pour le côté qui la lève au niveau le plus élevé) ;
-#               ?RÈGLE attendue par le test de mutation d'un variant et que la
-#               référence ne lève pas ; une * finale vaut pour toutes les
-#               règles de ce préfixe ; SCHEMA désigne les erreurs de schéma
+#               référence seule (avec les variants, npa, fnfe et pt, à tout
+#               niveau : + ou - pour le côté qui la lève au niveau le plus
+#               élevé) ; ?RÈGLE attendue par le test de mutation d'un variant
+#               et que la référence ne lève pas ; une * finale vaut pour toutes
+#               les règles de ce préfixe ; SCHEMA désigne les erreurs de schéma
 #               XSD. Avec pt, la règle est suivie de l'élément où elle est
 #               levée, +RÈGLE@/Invoice[1]/InvoiceLine[2], sauf pour
 #               l'assertion d'un arrêt de Saxon (-RÈGLE)
@@ -109,3 +110,12 @@ npa ubl/nlcius ~BR-NL-32-1 Assertion au message de BR-NL-34 : sa règle répète
 npa ubl/nlcius ~BR-NL-32-2 Les deux assertions BR-NL-32-2, aux messages de BR-NL-32 et de BR-NL-34 : le contexte de BR-NL-32-1, cac:AllowanceCharge/cbc:AllowanceChargeReasonCode, couvre déjà les codes motifs des remises et charges des lignes de facture.
 npa ubl/nlcius ~BR-NL-32-3 Les deux assertions BR-NL-32-3, aux messages de BR-NL-32 et de BR-NL-34 : le contexte de BR-NL-32-1 couvre déjà les codes motifs des remises et charges des lignes d'avoir.
 npa ubl/SI-UBL-VERSION ~SI-INV-R000 Vérifie que la racine est une Invoice ou une CreditNote : un validateur ne donne la XSLT SI-UBL 2.0 qu'à ces documents, les seuls que ZeRechnung valide en UBL.
+
+# XSLT EXTENDED-CTC-FR de la FNFE-MPE : arrêts sur une erreur de type XPath
+#
+# Comme pour les XSLT de la NPa : sur un élément répété là où le schéma n'en
+# admet qu'un, le test d'une règle reçoit deux valeurs et Saxon arrête la
+# transformation (XPTY0004). ZeRechnung lit la première valeur et signale la
+# répétition par sa règle de syntaxe.
+
+fnfe fr/variants/en16931/cii-*-cii-sr-477-line-total-count.xml -BR-FREXT-CO-10 Arrêt dans le test de BR-FREXT-CO-10 sur les deux ram:LineTotalAmount ; ZeRechnung lève CII-SR-477 (total des lignes répété), la règle que la variante teste.

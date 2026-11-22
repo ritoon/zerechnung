@@ -106,6 +106,7 @@ type xslAssertion struct {
 	Message string // whitespace normalized
 	from    int    // lines of the test (xsl:when or xsl:if) in the XSLT
 	to      int
+	end     int // line of the end of the svrl:failed-assert (svrl:successful-report)
 	tmpl    int // index of the xsl:template of the rule, in templates
 }
 
@@ -221,6 +222,7 @@ func indexXSL(file string) (xslIndex, error) {
 				field = ""
 			case t.Name.Space == nsSVRL && (t.Name.Local == "failed-assert" || t.Name.Local == "successful-report"):
 				cur.ID, cur.Flag = assertionID(id, cur.Message), flag
+				cur.end, _ = d.InputPos()
 				if cur.tmpl >= 0 {
 					idx.templates[cur.tmpl].asserts++
 				}
@@ -233,12 +235,19 @@ func indexXSL(file string) (xslIndex, error) {
 }
 
 // at returns the assertion that raised a dynamic error reported at line:
-// the one whose test spans the line or, as Saxon may report the location of
-// the template, the only assertion of the rule whose xsl:template start tag
-// spans the line.
+// the one whose test spans the line; as Saxon may report the location of the
+// svrl:failed-assert that the test guards (in the XSLT of the FNFE-MPE), the
+// one whose test and failed assertion span the line; or, as Saxon may report
+// the location of the template, the only assertion of the rule whose
+// xsl:template start tag spans the line.
 func (idx xslIndex) at(line int) (xslAssertion, bool) {
 	for _, a := range idx.asserts {
 		if a.from <= line && line <= a.to {
+			return a, true
+		}
+	}
+	for _, a := range idx.asserts {
+		if a.from <= line && line <= a.end {
 			return a, true
 		}
 	}
@@ -344,18 +353,23 @@ func parseSVRL(data []byte) (svrlReport, error) {
 	return rep, nil
 }
 
-// npaRun is the run of the NPa XSLT: the stylesheet given to each staged
-// invoice (npa.list), the assertions of each stylesheet, and the NLCIUS
-// assertions that failed on at least one invoice.
-type npaRun struct {
+// xslRun is the run of XSLT compiled by the ISO skeleton, by NPaBatch: the
+// NPa XSLT (npa.list) or the EXTENDED-CTC-FR XSLT of the FNFE-MPE
+// (fnfe.list). It holds the stylesheet given to each staged invoice, the
+// assertions of each stylesheet, and the NLCIUS assertions that failed on
+// at least one invoice.
+type xslRun struct {
+	list    string              // npa.list, fnfe.list
 	xsl     map[string]string   // staged name → XSLT
 	indexes map[string]xslIndex // XSLT → assertions
 	fired   map[string]bool     // key of an assertion of an NLCIUS pattern → it failed
 }
 
-func newNPaRun(work string) (*npaRun, error) {
-	run := &npaRun{xsl: map[string]string{}, indexes: map[string]xslIndex{}, fired: map[string]bool{}}
-	data, err := os.ReadFile(filepath.Join(work, "npa.list"))
+// newXSLRun reads the list of a run in the work directory: one line per
+// invoice, the XSLT and the staged file separated by a tab.
+func newXSLRun(work, list string) (*xslRun, error) {
+	run := &xslRun{list: list, xsl: map[string]string{}, indexes: map[string]xslIndex{}, fired: map[string]bool{}}
+	data, err := os.ReadFile(filepath.Join(work, list))
 	if os.IsNotExist(err) {
 		return run, nil
 	}
@@ -368,7 +382,7 @@ func newNPaRun(work string) (*npaRun, error) {
 		}
 		xsl, file, ok := strings.Cut(line, "\t")
 		if !ok {
-			return nil, fmt.Errorf("npa.list: bad line %q", line)
+			return nil, fmt.Errorf("%s: bad line %q", list, line)
 		}
 		run.xsl[filepath.Base(file)] = xsl
 		if _, ok := run.indexes[xsl]; !ok {
@@ -388,11 +402,11 @@ func newNPaRun(work string) (*npaRun, error) {
 // assertion whose test raised it counts as failed, as the package does (see
 // the package documentation of internal/rules/nl), and the result is
 // partial: the other assertions are unknown.
-func (run *npaRun) result(e entry, data []byte) (result, error) {
+func (run *xslRun) result(e entry, data []byte) (result, error) {
 	res := newResult()
 	xsl, ok := run.xsl[e.Name]
 	if !ok {
-		return res, fmt.Errorf("not in npa.list")
+		return res, fmt.Errorf("not in %s", run.list)
 	}
 	rep, err := parseSVRL(data)
 	if err != nil {
@@ -445,7 +459,7 @@ func (n neverFired) where() string { return n.Syntax + "/" + n.Pattern }
 
 // neverFired lists the assertions of the NLCIUS patterns of the stylesheets
 // that failed on no invoice, each once, sorted.
-func (run *npaRun) neverFired() []neverFired {
+func (run *xslRun) neverFired() []neverFired {
 	var out []neverFired
 	seen := map[string]bool{}
 	xsls := make([]string, 0, len(run.indexes))

@@ -3,8 +3,8 @@ package facturx
 import "github.com/ritoon/zerechnung/internal/rules"
 
 // Profile masks of the rules: the profiles whose official schematron holds
-// the rule. mExt stands for EXTENDED and EXTENDED-CTC-FR, which get the
-// BR-FXEXT rules of the EXTENDED schematron (the code list assertions of
+// the rule. mExt stands for EXTENDED and EXTENDED-CTC-FR; only EXTENDED gets
+// the BR-FXEXT rules of the EXTENDED schematron (the code list assertions of
 // mBasic, mEN and mExt only apply where the Factur-X schematron of the
 // profile does, see Check); mOther for the other profiles (XRECHNUNG,
 // PEPPOL), which only get the profile identification rules here.

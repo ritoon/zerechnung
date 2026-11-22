@@ -24,6 +24,10 @@
 // CEN syntax rules as the artefacts of the extension modify them: without
 // UBL-CR-411, UBL-CR-453 and UBL-CR-459.
 //
+// An EXTENDED-CTC-FR invoice is checked against the rules of the FNFE-MPE
+// schematron EXTENDED-CTC-FR-UBL.sch instead of the CEN ones (see ctcfr.go
+// and CTCFRCatalog).
+//
 // Severities are the official ones (fatal: Error, warning: Warning), with the
 // levels of the KoSIT validator configuration for XRechnung invoices (see
 // en16931.Level).
@@ -40,6 +44,7 @@ import (
 )
 
 //go:generate go run ./gen -o catalog_gen.go
+//go:generate go run ./gen -ctcfr -o ctcfr_gen.go
 
 // Check runs the UBL rules on c.Doc.UBL and records the findings in c.Report.
 // It does nothing for a CII document, nor for a profile that is not an
@@ -52,14 +57,20 @@ func Check(c *rules.Checker) {
 	if p := d.Profile; p != invoice.ProfileUnknown && !p.EN16931() {
 		return
 	}
-	k := &checker{c: c, d: d, root: d.UBL, credit: d.UBL.Name == "CreditNote"}
+	k := &checker{c: c, d: d, root: d.UBL, credit: d.UBL.Name == "CreditNote", ctcfr: d.Profile == invoice.ProfileExtendedCTCFR}
 	k.document()
 	k.business()
+	if k.ctcfr {
+		k.ctcfrDocument()
+	}
 	k.root.Walk(func(n *xmltree.Node) bool {
 		k.businessRules(n)
 		k.codeLists(n)
 		k.contextRules(n)
 		k.dataType(n)
+		if k.ctcfr {
+			k.ctcfrNode(n)
+		}
 		return true
 	})
 	k.rootRules()
@@ -72,6 +83,11 @@ type checker struct {
 	d      *rules.Doc
 	root   *xmltree.Node
 	credit bool
+	ctcfr  bool // EXTENDED-CTC-FR: the rules of the FNFE-MPE schematron (ctcfr.go)
+
+	// EXTENDED-CTC-FR, computed once by ctcfrInit.
+	invoiceIDs []string               // /*/cbc:ID ($invoiceID)
+	inCalc     map[*xmltree.Node]bool // lines summed in the totals ($lineInCalul)
 }
 
 // severity maps the rule identifiers of Catalog to their severity.
@@ -92,8 +108,24 @@ var description = func() map[string]string {
 	return m
 }()
 
-// fail records a finding for rule id located at n (the root when nil).
+// fail records a finding for rule id located at n (the root when nil). For an
+// EXTENDED-CTC-FR invoice, the rules that the schematron removes are not
+// reported, and the others have its identifiers and severities.
 func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
+	if k.ctcfr {
+		if r, ok := ctcfrRenamed[id]; ok {
+			id = r
+		}
+		sev, ok := ctcfrSeverity[id]
+		if !ok {
+			return
+		}
+		if n == nil {
+			n = k.root
+		}
+		k.c.Fail(id, sev, n, format, args...)
+		return
+	}
 	sev, ok := severity[id]
 	if !ok {
 		sev = rules.Error // BR-CL, BR-CO-03, BR-53: fatal
@@ -104,10 +136,19 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 	k.c.Fail(id, en16931.Level(k.d, id, sev), n, format, args...)
 }
 
+// desc returns the official description of rule id: that of the
+// EXTENDED-CTC-FR schematron for an EXTENDED-CTC-FR invoice.
+func (k *checker) desc(id string) string {
+	if k.ctcfr {
+		return ctcfrDescription[id]
+	}
+	return description[id]
+}
+
 // failDesc records a finding whose message is the official description of
 // the rule.
 func (k *checker) failDesc(id string, n *xmltree.Node) {
-	k.fail(id, n, "%s", description[id])
+	k.fail(id, n, "%s", k.desc(id))
 }
 
 // is reports whether n is the UBL element space:name, space being "cac",
@@ -252,6 +293,10 @@ func code(s string) (string, bool) {
 
 // check checks value against the code list of rule.
 func (k *checker) check(rule string, n *xmltree.Node, value string) {
+	if k.ctcfr {
+		k.ctcfrCheck(rule, n, value)
+		return
+	}
 	r := codeListRules[rule]
 	v, ok := value, true
 	if rule != "BR-CL-24" {
@@ -303,6 +348,12 @@ func (k *checker) codeLists(n *xmltree.Node) {
 		list, what := invoiceTypeCodes, "a UBL Invoice"
 		if n.Name == "CreditNoteTypeCode" {
 			list, what = creditNoteTypeCodes, "a UBL CreditNote"
+		}
+		if k.ctcfr {
+			list = ctcfrLists["BR-CL-01"]
+			if n.Name == "CreditNoteTypeCode" {
+				list = ctcfrLists["BR-CL-01/credit"]
+			}
 		}
 		if v, ok := code(n.Text); !ok || !inList(list, v) {
 			k.fail("BR-CL-01", n, "invoice type code (BT-3) %q is not in UNTDID 1001 (the codes of %s)", strings.TrimSpace(n.Text), what)
@@ -369,7 +420,11 @@ func (k *checker) codeLists(n *xmltree.Node) {
 			if chargeIs(p, false) {
 				k.check("BR-CL-19", n, n.Text)
 			} else if chargeIs(p, true) {
-				k.check("BR-CL-20", n, n.Text)
+				if k.ctcfr {
+					k.ctcfrReasonCode(n)
+				} else {
+					k.check("BR-CL-20", n, n.Text)
+				}
 			}
 		}
 	case "TaxExemptionReasonCode":
@@ -396,7 +451,11 @@ func (k *checker) noteSubject(n *xmltree.Node) {
 	if !found {
 		return // substring-before returns "" without a second "#"
 	}
-	if len([]rune(subject)) != 3 || strings.Contains(noteSubjectCodes, subject) {
+	list := noteSubjectCodes
+	if k.ctcfr {
+		list = ctcfrLists["BR-CL-08"]
+	}
+	if len([]rune(subject)) != 3 || strings.Contains(list, subject) {
 		return
 	}
 	k.fail("BR-CL-08", n, "invoice note subject code (BT-21) %q is not in UNTDID 4451", subject)

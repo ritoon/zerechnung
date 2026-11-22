@@ -150,8 +150,9 @@ func TestExtended(t *testing.T) {
 	}
 }
 
-// TestExtendedProfiles checks that the BR-FXEXT rules apply to EXTENDED and
-// EXTENDED-CTC-FR only.
+// TestExtendedProfiles checks that the BR-FXEXT rules apply to EXTENDED
+// only: EXTENDED-CTC-FR gets the rules of the FNFE schematron, which package
+// en16931 checks.
 func TestExtendedProfiles(t *testing.T) {
 	bad := applyEdits(t, extendedBase(t), []string{"<ram:GrandTotalAmount>529.87", "<ram:GrandTotalAmount>529.88"})
 	for _, tc := range []struct {
@@ -160,7 +161,7 @@ func TestExtendedProfiles(t *testing.T) {
 	}{
 		{invoice.ProfileUnknown, "BR-FXEXT-CO-16"},
 		{invoice.ProfileExtended, "BR-FXEXT-CO-16"},
-		{invoice.ProfileExtendedCTCFR, "BR-FXEXT-CO-16 FX-SCH-A-000026"},
+		{invoice.ProfileExtendedCTCFR, "FX-SCH-A-000026"},
 		{invoice.ProfileEN16931, "FX-SCH-A-000026"},
 	} {
 		if got := ruleSet(run(t, bad, tc.p)); got != tc.want {

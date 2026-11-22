@@ -1,6 +1,8 @@
 package en16931
 
 import (
+	"strings"
+
 	"github.com/ritoon/zerechnung/internal/codes"
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
@@ -43,6 +45,10 @@ var codeListRules = map[string]codeListRule{
 // does: normalize-space(value) must contain no space and be in the list. The
 // MIME codes of BR-CL-24 are compared exactly.
 func (k *checker) codeList(rule string, n *xmltree.Node, value string) {
+	if k.mode == modeExtendedCTCFR {
+		k.ctcfrCodeList(rule, n, value)
+		return
+	}
 	r := codeListRules[rule]
 	v, ok := value, true
 	if rule != "BR-CL-24" {
@@ -77,8 +83,61 @@ func (k *checker) vatPrefix(n *xmltree.Node) {
 	if end > len(s) {
 		end = len(s)
 	}
-	if prefix := s[:end]; codes.VATPrefix(prefix) {
+	prefix := s[:end]
+	if k.mode == modeExtendedCTCFR {
+		// The list of the EXTENDED-CTC-FR schematron.
+		if strings.Contains(ctcfrLists["BR-CO-09"], " "+prefix+" ") {
+			return
+		}
+	} else if codes.VATPrefix(prefix) {
 		return
 	}
 	k.fail("BR-CO-09", n, "VAT identifier %q does not start with an ISO 3166-1 alpha-2 country prefix", quote(s))
+}
+
+// ctcfrCodeList checks value against the list of the EXTENDED-CTC-FR
+// schematron for rule, or for the rule that replaces it: normalize-space(value)
+// must contain no space and be in the list. BR-CL-22 compares the value in
+// upper case and BR-FREXT-CL-24 compares the MIME code exactly. The rules
+// that the schematron removes (BR-CL-07) have no list and never fail.
+func (k *checker) ctcfrCodeList(rule string, n *xmltree.Node, value string) {
+	if r, ok := ctcfrRenamed[rule]; ok {
+		rule = r
+	}
+	list, ok := ctcfrLists[rule]
+	if !ok {
+		return
+	}
+	var v string
+	switch rule {
+	case "BR-FREXT-CL-24":
+		v = value
+		ok = !strings.ContainsAny(v, " ") && strings.Contains(list, " "+v+" ")
+	case "BR-CL-22":
+		v = trim(value)
+		ok = !strings.Contains(normalize(v), " ") && strings.Contains(list, " "+normalize(strings.ToUpper(v))+" ")
+	default:
+		v = normalize(value)
+		ok = !strings.Contains(v, " ") && strings.Contains(list, " "+v+" ")
+	}
+	if ok {
+		return
+	}
+	what, name := codeListRules[rule].what, codeListRules[rule].list
+	if t, ok := ctcfrCodeListText[rule]; ok {
+		what, name = t[0], t[1]
+	}
+	k.fail(rule, n, "%s %q is not in %s", what, quote(value), name)
+}
+
+// normalize returns s as XPath normalize-space() would: trimmed, with the
+// inner runs of white space replaced by a single space.
+func normalize(s string) string {
+	v := trim(s)
+	for i := 0; i < len(v); i++ {
+		if c := v[i]; c != ' ' && isSpace(c) || c == ' ' && v[i+1] == ' ' {
+			return strings.Join(strings.FieldsFunc(v, func(r rune) bool { return r < 0x80 && isSpace(byte(r)) }), " ")
+		}
+	}
+	return v
 }

@@ -419,6 +419,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(EN16931, en16931.Catalog)
 	add(EN16931, newRules(en16931.CTCFRCatalog, en16931.Catalog))
 	add(EN16931, ubl.Catalog)
+	add(EN16931, newRules(ubl.CTCFRCatalog, slices.Concat(en16931.Catalog, en16931.CTCFRCatalog, ubl.Catalog)))
 	add(FacturX, facturx.Catalog)
 	add(France, fr.Catalog)
 	add(France, newRules(fr.UBLCatalog, fr.Catalog))
