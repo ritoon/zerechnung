@@ -74,10 +74,15 @@ rm -rf "$PT_SCH"
 unzip -q "$FX_PT_SCH" -d "$PT_SCH" # fetched and checked by fetch.sh
 
 WORK=$DEST/parity
-# The documents of the mutation cases of the Dutch rules, compared with the
-# NPa XSLT along with the SimplerInvoicing test files and the NLCIUS invoices
-# of the repository.
-rm -rf "$WORK/nl-variants"
+# The documents of the mutation cases of the EN 16931 and XRechnung rules,
+# compared with the KoSIT validator along with the corpus and the KoSIT test
+# suite, one directory per rule package; and those of the Dutch rules,
+# compared with the NPa XSLT along with the SimplerInvoicing test files and
+# the NLCIUS invoices of the repository.
+rm -rf "$WORK/variants" "$WORK/nl-variants"
+for pkg in de en16931 ubl; do
+	(cd "$here/.." && go test -count=1 -run '^TestVariants$' "./internal/rules/$pkg" -variants "$WORK/variants/$pkg" >/dev/null)
+done
 (cd "$here/.." && go test -count=1 -run '^TestVariants$' ./internal/rules/nl -variants "$WORK/nl-variants" >/dev/null)
 # Likewise for the CIUS-PT: the candidate mutations of the three invoices of
 # internal/rules/pt/testdata (and their list, manifest.tsv), compared with
@@ -86,6 +91,7 @@ rm -rf "$WORK/pt-variants"
 mkdir -p "$WORK/pt-variants"
 (cd "$here/.." && go test -count=1 -run '^TestVariants$' ./internal/rules/pt -variants "$WORK/pt-variants" >/dev/null)
 (cd "$here/parity" && go run . stage -corpus "$FX_CORPUS" -kosit "$FX_KOSIT" -work "$WORK" -repo "$here/.." \
+	-variants "$WORK/variants" \
 	-nl "$FX_NL" -nl-tests "$FX_NL_TESTS" -nl-variants "$WORK/nl-variants" \
 	-pt "$FX_PT" -pt-variants "$WORK/pt-variants")
 rm -rf "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt"
@@ -134,7 +140,7 @@ fi
 
 log "comparison"
 status=0
-(cd "$here/parity" && go run . compare -work "$WORK" -known "$here/parity/known.txt" -md "$WORK/report.md" -json "$WORK/report.json") || status=$?
+(cd "$here/parity" && go run . compare -work "$WORK" -kosit-config "$CONFIG" -known "$here/parity/known.txt" -md "$WORK/report.md" -json "$WORK/report.json") || status=$?
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f "$WORK/report.md" ]; then
 	{
 		echo "## Parité avec KoSIT, Mustang, les XSLT de la NPa et le schematron CIUS-PT"

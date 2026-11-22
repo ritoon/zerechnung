@@ -1,13 +1,17 @@
 // Package de implements the German rules of XRechnung 3.0, as published by
 // KoSIT in the XRechnung schematrons: for the CII syntax, the patterns
-// cii-pattern, cii-extension-pattern and cii-cvd-pattern of
-// XRechnung-CII-validation.sch; for the UBL syntax, the patterns
-// ubl-pattern, ubl-extension-pattern and ubl-cvd-pattern of
-// XRechnung-UBL-validation.sch; both with the variables of common.sch.
+// peppol-cii-pattern-1 to peppol-cii-pattern-3, cii-pattern,
+// cii-extension-pattern and cii-cvd-pattern of XRechnung-CII-validation.sch;
+// for the UBL syntax, the patterns peppol-ubl-pattern-1 and
+// peppol-ubl-pattern-2, ubl-pattern, ubl-extension-pattern and
+// ubl-cvd-pattern of XRechnung-UBL-validation.sch; both with the variables of
+// common.sch.
 //
-// The package reimplements the 52 assertions of the CII schematron in Go
+// The package reimplements the 74 assertions of the CII schematron in Go
 // (Catalog), with their exact identifiers and flags:
 //
+//   - 22 assertions of the Peppol patterns (PEPPOL-EN16931-*), applied to
+//     every invoice (see Peppol rules below);
 //   - 37 assertions of the CIUS (BR-DE-*, BR-DE-TMP-32 and BR-TMP-*), applied
 //     to every invoice, base profile and extension alike;
 //   - 7 assertions of the extension (BR-DEX-*), applied when the
@@ -17,17 +21,17 @@
 //
 // The flags map to the severities of package rules: fatal to Error, warning
 // to Warning and information to Info. The rules of EN 16931 (BR-*, BR-CL-*,
-// CII-SR-*) are not part of this package, nor are the Peppol rules that the
-// XRechnung schematrons include (patterns peppol-cii-* and peppol-ubl-*),
-// with one exception for UBL (see below).
+// CII-SR-*) are not part of this package. Those of Peppol BIS Billing 3.0
+// are in package peppol: the Peppol patterns of the XRechnung schematrons
+// keep their identifiers, but not always their contexts, tests and flags.
 //
-// Check applies the CIUS rules whatever BT-24: the caller decides when the
-// German rules apply (typically when BT-24 starts with CIUSID). CheckProfile,
-// which is not part of the schematron, reports the ZUGFeRD profiles that the
-// BMF does not accept as e-invoices (DE-PROFILE-01). CheckIdentifiers, not
-// part of the schematron either, checks the format and the check digits of
-// the Leitweg-ID (DE-LEITWEG-*) and of the GEBA (DE-GEBA-*), whose presence
-// alone the schematron requires or allows.
+// Check applies the Peppol and CIUS rules whatever BT-24: the caller decides
+// when the German rules apply (typically when BT-24 starts with CIUSID).
+// CheckProfile, which is not part of the schematron, reports the ZUGFeRD
+// profiles that the BMF does not accept as e-invoices (DE-PROFILE-01).
+// CheckIdentifiers, not part of the schematron either, checks the format and
+// the check digits of the Leitweg-ID (DE-LEITWEG-*) and of the GEBA
+// (DE-GEBA-*), whose presence alone the schematron requires or allows.
 //
 // Values are evaluated as XPath 2.0 evaluates them in the reference
 // implementation: general comparisons on the raw string value of the
@@ -38,7 +42,7 @@
 // # UBL
 //
 // For a UBL invoice (rules.Doc.UBL set), Check runs the UBL schematron on the
-// UBL document, not on its CII view: 57 assertions (UBLCatalog), whose
+// UBL document, not on its CII view: 77 assertions (UBLCatalog), whose
 // findings are located at the element at fault when there is one, at the
 // node of the rule context otherwise. An identifier shared with the CII
 // schematron keeps its severity and description; the contexts and tests
@@ -71,11 +75,40 @@
 //     applies to cac:PartyIdentification/cbc:ID, where SEPA is also allowed
 //     for the seller and the payee, and BR-DEX-05 to
 //     cac:PartyLegalEntity/cbc:CompanyID.
-//   - PEPPOL-EN16931-R043 (charge indicator 'true' or 'false') is the only
-//     assertion of the Peppol patterns of the UBL schematron that the package
-//     implements. As in the schematron, it is not tested on an allowance or
-//     charge with a percentage and no base amount, or the reverse, which
-//     PEPPOL-EN16931-R041 and R042 match first.
+//
+// # Peppol rules
+//
+// The XRechnung schematrons run Peppol patterns before their own:
+// peppol-cii-pattern-1 to peppol-cii-pattern-3 in CII (22 assertions, the
+// charge indicator rule split into PEPPOL-EN16931-R043-1 for the allowances
+// and charges of the document and of the lines, and R043-2 for those of a
+// gross price), peppol-ubl-pattern-1 and peppol-ubl-pattern-2 in UBL (21
+// assertions, those of Peppol BIS Billing 3.0 but for R008, R120 and the
+// slack). As written there:
+//
+//   - R001, R010 and R020 require the business process (BT-23) and the
+//     electronic addresses of the buyer and of the seller (BT-49, BT-34).
+//   - R008 (empty elements) exempts an empty ram:ApplicableHeaderTradeDelivery
+//     in CII, by name(), so only when it is written with the prefix ram, and
+//     an empty cbc:ID of cac:OrderReference in UBL.
+//   - R040 and R120 allow a slack of 0.5 for an invoice in Hungarian forint
+//     (HUF), 0.02 otherwise; R120 is a warning. In CII, its base quantity is
+//     that of the net price, else of the gross price, else 1, a zero not
+//     counting; the sums of the line allowances and charges are rounded to
+//     two decimals.
+//   - R044 compares the charge indicator of a price allowance with 'false'
+//     untrimmed in CII, normalized in UBL. R046 compares the net price with
+//     the gross price minus the first allowance amount (in UBL, the base
+//     amount minus the amount), and fails without a net price.
+//   - R110 and R111 apply when the invoice period has the same bound; they
+//     compare the dates as strings (CCYYMMDD) in CII, as xs:date in UBL.
+//   - Within a pattern, an element is checked by the first rule whose
+//     context it matches: R041 (percentage without base amount) and R042
+//     (the reverse) come before R040 and R043, which are then not tested.
+//
+// Decimal values are compared exactly, without limit of precision, as Saxon
+// compares xs:decimal values; R055 casts the VAT totals to xs:double, as its
+// general comparisons with 0 do.
 //
 // # Faithfulness notes
 //
@@ -97,8 +130,9 @@
 //     a trailing space counts.
 //   - Where the reference would stop on an XPath type error (several values
 //     given to a single-valued function), the first value in document order
-//     is used. Where it would stop on a failed cast to xs:decimal (BR-DEX-02,
-//     BR-DEX-09), the assertion fails.
+//     is used. Where it would stop on a failed cast to xs:decimal, xs:double
+//     or xs:date (BR-DEX-02, BR-DEX-09 and the Peppol rules R040, R046, R055,
+//     R110, R111, R120 and R121), the assertion fails.
 package de
 
 import (
@@ -133,6 +167,8 @@ func Check(c *rules.Checker) {
 	k := &checker{Checker: c, root: c.Doc.Root}
 	k.ext = k.specification(ExtensionID)
 	k.cvd = k.specification(CVDID)
+
+	k.peppolCII() // peppol-cii-pattern-1 to 3: PEPPOL-EN16931-R*
 
 	// cii-pattern
 	k.document()       // BR-DE-30, 31, 1, 15, 16, 17, 18, 22, 26

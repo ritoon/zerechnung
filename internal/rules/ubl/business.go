@@ -3,14 +3,17 @@ package ubl
 import (
 	"strings"
 
+	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/internal/xmltree"
+	"github.com/ritoon/zerechnung/invoice"
 )
 
 // The business rules below have, in the UBL artefacts, a context or a test
 // that differs from the CII artefacts in a way the CII view cannot render:
 // the country code rules apply only to an existing address, the scheme
 // identifier rules check that the attribute exists (not that it is filled
-// in), the payee is compared with the seller trading name, and the decimal
+// in), the payee is compared with the seller trading name, the total VAT
+// amount is compared with the breakdown of its own tax total, and the decimal
 // rules count the characters after the first "." instead of comparing the
 // value with its rounding. Package en16931 leaves them to this package for a
 // UBL document (see en16931.ublNative).
@@ -134,12 +137,46 @@ func (k *checker) businessAggregate(n *xmltree.Node) {
 		}
 	case "InvoiceLine", "CreditNoteLine":
 		k.decimals("BR-DEC-23", n, "cbc:LineExtensionAmount", "invoice line net amount (BT-131)")
+	case "TaxTotal":
+		if p == k.root {
+			k.taxTotal(n)
+		}
 	case "TaxSubtotal":
 		if is(p, "cac", "TaxTotal") {
 			k.decimals("BR-DEC-19", n, "cbc:TaxableAmount", "VAT category taxable amount (BT-116)")
 			k.decimals("BR-DEC-20", n, "cbc:TaxAmount", "VAT category tax amount (BT-117)")
 		}
 	}
+}
+
+// taxTotal checks BR-CO-14 on a tax total of the document: with a VAT
+// breakdown, its tax amount is the sum of the tax amounts of its own
+// subtotals, rounded to two decimals, halves up. The UBL artefacts check each
+// cac:TaxTotal on its own, whatever its currency, where the CII view adds up
+// the subtotals of all of them. A value that is not a decimal fails it (the
+// reference stops on the cast).
+func (k *checker) taxTotal(n *xmltree.Node) {
+	subtotals := elems(n, "cac", "TaxSubtotal")
+	if len(subtotals) == 0 {
+		return
+	}
+	sum, ok := invoice.NewDecimal(0, 0), true
+	for _, s := range subtotals {
+		if a := first(s, "cbc:TaxAmount"); a != nil {
+			v, valid := rules.Dec(a)
+			sum, ok = sum.Add(v), ok && valid
+		}
+	}
+	sum = sum.RoundHalfCeil(2)
+	amount := first(n, "cbc:TaxAmount")
+	if v, valid := rules.Dec(amount); ok && valid && v.Equal(sum) {
+		return
+	}
+	at := n
+	if amount != nil {
+		at = amount
+	}
+	k.fail("BR-CO-14", at, "invoice total VAT amount (BT-110) %q is not the sum of the VAT category tax amounts (BT-117) %s of its tax total", text(amount), sum.String())
 }
 
 // businessBasic checks the business rules whose context is the UBL basic

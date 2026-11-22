@@ -73,10 +73,13 @@ func main() {
 	// 14.º do RITI. O desconto de pronto pagamento escreve-se numa linha
 	// própria dos termos de pagamento (BT-20), na forma que a XRechnung
 	// define e terminada por uma quebra de linha (BR-DE-18): a contabilidade
-	// do comprador calcula-o sozinha.
+	// do comprador calcula-o sozinha. A XRechnung retoma também regras
+	// Peppol: o tipo de processo de negócio (BT-23) é obrigatório
+	// (PEPPOL-EN16931-R001), aqui o da faturação Peppol BIS Billing 3.0.
 	d := invoice.MustDecimal
 	inv := &invoice.Invoice{
 		Profile:                invoice.ProfileXRechnung,
+		BusinessProcess:        invoice.ProcessPeppolBilling,
 		Number:                 "FT 2026/2045",
 		TypeCode:               invoice.TypeCommercialInvoice,
 		IssueDate:              invoice.NewDate(2026, time.November, 20),

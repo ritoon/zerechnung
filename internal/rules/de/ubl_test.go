@@ -177,10 +177,10 @@ func ublCases() []mutationCase {
 
 		// Root rules.
 		{"BR-DE-1 no payment means", one(repAll("cac:PaymentMeans>", "cac:PaymentMeansX>")), ids("BR-DE-1")},
-		{"BR-DE-15 blank buyer reference", one(rep(uBuyerRef, cbc("BuyerReference", " "))), ids("BR-DE-15")},
+		{"BR-DE-15 blank buyer reference", one(rep(uBuyerRef, cbc("BuyerReference", " "))), ids("BR-DE-15", "PEPPOL-EN16931-R008")},
 		{"BR-DE-15 no buyer reference", one(remove(uBuyerRef)), ids("BR-DE-15")},
 		{"BR-DE-16 no seller VAT identifier", one(remove(uSellerTax)), ids("BR-DE-16")},
-		{"BR-DE-16 blank VAT identifier", one(rep(uSellerVAT, cbc("CompanyID", " "))), ids("BR-DE-16")},
+		{"BR-DE-16 blank VAT identifier", one(rep(uSellerVAT, cbc("CompanyID", " "))), ids("BR-DE-16", "PEPPOL-EN16931-R008")},
 		{"BR-DE-16 tax representative", one(remove(uSellerTax), after(uCustomerEnd, "<cac:TaxRepresentativeParty><cac:PartyName><cbc:Name>Vertreter</cbc:Name></cac:PartyName></cac:TaxRepresentativeParty>")), nil},
 		// The VAT breakdown is not part of the condition.
 		{"BR-DE-16 lines in category O", one(remove(uSellerTax), repN(3, uCatS, cbc("ID", "O")), repN(3, uCatS, cbc("ID", "O"))), nil},
@@ -218,7 +218,7 @@ func ublCases() []mutationCase {
 		// Supporting documents and dates.
 		{"BR-TMP-2 relative URL", one(rep(uURI, cbc("URI", "flottenservice.example/lieferscheine/311"))), ids("BR-TMP-2")},
 		{"BR-TMP-2 one character scheme", one(rep(uURI, cbc("URI", "h://x"))), ids("BR-TMP-2")},
-		{"BR-TMP-2 no URI", one(remove(uURI)), ids("BR-TMP-2")},
+		{"BR-TMP-2 no URI", one(remove(uURI)), ids("BR-TMP-2", "PEPPOL-EN16931-R008")},
 		{"BR-TMP-2 URN", one(rep(uURI, cbc("URI", "urn:isbn:9783161484100"))), nil},
 		{"BR-TMP-6 date and time", one(rep(uIssueDate, cbc("IssueDate", "2026-11-02T10:00:00"))), ids("BR-TMP-6")},
 		{"BR-TMP-6 basic format", one(rep(uIssueDate, cbc("IssueDate", "20261102"))), ids("BR-TMP-6")},
@@ -228,7 +228,7 @@ func ublCases() []mutationCase {
 
 		// Seller, buyer and deliver to.
 		{"BR-DE-2 no seller contact", one(repAll("cac:Contact>", "cac:ContactX>")), ids("BR-DE-2")},
-		{"BR-DE-3 blank seller city", one(rep(cbc("CityName", "Berlin"), cbc("CityName", ""))), ids("BR-DE-3")},
+		{"BR-DE-3 blank seller city", one(rep(cbc("CityName", "Berlin"), cbc("CityName", ""))), ids("BR-DE-3", "PEPPOL-EN16931-R008")},
 		{"BR-DE-4 no seller post code", one(remove(cbc("PostalZone", "10115"))), ids("BR-DE-4")},
 		{"BR-DE-5 no contact point", one(remove(uContactName)), ids("BR-DE-5")},
 		{"BR-DE-6 no telephone", one(remove(uPhone)), ids("BR-DE-27", "BR-DE-6")},
@@ -236,7 +236,7 @@ func ublCases() []mutationCase {
 		{"BR-DE-27 two digits", one(rep(uPhone, cbc("Telephone", "+49 OO IO"))), ids("BR-DE-27")},
 		{"BR-DE-28 one label", one(rep(uEmail, cbc("ElectronicMail", "rechnung@flottenservice"))), ids("BR-DE-28")},
 		{"BR-DE-28 surrounding space", one(rep(uEmail, cbc("ElectronicMail", "  erika.beispiel@flottenservice.example  "))), nil},
-		{"BR-DE-8 blank buyer city", one(rep(cbc("CityName", "Hamburg"), cbc("CityName", "  "))), ids("BR-DE-8")},
+		{"BR-DE-8 blank buyer city", one(rep(cbc("CityName", "Hamburg"), cbc("CityName", "  "))), ids("BR-DE-8", "PEPPOL-EN16931-R008")},
 		{"BR-DE-9 no buyer post code", one(remove(cbc("PostalZone", "20095"))), ids("BR-DE-9")},
 		{"BR-DE-10 no deliver to city", one(remove(cbc("CityName", "Bremen"))), ids("BR-DE-10")},
 		{"BR-DE-11 no deliver to post code", one(remove(cbc("PostalZone", "28195"))), ids("BR-DE-11")},
@@ -254,10 +254,10 @@ func ublCases() []mutationCase {
 		{"BR-DE-24 card", one(rep(uPMCode, cbc("PaymentMeansCode", "54")), rep(uPayeeAcct, uCard)), nil},
 		{"BR-DE-24-b card and mandate", one(rep(uPMCode, cbc("PaymentMeansCode", "55")), rep(uPayeeAcct, uCard+uMandate), after(uSellerIDEnd, sepaID)), ids("BR-DE-24-b")},
 		{"BR-DE-20 IBAN checksum", edits(uDirectDebit, one(rep("DE02120300000000202051", "DE02120300000000202052"))), ids("BR-DE-20")},
-		{"BR-DE-25 direct debit code only", one(rep(uPMCode, cbc("PaymentMeansCode", "59"))), ids("BR-DE-20", "BR-DE-25-a", "BR-DE-25-b")},
+		{"BR-DE-25 direct debit code only", one(rep(uPMCode, cbc("PaymentMeansCode", "59"))), ids("BR-DE-20", "BR-DE-25-a", "BR-DE-25-b", "PEPPOL-EN16931-R061")},
 		{"BR-DE-25-b card", edits(uDirectDebit, one(before(uMandate, uCard))), ids("BR-DE-25-b")},
 		{"BR-DE-14 no VAT rate", one(remove(uRate19)), ids("BR-DE-14")},
-		{"BR-DE-14 blank VAT rate", one(rep(uRate19, cbc("Percent", " "))), ids("BR-DE-14")},
+		{"BR-DE-14 blank VAT rate", one(rep(uRate19, cbc("Percent", " "))), ids("BR-DE-14", "PEPPOL-EN16931-R008")},
 
 		// Extension.
 		{"BR-DEX-01 zip attachment", edits(uExtension, one(rep(uAttachment, strings.Replace(uAttachment, "application/pdf", "application/zip", 1)))), ids("BR-DEX-01")},
@@ -290,13 +290,13 @@ func ublCases() []mutationCase {
 		{"BR-DEX-07 endpoint", edits(uExtension, one(rep(uEndpoint, `<cbc:EndpointID schemeID="XX">rechnung@flottenservice.example</cbc:EndpointID>`))), ids("BR-DEX-07")},
 		{"BR-DEX-07 XR02", edits(uExtension, one(rep(uEndpoint, `<cbc:EndpointID schemeID="XR02">rechnung@flottenservice.example</cbc:EndpointID>`))), nil},
 		{"BR-DEX-08 deliver to location", edits(uExtension, one(rep(uShipToGLN, `<cbc:ID schemeID="9999">4000001000098</cbc:ID>`))), ids("BR-DEX-08")},
-		{"BR-DEX-10 blank payment type", edits(uPrepaid, one(rep(cbc("ID", "PP-1"), cbc("ID", " ")))), ids("BR-DEX-10")},
+		{"BR-DEX-10 blank payment type", edits(uPrepaid, one(rep(cbc("ID", "PP-1"), cbc("ID", " ")))), ids("BR-DEX-10", "PEPPOL-EN16931-R008")},
 		{"BR-DEX-11 no amount", edits(uPrepaid, one(remove(`<cbc:PaidAmount currencyID="EUR">10.00</cbc:PaidAmount>`))), ids("BR-DEX-09", "BR-DEX-11", "BR-DEX-14")},
 		{"BR-DEX-12 no description", edits(uPrepaid, one(remove(cbc("InstructionID", "Zuschuss")))), ids("BR-DEX-12")},
 		{"BR-DEX-13 three decimals", edits(uPrepaid, one(rep(`>10.00</cbc:PaidAmount>`, `>10.000</cbc:PaidAmount>`))), ids("BR-DEX-13")},
 		{"BR-DEX-14 other currency", edits(uPrepaid, one(rep(`<cbc:PaidAmount currencyID="EUR">`, `<cbc:PaidAmount currencyID="USD">`))), ids("BR-DEX-14")},
-		{"BR-DEX-10 to 14 apply to invoices only", edits(uExtension, one(before(uTaxTotal, uPrepaidPayment(" ", `<cbc:PaidAmount currencyID="USD">0.001</cbc:PaidAmount>`, ""))), creditNote), nil},
-		{"BR-DEX-10 to 14 need the extension", one(before(uTaxTotal, uPrepaidPayment(" ", "", ""))), nil},
+		{"BR-DEX-10 to 14 apply to invoices only", edits(uExtension, one(before(uTaxTotal, uPrepaidPayment(" ", `<cbc:PaidAmount currencyID="USD">0.001</cbc:PaidAmount>`, ""))), creditNote), ids("PEPPOL-EN16931-R008")},
+		{"BR-DEX-10 to 14 need the extension", one(before(uTaxTotal, uPrepaidPayment(" ", "", ""))), ids("PEPPOL-EN16931-R008")},
 
 		// Commercial vehicle data.
 		{"BR-DE-CVD-02 no tender reference", edits(uCVD, one(remove(uTender))), ids("BR-DE-CVD-02")},
@@ -316,14 +316,85 @@ func ublCases() []mutationCase {
 		// Charge indicators.
 		{"PEPPOL-EN16931-R043 document allowance", one(before(uTaxTotal, uAllowance("1", "", ""))), ids("PEPPOL-EN16931-R043")},
 		{"PEPPOL-EN16931-R043 spaced indicator", one(before(uTaxTotal, uAllowance(" true ", "", ""))), nil},
-		{"PEPPOL-EN16931-R043 percentage and base amount", one(before(uTaxTotal, uAllowance("yes", "10", "50.00"))), ids("PEPPOL-EN16931-R043")},
+		{"PEPPOL-EN16931-R043 percentage and base amount", one(before(uTaxTotal, uAllowance("1", "10", "50.00"))), ids("PEPPOL-EN16931-R043")},
 		// R041 and R042 match first: R043 is not tested.
-		{"PEPPOL-EN16931-R043 percentage only", one(before(uTaxTotal, uAllowance("yes", "10", ""))), nil},
-		{"PEPPOL-EN16931-R043 base amount only", one(before(uTaxTotal, uAllowance("yes", "", "50.00"))), nil},
+		{"PEPPOL-EN16931-R041 percentage only", one(before(uTaxTotal, uAllowance("1", "10", ""))), ids("PEPPOL-EN16931-R041")},
+		{"PEPPOL-EN16931-R042 base amount only", one(before(uTaxTotal, uAllowance("1", "", "50.00"))), ids("PEPPOL-EN16931-R042")},
 		{"PEPPOL-EN16931-R043 line allowance", one(rep(uLine1Item, uAllowance("False", "", "")+uLine1Item)), ids("PEPPOL-EN16931-R043")},
-		{"PEPPOL-EN16931-R043 credit note line", edits(one(rep(uLine1Item, uAllowance("", "", "")+uLine1Item)), creditNote), ids("PEPPOL-EN16931-R043")},
-		{"PEPPOL-EN16931-R043 price allowance is not checked", one(after("<cbc:PriceAmount currencyID=\"EUR\">12.50</cbc:PriceAmount>", "<cac:AllowanceCharge>"+cbc("ChargeIndicator", "1")+`<cbc:Amount currencyID="EUR">1.00</cbc:Amount></cac:AllowanceCharge>`)), nil},
+		{"PEPPOL-EN16931-R043 credit note line", edits(one(rep(uLine1Item, uAllowance("", "", "")+uLine1Item)), creditNote), ids("PEPPOL-EN16931-R008", "PEPPOL-EN16931-R043")},
+
+		// Peppol rules of the XRechnung schematron.
+		{"PEPPOL-EN16931-R001 no business process", one(remove(uProfile)), ids("PEPPOL-EN16931-R001")},
+		{"PEPPOL-EN16931-R005 VAT accounting currency of the invoice", one(after(uCurrency, cbc("TaxCurrencyCode", "EUR"))), ids("PEPPOL-EN16931-R005", "PEPPOL-EN16931-R054")},
+		{"PEPPOL-EN16931-R053 two tax totals with subtotals", one(before(uMonetaryTotal, uTaxTotalZero)), ids("PEPPOL-EN16931-R053")},
+		{"PEPPOL-EN16931-R054 no tax total in the accounting currency", one(after(uCurrency, cbc("TaxCurrencyCode", "USD"))), ids("PEPPOL-EN16931-R054", "PEPPOL-EN16931-R055")},
+		{"PEPPOL-EN16931-R054 tax total in the accounting currency", one(after(uCurrency, cbc("TaxCurrencyCode", "USD")), before(uMonetaryTotal, uTaxTotalUSD("31.00"))), nil},
+		{"PEPPOL-EN16931-R054 tax total without accounting currency", one(before(uMonetaryTotal, uTaxTotalUSD("31.00"))), ids("PEPPOL-EN16931-R054")},
+		{"PEPPOL-EN16931-R055 opposite signs", one(after(uCurrency, cbc("TaxCurrencyCode", "USD")), before(uMonetaryTotal, uTaxTotalUSD("-31.00"))), ids("PEPPOL-EN16931-R055")},
+		{"PEPPOL-EN16931-R010 no buyer electronic address", one(remove(uBuyerParty)), ids("PEPPOL-EN16931-R010")},
+		{"PEPPOL-EN16931-R020 no seller electronic address", one(remove(uEndpoint)), ids("PEPPOL-EN16931-R020")},
+		{"PEPPOL-EN16931-R040 amount", one(before(uTaxTotal, uAllowance("false", "10", "60.00"))), ids("PEPPOL-EN16931-R040")},
+		{"PEPPOL-EN16931-R040 within the slack", one(before(uTaxTotal, uAllowance("false", "10", "50.20"))), nil},
+		{"PEPPOL-EN16931-R040 HUF slack", one(before(uTaxTotal, uAllowance("false", "10", "54.00")), rep(uCurrency, cbc("DocumentCurrencyCode", "HUF")), repAll(`currencyID="EUR"`, `currencyID="HUF"`)), nil},
+		{"PEPPOL-EN16931-R040 beyond the HUF slack", one(before(uTaxTotal, uAllowance("false", "10", "56.00")), rep(uCurrency, cbc("DocumentCurrencyCode", "HUF")), repAll(`currencyID="EUR"`, `currencyID="HUF"`)), ids("PEPPOL-EN16931-R040")},
+		{"PEPPOL-EN16931-R110 line period starts before", one(before(uARD, uPeriod), before(uLine1Item, uLinePeriod("2026-09-30", "2026-10-31"))), ids("PEPPOL-EN16931-R110")},
+		{"PEPPOL-EN16931-R111 line period ends after", one(before(uARD, uPeriod), before(uLine1Item, uLinePeriod("2026-10-01", "2026-11-01"))), ids("PEPPOL-EN16931-R111")},
+		{"PEPPOL-EN16931-R111 credit note", edits(one(before(uARD, uPeriod), before(uLine1Item, uLinePeriod("2026-10-01", "2026-11-01"))), creditNote), ids("PEPPOL-EN16931-R111")},
+		{"PEPPOL-EN16931-R110 needs an invoice start date", one(before(uARD, "<cac:InvoicePeriod><cbc:EndDate>2026-10-31</cbc:EndDate></cac:InvoicePeriod>"), before(uLine1Item, uLinePeriod("2026-09-01", "2026-10-31"))), nil},
+		{"PEPPOL-EN16931-R120 line net amount", one(rep(uQty1, `<cbc:InvoicedQuantity unitCode="HUR">11</cbc:InvoicedQuantity>`)), ids("PEPPOL-EN16931-R120")},
+		{"PEPPOL-EN16931-R120 credit note", edits(one(rep(uQty1, `<cbc:InvoicedQuantity unitCode="HUR">11</cbc:InvoicedQuantity>`)), creditNote), ids("PEPPOL-EN16931-R120")},
+		{"PEPPOL-EN16931-R120 within the slack", one(rep(uPrice1, `<cbc:PriceAmount currencyID="EUR">12.502</cbc:PriceAmount>`)), nil},
+		{"PEPPOL-EN16931-R120 line allowance", one(rep(uLine1Item, uAllowance("false", "", "")+uLine1Item)), ids("PEPPOL-EN16931-R120")},
+		// A zero base quantity counts as 1 in R120.
+		{"PEPPOL-EN16931-R121 zero base quantity", one(rep(uBaseQty, `<cbc:BaseQuantity unitCode="HUR">0</cbc:BaseQuantity>`)), ids("PEPPOL-EN16931-R121")},
+		{"PEPPOL-EN16931-R101 line object", one(before(uLine1Item, uLineObject("916"))), ids("PEPPOL-EN16931-R101")},
+		{"PEPPOL-EN16931-R101 type code 130", one(before(uLine1Item, uLineObject("130"))), nil},
+		{"PEPPOL-EN16931-R044 charge on the price", one(before(uLine1Price, uPriceAllowance("true", ""))), ids("PEPPOL-EN16931-R044")},
+		{"PEPPOL-EN16931-R044 spaced indicator", one(before(uLine1Price, uPriceAllowance(" false ", ""))), nil},
+		{"PEPPOL-EN16931-R046 net price", one(before(uLine1Price, uPriceAllowance("false", "13.00"))), ids("PEPPOL-EN16931-R046")},
+		{"PEPPOL-EN16931-R046 base amount minus allowance", one(before(uLine1Price, uPriceAllowance("false", "13.50"))), nil},
+		{"PEPPOL-EN16931-R130 unit of the base quantity", one(rep(uBaseQty, `<cbc:BaseQuantity unitCode="H87">1</cbc:BaseQuantity>`)), ids("PEPPOL-EN16931-R130")},
+		{"PEPPOL-EN16931-R008 empty order reference identifier", one(after(uBuyerRef, "<cac:OrderReference><cbc:ID></cbc:ID></cac:OrderReference>")), nil},
+		{"PEPPOL-EN16931-R008 empty order reference", one(after(uBuyerRef, "<cac:OrderReference><cbc:ID>4711</cbc:ID><cbc:SalesOrderID/></cac:OrderReference>")), ids("PEPPOL-EN16931-R008")},
 	}
+}
+
+// Anchors of the UBL base invoice for the Peppol rules.
+const (
+	uProfile       = "<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>"
+	uCurrency      = "<cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>"
+	uMonetaryTotal = "<cac:LegalMonetaryTotal>"
+	uQty1          = `<cbc:InvoicedQuantity unitCode="HUR">10</cbc:InvoicedQuantity>`
+	uPrice1        = `<cbc:PriceAmount currencyID="EUR">12.50</cbc:PriceAmount>`
+	uBaseQty       = `<cbc:BaseQuantity unitCode="HUR">1</cbc:BaseQuantity>`
+	// uTaxTotalZero is a second tax total with a VAT breakdown.
+	uTaxTotalZero = `<cac:TaxTotal><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount><cac:TaxSubtotal><cbc:TaxableAmount currencyID="EUR">0.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>` +
+		"<cac:TaxCategory><cbc:ID>S</cbc:ID><cbc:Percent>19</cbc:Percent><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:TaxCategory></cac:TaxSubtotal></cac:TaxTotal>"
+)
+
+// uTaxTotalUSD returns a tax total without VAT breakdown in US dollars.
+func uTaxTotalUSD(amount string) string {
+	return `<cac:TaxTotal><cbc:TaxAmount currencyID="USD">` + amount + "</cbc:TaxAmount></cac:TaxTotal>"
+}
+
+// uLinePeriod returns the period of a line.
+func uLinePeriod(start, end string) string {
+	return "<cac:InvoicePeriod>" + cbc("StartDate", start) + cbc("EndDate", end) + "</cac:InvoicePeriod>"
+}
+
+// uLineObject returns a document reference of a line with the type code.
+func uLineObject(code string) string {
+	return "<cac:DocumentReference>" + cbc("ID", "OBJ-1") + cbc("DocumentTypeCode", code) + "</cac:DocumentReference>"
+}
+
+// uPriceAllowance returns an allowance of 1.00 EUR on the price of a line,
+// with the optional base amount (the gross price).
+func uPriceAllowance(indicator, base string) string {
+	s := "<cac:AllowanceCharge>" + cbc("ChargeIndicator", indicator) + `<cbc:Amount currencyID="EUR">1.00</cbc:Amount>`
+	if base != "" {
+		s += `<cbc:BaseAmount currencyID="EUR">` + base + "</cbc:BaseAmount>"
+	}
+	return s + "</cac:AllowanceCharge>"
 }
 
 func TestUBLMutations(t *testing.T) {
@@ -389,8 +460,8 @@ func TestUBLCatalog(t *testing.T) {
 			t.Errorf("%s differs from Catalog:\n%+v\n%+v", r.ID, r, c)
 		}
 	}
-	if len(UBLCatalog) != 57 || sev[rules.Error] != 47 || sev[rules.Warning] != 9 || sev[rules.Info] != 1 {
-		t.Errorf("%d assertions (%d errors, %d warnings, %d information), want 57 (47, 9, 1)", len(UBLCatalog), sev[rules.Error], sev[rules.Warning], sev[rules.Info])
+	if len(UBLCatalog) != 77 || sev[rules.Error] != 66 || sev[rules.Warning] != 10 || sev[rules.Info] != 1 {
+		t.Errorf("%d assertions (%d errors, %d warnings, %d information), want 77 (66, 10, 1)", len(UBLCatalog), sev[rules.Error], sev[rules.Warning], sev[rules.Info])
 	}
 	var ciiOnly, ublOnly []string
 	for _, r := range Catalog {
@@ -405,7 +476,7 @@ func TestUBLCatalog(t *testing.T) {
 	}
 	slices.Sort(ciiOnly)
 	slices.Sort(ublOnly)
-	if want := []string{"BR-DEX-15", "BR-TMP-3", "BR-TMP-4", "BR-TMP-5", "BR-TMP-7"}; !slices.Equal(ciiOnly, want) {
+	if want := []string{"BR-DEX-15", "BR-TMP-3", "BR-TMP-4", "BR-TMP-5", "BR-TMP-7", "PEPPOL-EN16931-R043-1", "PEPPOL-EN16931-R043-2"}; !slices.Equal(ciiOnly, want) {
 		t.Errorf("CII only rules = %q, want %q", ciiOnly, want)
 	}
 	if want := []string{"BR-DEX-02", "BR-DEX-03", "BR-DEX-09", "BR-DEX-10", "BR-DEX-11", "BR-DEX-12", "BR-DEX-13", "BR-DEX-14", "BR-TMP-6", "PEPPOL-EN16931-R043"}; !slices.Equal(ublOnly, want) {
@@ -420,7 +491,7 @@ func TestUBLEmpty(t *testing.T) {
 	} {
 		r := runUBL(t, []byte(doc))
 		checkUBLFindings(t, r)
-		if want := []string{"BR-DE-1", "BR-DE-15", "BR-DE-17", "BR-DE-21"}; !slices.Equal(r.Rules(), want) {
+		if want := []string{"BR-DE-1", "BR-DE-15", "BR-DE-17", "BR-DE-21", "PEPPOL-EN16931-R001", "PEPPOL-EN16931-R008", "PEPPOL-EN16931-R053"}; !slices.Equal(r.Rules(), want) {
 			t.Errorf("%s: rules = %q, want %q", doc, r.Rules(), want)
 		}
 	}

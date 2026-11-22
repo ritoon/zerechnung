@@ -26,7 +26,8 @@ type Invoice struct {
 	// BusinessProcess is the business process type (BT-23). In France it is
 	// the "cadre de facturation" (B1, S1, M1…); in Peppol it is
 	// ProcessPeppolBilling, which ubl.Marshal and cii.Marshal write for a
-	// Peppol invoice when the field is empty.
+	// Peppol or XRechnung invoice when the field is empty (both require one,
+	// PEPPOL-EN16931-R001).
 	BusinessProcess string
 	// TestIndicator marks a test document (CII TestIndicator, EXT).
 	TestIndicator bool

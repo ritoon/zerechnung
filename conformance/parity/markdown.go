@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -73,13 +74,27 @@ func cell(rules []string) string {
 	return "`" + strings.Join(rules, "` `") + "`"
 }
 
-func markdown(all []comparison, never []neverFired, unused []string) string {
+func isVariant(c comparison) bool { return strings.HasPrefix(c.Invoice, "variants/") }
+
+func markdown(all []comparison, never []neverFired, unused []string, coverage []kositCoverage) string {
 	var b strings.Builder
 	b.WriteString("| Référence | Factures comparées | Mêmes règles | Écarts justifiés | Écarts inattendus | Même verdict |\n|---|---|---|---|---|---|\n")
+	type row struct {
+		title    string
+		key      string
+		variants bool
+	}
+	var rows []row
 	for _, ref := range references {
+		rows = append(rows, row{ref.Title, ref.Key, false})
+		if ref.Key == "kosit" && slices.ContainsFunc(all, isVariant) {
+			rows = append(rows, row{ref.Title + " : variants des tests de mutation", ref.Key, true})
+		}
+	}
+	for _, ref := range rows {
 		var n, same, known, unexpected, verdict int
 		for _, c := range all {
-			if c.Reference != ref.Key {
+			if c.Reference != ref.key || isVariant(c) != ref.variants {
 				continue
 			}
 			n++
@@ -95,9 +110,10 @@ func markdown(all []comparison, never []neverFired, unused []string) string {
 				verdict++
 			}
 		}
-		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d |\n", ref.Title, n, same, known, unexpected, verdict)
+		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d |\n", ref.title, n, same, known, unexpected, verdict)
 	}
-	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les XSLT de la NPa, les règles levées en avertissement le sont aussi ; avec le schematron CIUS-PT, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
+	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les variants et les XSLT de la NPa, les règles levées en avertissement le sont aussi ; avec le schematron CIUS-PT, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
+	variantSection(&b, all, coverage)
 	npaSection(&b, all, never)
 	ptSection(&b, all)
 
@@ -186,6 +202,108 @@ func markdown(all []comparison, never []neverFired, unused []string) string {
 		}
 	}
 	return b.String()
+}
+
+// variantSection writes the part of the report on the variants, the
+// documents of the mutation cases of the EN 16931 and XRechnung rules, and
+// the share of the assertions of the KoSIT XSLT that the invoices raise.
+func variantSection(b *strings.Builder, all []comparison, coverage []kositCoverage) {
+	byPkg := map[string]int{}
+	var pkgs []string
+	for _, c := range all {
+		if c.Reference != "kosit" || !isVariant(c) {
+			continue
+		}
+		pkg, _, _ := strings.Cut(strings.TrimPrefix(c.Invoice, "variants/"), "/")
+		if byPkg[pkg] == 0 {
+			pkgs = append(pkgs, pkg)
+		}
+		byPkg[pkg]++
+	}
+	if len(pkgs) == 0 && len(coverage) == 0 {
+		return
+	}
+	b.WriteString("\n### Variants EN 16931 et XRechnung : validateur KoSIT\n\n")
+	if len(pkgs) > 0 {
+		sort.Strings(pkgs)
+		var parts []string
+		for _, p := range pkgs {
+			parts = append(parts, fmt.Sprintf("%d de `internal/rules/%s`", byPkg[p], p))
+		}
+		fmt.Fprintf(b, "Les variants sont les documents des tests de mutation des règles (%s) : chacun casse une ou plusieurs règles d'une facture valide, ou vérifie qu'un cas limite n'en casse aucune. Le validateur KoSIT les reçoit tous ; les règles y sont comparées à tous les niveaux, erreurs, avertissements et informations. Chaque variant doit aussi lever chez KoSIT les règles que son test attend (`?RÈGLE` sinon) : un variant qui cesse de tester sa règle fait échouer le job.\n", strings.Join(parts, ", "))
+	}
+	var failed []string
+	for _, c := range all {
+		if c.Reference == "kosit" && strings.HasPrefix(c.Ref.Stopped, kositFailure) {
+			failed = append(failed, fmt.Sprintf("| `%s` | %s |", c.Invoice, clip(strings.TrimPrefix(c.Ref.Stopped, kositFailure))))
+		}
+	}
+	if len(failed) > 0 {
+		b.WriteString("\nKoSIT n'a pas pu évaluer ces documents : un schematron s'est arrêté sur une erreur dynamique, que seul le tableau de son journal signale (le rapport XML montre une étape valide, sans message). Seules les règles que KoSIT y lève sont comparées.\n\n| Facture | Erreur |\n|---|---|\n")
+		b.WriteString(strings.Join(failed, "\n") + "\n")
+	}
+	if len(coverage) == 0 {
+		return
+	}
+	b.WriteString("\nAssertions des XSLT de la configuration KoSIT levées, à n'importe quel niveau, sur au moins une facture :\n\n| XSLT | Assertions | Corpus et suite KoSIT | Variants | Au total |\n|---|---|---|---|---|\n")
+	var total, raised int
+	for _, c := range coverage {
+		fmt.Fprintf(b, "| `%s` | %d | %d | %d | %d (%s) |\n", c.Stylesheet, c.Assertions, c.Corpus, c.Variants, c.Raised, percent(c.Raised, c.Assertions))
+		total += c.Assertions
+		raised += c.Raised
+	}
+	fmt.Fprintf(b, "| **Total** | %d | | | %d (%s) |\n", total, raised, percent(raised, total))
+	b.WriteString("\nPar famille de règles (levées / assertions) :\n\n| XSLT |")
+	var names []string
+	seen := map[string]bool{}
+	for _, f := range families {
+		for _, c := range coverage {
+			if c.byFamily[f.name] > 0 && !seen[f.name] {
+				seen[f.name] = true
+				names = append(names, f.name)
+			}
+		}
+	}
+	for _, c := range coverage {
+		if c.byFamily["autres"] > 0 && !seen["autres"] {
+			seen["autres"] = true
+			names = append(names, "autres")
+		}
+	}
+	for _, n := range names {
+		fmt.Fprintf(b, " %s |", n)
+	}
+	b.WriteString("\n|---|")
+	for range names {
+		b.WriteString("---|")
+	}
+	b.WriteString("\n")
+	for _, c := range coverage {
+		fmt.Fprintf(b, "| `%s` |", c.Stylesheet)
+		for _, n := range names {
+			cell := "—"
+			for _, f := range c.Families {
+				if f.Family == n {
+					cell = fmt.Sprintf("%d / %d", f.Raised, f.Assertions)
+				}
+			}
+			fmt.Fprintf(b, " %s |", cell)
+		}
+		b.WriteString("\n")
+	}
+	for _, c := range coverage {
+		if len(c.Never) == 0 {
+			continue
+		}
+		fmt.Fprintf(b, "\n<details><summary>%s : %d assertions jamais levées</summary>\n\n%s\n\n</details>\n", c.Stylesheet, len(c.Never), "`"+strings.Join(c.Never, "` `")+"`")
+	}
+}
+
+func percent(n, total int) string {
+	if total == 0 {
+		return "—"
+	}
+	return fmt.Sprintf("%.1f %%", 100*float64(n)/float64(total))
 }
 
 // npaSection writes the part of the report on the NPa XSLT: the invoices,

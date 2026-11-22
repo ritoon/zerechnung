@@ -173,12 +173,16 @@ func (k *checker) categoryTradeTax(n *xmltree.Node) {
 	if notO {
 		k.categoryNotO = true
 	}
+	vat := isVAT(n)
 	for i, p := range present {
 		if p {
 			k.catTax[i]++
+			if vat {
+				k.catTaxVAT[i]++
+			}
 		}
 	}
-	if n.Parent.Name != "SpecifiedTradeAllowanceCharge" || !isVAT(n) {
+	if n.Parent.Name != "SpecifiedTradeAllowanceCharge" || !vat {
 		return
 	}
 	allowance, charge := chargeIndicator(n.Parent)
@@ -212,17 +216,24 @@ func (k *checker) applicableTradeTax(n *xmltree.Node) {
 	if notO {
 		k.applicableNotO = true
 	}
+	vat := isVAT(n)
 	switch n.Parent.Name {
 	case "ApplicableHeaderTradeSettlement":
 		for i, p := range present {
 			if p {
 				k.catHdr[i]++
+				if vat {
+					k.catHdrVAT[i]++
+				}
 			}
 		}
 	case "SpecifiedLineTradeSettlement":
 		for i, p := range present {
 			if p {
 				k.catLine[i]++
+				if vat {
+					k.catLineVAT[i]++
+				}
 			}
 		}
 		if !isVAT(n) || !k.parentIs("SpecifiedLineTradeSettlement", "IncludedSupplyChainTradeLineItem", "SupplyChainTradeTransaction") {
@@ -252,6 +263,12 @@ func (k *checker) categoriesPresent() {
 	for _, i := range vatOrder {
 		hdr, line, tax := k.catHdr[i], k.catLine[i], k.catTax[i]
 		v := &k.cats[i]
+		if k.ubl {
+			if !k.categoryPresentUBL(i) {
+				k.fail(v.prefix+"01", k.d.Root, ubl01Message(i), v.name, hdr, line, tax)
+			}
+			continue
+		}
 		var ok bool
 		switch i {
 		case catS, catL, catM:
@@ -275,6 +292,46 @@ func (k *checker) categoriesPresent() {
 		}
 		k.fail(v.prefix+"01", k.d.Root, msg, v.name, hdr, line, tax)
 	}
+}
+
+// categoryPresentUBL reports whether BR-x-01 holds for category i, as the
+// UBL artefacts test it (context /ubl:Invoice | /cn:CreditNote). Their tests
+// differ from the CII ones:
+//
+//   - S (BR-S-01): a VAT breakdown of the category exists if and only if a
+//     line, allowance or charge has it, the tax type not being tested;
+//   - L (BR-IG-01) and M (BR-IP-01): the same, for the categories of tax type
+//     VAT, except that the first clause of BR-IG-01 counts the breakdowns of
+//     category L of any tax type;
+//   - the other categories: when the category appears anywhere (cac:TaxCategory,
+//     breakdowns included, or cac:ClassifiedTaxCategory, of tax type VAT),
+//     exactly one VAT breakdown has it.
+//
+// The UBL tests count the cac:TaxCategory of every cac:AllowanceCharge,
+// including those of the lines, which EN 16931 does not define and the view
+// does not carry.
+func (k *checker) categoryPresentUBL(i int) bool {
+	lines := k.catLine[i] + k.catTax[i]
+	linesVAT := k.catLineVAT[i] + k.catTaxVAT[i]
+	switch i {
+	case catS:
+		return (lines > 0) == (k.catHdr[i] > 0)
+	case catL:
+		return linesVAT > 0 && k.catHdr[i] > 0 || linesVAT == 0 && k.catHdrVAT[i] == 0
+	case catM:
+		return (linesVAT > 0) == (k.catHdrVAT[i] > 0)
+	}
+	return linesVAT+k.catHdrVAT[i] == 0 || k.catHdrVAT[i] == 1
+}
+
+// ubl01Message is the message of a failed BR-x-01 in UBL (see
+// categoryPresentUBL).
+func ubl01Message(i int) string {
+	switch i {
+	case catS, catL, catM:
+		return "an invoice must have a VAT breakdown (BG-23) of VAT category %s if and only if it has lines, allowances or charges of that category (%d breakdown(s), %d line(s), %d allowance(s) or charge(s))"
+	}
+	return "an invoice where VAT category %s appears must have exactly one VAT breakdown (BG-23) of that category (%d breakdown(s), %d line(s), %d allowance(s) or charge(s))"
 }
 
 // hasExemption reports whether a VAT breakdown has an exemption reason text

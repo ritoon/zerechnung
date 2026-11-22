@@ -199,17 +199,17 @@ func mutationCases() []mutationCase {
 		{"BR-DE-30 creditor identifier only", one(before(aCurrency, elem("CreditorReferenceID", "DE98ZZZ09999999999"))), ids("BR-DE-23-b", "BR-DE-30", "BR-DE-31")},
 		{"BR-DE-31 no debited account", edits(directDebit, one(repAll("IBANID>", "ProprietaryID>"))), ids("BR-DE-20", "BR-DE-31")},
 		{"BR-DE-1 no payment means", one(repAll("SpecifiedTradeSettlementPaymentMeans>", "SpecifiedTradeSettlementPaymentMeansX>")), ids("BR-DE-1")},
-		{"BR-DE-15 blank buyer reference", one(rep(elem("BuyerReference", "04011000-12345-03"), elem("BuyerReference", " "))), ids("BR-DE-15")},
-		{"BR-DE-16 no seller VAT identifier", one(remove(aSellerVAT)), ids("BR-DE-16")},
+		{"BR-DE-15 blank buyer reference", one(rep(elem("BuyerReference", "04011000-12345-03"), elem("BuyerReference", " "))), ids("BR-DE-15", "PEPPOL-EN16931-R008")},
+		{"BR-DE-16 no seller VAT identifier", one(remove(aSellerVAT)), ids("BR-DE-16", "PEPPOL-EN16931-R008")},
 		{"BR-DE-16 tax registration FC", one(rep(aSellerVAT, `<ram:ID schemeID=" FC ">12/345/67890</ram:ID>`)), nil},
-		{"BR-DE-16 tax representative", one(remove(aSellerVAT), after(aBuyerEnd, "<ram:SellerTaxRepresentativeTradeParty><ram:Name>Vertreter</ram:Name></ram:SellerTaxRepresentativeTradeParty>")), nil},
-		{"BR-DE-16 lines in category O", one(remove(aSellerVAT), repAll(elem("CategoryCode", "S"), elem("CategoryCode", "O"))), nil},
+		{"BR-DE-16 tax representative", one(remove(aSellerVAT), after(aBuyerEnd, "<ram:SellerTaxRepresentativeTradeParty><ram:Name>Vertreter</ram:Name></ram:SellerTaxRepresentativeTradeParty>")), ids("PEPPOL-EN16931-R008")},
+		{"BR-DE-16 lines in category O", one(remove(aSellerVAT), repAll(elem("CategoryCode", "S"), elem("CategoryCode", "O"))), ids("PEPPOL-EN16931-R008")},
 		// The string value of a formatted ram:CategoryTradeTax is not 'VAT'.
 		{"BR-DE-16 formatted charge tax", one(remove(aSellerVAT), repAll(elem("CategoryCode", "S"), elem("CategoryCode", "O")),
-			before("<ram:SpecifiedTradePaymentTerms>", "<ram:SpecifiedTradeAllowanceCharge><ram:CategoryTradeTax>\n<ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>")), nil},
+			before("<ram:SpecifiedTradePaymentTerms>", "<ram:SpecifiedTradeAllowanceCharge><ram:CategoryTradeTax>\n<ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>")), ids("PEPPOL-EN16931-R008", "PEPPOL-EN16931-R043-1")},
 		{"BR-DE-16 compact charge tax", one(remove(aSellerVAT), repAll(elem("CategoryCode", "S"), elem("CategoryCode", "O")),
 			before("<ram:SpecifiedTradePaymentTerms>", "<ram:SpecifiedTradeAllowanceCharge><ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>"+
-				"<ram:SpecifiedTradeAllowanceCharge><ram:CategoryTradeTax><ram:CategoryCode>S</ram:CategoryCode></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>")), ids("BR-DE-16")},
+				"<ram:SpecifiedTradeAllowanceCharge><ram:CategoryTradeTax><ram:CategoryCode>S</ram:CategoryCode></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>")), ids("BR-DE-16", "PEPPOL-EN16931-R008", "PEPPOL-EN16931-R043-1")},
 		{"BR-DE-17 type 325", one(rep(aTypeCode, elem("TypeCode", "325"))), ids("BR-DE-17")},
 		{"BR-DE-17 type 877", one(rep(aTypeCode, elem("TypeCode", " 877 "))), nil},
 		{"BR-DE-18 percentage without decimals", one(rep(aSkonto, "#SKONTO#TAGE=14#PROZENT=2#")), ids("BR-DE-18")},
@@ -229,18 +229,18 @@ func mutationCases() []mutationCase {
 
 		// Seller, buyer and deliver to.
 		{"BR-DE-2 no seller contact", one(repAll("DefinedTradeContact>", "DefinedTradeContactX>")), ids("BR-DE-2")},
-		{"BR-DE-3 blank seller city", one(rep(elem("CityName", "Berlin"), elem("CityName", ""))), ids("BR-DE-3")},
+		{"BR-DE-3 blank seller city", one(rep(elem("CityName", "Berlin"), elem("CityName", ""))), ids("BR-DE-3", "PEPPOL-EN16931-R008")},
 		{"BR-DE-4 no seller post code", one(remove(elem("PostcodeCode", "10115"))), ids("BR-DE-4")},
 		{"BR-DE-5 no contact point", one(remove(aPerson)), ids("BR-DE-5")},
 		{"BR-DE-5 department", one(rep(aPerson, elem("DepartmentName", "Buchhaltung"))), nil},
-		{"BR-DE-6 no telephone", one(remove(aPhone)), ids("BR-DE-27", "BR-DE-6")},
-		{"BR-DE-7 no email", one(remove(aEmail)), ids("BR-DE-28", "BR-DE-7")},
+		{"BR-DE-6 no telephone", one(remove(aPhone)), ids("BR-DE-27", "BR-DE-6", "PEPPOL-EN16931-R008")},
+		{"BR-DE-7 no email", one(remove(aEmail)), ids("BR-DE-28", "BR-DE-7", "PEPPOL-EN16931-R008")},
 		{"BR-DE-27 two digits", one(rep(aPhone, elem("CompleteNumber", "+49 OO IO"))), ids("BR-DE-27")},
 		{"BR-DE-28 one label", one(rep(aEmail, elem("URIID", "rechnung@flottenservice"))), ids("BR-DE-28")},
 		{"BR-DE-28 two @", one(rep(aEmail, elem("URIID", "rechnung@@flottenservice.example"))), ids("BR-DE-28")},
 		{"BR-DE-28 space", one(rep(aEmail, elem("URIID", "erika beispiel@flottenservice.example"))), ids("BR-DE-28")},
 		{"BR-DE-28 surrounding space", one(rep(aEmail, elem("URIID", "  erika.beispiel@flottenservice.example  "))), nil},
-		{"BR-DE-8 blank buyer city", one(rep(elem("CityName", "Hamburg"), elem("CityName", "  "))), ids("BR-DE-8")},
+		{"BR-DE-8 blank buyer city", one(rep(elem("CityName", "Hamburg"), elem("CityName", "  "))), ids("BR-DE-8", "PEPPOL-EN16931-R008")},
 		{"BR-DE-9 no buyer post code", one(remove(elem("PostcodeCode", "20095"))), ids("BR-DE-9")},
 		{"BR-DE-10 no deliver to city", one(remove(elem("CityName", "Bremen"))), ids("BR-DE-10")},
 		{"BR-DE-11 no deliver to post code", one(remove(elem("PostcodeCode", "28195"))), ids("BR-DE-11")},
@@ -267,7 +267,7 @@ func mutationCases() []mutationCase {
 		{"BR-DE-24-a no card", one(rep(aPMCode, elem("TypeCode", "55")), repAll("PayeePartyCreditorFinancialAccount>", "X>")), ids("BR-DE-24-a")},
 		{"BR-DE-24-b card and account", one(rep(aPMCode, elem("TypeCode", "48")), before(aPMEnd, card)), ids("BR-DE-24-b")},
 		{"BR-DE-20 IBAN checksum", edits(directDebit, one(rep("DE02120300000000202051", "DE02120300000000202052"))), ids("BR-DE-20")},
-		{"BR-DE-25 direct debit code only", one(rep(aPMCode, elem("TypeCode", "59"))), ids("BR-DE-20", "BR-DE-25-a", "BR-DE-25-b")},
+		{"BR-DE-25 direct debit code only", one(rep(aPMCode, elem("TypeCode", "59"))), ids("BR-DE-20", "BR-DE-25-a", "BR-DE-25-b", "PEPPOL-EN16931-R061")},
 		{"BR-DE-25-b creditor institution", edits(directDebit, one(before(aPMEnd, "<ram:PayeeSpecifiedCreditorFinancialInstitution><ram:BICID>COBADEFFXXX</ram:BICID></ram:PayeeSpecifiedCreditorFinancialInstitution>"))), ids("BR-DE-25-b")},
 		{"BR-DE-14 no VAT rate", one(repN(2, elem("RateApplicablePercent", "19"), "")), ids("BR-DE-14")},
 
@@ -278,7 +278,7 @@ func mutationCases() []mutationCase {
 		{"BR-TMP-3 different quantities", one(rep(aNetQty, `<ram:BasisQuantity unitCode="HUR">1.0</ram:BasisQuantity>
         </ram:NetPriceProductTradePrice>`)), ids("BR-TMP-3")},
 		{"BR-TMP-3 different units", one(rep(aNetQty, `<ram:BasisQuantity unitCode="H87">1</ram:BasisQuantity>
-        </ram:NetPriceProductTradePrice>`)), ids("BR-TMP-3")},
+        </ram:NetPriceProductTradePrice>`)), ids("BR-TMP-3", "PEPPOL-EN16931-R130")},
 		{"BR-TMP-3 unit on the net price only", one(rep(`<ram:BasisQuantity unitCode="HUR">1</ram:BasisQuantity>`, `<ram:BasisQuantity>1</ram:BasisQuantity>`)), nil},
 
 		// Extension.
@@ -310,7 +310,115 @@ func mutationCases() []mutationCase {
 		{"BR-DE-CVD-01 no contract", edits(cvd, one(remove(contract))), ids("BR-DE-CVD-01")},
 		{"BR-DE-CVD-02 no tender", edits(cvd, one(remove(tender))), ids("BR-DE-CVD-02")},
 		{"BR-DE-CVD-* need the CVD identifier", one(after(aProduct1, cva("diesel")+classCode("CVD", "L1"))), nil},
+
+		// Peppol rules of the XRechnung schematron.
+		{"PEPPOL-EN16931-R001 no business process", one(remove(aProcess)), ids("PEPPOL-EN16931-R001")},
+		{"PEPPOL-EN16931-R001 blank business process", one(rep(aProcessID, elem("ID", " "))), ids("PEPPOL-EN16931-R008")},
+		{"PEPPOL-EN16931-R005 VAT accounting currency of the invoice", one(before(aCurrency, elem("TaxCurrencyCode", "EUR"))), ids("PEPPOL-EN16931-R005", "PEPPOL-EN16931-R054")},
+		{"PEPPOL-EN16931-R053 two totals in the invoice currency", one(after(aTaxTotal, aTaxTotal)), ids("PEPPOL-EN16931-R053")},
+		{"PEPPOL-EN16931-R054 no total in the accounting currency", one(before(aCurrency, elem("TaxCurrencyCode", "USD"))), ids("PEPPOL-EN16931-R054", "PEPPOL-EN16931-R055")},
+		{"PEPPOL-EN16931-R054 total in the accounting currency", one(before(aCurrency, elem("TaxCurrencyCode", "USD")), after(aTaxTotal, taxTotalUSD("31.00"))), nil},
+		{"PEPPOL-EN16931-R054 total without accounting currency", one(after(aTaxTotal, taxTotalUSD("31.00"))), ids("PEPPOL-EN16931-R054")},
+		{"PEPPOL-EN16931-R055 opposite signs", one(before(aCurrency, elem("TaxCurrencyCode", "USD")), after(aTaxTotal, taxTotalUSD("-31.00"))), ids("PEPPOL-EN16931-R055")},
+		{"PEPPOL-EN16931-R010 no buyer electronic address", one(remove(aBuyerURIComm)), ids("PEPPOL-EN16931-R010")},
+		{"PEPPOL-EN16931-R020 no seller electronic address", one(remove(aSellerURIComm)), ids("PEPPOL-EN16931-R020")},
+		{"PEPPOL-EN16931-R041 percentage without base amount", one(before(aTerms, tradeAllowance("false", "10", "", "5.00"))), ids("PEPPOL-EN16931-R041")},
+		{"PEPPOL-EN16931-R042 base amount without percentage", one(before(aTerms, tradeAllowance("false", "", "50.00", "5.00"))), ids("PEPPOL-EN16931-R042")},
+		// R041 and R042 match first: R040 and R043-1 are not tested.
+		{"PEPPOL-EN16931-R041 before R043-1", one(before(aTerms, tradeAllowance("1", "10", "", "5.00"))), ids("PEPPOL-EN16931-R041")},
+		{"PEPPOL-EN16931-R040 amount", one(before(aTerms, tradeAllowance("false", "10", "50.00", "6.00"))), ids("PEPPOL-EN16931-R040")},
+		{"PEPPOL-EN16931-R040 within the slack", one(before(aTerms, tradeAllowance("false", "10", "50.00", "5.02"))), nil},
+		{"PEPPOL-EN16931-R040 HUF slack", edits(one(before(aTerms, tradeAllowance("false", "10", "50.00", "5.40"))), huf), nil},
+		{"PEPPOL-EN16931-R040 beyond the HUF slack", edits(one(before(aTerms, tradeAllowance("false", "10", "50.00", "5.60"))), huf), ids("PEPPOL-EN16931-R040")},
+		{"PEPPOL-EN16931-R043-1 indicator 1", one(before(aTerms, tradeAllowance("1", "", "", "5.00"))), ids("PEPPOL-EN16931-R043-1")},
+		{"PEPPOL-EN16931-R043-1 spaced indicator", one(before(aTerms, tradeAllowance(" true ", "", "", "5.00"))), nil},
+		{"PEPPOL-EN16931-R043-1 line allowance", one(before(aLineSum, tradeAllowance("0", "", "", "0.00"))), ids("PEPPOL-EN16931-R043-1")},
+		{"PEPPOL-EN16931-R043-2 price allowance", one(before(aGrossEnd, priceAllowance("1", "0.00"))), ids("PEPPOL-EN16931-R043-2", "PEPPOL-EN16931-R044")},
+		{"PEPPOL-EN16931-R044 charge on the price", one(before(aGrossEnd, priceAllowance("true", "0.00"))), ids("PEPPOL-EN16931-R044")},
+		// R044 compares the indicator with 'false' as it is written.
+		{"PEPPOL-EN16931-R044 spaced indicator", one(before(aGrossEnd, priceAllowance(" false ", "0.00"))), ids("PEPPOL-EN16931-R044")},
+		{"PEPPOL-EN16931-R046 net price", one(before(aGrossEnd, priceAllowance("false", "1.00"))), ids("PEPPOL-EN16931-R046")},
+		{"PEPPOL-EN16931-R046 gross price minus allowance", one(rep(elem("ChargeAmount", "12.50"), elem("ChargeAmount", "13.50")), before(aGrossEnd, priceAllowance("false", "1.00"))), nil},
+		// The net price of line 2 becomes a gross price.
+		{"PEPPOL-EN16931-R046 no net price", one(repN(2, "<ram:NetPriceProductTradePrice>", "<ram:GrossPriceProductTradePrice>"), repN(2, "</ram:NetPriceProductTradePrice>", "</ram:GrossPriceProductTradePrice>")), ids("PEPPOL-EN16931-R046", "PEPPOL-EN16931-R120")},
+		{"PEPPOL-EN16931-R110 line period starts before", one(before(aTerms, billingPeriod("20261001", "20261031")), before(aLineSum, billingPeriod("20260930", "20261031"))), ids("PEPPOL-EN16931-R110")},
+		{"PEPPOL-EN16931-R111 line period ends after", one(before(aTerms, billingPeriod("20261001", "20261031")), before(aLineSum, billingPeriod("20261001", "20261101"))), ids("PEPPOL-EN16931-R111")},
+		{"PEPPOL-EN16931-R110 needs an invoice start date", one(before(aTerms, billingPeriod("", "20261031")), before(aLineSum, billingPeriod("20260901", "20261031"))), nil},
+		{"PEPPOL-EN16931-R120 line net amount", one(rep(aQty1, `<ram:BilledQuantity unitCode="HUR">11</ram:BilledQuantity>`)), ids("PEPPOL-EN16931-R120")},
+		{"PEPPOL-EN16931-R120 within the slack", one(repAll(elem("ChargeAmount", "12.50"), elem("ChargeAmount", "12.502"))), nil},
+		{"PEPPOL-EN16931-R120 line allowance", one(before(aLineSum, tradeAllowance("false", "", "", "5.00"))), ids("PEPPOL-EN16931-R120")},
+		{"PEPPOL-EN16931-R120 base quantity of the gross price", one(repAll(elem("ChargeAmount", "12.50"), elem("ChargeAmount", "25.00")), rep(aQtyHUR, `<ram:BasisQuantity unitCode="HUR">2</ram:BasisQuantity>`), rep(aNetQty, "</ram:NetPriceProductTradePrice>")), nil},
+		// A zero base quantity counts as 1 in R120.
+		{"PEPPOL-EN16931-R121 zero base quantity", one(repAll(aQtyHUR, `<ram:BasisQuantity unitCode="HUR">0</ram:BasisQuantity>`)), ids("PEPPOL-EN16931-R121")},
+		{"PEPPOL-EN16931-R101 line object", one(after(aLineSumEnd, lineObject("916"))), ids("PEPPOL-EN16931-R101")},
+		{"PEPPOL-EN16931-R101 type code 130", one(after(aLineSumEnd, lineObject("130"))), nil},
+		// The delivery becomes an empty element, its content a comment; the
+		// invoicing period replaces the delivery date (BR-DE-TMP-32).
+		{"PEPPOL-EN16931-R008 empty delivery", one(rep("<ram:ApplicableHeaderTradeDelivery>", "<ram:ApplicableHeaderTradeDelivery/><!--"), rep("</ram:ApplicableHeaderTradeDelivery>", "-->"),
+			before(aTerms, billingPeriod("20261001", "20261031"))), nil},
 	}
+}
+
+// Anchors of the base invoice for the Peppol rules.
+const (
+	aProcessID     = "<ram:ID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</ram:ID>"
+	aProcess       = "<ram:BusinessProcessSpecifiedDocumentContextParameter>\n      " + aProcessID + "\n    </ram:BusinessProcessSpecifiedDocumentContextParameter>"
+	aTaxTotal      = `<ram:TaxTotalAmount currencyID="EUR">29.35</ram:TaxTotalAmount>`
+	aBuyerURIComm  = "<ram:URIUniversalCommunication>\n          <ram:URIID schemeID=\"EM\">eingang@amt.example</ram:URIID>\n        </ram:URIUniversalCommunication>"
+	aSellerURIComm = "<ram:URIUniversalCommunication>\n          " + aSellerURI + "\n        </ram:URIUniversalCommunication>"
+	aTerms         = "<ram:SpecifiedTradePaymentTerms>"
+	aGrossEnd      = "</ram:GrossPriceProductTradePrice>"
+	aLineSum       = "<ram:SpecifiedTradeSettlementLineMonetarySummation>"
+	aLineSumEnd    = "</ram:SpecifiedTradeSettlementLineMonetarySummation>"
+	aQty1          = `<ram:BilledQuantity unitCode="HUR">10</ram:BilledQuantity>`
+	aQtyHUR        = `<ram:BasisQuantity unitCode="HUR">1</ram:BasisQuantity>`
+)
+
+// huf turns the invoice currency into the Hungarian forint, whose slack is
+// 0.5 in the Peppol rules.
+var huf = one(rep(aCurrency, elem("InvoiceCurrencyCode", "HUF")), repAll(`currencyID="EUR"`, `currencyID="HUF"`))
+
+// tradeAllowance returns an allowance or charge of the document or of a line
+// with the indicator, the optional percentage and base amount, and the
+// amount.
+func tradeAllowance(indicator, percent, base, amount string) string {
+	s := "<ram:SpecifiedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>" + indicator + "</udt:Indicator></ram:ChargeIndicator>"
+	if percent != "" {
+		s += elem("CalculationPercent", percent)
+	}
+	if base != "" {
+		s += elem("BasisAmount", base)
+	}
+	return s + elem("ActualAmount", amount) + elem("Reason", "Rabatt") +
+		"<ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode><ram:RateApplicablePercent>19</ram:RateApplicablePercent></ram:CategoryTradeTax></ram:SpecifiedTradeAllowanceCharge>"
+}
+
+// priceAllowance returns an allowance of the gross price.
+func priceAllowance(indicator, amount string) string {
+	return "<ram:AppliedTradeAllowanceCharge><ram:ChargeIndicator><udt:Indicator>" + indicator + "</udt:Indicator></ram:ChargeIndicator>" + elem("ActualAmount", amount) + "</ram:AppliedTradeAllowanceCharge>"
+}
+
+// billingPeriod returns a period with the start and end dates (CCYYMMDD); an
+// empty date is left out.
+func billingPeriod(start, end string) string {
+	s := "<ram:BillingSpecifiedPeriod>"
+	if start != "" {
+		s += `<ram:StartDateTime><udt:DateTimeString format="102">` + start + "</udt:DateTimeString></ram:StartDateTime>"
+	}
+	if end != "" {
+		s += `<ram:EndDateTime><udt:DateTimeString format="102">` + end + "</udt:DateTimeString></ram:EndDateTime>"
+	}
+	return s + "</ram:BillingSpecifiedPeriod>"
+}
+
+// lineObject returns a referenced document of a line with the type code.
+func lineObject(code string) string {
+	return "<ram:AdditionalReferencedDocument>" + elem("IssuerAssignedID", "OBJ-1") + elem("TypeCode", code) + "</ram:AdditionalReferencedDocument>"
+}
+
+// taxTotalUSD returns an invoice total VAT amount in US dollars.
+func taxTotalUSD(amount string) string {
+	return `<ram:TaxTotalAmount currencyID="USD">` + amount + "</ram:TaxTotalAmount>"
 }
 
 func TestMutations(t *testing.T) {
@@ -383,8 +491,8 @@ func TestCatalog(t *testing.T) {
 			t.Errorf("no description for %s", r.ID)
 		}
 	}
-	if len(Catalog) != 52 || sev[rules.Error] != 40 || sev[rules.Warning] != 11 || sev[rules.Info] != 1 {
-		t.Errorf("%d assertions (%d errors, %d warnings, %d information), want 52 (40, 11, 1)", len(Catalog), sev[rules.Error], sev[rules.Warning], sev[rules.Info])
+	if len(Catalog) != 74 || sev[rules.Error] != 61 || sev[rules.Warning] != 12 || sev[rules.Info] != 1 {
+		t.Errorf("%d assertions (%d errors, %d warnings, %d information), want 74 (61, 12, 1)", len(Catalog), sev[rules.Error], sev[rules.Warning], sev[rules.Info])
 	}
 }
 
@@ -462,8 +570,8 @@ func eachInvoice(t *testing.T, dir string, fn func(path string, doc *rules.Doc))
 }
 
 // corpusFailures lists the XRechnung invoices of the corpus, by file name,
-// that are in a fail directory and break rules of this package: the rules
-// they must report, and only those, and why.
+// that break rules of this package: the rules they must report, and only
+// those, and why.
 var corpusFailures = map[string]struct {
 	rules []string
 	why   string
@@ -471,6 +579,9 @@ var corpusFailures = map[string]struct {
 	"XRechnung 722825203.XML": {rules: []string{"BR-DE-18"},
 		why: "ZUGFeRD/corpus 82e886f, anonymised by scrambling the letters, including those of the cash " +
 			"discount keywords: #SKONTO#TAGE=..#PROZENT=..# became #PZYKMU#TNIW=96#IQITDIB=6.71#"},
+	"eicar.cii.xml": {rules: []string{"PEPPOL-EN16931-R008"},
+		why: "test file of virus scanners written by Mustang: the country codes of the seller and of the buyer " +
+			"are empty elements, which also break BR-09, BR-11 and BR-CL-14"},
 }
 
 // TestCorpus runs Check on the CII and UBL files of FX_CORPUS and

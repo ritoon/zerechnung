@@ -356,7 +356,7 @@ Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X
 Every pull request runs the reference validators on the official test corpora and compares the results invoice by invoice:
 
 - KoSIT validator (XRechnung): the same errors on all 128 invoices.
-- Mustang: the same errors on 241 of 282 invoices. Each of the 41 differences comes from the references themselves and is explained in [known.txt](conformance/parity/known.txt).
+- Mustang: the same errors on 239 of 282 invoices. Each of the 43 differences comes from the references themselves and is explained in [known.txt](conformance/parity/known.txt).
 - Dutch NPa validators (NLCIUS): the same rules on 283 of 290 files, with the 7 differences justified.
 - eSPap schematron (CIUS-PT), compiled by SchXslt and run by Saxon: the same rules, at the same levels and on the same elements, on the 15 official examples, the 3 test invoices and the 5,462 of their 5,765 variants that Saxon completes. On the other 303, Saxon stops on an XPath type error in the test of an assertion, which the package holds failed: it raises that assertion every time.
 - veraPDF corpus, PDF/A-2b and PDF/A-3b: `Check` reports 609 of the 614 invalid test files under a rule of the right clause, and no PDF/A error on the 384 valid ones. The 5 files it misses are listed with their reason in [check_pdfa_corpus_test.go](check_pdfa_corpus_test.go).

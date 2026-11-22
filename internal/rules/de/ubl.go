@@ -1,6 +1,7 @@
 package de
 
 import (
+	"math/big"
 	"strings"
 	"unicode/utf8"
 
@@ -11,13 +12,14 @@ import (
 )
 
 // Rules of the XRechnung UBL schematron (XRechnung-UBL-validation.sch):
-// patterns ubl-pattern, ubl-extension-pattern and ubl-cvd-pattern, and the
-// assertion PEPPOL-EN16931-R043 of peppol-ubl-pattern-2.
+// patterns ubl-pattern, ubl-extension-pattern and ubl-cvd-pattern. The Peppol
+// patterns that it includes are in peppol.go.
 
 // ublChecker runs the rules on a UBL Invoice or CreditNote.
 type ublChecker struct {
 	*checker
-	line string // name of the lines of the root element: InvoiceLine or CreditNoteLine
+	line  string   // name of the lines of the root element: InvoiceLine or CreditNoteLine
+	slack *big.Rat // $slackValue of the Peppol patterns
 }
 
 // checkUBL runs the rules of the UBL schematron on the UBL document of c.
@@ -30,17 +32,18 @@ func checkUBL(c *rules.Checker) {
 	k.ext = k.customization(ExtensionID)
 	k.cvd = k.customization(CVDID)
 
+	k.ublPeppol() // peppol-ubl-pattern-1 and peppol-ubl-pattern-2: PEPPOL-EN16931-R*
+
 	// ubl-pattern
-	k.ublDocument()      // BR-DE-1, 15, 16, 17, 18, 21, 22, 26, 30, 31, BR-DE-TMP-32
-	k.ublExternalRefs()  // BR-TMP-2
-	k.ublDates()         // BR-TMP-6
-	k.ublSeller()        // BR-DE-2 to BR-DE-7, BR-DE-27, BR-DE-28
-	k.ublAddresses()     // BR-DE-8 to BR-DE-11
-	k.ublPaymentMeans()  // BR-DE-19, 20, 23, 24, 25
-	k.ublVATRates()      // BR-DE-14
-	k.ublExtension()     // ubl-extension-pattern: BR-DEX-*
-	k.ublVehicles()      // ubl-cvd-pattern: BR-DE-CVD-*, BR-TMP-CVD-01
-	k.chargeIndicators() // PEPPOL-EN16931-R043
+	k.ublDocument()     // BR-DE-1, 15, 16, 17, 18, 21, 22, 26, 30, 31, BR-DE-TMP-32
+	k.ublExternalRefs() // BR-TMP-2
+	k.ublDates()        // BR-TMP-6
+	k.ublSeller()       // BR-DE-2 to BR-DE-7, BR-DE-27, BR-DE-28
+	k.ublAddresses()    // BR-DE-8 to BR-DE-11
+	k.ublPaymentMeans() // BR-DE-19, 20, 23, 24, 25
+	k.ublVATRates()     // BR-DE-14
+	k.ublExtension()    // ubl-extension-pattern: BR-DEX-*
+	k.ublVehicles()     // ubl-cvd-pattern: BR-DE-CVD-*, BR-TMP-CVD-01
 }
 
 // customization reports whether a text of BT-24 equals id
@@ -577,31 +580,5 @@ func (k *ublChecker) ublVehicles() {
 		if v := nsv(first(p, "Value")); !in(v, cvaCodes...) {
 			k.fail("BR-DE-CVD-05", rules.Error, p, "[BR-DE-CVD-05] If the Item attribute name (BT-160) is 'cva', the Item attribute value (BT-161, cbc:Value) must be one of clean, zero-emission, other; value: %q.", v)
 		}
-	}
-}
-
-// chargeIndicators checks PEPPOL-EN16931-R043 on the allowances and charges
-// of the document and of its lines: the charge indicator is true or false.
-// An allowance or charge with a percentage (cbc:MultiplierFactorNumeric) but
-// no base amount, or the reverse, is checked by an earlier rule of the
-// pattern (PEPPOL-EN16931-R041, R042) and not by this one.
-func (k *ublChecker) chargeIndicators() {
-	check := func(ac *xmltree.Node) {
-		if exists(ac, "MultiplierFactorNumeric") != exists(ac, "BaseAmount") {
-			return
-		}
-		v := ""
-		if ind := first(ac, "ChargeIndicator"); ind != nil {
-			v = norm(ind.Text)
-		}
-		if v != "true" && v != "false" {
-			k.fail("PEPPOL-EN16931-R043", rules.Error, ac, "[PEPPOL-EN16931-R043] The allowance or charge indicator (cbc:ChargeIndicator) must be 'true' or 'false'; value: %q.", v)
-		}
-	}
-	for ac := range all(k.root, "AllowanceCharge") {
-		check(ac)
-	}
-	for ac := range all(k.root, k.line+"/AllowanceCharge") {
-		check(ac)
 	}
 }
