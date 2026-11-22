@@ -131,7 +131,7 @@
     "bm_in_pdf149": "PDF EN 16931, 149 Ko",
     "bm_in_xml13": "XML CII, 13 Ko",
     "bm_in_xml1300": "XML CII, 1,3 Mo, avec une pièce jointe en base64",
-    "bm_in_host_stream": "PDF hôte à flux xref, 144 Ko",
+    "bm_in_host_stream": "PDF hôte à flux xref, 136 Ko",
     "bm_th_lib": "Librairie",
     "bm_th_bar": "Temps, échelle logarithmique",
     "bm_th_time": "Temps par opération",

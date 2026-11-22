@@ -131,7 +131,7 @@
     "bm_in_pdf149": "EN-16931-PDF, 149 KB",
     "bm_in_xml13": "CII-XML, 13 KB",
     "bm_in_xml1300": "CII-XML, 1,3 MB, mit einem Base64-Anhang",
-    "bm_in_host_stream": "Ausgangs-PDF mit xref-Streams, 144 KB",
+    "bm_in_host_stream": "Ausgangs-PDF mit xref-Streams, 136 KB",
     "bm_th_lib": "Bibliothek",
     "bm_th_bar": "Zeit, logarithmische Skala",
     "bm_th_time": "Zeit pro Operation",

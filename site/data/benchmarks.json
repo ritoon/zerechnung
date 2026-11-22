@@ -73,13 +73,13 @@
       "op": "bm_op_inject",
       "input": "bm_in_host_stream",
       "rows": [
-        {"lib": "ZeRechnung", "us": 98.7},
-        {"lib": "pdfcpu", "us": 451, "note": "bm_note_recipe"},
-        {"lib": "pdf0", "us": 529},
+        {"lib": "ZeRechnung", "us": 92.0},
+        {"lib": "pdfcpu", "us": 426, "note": "bm_note_recipe"},
+        {"lib": "pdf0", "us": 486},
+        {"lib": "gopdfattach", "us": 1090},
         {"lib": "dotwave", "us": 1150},
-        {"lib": "gopdfattach", "us": 1180},
-        {"lib": "DCNWS", "us": 1700},
-        {"lib": "litho", "us": 35410, "note": "bm_note_rewrite"},
+        {"lib": "DCNWS", "us": 1790},
+        {"lib": "litho", "us": 34630, "note": "bm_note_rewrite"},
         {"lib": "kanjo", "fail": "bm_fail_broken"},
         {"lib": "andee", "fail": "bm_fail_broken"}
       ]
@@ -182,18 +182,18 @@
     {
       "op": "bm_op_inject",
       "input": "bm_in_host_stream",
-      "floor": 123,
+      "floor": 115,
       "floor_lib": "MuPDF (C)",
       "rows": [
-        {"lib": "ZeRechnung", "lang": "Go", "us": 96.7},
-        {"lib": "pdf-invoice", "lang": "Rust", "us": 180},
-        {"lib": "balsoft", "lang": "C#", "us": 388},
-        {"lib": "pdfcpu", "lang": "Go", "us": 451, "note": "bm_note_recipe"},
-        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 679},
-        {"lib": "@stackforge-eu/factur-x", "lang": "TypeScript", "us": 1170},
-        {"lib": "dealerweb/einvoice", "lang": "PHP", "us": 2140},
-        {"lib": "mustang", "lang": "Java", "us": 5420},
-        {"lib": "Kura", "lang": "C++", "us": 12590, "note": "bm_note_rewrite"}
+        {"lib": "ZeRechnung", "lang": "Go", "us": 93.1},
+        {"lib": "pdf-invoice", "lang": "Rust", "us": 174},
+        {"lib": "balsoft", "lang": "C#", "us": 372},
+        {"lib": "pdfcpu", "lang": "Go", "us": 426, "note": "bm_note_recipe"},
+        {"lib": "@fin.cx/einvoice", "lang": "TypeScript", "us": 550},
+        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 624},
+        {"lib": "intragile/php-einvoicing", "lang": "PHP", "us": 679},
+        {"lib": "mustang", "lang": "Java", "us": 5760},
+        {"lib": "Kura", "lang": "C++", "us": 11690, "note": "bm_note_rewrite"}
       ]
     },
     {
@@ -285,13 +285,13 @@
         "op": "bm_op_inject",
         "input": "bm_in_host_stream",
         "rows": [
-          {"lib": "ZeRechnung", "kb": 245, "allocs": 456},
-          {"lib": "pdf0", "kb": 1324, "allocs": 9593},
-          {"lib": "pdfcpu", "kb": 1507, "allocs": 3896, "note": "bm_note_recipe"},
-          {"lib": "DCNWS", "kb": 3775, "allocs": 44347},
-          {"lib": "dotwave", "kb": 5099, "allocs": 8855},
-          {"lib": "gopdfattach", "kb": 5409, "allocs": 8043},
-          {"lib": "litho", "kb": 35921, "allocs": 394412, "note": "bm_note_rewrite"},
+          {"lib": "ZeRechnung", "kb": 226, "allocs": 376},
+          {"lib": "pdf0", "kb": 1202, "allocs": 8552},
+          {"lib": "pdfcpu", "kb": 1493, "allocs": 3762, "note": "bm_note_recipe"},
+          {"lib": "DCNWS", "kb": 3768, "allocs": 44129},
+          {"lib": "dotwave", "kb": 5047, "allocs": 8404},
+          {"lib": "gopdfattach", "kb": 5332, "allocs": 7131},
+          {"lib": "litho", "kb": 34867, "allocs": 383412, "note": "bm_note_rewrite"},
           {"lib": "kanjo", "fail": "bm_fail_broken"},
           {"lib": "andee", "fail": "bm_fail_broken"}
         ]
@@ -357,11 +357,11 @@
         "op": "bm_op_inject",
         "input": "bm_in_host_stream",
         "rows": [
-          {"lib": "ZeRechnung", "lang": "Go", "kb": 245, "allocs": 456},
-          {"lib": "pdf-invoice", "lang": "Rust", "kb": 949, "allocs": 615},
-          {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "kb": 1003},
-          {"lib": "pdf0", "lang": "Go", "kb": 1324, "allocs": 9593},
-          {"lib": "mcp-einvoicing-de", "lang": "Python", "kb": 3503, "allocs": 5847}
+          {"lib": "ZeRechnung", "lang": "Go", "kb": 226, "allocs": 376},
+          {"lib": "pdf-invoice", "lang": "Rust", "kb": 930, "allocs": 569},
+          {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "kb": 969},
+          {"lib": "pdf0", "lang": "Go", "kb": 1202, "allocs": 8552},
+          {"lib": "mcp-einvoicing-de", "lang": "Python", "kb": 3337, "allocs": 4853}
         ]
       },
       {
@@ -378,13 +378,13 @@
     ]
   },
   "resources": [
-    {"lang": "Go", "rss": [16.8, 20.9, 25.5], "cpu": [163, 206]},
+    {"lang": "Go", "rss": [16.8, 20.9, 25.5], "cpu": [163, 203]},
     {"lang": "Go", "note": "bm_res_one_core", "rss": [16.4, 17.6, 23.9], "cpu": [99, 100]},
-    {"lang": "TypeScript", "rss": [65.4, 174, 509], "cpu": [102, 433]},
-    {"lang": "Python", "rss": [39.8, 59.5, 387], "cpu": [100, 100]},
+    {"lang": "TypeScript", "rss": [65.4, 177, 509], "cpu": [103, 433]},
+    {"lang": "Python", "rss": [39.8, 60.2, 387], "cpu": [100, 100]},
     {"lang": "Rust", "rss": [1.9, 7.2, 503], "cpu": [100, 111]},
-    {"lang": "Java", "rss": [259, 602, 2129], "cpu": [125, 399]},
-    {"lang": "C#", "rss": [69.6, 90.0, 509], "cpu": [100, 506]},
+    {"lang": "Java", "rss": [259, 611, 2129], "cpu": [125, 399]},
+    {"lang": "C#", "rss": [69.6, 90.9, 509], "cpu": [100, 457]},
     {"lang": "C", "rss": [2.2, 5.8, 11.7], "cpu": [100, 100]},
     {"lang": "C++", "rss": [1.7, 9.1, 278], "cpu": [100, 100]},
     {"lang": "PHP", "rss": [32.0, 43.0, 1173], "cpu": [100, 100]}
