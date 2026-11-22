@@ -61,7 +61,7 @@ func runValidate(t *testing.T, args ...string) (int, map[string]bool) {
 // TestValidateDeclaredRules checks that the rule options of validate do not
 // drop the rules an invoice declares in BT-24: BR-DE for XRECHNUNG, Peppol
 // for a Peppol invoice, BR-NL for an NLCIUS invoice, BR-IT for a CIUS-IT
-// invoice, BR-CIUS-PT for a CIUS-PT invoice.
+// invoice, BR-CIUS-PT for a CIUS-PT invoice, BR-RO for a CIUS-RO invoice.
 func TestValidateDeclaredRules(t *testing.T) {
 	xrechnung := mutated(t, "../../testdata/XRECHNUNG_Einfach.cii.xml",
 		"<ram:BuyerReference>04011000-12345-34</ram:BuyerReference>", "")
@@ -73,6 +73,8 @@ func TestValidateDeclaredRules(t *testing.T) {
 		`<ram:URIID schemeID="0201">UFABCD</ram:URIID>`, `<ram:URIID schemeID="0201">ufabcd</ram:URIID>`)
 	ciuspt := mutated(t, "../../internal/rules/pt/testdata/cius-pt.ubl.xml",
 		"<cbc:StreetName>Rua das Flores 12</cbc:StreetName>", "")
+	ciusro := mutated(t, "../../internal/rules/ro/testdata/cius-ro.ubl.xml",
+		"<cbc:CityName>SECTOR3</cbc:CityName>", "<cbc:CityName>Bucuresti</cbc:CityName>")
 	for _, flags := range [][]string{
 		nil,
 		{"-fr"},
@@ -82,6 +84,7 @@ func TestValidateDeclaredRules(t *testing.T) {
 		{"-nl"},
 		{"-it"},
 		{"-pt"},
+		{"-ro"},
 		{"-fr", "-auto"},
 	} {
 		code, got := runValidate(t, append(flags, xrechnung)...)
@@ -103,6 +106,10 @@ func TestValidateDeclaredRules(t *testing.T) {
 		code, got = runValidate(t, append(flags, ciuspt)...)
 		if code != 1 || !got["BR-CIUS-PT-05"] {
 			t.Errorf("validate %v on CIUS-PT invoice without seller street: code %d, BR-CIUS-PT-05 reported %v", flags, code, got["BR-CIUS-PT-05"])
+		}
+		code, got = runValidate(t, append(flags, ciusro)...)
+		if code != 1 || !got["BR-RO-100"] {
+			t.Errorf("validate %v on CIUS-RO invoice of a seller in Bucharest without sector: code %d, BR-RO-100 reported %v", flags, code, got["BR-RO-100"])
 		}
 	}
 }
@@ -189,6 +196,27 @@ func TestValidatePTOption(t *testing.T) {
 		_, got := runValidate(t, append(c.flags, french)...)
 		if got["PT-SYNTAX-01"] != c.want {
 			t.Errorf("validate %v on a Factur-X invoice: PT-SYNTAX-01 reported %v, want %v", c.flags, got["PT-SYNTAX-01"], c.want)
+		}
+	}
+}
+
+// TestValidateROOption checks that -ro applies the Romanian rules to an
+// invoice that does not declare the CIUS-RO (BR-RO-001), and that they are
+// not applied otherwise.
+func TestValidateROOption(t *testing.T) {
+	const french = "../../internal/rules/fr/testdata/en16931.xml"
+	for _, c := range []struct {
+		flags []string
+		want  bool
+	}{
+		{nil, false},
+		{[]string{"-auto"}, false},
+		{[]string{"-pt"}, false},
+		{[]string{"-ro"}, true},
+	} {
+		_, got := runValidate(t, append(c.flags, french)...)
+		if got["BR-RO-001"] != c.want {
+			t.Errorf("validate %v on a Factur-X invoice: BR-RO-001 reported %v, want %v", c.flags, got["BR-RO-001"], c.want)
 		}
 	}
 }

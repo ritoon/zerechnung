@@ -12,11 +12,11 @@ import (
 
 // reference is a reference validator.
 type reference struct {
-	Key     string                       // kosit, mustang, npa, fnfe, pt: the name used in known.txt
+	Key     string                       // kosit, mustang, npa, fnfe, pt, ro: the name used in known.txt
 	Title   string                       // for the report
 	dir     string                       // sub-directory of the work directory holding its reports
 	report  func(e entry) string         // name of the report of an invoice
-	parse   func([]byte) (result, error) // reads a report; nil for npa, fnfe and pt, whose reports xslRun.result and ptRun.result read
+	parse   func([]byte) (result, error) // reads a report; nil for npa, fnfe, pt and ro, whose reports xslRun.result and schRun.result read
 	applies func(e entry) bool           // the validator was given the invoice
 	ours    func(string, []byte) result  // validates the invoice with this package
 	levels  bool                         // warnings and informations are compared too, not only errors
@@ -70,6 +70,16 @@ var references = []reference{
 		levels:  true,
 		located: true,
 	},
+	{
+		Key:     "ro",
+		Title:   "Schematron CIUS-RO 1.0.9 de l'ANAF, phase ROmodel (SchXslt 1.10.1, Saxon-HE 12.10)",
+		dir:     "ro",
+		report:  func(e entry) string { return e.Name + ".svrl" },
+		applies: func(e entry) bool { return e.ro() },
+		ours:    oursRO,
+		levels:  true,
+		located: true,
+	},
 }
 
 // comparison is the comparison of one invoice with one reference.
@@ -89,9 +99,9 @@ func (c *comparison) identical() bool { return len(c.Known) == 0 && len(c.Unexpe
 // knownDiff is a line of known.txt: a difference that is understood and
 // justified.
 type knownDiff struct {
-	ref    string // kosit, mustang, npa, fnfe, pt or *
+	ref    string // kosit, mustang, npa, fnfe, pt, ro or *
 	glob   string // origin of the invoice, * matching any string (/ included); for ~RULE, syntax/pattern
-	diff   string // +RULE, -RULE (+RULE@PATH, -RULE@PATH for pt), ?RULE (expected by a mutation case, not raised by the reference) or ~RULE (an NLCIUS assertion that the XSLT never raise); a final * matches a prefix
+	diff   string // +RULE, -RULE (+RULE@PATH, -RULE@PATH for pt and ro), ?RULE (expected by a mutation case, not raised by the reference) or ~RULE (an NLCIUS assertion that the XSLT never raise); a final * matches a prefix
 	reason string
 	line   int
 	used   bool
@@ -196,7 +206,11 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	pt, err := newPTRun(work)
+	pt, err := newSchRun(work, "pt.list", ptXSL, nil)
+	if err != nil {
+		return false, err
+	}
+	ro, err := newSchRun(work, "ro.list", roXSL, roNational)
 	if err != nil {
 		return false, err
 	}
@@ -233,6 +247,8 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 				r, err = fnfe.result(e, rdata)
 			case "pt":
 				r, err = pt.result(e, rdata)
+			case "ro":
+				r, err = ro.result(e, rdata)
 			default:
 				r, err = ref.parse(rdata)
 			}

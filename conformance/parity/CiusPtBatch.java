@@ -1,7 +1,7 @@
-// CiusPtBatch applies the XSLT that SchXslt compiles from the CIUS-PT
-// schematron of eSPap to XML files with Saxon, in a single JVM, on one
-// thread per processor: the stylesheet is compiled once. Used by
-// conformance/parity.sh:
+// CiusPtBatch applies the XSLT that SchXslt compiles from a schematron, the
+// CIUS-PT one of eSPap or the ROmodel phase of the CIUS-RO one of ANAF, to
+// XML files with Saxon, in a single JVM, on one thread per processor: the
+// stylesheet is compiled once. Used by conformance/parity.sh:
 //
 //	java -Xss8m -cp Saxon-HE-12.10.jar:xmlresolver-5.3.3.jar:xmlresolver-5.3.3-data.jar CiusPtBatch.java <xslt> <out dir> <list>
 //

@@ -112,11 +112,12 @@ func markdown(all []comparison, never []neverFired, unused []string, coverage []
 		}
 		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d |\n", ref.title, n, same, known, unexpected, verdict)
 	}
-	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les variants, les XSLT de la NPa et celles de la FNFE-MPE, les règles levées en avertissement le sont aussi ; avec le schematron CIUS-PT, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
+	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les variants, les XSLT de la NPa et celles de la FNFE-MPE, les règles levées en avertissement le sont aussi ; avec les schematrons CIUS-PT et CIUS-RO, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
 	variantSection(&b, all, coverage)
 	npaSection(&b, all, never)
 	fnfeSection(&b, all)
 	ptSection(&b, all)
+	roSection(&b, all)
 
 	// Negative cases: one line per invoice, one column per reference.
 	type neg struct {
@@ -187,7 +188,7 @@ func markdown(all []comparison, never []neverFired, unused []string, coverage []
 			unexpectedLines = append(unexpectedLines, fmt.Sprintf("| %s | `%s` | %s |", c.Reference, strings.TrimPrefix(c.Invoice, "corpus/"), strings.Join(ds, " ")))
 		}
 	}
-	const legend = "`+` : règle levée par ZeRechnung seul, ou à un niveau plus élevé ; `-` : par la référence seule, ou à un niveau plus élevé ; entre parenthèses, les niveaux chez ZeRechnung puis chez la référence (— : règle non levée), sauf pour une erreur d'un côté et rien de l'autre. Pour le schematron CIUS-PT, `RÈGLE@ÉLÉMENT` : la règle et l'élément où elle est levée.\n\n"
+	const legend = "`+` : règle levée par ZeRechnung seul, ou à un niveau plus élevé ; `-` : par la référence seule, ou à un niveau plus élevé ; entre parenthèses, les niveaux chez ZeRechnung puis chez la référence (— : règle non levée), sauf pour une erreur d'un côté et rien de l'autre. Pour les schematrons CIUS-PT et CIUS-RO, `RÈGLE@ÉLÉMENT` : la règle et l'élément où elle est levée.\n\n"
 	if len(knownLines) > 0 {
 		b.WriteString("\n### Écarts justifiés\n\n" + legend + "| Référence | Facture | Écart | Raison |\n|---|---|---|---|\n")
 		b.WriteString(strings.Join(knownLines, "\n") + "\n")
@@ -350,28 +351,85 @@ func npaSection(b *strings.Builder, all []comparison, never []neverFired) {
 	}
 }
 
+// schGroup is an origin of the files of the comparison with a schematron
+// compiled by SchXslt, and its title in the report.
+type schGroup struct{ prefix, title string }
+
 // ptGroups are the origins of the files of the CIUS-PT comparison, in the
 // order of the report.
-var ptGroups = []struct{ prefix, title string }{
+var ptGroups = []schGroup{
 	{"pt/espap/", "Exemples d'eSPap (`FX_PT`)"},
 	{"pt/zerechnung/", "Factures du dépôt (`internal/rules/pt/testdata`)"},
 	{"pt/variants/", "Variantes de ces factures (`go test ./internal/rules/pt -run '^TestVariants$' -variants DIR`)"},
 }
 
-// ptSection writes the part of the report on the CIUS-PT schematron: the
-// files by origin, and the transformations stopped on a dynamic error,
-// counted by error code and by assertion.
+// roGroups are the origins of the files of the CIUS-RO comparison, in the
+// order of the report.
+var roGroups = []schGroup{
+	{"ro/anaf/", "Exemples UBL de l'ANAF (`FX_RO`)"},
+	{"ro/zerechnung/", "Factures UBL du dépôt (`internal/rules/ro/testdata`)"},
+	{"ro/variants/", "Variantes de ces factures (`go test ./internal/rules/ro -run '^TestVariants$' -variants DIR`)"},
+}
+
+// schSection is the part of the report on a schematron compiled by SchXslt.
+type schSection struct {
+	key     string // reference
+	groups  []schGroup
+	title   string // of the section
+	intro   string
+	stopped string // header of the column of the transformations stopped
+	stops   string // introduction of the table of the stops
+}
+
+// ptSection writes the part of the report on the CIUS-PT schematron.
 func ptSection(b *strings.Builder, all []comparison) {
+	schSection{
+		key:     "pt",
+		groups:  ptGroups,
+		title:   "CIUS-PT : schematron d'eSPap",
+		intro:   "Saxon applique à chaque fichier le schematron CIUS-PT 2.1.1 d'eSPap compilé en XSLT par SchXslt 1.10.1. ZeRechnung valide chaque fichier comme une facture CIUS-PT (`validate.Options.Profile`), quel que soit son BT-24, et garde les constats des règles du schematron : jeu EN 16931, que le schematron remplace pour une facture CIUS-PT, et jeu `Portugal` sauf ses propres contrôles (PT-NIF, PT-SYNTAX). Les règles levées en erreur et en avertissement sont comparées, chacune sur l'élément où elle est levée.",
+		stopped: "Arrêts de Saxon, assertion tenue pour échouée par ZeRechnung",
+		stops:   "Arrêts sur une erreur de type XPath dans le test d'une assertion : Saxon arrête la transformation, et son rapport ne contient que l'erreur et sa ligne dans la XSLT. ZeRechnung tient l'assertion pour échouée (voir la documentation de `internal/schematron`) : seule cette assertion est comparée, sans son élément, que Saxon ne donne pas.",
+	}.write(b, all)
+}
+
+// roSection writes the part of the report on the CIUS-RO schematron.
+func roSection(b *strings.Builder, all []comparison) {
+	schSection{
+		key:     "ro",
+		groups:  roGroups,
+		title:   "CIUS-RO : schematron de l'ANAF",
+		intro:   "Saxon applique à chaque fichier UBL la phase ROmodel du schematron CIUS-RO 1.0.9 de l'ANAF, celle des règles roumaines, compilée en XSLT par SchXslt 1.10.1. ZeRechnung valide chaque fichier comme une facture CIUS-RO (`validate.Options.Profile`), quel que soit son BT-24, et garde les constats du jeu `Romania` sauf ses propres contrôles du CIF (RO-CIF). Les règles BR-RO et BR-DEC-RO levées en erreur et en avertissement sont comparées, chacune sur l'élément où elle est levée ; BR-27, règle d'EN 16931 que la phase reprend, est laissée au jeu EN 16931. Le schematron ne lie les règles qu'à UBL : leur transposition en CII n'a pas de référence.",
+		stopped: "Arrêts de Saxon",
+		stops:   "Arrêts sur une erreur de type XPath dans le test d'une assertion : Saxon arrête la transformation, et son rapport ne contient que l'erreur et sa ligne dans la XSLT. Pour une règle du CIUS-RO, ZeRechnung tient l'assertion pour échouée (voir la documentation de `internal/schematron`) : seule cette assertion est comparée, sans son élément, que Saxon ne donne pas. Pour BR-27, hors de la comparaison, rien n'est comparé.",
+	}.write(b, all)
+}
+
+// stoppedAssertion returns the assertion whose test stopped a
+// transformation, from the Stopped of its result ("CODE in the test of ID:
+// message").
+func stoppedAssertion(stopped string) string {
+	_, rest, ok := strings.Cut(stopped, " in the test of ")
+	if !ok {
+		return ""
+	}
+	id, _, _ := strings.Cut(rest, ":")
+	return id
+}
+
+// write writes the files by origin, and the transformations stopped on a
+// dynamic error, counted by error code and by assertion.
+func (s schSection) write(b *strings.Builder, all []comparison) {
 	type count struct{ n, same, stopped, known, unexpected int }
-	counts := make([]count, len(ptGroups))
+	counts := make([]count, len(s.groups))
 	stops := map[string]map[string]int{} // error code → assertion → files
 	total := 0
 	for _, c := range all {
-		if c.Reference != "pt" {
+		if c.Reference != s.key {
 			continue
 		}
-		g := len(ptGroups) - 1
-		for i, pg := range ptGroups {
+		g := len(s.groups) - 1
+		for i, pg := range s.groups {
 			if strings.HasPrefix(c.Invoice, pg.prefix) {
 				g = i
 				break
@@ -395,24 +453,22 @@ func ptSection(b *strings.Builder, all []comparison) {
 			if stops[code] == nil {
 				stops[code] = map[string]int{}
 			}
-			for rule := range c.Ref.Rules {
-				stops[code][rule]++
-			}
+			stops[code][stoppedAssertion(c.Ref.Stopped)]++
 		}
 	}
 	if total == 0 {
 		return
 	}
-	b.WriteString("\n### CIUS-PT : schematron d'eSPap\n\nSaxon applique à chaque fichier le schematron CIUS-PT 2.1.1 d'eSPap compilé en XSLT par SchXslt 1.10.1. ZeRechnung valide chaque fichier comme une facture CIUS-PT (`validate.Options.Profile`), quel que soit son BT-24, et garde les constats des règles du schematron : jeu EN 16931, que le schematron remplace pour une facture CIUS-PT, et jeu `Portugal` sauf ses propres contrôles (PT-NIF, PT-SYNTAX). Les règles levées en erreur et en avertissement sont comparées, chacune sur l'élément où elle est levée.\n\n")
-	b.WriteString("| Fichiers | Comparés | Mêmes règles, aux mêmes éléments | Arrêts de Saxon, assertion tenue pour échouée par ZeRechnung | Écarts justifiés | Écarts inattendus |\n|---|---|---|---|---|---|\n")
-	for i, pg := range ptGroups {
+	fmt.Fprintf(b, "\n### %s\n\n%s\n\n", s.title, s.intro)
+	fmt.Fprintf(b, "| Fichiers | Comparés | Mêmes règles, aux mêmes éléments | %s | Écarts justifiés | Écarts inattendus |\n|---|---|---|---|---|---|\n", s.stopped)
+	for i, pg := range s.groups {
 		k := counts[i]
 		fmt.Fprintf(b, "| %s | %d | %d | %d | %d | %d |\n", pg.title, k.n, k.same, k.stopped, k.known, k.unexpected)
 	}
 	if len(stops) == 0 {
 		return
 	}
-	b.WriteString("\nArrêts sur une erreur de type XPath dans le test d'une assertion : Saxon arrête la transformation, et son rapport ne contient que l'erreur et sa ligne dans la XSLT. ZeRechnung tient l'assertion pour échouée (voir la documentation de `internal/rules/pt`) : seule cette assertion est comparée, sans son élément, que Saxon ne donne pas.\n\n| Erreur | Fichiers | Assertions (fichiers) |\n|---|---|---|\n")
+	fmt.Fprintf(b, "\n%s\n\n| Erreur | Fichiers | Assertions (fichiers) |\n|---|---|---|\n", s.stops)
 	why := map[string]string{
 		"XPTY0004": "plusieurs valeurs là où le test n'en attend qu'une",
 		"FORG0001": "valeur qui ne se convertit pas en nombre",

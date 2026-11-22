@@ -400,7 +400,7 @@ var namespaces = map[string]string{
 		if len(p.lets) > 0 {
 			b.WriteString(" Lets: []let{")
 			for _, l := range p.lets {
-				fmt.Fprintf(&b, "{%q, %q}, ", l.name, l.value)
+				fmt.Fprintf(&b, "{Name: %q, Value: %q}, ", l.name, l.value)
 			}
 			b.WriteString("},")
 		}
@@ -410,7 +410,7 @@ var namespaces = map[string]string{
 			if len(r.lets) > 0 {
 				b.WriteString(" Lets: []let{")
 				for _, l := range r.lets {
-					fmt.Fprintf(&b, "{%q, %q}, ", l.name, l.value)
+					fmt.Fprintf(&b, "{Name: %q, Value: %q}, ", l.name, l.value)
 				}
 				b.WriteString("},")
 			}

@@ -33,16 +33,10 @@
 //
 // The rules are not rewritten one by one: rules_gen.go reproduces the
 // schematron as eSPap publishes it (the abstract patterns instantiated with
-// the parameters of their UBL patterns, see gen), and the package evaluates
-// its contexts, variables and tests with an interpreter of the subset of
-// XPath 2.0 they use (xpath.go, eval.go, funcs.go), with the semantics of an
-// XSLT 2.0 processor: comparison of untyped values as strings or as
-// xs:double, exact xs:decimal arithmetic (a division keeps 18 decimals,
-// rounded half down, as Saxon does), round() halves towards positive
-// infinity, regular expressions of XPath. In each pattern, an element is
-// checked by the first rule whose context it matches, and by no other. A
-// test that raises an XPath error, which stops a validator built on an XSLT
-// processor, counts as a failed assertion.
+// the parameters of their UBL patterns, see gen), and package
+// internal/schematron evaluates its contexts, variables and tests with an
+// interpreter of the subset of XPath 2.0 they use, with the semantics of an
+// XSLT 2.0 processor.
 //
 // # Beyond the schematron
 //

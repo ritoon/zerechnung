@@ -52,13 +52,18 @@ func (e entry) variant() bool { return strings.HasPrefix(e.Source, "variants/") 
 // the CIUS-PT schematron receives.
 func (e entry) pt() bool { return strings.HasPrefix(e.Source, "pt/") }
 
+// ro reports whether the invoice is one of the CIUS-RO comparison, which only
+// the CIUS-RO schematron receives.
+func (e entry) ro() bool { return strings.HasPrefix(e.Source, "ro/") }
+
 // fr reports whether the invoice is one of the EXTENDED-CTC-FR comparison,
 // which only the XSLT of the FNFE-MPE receive.
 func (e entry) fr() bool { return strings.HasPrefix(e.Source, "fr/") }
 
-// national reports whether the invoice is one of the NLCIUS, CIUS-PT or
-// EXTENDED-CTC-FR comparisons, which KoSIT and Mustang do not receive.
-func (e entry) national() bool { return e.nl() || e.pt() || e.fr() }
+// national reports whether the invoice is one of the NLCIUS, CIUS-PT,
+// CIUS-RO or EXTENDED-CTC-FR comparisons, which KoSIT and Mustang do not
+// receive.
+func (e entry) national() bool { return e.nl() || e.pt() || e.ro() || e.fr() }
 
 // nlTestDirs are the directories of the SimplerInvoicing test files (FX_NL_TESTS)
 // for the versions of the NPa artefacts: SI-UBL 2.0.3, NLCIUS-CII 1.0.3 and
@@ -84,13 +89,26 @@ type ptInputs struct {
 	variants string // documents of the mutation cases of internal/rules/pt (go test -variants)
 }
 
+// roExampleArchives are the archives of the examples of ANAF in FX_RO whose
+// invoices and credit notes are UBL ones, the syntax of the schematron.
+var roExampleArchives = []string{"eFactura_UBL2.1_exempleXML.zip", "exemple_Invoice_CreditNote.zip"}
+
+// roInputs are the inputs of the CIUS-RO comparison. The invoices are staged
+// under the origins ro/anaf/<path in the archive>, ro/zerechnung/<path> and
+// ro/variants/<file>.
+type roInputs struct {
+	examples string // FX_RO: directory of the archives of the examples of ANAF (roExampleArchives)
+	repo     string // root of this repository, whose internal/rules/ro/testdata holds the CIUS-RO invoices, the UBL ones compared
+	variants string // documents of the mutation cases of internal/rules/ro (go test -variants)
+}
+
 // stage stages the invoices. variants, when not empty, holds one directory
 // per rule package (de, en16931, ubl) with the documents of its mutation
 // cases (go test -variants), staged under the origin variants/<package>/<file>
 // for the KoSIT validator. The rules that each mutation case expects, read
 // from the expected.tsv of its directory (package internal/variants), are
 // written to DIR/expected.tsv by origin.
-func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, fr fnfeInputs, variants string) error {
+func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, fr fnfeInputs, variants string) error {
 	var sources []string                        // origin
 	read := map[string]func() ([]byte, error){} // origin → contents
 	var expected strings.Builder
@@ -221,6 +239,32 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, fr fnfeInputs, 
 			return err
 		}
 	}
+	if ro.examples != "" {
+		for _, a := range roExampleArchives {
+			if err := addZip(filepath.Join(ro.examples, a), "ro/anaf"); err != nil {
+				return err
+			}
+		}
+		if err := add(ro.repo, "ro/zerechnung", "internal/rules/ro/testdata", ".xml"); err != nil {
+			return err
+		}
+		if err := add(ro.variants, "ro/variants", ".", ".xml"); err != nil {
+			return err
+		}
+		// Of the CIUS-RO invoices of the repository, the UBL ones.
+		var err error
+		sources = slices.DeleteFunc(sources, func(src string) bool {
+			if err != nil || !strings.HasPrefix(src, "ro/zerechnung/") {
+				return false
+			}
+			var data []byte
+			data, err = read[src]()
+			return err == nil && docSyntax(data) != "ubl"
+		})
+		if err != nil {
+			return err
+		}
+	}
 	if fr.rfe != "" {
 		for _, d := range fnfeExampleDirs {
 			if err := add(fr.rfe, "fr/fnfe", d, ".xml"); err != nil {
@@ -259,8 +303,8 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, fr fnfeInputs, 
 	if err := os.MkdirAll(in, 0o755); err != nil {
 		return err
 	}
-	var index, kositList, mustangList, npaList, ptList, fnfeList strings.Builder
-	nlFiles, ptFiles, frFiles, variantFiles := 0, 0, 0, 0
+	var index, kositList, mustangList, npaList, ptList, roList, fnfeList strings.Builder
+	nlFiles, ptFiles, roFiles, frFiles, variantFiles := 0, 0, 0, 0, 0
 	for i, src := range sources {
 		ext := strings.ToLower(filepath.Ext(src))
 		e := entry{Name: fmt.Sprintf("%04d%s", i+1, ext), Source: src}
@@ -288,6 +332,9 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, fr fnfeInputs, 
 		case e.pt():
 			fmt.Fprintln(&ptList, abs)
 			ptFiles++
+		case e.ro():
+			fmt.Fprintln(&roList, abs)
+			roFiles++
 		case e.fr():
 			line, err := fnfeListLine(fr.rfe, src, abs, data)
 			if err != nil {
@@ -305,12 +352,12 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, fr fnfeInputs, 
 			fmt.Fprintln(&mustangList, abs)
 		}
 	}
-	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "fnfe.list": fnfeList.String(), "expected.tsv": expected.String()} {
+	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "ro.list": roList.String(), "fnfe.list": fnfeList.String(), "expected.tsv": expected.String()} {
 		if err := os.WriteFile(filepath.Join(work, name), []byte(s), 0o644); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d for the EXTENDED-CTC-FR XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, frFiles, variantFiles)
+	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d for the CIUS-RO schematron, %d for the EXTENDED-CTC-FR XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, roFiles, frFiles, variantFiles)
 	return nil
 }
 

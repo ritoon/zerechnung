@@ -168,6 +168,21 @@ fetch_file "$DEST/cius-pt/urn_feap.gov.pt_cius-pt_examples.zip" "$ESPAP?id=254" 
 fetch_file "$DEST/cius-pt/urn_feap.gov.pt_cius-pt_schematron.zip" "$ESPAP?id=267" \
 	89e908d2290d361a3ed9fc5c3dd5c7a661da249d4a3c4515b53a8f4b8cb6d005
 
+# CIUS-RO of ANAF: the schematron 1.0.9 (FX_RO_SCH) that internal/rules/ro/gen
+# reads, which checks the same sum, and the examples of invoices and credit
+# notes in UBL and CII (FX_RO, the directory). mfinante.gov.ro refuses
+# automated downloads: they are the copies of the archives of ANAF kept by
+# phive-rules (phax), at a pinned commit.
+PHIVE=https://raw.githubusercontent.com/phax/phive-rules/07840eb381ea43b0f3f8c9f346c826186afcdc4b/phive-rules-cius-ro/docs
+while read -r path sum; do
+	fetch_file "$DEST/cius-ro/${path##*/}" "$PHIVE/$path" "$sum"
+done <<EOF
+1.0.9/ro16931-ubl-1.0.9.zip          818e7dd77e429f5dbde7c60b43dddbdf1a9a82a1773c359caa80a36ef89ea7f2
+eFactura_UBL2.1_exempleXML.zip       7b21c46122a3b9963167904f7fbe9f5e06b9de68d7efa7d245b1fb05f2de68a1
+exemple_Invoice_CreditNote.zip       3c1ddcfc8be8ca3ee7f70d9996f24ede401b3ae4e11124221dd23d369c991c4c
+eFactura_CII_exempleXML.zip          b74f662264397f9a9afab68553866a51a7bb9163333e50113e67cf1982381727
+EOF
+
 # Reference XML of the valid PDFs of the corpus (FX_CORPUS_XML), extracted by
 # pdfdetach: the attachment named factur-x.xml, xrechnung.xml or
 # zugferd-invoice.xml (any case), else the only XML attachment. Each file has
@@ -211,5 +226,7 @@ vars=(
 	"FX_FACTURAE_XSD=$DEST/facturae-xsd"
 	"FX_PT=$DEST/cius-pt/urn_feap.gov.pt_cius-pt_examples.zip"
 	"FX_PT_SCH=$DEST/cius-pt/urn_feap.gov.pt_cius-pt_schematron.zip"
+	"FX_RO=$DEST/cius-ro"
+	"FX_RO_SCH=$DEST/cius-ro/ro16931-ubl-1.0.9.zip"
 )
 export_vars "${vars[@]}"

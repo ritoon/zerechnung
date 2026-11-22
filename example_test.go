@@ -17,6 +17,7 @@ import (
 	"github.com/ritoon/zerechnung"
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/invoice"
+	"github.com/ritoon/zerechnung/ubl"
 	"github.com/ritoon/zerechnung/validate"
 )
 
@@ -130,6 +131,63 @@ func Example_vatOnDebits() {
 	// Output:
 	// <ram:DueDateTypeCode>5</ram:DueDateTypeCode> true
 	// errors: 0
+}
+
+// Example_ciusRO writes a Romanian invoice of the CIUS-RO, for RO
+// e-Factura, in UBL and in CII. An address in Romania carries its county
+// code of ISO 3166-2:RO in the country subdivision (BT-39), and an address
+// in Bucharest (RO-B) its sector as city (BT-37); an invoice in another
+// currency than the leu gives the VAT accounting currency RON (BT-6) and
+// the VAT total in lei (BT-111). The Romanian rules apply to the invoice as
+// it declares the CIUS-RO in BT-24.
+func Example_ciusRO() {
+	d := invoice.MustDecimal
+	inv := &invoice.Invoice{
+		Profile:     invoice.ProfileCIUSRO,
+		Number:      "RO-2026-0001",
+		TypeCode:    invoice.TypeCommercialInvoice,
+		IssueDate:   invoice.NewDate(2026, time.November, 20),
+		Currency:    "EUR",
+		TaxCurrency: "RON",
+		Seller: invoice.Party{
+			Name:    "Exemplu Software SRL",
+			VATID:   "RO14399840",
+			Address: invoice.Address{Line1: "Strada Exemplu 10", City: "SECTOR2", PostCode: "021234", CountrySubdivision: "RO-B", CountryCode: "RO"},
+		},
+		Buyer: invoice.Party{
+			Name:    "Client Cluj SA",
+			VATID:   "RO18547290",
+			Address: invoice.Address{Line1: "Bulevardul Eroilor 5", City: "Cluj-Napoca", PostCode: "400129", CountrySubdivision: "RO-CJ", CountryCode: "RO"},
+		},
+		PaymentTerms: []invoice.PaymentTerms{{DueDate: invoice.NewDate(2026, time.December, 20)}},
+		Lines: []invoice.Line{{
+			ID:              "1",
+			Item:            invoice.Item{Name: "Mentenanță"},
+			Quantity:        d("2"),
+			UnitCode:        "HUR",
+			NetPrice:        d("150.00"),
+			VATCategoryCode: invoice.VATStandard,
+			VATRate:         d("19"),
+		}},
+	}
+	inv.Calculate()
+	inv.Totals.TaxTotalInTaxCurrency = d("284.10") // 57.00 EUR at 4.9842 lei
+
+	ublXML, err := ubl.Marshal(inv, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ciiXML, err := cii.Marshal(inv, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, x := range [][]byte{ublXML, ciiXML} {
+		report := validate.XML(x, nil)
+		fmt.Println(report.Profile, "errors:", len(report.Errors()), "warnings:", len(report.Findings)-len(report.Errors()))
+	}
+	// Output:
+	// CIUS-RO errors: 0 warnings: 0
+	// CIUS-RO errors: 0 warnings: 0
 }
 
 // ConvertPDFA lists why a PDF cannot be converted to PDF/A-3: here, the
