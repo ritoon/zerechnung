@@ -53,7 +53,10 @@ report=$(curl -fsS -u smoke:smoke-password -H 'Content-Type: application/pdf' \
 	--data-binary "@$out/invoice.pdf" "$url/v1/validate?rules=fr")
 echo "$report" | grep -Eq '"valid": ?true' || fail "POST /v1/validate: $report"
 
-curl -fsS "$url/metrics" | grep -q '^zerechnung_signatures_total' || fail "no signature metric"
+# Into a file first: grep -q quits at the first match, and curl, still
+# writing to the pipe, would fail (exit 23) under pipefail.
+curl -fsS -o "$out/metrics" "$url/metrics" || fail "GET /metrics"
+grep -q '^zerechnung_signatures_total' "$out/metrics" || fail "no signature metric"
 
 docker stop -t 20 "$name" >/dev/null
 status=$(docker inspect -f '{{.State.ExitCode}}' "$name")
