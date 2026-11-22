@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net11.0": {
+      "FacturXDotNet": {
+        "type": "Direct",
+        "requested": "[0.5.9-alpha, 0.5.9-alpha]",
+        "resolved": "0.5.9-alpha",
+        "contentHash": "4fAh2W/Ps97uCTwzJGZQWcpbr3A/Ry85kFaBQuHBAnEjtJRxzGkOjI2am/qgY9WqVMtyjbKLVXsL2g53+e8C5Q==",
+        "dependencies": {
+          "CommunityToolkit.HighPerformance": "8.4.0",
+          "FacturXDotNet.PDFsharp": "6.2.0-preview-3",
+          "NMoneys": "7.4.0",
+          "Semver": "3.0.0",
+          "TurboXml": "2.0.2"
+        }
+      },
+      "CommunityToolkit.HighPerformance": {
+        "type": "Transitive",
+        "resolved": "8.4.0",
+        "contentHash": "flxspiBs0G/0GMp7IK2J2ijV9bTG6hEwFc/z6ekHqB6nwRJ4Ry2yLdx+TkbCUYFCl4XhABkAwomeKbT6zM2Zlg=="
+      },
+      "FacturXDotNet.PDFsharp": {
+        "type": "Transitive",
+        "resolved": "6.2.0-preview-3",
+        "contentHash": "SDK02OLeR7OjIdHPoY4XUMNbVrWHO2oRMtoAIx6K3NFkIaQYIthaReGGQ0CoiZGp0NtAoqnSsuLoT2/245lAvA==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging": "8.0.1",
+          "System.Security.Cryptography.Pkcs": "8.0.1"
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection": {
+        "type": "Transitive",
+        "resolved": "8.0.1",
+        "contentHash": "BmANAnR5Xd4Oqw7yQ75xOAYODybZQRzdeNucg7kS5wWKd2PNnMdYtJ2Vciy0QLylRmv42DGl5+AFL9izA6F1Rw=="
+      },
+      "Microsoft.Extensions.Logging": {
+        "type": "Transitive",
+        "resolved": "8.0.1",
+        "contentHash": "4x+pzsQEbqxhNf1QYRr5TDkLP9UsLT3A6MdRKDDEgrW7h1ljiEPgTNhKYUhNCCAaVpQECVQ+onA91PTPnIp6Lw==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "8.0.1"
+        }
+      },
+      "NMoneys": {
+        "type": "Transitive",
+        "resolved": "7.4.0",
+        "contentHash": "uh3RkIHrsiUflZz6mDDpMP5k2ki20LHwv+CP2HcKaSoJSZRsRDqlF7gPRpTG49WrTMGvDFkYjr4z9KNA3dwRoA=="
+      },
+      "Semver": {
+        "type": "Transitive",
+        "resolved": "3.0.0",
+        "contentHash": "9jZCicsVgTebqkAujRWtC9J1A5EQVlu0TVKHcgoCuv345ve5DYf4D1MjhKEnQjdRZo6x/vdv6QQrYFs7ilGzLA=="
+      },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Transitive",
+        "resolved": "8.0.1",
+        "contentHash": "CoCRHFym33aUSf/NtWSVSZa99dkd0Hm7OCZUxORBjRB16LNhIEOf8THPqzIYlvKM0nNDAPTRBa1FxEECrgaxxA=="
+      },
+      "TurboXml": {
+        "type": "Transitive",
+        "resolved": "2.0.2",
+        "contentHash": "VVUE3Csl6KAF+H00U4RWgmtw6T3BR9ru+ufv5cKTdQPNkjT/IbCUyw5EOPTFd8lWoaHfLFEQyOHLERE832sHqA=="
+      },
+      "Bench.Harness": {
+        "type": "Project"
+      }
+    }
+  }
+}

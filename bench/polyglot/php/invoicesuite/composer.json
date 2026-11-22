@@ -1,0 +1,15 @@
+{
+    "name": "zerechnung/bench-polyglot-php-invoicesuite",
+    "description": "Separate Composer environment for horstoeko/invoicesuite, which declares a conflict with horstoeko/zugferd (see ../COVERAGE.md).",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.4",
+        "horstoeko/invoicesuite": "0.0.44"
+    },
+    "config": {
+        "allow-plugins": false,
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}

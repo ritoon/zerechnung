@@ -42,6 +42,7 @@
       <div class="charts">
         {{range .Bench.Poly}}{{template "chart" (dict "C" . "Page" $ "Poly" true)}}{{end}}
       </div>
+      <p class="bm-when">{{$.Fmt "bm_poly_when" ($.Date .Bench.PolyDate) .Bench.PolyCommit}}</p>
     </div>
   </section>
 
@@ -66,7 +67,29 @@
     </div>
   </section>
 
-  {{end}}<section id="accuracy" class="alt">
+  {{end}}<section id="resources" class="alt">
+    <div class="wrap">
+      <h2>{{.T.bm_res_title}}</h2>
+      <p class="section-lead">{{.T.bm_res_lead}}</p>
+      <div class="table-wrap res" tabindex="0" role="region" aria-label="{{.P.bm_res_title}}">
+        <table>
+          <thead>
+            <tr><th scope="col">{{.T.bm_res_th_lang}}</th><th scope="col" class="n">{{.T.bm_res_th_rss}}</th><th scope="col" class="n">{{.T.bm_res_th_range}}</th><th scope="col" class="n">{{.T.bm_res_th_cpu}}</th><th scope="col" class="n">{{.T.bm_res_th_cpu_max}}</th></tr>
+          </thead>
+          <tbody>
+            {{range .Bench.Res}}<tr{{if .Ours}} class="ours"{{end}}><th scope="row"><span class="lib">{{.Lang}}</span>{{with .Note}}<span class="note">{{index $.T .}}</span>{{end}}</th><td class="n">{{$.MiB (index .RSS 1)}}</td><td class="n">{{$.MiB (index .RSS 0)}} – {{$.MiB (index .RSS 2)}}</td><td class="n">{{$.Pct (index .CPU 0)}}</td><td class="n">{{$.Pct (index .CPU 1)}}</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      <div class="prose res-notes">
+        <p>{{.T.bm_res_go}}</p>
+        <p>{{.T.bm_res_others}}</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="accuracy">
     <div class="wrap">
       <h2>{{.T.bm_correct_title}}</h2>
       <div class="prose">
@@ -76,7 +99,7 @@
     </div>
   </section>
 
-  <section id="method">
+  <section id="method" class="alt">
     <div class="wrap">
       <h2>{{.T.bm_method_title}}</h2>
       <div class="prose">
@@ -90,6 +113,10 @@
             <tr><th scope="row">TypeScript</th><td>Node 22.15.0</td></tr>
             <tr><th scope="row">Python</th><td>CPython 3.13.18</td></tr>
             <tr><th scope="row">Rust</th><td>rustc 1.93.1, release</td></tr>
+            <tr><th scope="row">Java</th><td>OpenJDK 27.0.1.1</td></tr>
+            <tr><th scope="row">C#</th><td>.NET 11.0.0, Release</td></tr>
+            <tr><th scope="row">C, C++</th><td>Apple clang 21, CMake Release</td></tr>
+            <tr><th scope="row">PHP</th><td>PHP 8.6.0 CLI, <code>opcache.enable_cli=0</code></td></tr>
             <tr><th scope="row">{{.T.bm_env_value}}</th><td>{{.T.bm_env_median}}</td></tr>
             {{if .Bench.Memory}}<tr><th scope="row">{{.T.bm_env_memory}}</th><td>{{.T.bm_env_alloc}}</td></tr>{{end}}
           </tbody>
@@ -97,7 +124,7 @@
       </div>
       <div class="links">
         <a class="btn" href="{{.Repo}}/wiki/Benchmarks">{{.T.bm_link_go}}</a>
-        <a class="btn" href="{{.Repo}}/wiki/Benchmarks-autres-langages">{{.T.bm_link_poly}}</a>
+        <a class="btn" href="{{.Repo}}/tree/main/bench/polyglot">{{.T.bm_link_poly}}</a>
         <a class="btn" href="{{.Repo}}/tree/main/bench">{{.T.bm_link_harness}}</a>
       </div>
     </div>
@@ -123,7 +150,7 @@
     </tbody>
     <tfoot aria-hidden="true"><tr><td></td><td class="axis"><div>{{range $c.Ticks}}<span style="--at: {{.At}}%">{{$p.TickVal $c .V}}</span>{{end}}</div></td><td></td>{{if $c.Flagged}}<td></td>{{end}}</tr></tfoot>
   </table>
-  {{if $c.Floor}}<p class="chart-note"><span class="floor-key" aria-hidden="true"></span>{{$p.Fmt $c.FloorText ($p.Val $c $c.Floor)}}</p>{{end}}
+  {{if $c.Floor}}<p class="chart-note"><span class="floor-key" aria-hidden="true"></span><span>{{if $c.FloorLib}}{{$p.Fmt $c.FloorText ($p.Val $c $c.Floor) $c.FloorLib}}{{else}}{{$p.Fmt $c.FloorText ($p.Val $c $c.Floor)}}{{end}}</span></p>{{end}}
   {{if $c.Flagged}}<p class="chart-note">{{$p.T.bm_flagged_note}}</p>{{end}}
 </figure>
 {{end}}

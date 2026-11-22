@@ -1075,6 +1075,12 @@ table.bars {
   transform: translateY(2px);
 }
 
+.res table { min-width: 560px; }
+.res .n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.res .ours .n { color: var(--slate); font-weight: 700; }
+.res .lib { overflow-wrap: normal; white-space: nowrap; }
+.res-notes { margin-top: 24px; }
+
 .env { max-width: 760px; margin-top: 24px; }
 .env table { min-width: 0; }
 .env th { width: 11em; color: var(--ink-2); }

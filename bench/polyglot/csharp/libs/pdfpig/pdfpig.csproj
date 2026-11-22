@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bench-pdfpig</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../harness/Harness.csproj" />
+    <PackageReference Include="PdfPig" Version="[0.1.16]" />
+  </ItemGroup>
+</Project>

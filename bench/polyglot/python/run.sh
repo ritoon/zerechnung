@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Banc Python des librairies Factur-X / ZUGFeRD / EN 16931. Voir ../PROTOCOL.md et COVERAGE.md.
 #
-#   ./run.sh setup             venv (CPython 3.13), dépendances figées, artefacts XSLT officiels
-#   ./run.sh survey [lib…]     relevés d'exactitude  -> $OUT/survey_python.jsonl
-#   ./run.sh bench  [lib…]     benchmarks            -> $OUT/bench_python.jsonl
-#   ./run.sh alloc  [lib…]     allocations par appel -> $OUT/alloc_python.jsonl
+#   ./run.sh setup               venv (CPython 3.13), dépendances figées, artefacts XSLT officiels
+#   ./run.sh survey    [lib…]    relevés d'exactitude  -> $OUT/survey_python.jsonl
+#   ./run.sh bench     [lib…]    benchmarks            -> $OUT/bench_python.jsonl
+#   ./run.sh resources [lib…]    CPU et pic mémoire    -> $OUT/resources_python.jsonl
+#   ./run.sh alloc     [lib…]    allocations par appel -> $OUT/alloc_python.jsonl
 #
 # Variables : OUT (../results/<date>), COUNT (3), BENCHTIME (1, secondes), PYTHON (python3.13).
 set -euo pipefail
@@ -65,12 +66,15 @@ cmd=${1:-}
 shift || true
 case "$cmd" in
 setup) setup ;;
-survey | bench | alloc)
+survey | bench | resources | alloc)
 	need
+	# resources: harness.py starts one child per benchmark with the same
+	# interpreter (sys.executable, the venv's python, no wrapper); the child
+	# reads its own CPU time and peak RSS.
 	"$VENV/bin/python" -I harness.py "$cmd" "$@"
 	;;
 *)
-	sed -n '2,9p' "$0"
+	sed -n '2,10p' "$0"
 	exit 2
 	;;
 esac

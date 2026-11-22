@@ -1,8 +1,8 @@
-# Protocole commun : bancs TypeScript, Python et Rust
+# Protocole commun : bancs TypeScript, Python, Rust, Java, C#, C, C++ et PHP
 
-Ce dossier mesure les librairies Factur-X / ZUGFeRD / EN 16931 des écosystèmes TypeScript, Python et Rust avec **le même protocole** que le banc Go de `bench/ecosystem` (voir `bench/ecosystem/common/common.go` et `harness.go`), pour comparer leurs temps à ceux du package Go de ce dépôt.
+Ce dossier mesure les librairies Factur-X / ZUGFeRD / EN 16931 des écosystèmes TypeScript, Python, Rust, Java, C# (.NET), C, C++ et PHP avec **le même protocole** que le banc Go de `bench/ecosystem` (voir `bench/ecosystem/common/common.go` et `harness.go`), pour comparer leurs temps à ceux du package Go de ce dépôt.
 
-Un sous-dossier par langage : `typescript/`, `python/`, `rust/`. Chacun est autonome (ses dépendances, son harnais) et ne touche à rien d'autre dans le dépôt.
+Un sous-dossier par langage : `typescript/`, `python/`, `rust/`, `java/`, `csharp/`, `c/`, `cpp/`, `php/`. Chacun est autonome (ses dépendances, son harnais) et ne touche à rien d'autre dans le dépôt.
 
 ## Fichiers d'entrée
 
@@ -51,10 +51,20 @@ Règles, identiques au banc Go :
 Calquée sur `go test -bench . -count 3 -benchtime 1s` :
 
 - Pour chaque benchmark : trouver N par paliers croissants (1, 2, 5, 10, 20, 50, 100…) jusqu'à ce qu'une série de N appels dure au moins 1 s (`BENCHTIME`, en secondes). Cette montée en charge sert d'échauffement (JIT de V8, caches).
-- Faire ensuite `COUNT` séries (3 par défaut) de N appels, chronométrées avec l'horloge monotone (`process.hrtime.bigint()`, `time.perf_counter_ns()`, `std::time::Instant`). `ns_per_op` = durée de la série / N.
+- Faire ensuite `COUNT` séries (3 par défaut) de N appels, chronométrées avec l'horloge monotone (`process.hrtime.bigint()`, `time.perf_counter_ns()`, `std::time::Instant`, `System.nanoTime()`, `Stopwatch.GetTimestamp()`, `clock_gettime(CLOCK_MONOTONIC)`, `std::chrono::steady_clock`, `hrtime(true)`). `ns_per_op` = durée de la série / N.
 - Enregistrer aussi `first_call_ns` : la durée du tout premier appel de l'opération dans le processus (compilation de règles, chargement paresseux…).
 - Pas de GC forcé, pas de parallélisme : un seul fil.
 - Rust : profil `release` par défaut de Cargo, sans option de CPU spécifique. Node : la version installée (`node --version`), sans option. Python : CPython, version notée.
+- Java : un processus JVM par librairie, options par défaut de la JVM (une option de pile ou de tas n'est ajoutée que si un validateur l'exige, et elle est notée). C# : build `Release`, réglages par défaut du runtime .NET (compilation par paliers). C et C++ : build CMake `Release` (`-O3 -DNDEBUG`), sans option de CPU spécifique. PHP : le PHP CLI installé, réglages notés dans `php/COVERAGE.md`.
+
+## Temps CPU et mémoire
+
+Deux mesures complètent le temps réel, dans tous les langages :
+
+- **Temps CPU par opération** (`cpu_ns_per_op`, en regard de `ns_per_op`) : pour chaque série chronométrée, le temps CPU du processus (utilisateur + système, **tous les fils** : ramasse-miettes, JIT, fils du runtime) consommé pendant la même fenêtre que l'horloge monotone, divisé par N. Horloge lue une fois avant et une fois après la série : `process.cpuUsage()`, `time.process_time_ns()`, `getrusage(RUSAGE_SELF)` (Rust, C, C++, PHP, Go), `OperatingSystemMXBean.getProcessCpuTime()`, `Environment.CpuUsage`. Le rapport CPU / temps réel vaut 100 % pour un cœur occupé ; au-delà, du travail tourne en parallèle du fil mesuré.
+- **Pic de mémoire** (`max_rss_bytes`) : la mémoire résidente maximale (max RSS) d'un processus qui charge la librairie et n'exécute **qu'un** benchmark (vérification, premier appel, calibrage, séries), runtime compris. Lue en fin de processus par `getrusage(RUSAGE_SELF).ru_maxrss`, ou mesurée de l'extérieur par `/usr/bin/time -l` sur le processus lui-même (jamais sur un lanceur comme npm, mvn, `dotnet run` ou `cargo run`). Pour Go, chaque benchmark tourne dans son propre binaire de test (`go test -c`), `FX_CPU=1` fait rapporter `cpu-ns/op` par les aides de `bench/ecosystem/common`. Une seconde série Go tourne avec `GOMAXPROCS=1` (ligne « ZeRechnung, GOMAXPROCS=1 ») : le ramasse-miettes concurrent de Go occupe sinon d'autres cœurs, et cette série montre le package limité à un cœur.
+
+Ces deux mesures viennent d'une passe à part, `resources` : un processus par librairie et par benchmark, `COUNT=1` et `BENCHTIME=1` par défaut (`RES_COUNT`, `RES_BENCHTIME` dans `run.sh` à la racine). Les temps des tableaux principaux restent ceux de la passe `bench`. Le travail d'un processus enfant lancé par une librairie (une JVM, un outil en ligne de commande) n'est pas compté ; le harnais le signale dans `note`.
 
 ## Allocations
 
@@ -66,16 +76,18 @@ Calquée sur `go test -bench . -count 3 -benchtime 1s` :
 - **Rust** : le harnais installe un `#[global_allocator]` qui enveloppe `System`. Pendant la série, chaque `alloc`, `alloc_zeroed` et `realloc` compte pour une allocation de la taille demandée ; hors série, l'allocateur ne lit qu'un indicateur atomique.
 - **Python** : le processus de mesure tourne avec `PYTHONMALLOC=malloc` (chaque objet passe par `malloc`) et charge [`python/alloccount.c`](python/alloccount.c) par `DYLD_INSERT_LIBRARIES` (macOS) ou `LD_PRELOAD` (Linux). Ce compteur intercepte `malloc`, `calloc`, `realloc`, `posix_memalign` et `aligned_alloc` de tout le processus, extensions C comprises (libxml2, qpdf, pydantic-core). La mémoire gérée par `mmap` directement (tas GraalVM de saxonche) n'est pas vue. Le processus est lancé avec `-s -P` et sans les autres variables `PYTHON*` (`-I` ignorerait `PYTHONMALLOC`) ; un contrôle préalable vérifie que le compteur voit bien une allocation de 4 Ko.
 - **TypeScript** : V8 ne compte pas ses allocations. Le processus tourne avec `--expose-gc` et une jeune génération de 64 Mo (`--min-semi-space-size=64 --max-semi-space-size=64`). Octets = croissance de `heapUsed` et de `arrayBuffers` pendant la série + ce que chaque passage du ramasse-miettes a libéré (`v8.GCProfiler`). La série est dimensionnée pour allouer au plus 32 Mo ; si un ramasse-miettes passe quand même, elle est réduite (jusqu'à 1 appel), puis la valeur est notée comme un minimum (`gcs` > 0, « ≥ » dans les tableaux). Pas de nombre d'allocations (`allocs: null`). Un processus par benchmark.
+- **Java, C#, C, C++, PHP** : pas encore de compteur ; `run.sh alloc` à la racine les saute.
 
 ## Sorties
 
 `run.sh` dans chaque dossier, avec les mêmes sous-commandes que `bench/ecosystem/run.sh` :
 
 ```bash
-./run.sh setup              # dépendances (npm, venv, cargo build --release)
-./run.sh survey [lib…]      # relevés d'exactitude
-./run.sh bench  [lib…]      # benchmarks
-./run.sh alloc  [lib…]      # allocations par appel
+./run.sh setup              # dépendances (npm, venv, cargo, Maven, dotnet, CMake, Composer)
+./run.sh survey    [lib…]   # relevés d'exactitude
+./run.sh bench     [lib…]   # benchmarks
+./run.sh alloc     [lib…]   # allocations par appel (TypeScript, Python, Rust)
+./run.sh resources [lib…]   # temps CPU et pic mémoire, un processus par benchmark
 ```
 
 Variables : `OUT` (défaut `../results/$(date +%F)`), `COUNT` (3), `BENCHTIME` (1). Fichiers produits dans `$OUT` :
@@ -83,8 +95,10 @@ Variables : `OUT` (défaut `../results/$(date +%F)`), `COUNT` (3), `BENCHTIME` (
 `bench_<lang>.jsonl`, une ligne par librairie et benchmark :
 
 ```json
-{"lang":"python","lib":"factur-x","pkg":"factur-x","version":"7.9","bench":"Extract_Small","status":"ok","ns_per_op":[51234.1,50988.0,51100.7],"iters":20000,"first_call_ns":812000,"note":""}
+{"lang":"python","lib":"factur-x","pkg":"factur-x","version":"7.9","bench":"Extract_Small","status":"ok","ns_per_op":[51234.1,50988.0,51100.7],"cpu_ns_per_op":[51190.4,50950.2,51080.9],"iters":20000,"first_call_ns":812000,"note":""}
 ```
+
+`resources_<lang>.jsonl` : les mêmes champs, une série par défaut, plus `max_rss_bytes` (octets).
 
 `alloc_<lang>.jsonl`, une ligne par librairie et benchmark (`gcs` en TypeScript seulement) :
 
@@ -108,4 +122,4 @@ Pour `validate`, `ok` = nombre de fichiers **signalés** (au moins une erreur, o
 
 Valeurs attendues : `oui`, `non`, `partiel (n règles)`, `XSLT officiel via Saxon`, etc. **Vérifier dans le code** (fichier et ligne, ou version des artefacts embarqués), pas seulement dans le README : nombre de règles réellement implémentées, version des artefacts officiels (CEN 1.3.x, Factur-X 1.0x, XRechnung 3.0.x, FNFE-MPE 1.x), appels réseau, besoin de Java.
 
-Écarter (avec la raison dans `COVERAGE.md`) : les clients d'API distantes, les librairies qui exigent Java, les paquets vides ou de réservation de nom.
+Écarter (avec la raison dans `COVERAGE.md`) : les clients d'API distantes, les librairies qui exigent une JVM hors du banc Java (le banc Java mesure ces librairies-là directement), les paquets vides ou de réservation de nom.

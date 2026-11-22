@@ -9,7 +9,7 @@ It is a separate Go module, so the package itself stays untouched. Its only depe
 | `i18n/` | One JSON file per language: its code, its name in that language, its flag, the texts and the translated page paths (`*_slug`) |
 | `templates/` | One template per page (`home`, `examples`, `benchmarks`, `compliance`), the shared parts, the language chooser at the root and the 404 page (`html/template`) |
 | `examples/` | The worked examples: one Go program per directory, `<lang>-<n>-<name>` |
-| `data/` | `benchmarks.json` (the results published in the wiki) and `compliance.json` (the standards by country) |
+| `data/` | `benchmarks.json` (the Go results published in the wiki, and those of [`bench/polyglot`](../bench/polyglot) for the other languages, CPU and memory included) and `compliance.json` (the standards by country) |
 | `static/` | Style sheet, script, images, copied as is |
 | `flags.go` | The flags of the countries and languages, as inline SVG |
 | `main.go`, `examples.go`, `data.go` | The generator |

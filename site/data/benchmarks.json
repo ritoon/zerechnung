@@ -96,37 +96,55 @@
       ]
     }
   ],
+  "poly_date": "2026-11-22",
+  "poly_commit": "3a3b11a",
   "poly": [
     {
       "op": "bm_op_extract",
       "input": "bm_in_pdf149",
+      "floor": 27.9,
+      "floor_lib": "qpdf (C)",
       "rows": [
+        {"lib": "Kura", "lang": "C++", "us": 28.9},
         {"lib": "ZeRechnung", "lang": "Go", "us": 31.5},
         {"lib": "einvoice-validator", "lang": "Rust", "us": 32.8},
         {"lib": "speedata", "lang": "Go", "us": 72.6},
+        {"lib": "quittio/core", "lang": "PHP", "us": 72.8},
         {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 79.5},
+        {"lib": "antiphon", "lang": "C#", "us": 79.7},
+        {"lib": "paniolo", "lang": "Java", "us": 116},
         {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 180}
       ]
     },
     {
       "op": "bm_op_parse",
       "input": "bm_in_xml13",
+      "floor": 5.6,
+      "floor_lib": "pugixml (C++)",
       "rows": [
         {"lib": "ZeRechnung", "lang": "Go", "us": 18.1},
         {"lib": "zugferd-rs", "lang": "Rust", "us": 24.5},
+        {"lib": "antiphon", "lang": "C#", "us": 28.7},
+        {"lib": "imixs-e-invoice", "lang": "Java", "us": 68.3},
         {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "us": 70.8},
         {"lib": "angelo", "lang": "Go", "us": 116},
-        {"lib": "pycheval", "lang": "Python", "us": 224, "note": "bm_note_7of26"}
+        {"lib": "pycheval", "lang": "Python", "us": 224, "note": "bm_note_7of26"},
+        {"lib": "tiime/cross-industry-invoice", "lang": "PHP", "us": 234}
       ]
     },
     {
       "op": "bm_op_parse",
       "input": "bm_in_xml1300",
+      "floor": 238,
+      "floor_lib": "pugixml (C++)",
       "rows": [
+        {"lib": "john-wink/en16931-php", "lang": "PHP", "us": 646},
         {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 704, "note": "bm_note_lxml"},
-        {"lib": "ZeRechnung", "lang": "Go", "us": 1170},
+        {"lib": "imixs-e-invoice", "lang": "Java", "us": 715},
+        {"lib": "ZeRechnung", "lang": "Go", "us": 1170, "note": "bm_note_base64"},
         {"lib": "@conformo/toolkit", "lang": "TypeScript", "us": 1710},
         {"lib": "pdf-invoice", "lang": "Rust", "us": 1720},
+        {"lib": "antiphon", "lang": "C#", "us": 2180},
         {"lib": "dotwave", "lang": "Go", "us": 6610}
       ]
     },
@@ -136,31 +154,46 @@
       "rows": [
         {"lib": "ZeRechnung", "lang": "Go", "us": 24.8},
         {"lib": "pdf0", "lang": "Go", "us": 128},
+        {"lib": "Saxon-HE", "lang": "Java", "us": 419, "note": "bm_note_xslt"},
         {"lib": "einvoice-validator", "lang": "Rust", "us": 483},
+        {"lib": "SaxonCS-HE", "lang": "C#", "us": 528, "note": "bm_note_xslt"},
         {"lib": "@sweberdev/summand", "lang": "TypeScript", "us": 854},
-        {"lib": "saxonche", "lang": "Python", "us": 900, "note": "bm_note_xslt"}
+        {"lib": "SaxonC-HE", "lang": "C++", "us": 862, "note": "bm_note_xslt"},
+        {"lib": "saxonche", "lang": "Python", "us": 900, "note": "bm_note_xslt"},
+        {"lib": "dealerweb/einvoice", "lang": "PHP", "us": 8030, "note": "bm_note_xslt_php"}
       ]
     },
     {
       "op": "bm_op_write",
       "input": "bm_in_xml13",
+      "floor": 3.7,
+      "floor_lib": "pugixml (C++)",
       "rows": [
         {"lib": "ZeRechnung", "lang": "Go", "us": 3.3},
         {"lib": "zugferd-rs", "lang": "Rust", "us": 7.0},
+        {"lib": "balsoft", "lang": "C#", "us": 9.6},
         {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "us": 11.1, "note": "bm_note_handmade"},
         {"lib": "fX", "lang": "Go", "us": 20.3},
+        {"lib": "invoice4j", "lang": "Java", "us": 29.5},
+        {"lib": "tiime/cross-industry-invoice", "lang": "PHP", "us": 40.9},
         {"lib": "pycheval", "lang": "Python", "us": 77.3}
       ]
     },
     {
       "op": "bm_op_inject",
       "input": "bm_in_host_stream",
+      "floor": 123,
+      "floor_lib": "MuPDF (C)",
       "rows": [
         {"lib": "ZeRechnung", "lang": "Go", "us": 96.7},
         {"lib": "pdf-invoice", "lang": "Rust", "us": 180},
+        {"lib": "balsoft", "lang": "C#", "us": 388},
         {"lib": "pdfcpu", "lang": "Go", "us": 451, "note": "bm_note_recipe"},
         {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 679},
-        {"lib": "@stackforge-eu/factur-x", "lang": "TypeScript", "us": 1170}
+        {"lib": "@stackforge-eu/factur-x", "lang": "TypeScript", "us": 1170},
+        {"lib": "dealerweb/einvoice", "lang": "PHP", "us": 2140},
+        {"lib": "mustang", "lang": "Java", "us": 5420},
+        {"lib": "Kura", "lang": "C++", "us": 12590, "note": "bm_note_rewrite"}
       ]
     },
     {
@@ -168,10 +201,13 @@
       "input": "bm_in_pdf149",
       "rows": [
         {"lib": "zugferd-pdf", "lang": "Python", "us": 213, "note": "bm_note_container"},
+        {"lib": "officeimo", "lang": "C#", "us": 261, "note": "bm_note_container"},
         {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 368},
         {"lib": "en16931", "lang": "Rust", "us": 489},
-        {"lib": "ZeRechnung", "lang": "Go", "us": 811},
-        {"lib": "DCNWS", "lang": "Go", "us": 1110}
+        {"lib": "ZeRechnung", "lang": "Go", "us": 811, "note": "bm_note_pdfa_pages"},
+        {"lib": "DCNWS", "lang": "Go", "us": 1110},
+        {"lib": "Kura", "lang": "C++", "us": 2840, "note": "bm_note_container"},
+        {"lib": "paniolo", "lang": "Java", "us": 11890, "note": "bm_note_verapdf"}
       ]
     }
   ],
@@ -340,5 +376,17 @@
         ]
       }
     ]
-  }
+  },
+  "resources": [
+    {"lang": "Go", "rss": [16.8, 20.9, 25.5], "cpu": [163, 206]},
+    {"lang": "Go", "note": "bm_res_one_core", "rss": [16.4, 17.6, 23.9], "cpu": [99, 100]},
+    {"lang": "TypeScript", "rss": [65.4, 174, 509], "cpu": [102, 433]},
+    {"lang": "Python", "rss": [39.8, 59.5, 387], "cpu": [100, 100]},
+    {"lang": "Rust", "rss": [1.9, 7.2, 503], "cpu": [100, 111]},
+    {"lang": "Java", "rss": [259, 602, 2129], "cpu": [125, 399]},
+    {"lang": "C#", "rss": [69.6, 90.0, 509], "cpu": [100, 506]},
+    {"lang": "C", "rss": [2.2, 5.8, 11.7], "cpu": [100, 100]},
+    {"lang": "C++", "rss": [1.7, 9.1, 278], "cpu": [100, 100]},
+    {"lang": "PHP", "rss": [32.0, 43.0, 1173], "cpu": [100, 100]}
+  ]
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html/template"
 	"testing"
 )
 
@@ -36,6 +37,28 @@ func TestNumbers(t *testing.T) {
 	}
 }
 
+func TestMemoryAndPercent(t *testing.T) {
+	fr := &page{Lang: &lang{Code: "fr"}, T: map[string]template.HTML{
+		"bm_unit_mib": "{1}\u00a0Mio", "bm_unit_gib": "{1}\u00a0Gio", "bm_unit_pct": "{1}\u202f%",
+	}}
+	for _, tt := range []struct {
+		mib  float64
+		want template.HTML
+	}{
+		{1.9, "1,9\u00a0Mio"},
+		{20.9, "20,9\u00a0Mio"},
+		{602, "602\u00a0Mio"},
+		{2129, "2,08\u00a0Gio"},
+	} {
+		if got, err := fr.MiB(tt.mib); err != nil || got != tt.want {
+			t.Errorf("MiB(%v) = %q, %v, want %q", tt.mib, got, err, tt.want)
+		}
+	}
+	if got, err := fr.Pct(163); err != nil || got != "163\u202f%" {
+		t.Errorf("Pct(163) = %q, %v", got, err)
+	}
+}
+
 func TestLoadBench(t *testing.T) {
 	langs, err := loadLangs(i18nFS)
 	if err != nil {
@@ -57,6 +80,14 @@ func TestLoadBench(t *testing.T) {
 	}
 	if len(d.Go) == 0 || d.Go[0].Gain <= 1 {
 		t.Errorf("no gain on the first Go chart")
+	}
+	for _, c := range d.Poly {
+		if c.Floor > 0 && (c.FloorAt < 0 || c.FloorAt > 100) {
+			t.Errorf("%s %s: floor at %v%%, off the scale", c.Op, c.Input, c.FloorAt)
+		}
+	}
+	if len(d.Res) == 0 {
+		t.Errorf("no CPU and memory figures")
 	}
 }
 

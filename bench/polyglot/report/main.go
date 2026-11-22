@@ -1,7 +1,11 @@
 // Command report merges the Go results of this repository's package
 // (bench_facturx.txt, survey_facturx.txt, produced by bench/ecosystem/run.sh)
-// with the TypeScript, Python and Rust results (bench_<lang>.jsonl,
-// survey_<lang>.jsonl, alloc_<lang>.jsonl), into Markdown comparison tables.
+// with the results of the other languages (bench_<lang>.jsonl,
+// survey_<lang>.jsonl: TypeScript, Python, Rust, Java, C#, C, C++, PHP) into
+// Markdown comparison tables. It adds the allocations of one call when the
+// alloc pass ran (alloc_<lang>.jsonl: TypeScript, Python, Rust; Go from the
+// benchmarks), and the CPU time and peak memory tables when the resources
+// pass ran (resources_<lang>.jsonl, Go included).
 //
 // Usage: go run . ../results/2026-11-17 > ../results/2026-11-17/tables.md
 package main
@@ -29,6 +33,19 @@ type result struct {
 }
 
 type key struct{ lib, lang string }
+
+// resource is one library on one benchmark in the resources pass: a process
+// that ran that benchmark only.
+type resource struct {
+	status string
+	ns     float64 // median wall ns/op of the pass
+	cpu    float64 // median CPU ns/op over the same series
+	rss    float64 // peak resident set size of the process, bytes
+	child  bool    // the library runs child processes, not counted
+}
+
+// goOneCore is the second Go round of the resources pass, GOMAXPROCS=1.
+const goOneCore = "ZeRechnung, GOMAXPROCS=1"
 
 type group struct {
 	title   string
@@ -58,7 +75,13 @@ var (
 	goVer    = regexp.MustCompile(`^go version (go\S+)`)
 )
 
-var langNames = map[string]string{"go": "Go", "typescript": "TypeScript", "python": "Python", "rust": "Rust"}
+var langNames = map[string]string{
+	"go": "Go", "typescript": "TypeScript", "python": "Python", "rust": "Rust",
+	"java": "Java", "csharp": "C#", "c": "C", "cpp": "C++", "php": "PHP",
+}
+
+// langs is the order of the languages in every table.
+var langs = []string{"go", "typescript", "python", "rust", "java", "csharp", "c", "cpp", "php"}
 
 func main() {
 	if len(os.Args) != 2 {
@@ -95,6 +118,24 @@ func main() {
 		printGroup(g, res, surveys)
 	}
 	printAllocs(loadAllocs(dir))
+
+	rs := map[string]map[key]resource{}
+	files, _ = filepath.Glob(filepath.Join(dir, "resources_*.jsonl"))
+	for _, f := range files {
+		if err := loadResources(f, rs); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	}
+	if len(rs) > 0 {
+		printResourcesByLang(rs)
+		for _, g := range groups {
+			printResGroup(g, rs, "cpu")
+		}
+		for _, g := range groups {
+			printResGroup(g, rs, "mem")
+		}
+	}
 	printNotes(notes)
 }
 
@@ -306,6 +347,31 @@ func loadJSONSurvey(path string, surveys map[key]map[string]string) error {
 	})
 }
 
+func loadResources(path string, rs map[string]map[key]resource) error {
+	return eachLine(path, func(line string) {
+		var r struct {
+			Lang, Lib, Bench, Status, Note string
+			NsPerOp                        []float64 `json:"ns_per_op"`
+			CPUNsPerOp                     []float64 `json:"cpu_ns_per_op"`
+			MaxRSSBytes                    float64   `json:"max_rss_bytes"`
+		}
+		if strings.TrimSpace(line) == "" || json.Unmarshal([]byte(line), &r) != nil {
+			return
+		}
+		out := resource{status: r.Status, rss: r.MaxRSSBytes, child: strings.Contains(r.Note, "processus enfants")}
+		if r.Status == "ok" && len(r.NsPerOp) > 0 && len(r.CPUNsPerOp) > 0 {
+			out.ns, out.cpu = median(r.NsPerOp), median(r.CPUNsPerOp)
+		} else if r.Status == "ok" {
+			out.status = "fail"
+		}
+		k := key{r.Lib, r.Lang}
+		if rs[r.Bench] == nil {
+			rs[r.Bench] = map[key]resource{}
+		}
+		rs[r.Bench][k] = out
+	})
+}
+
 func put(res map[string]map[key]result, bench string, k key, r result) {
 	if res[bench] == nil {
 		res[bench] = map[key]result{}
@@ -413,6 +479,135 @@ func printGroup(g group, res map[string]map[key]result, surveys map[key]map[stri
 	fmt.Printf("\nEn gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du package Go de ce dépôt. Tri sur la colonne « %s » ; « Premier appel » : durée du premier appel dans le processus, même colonne (non mesurée pour Go).\n", g.labels[0])
 }
 
+// printResourcesByLang summarises the resources pass per language: spread of
+// the peak memory and of the CPU / wall ratio over all the processes.
+func printResourcesByLang(rs map[string]map[key]resource) {
+	rss := map[string][]float64{}
+	use := map[string][]float64{}
+	libs := map[string]map[string]bool{}
+	for _, m := range rs {
+		for k, r := range m {
+			if r.status != "ok" || r.rss <= 0 || r.child || k.lib == goOneCore {
+				continue
+			}
+			rss[k.lang] = append(rss[k.lang], r.rss)
+			if r.ns > 0 {
+				use[k.lang] = append(use[k.lang], r.cpu/r.ns)
+			}
+			if libs[k.lang] == nil {
+				libs[k.lang] = map[string]bool{}
+			}
+			libs[k.lang][k.lib] = true
+		}
+	}
+	fmt.Print("\n#### Ressources par langage\n\n")
+	fmt.Println("| Langage | Librairies | Processus | Pic mémoire min. | médian | max. | CPU / temps réel médian | max. |")
+	fmt.Println("|---|---|---|---|---|---|---|---|")
+	for _, l := range langs {
+		v := rss[l]
+		if len(v) == 0 {
+			continue
+		}
+		u := use[l]
+		fmt.Printf("| %s | %d | %d | %s | %s | %s | %s | %s |\n", langNames[l], len(libs[l]), len(v),
+			fmtMiB(slices.Min(v)), fmtMiB(median(v)), fmtMiB(slices.Max(v)), pct(median(u)), pct(slices.Max(u)))
+	}
+	fmt.Println("\nUn processus par librairie et par benchmark (passe `resources`), sans la série Go à `GOMAXPROCS=1` ni les librairies qui lancent des processus enfants : chargement de la librairie, vérification, premier appel, calibrage et série chronométrée. Pic mémoire : mémoire résidente maximale (max RSS) du processus, runtime compris ; 1 Mio = 1 048 576 octets. CPU / temps réel : temps CPU du processus (utilisateur + système, tous les fils) rapporté au temps réel sur la série chronométrée ; 100 % = un cœur occupé, au-delà = du travail en parallèle (ramasse-miettes, JIT).")
+}
+
+// printResGroup prints the CPU ("cpu") or peak memory ("mem") table of a group.
+func printResGroup(g group, rs map[string]map[key]resource, kind string) {
+	val := func(r resource) float64 {
+		if kind == "cpu" {
+			return r.cpu
+		}
+		return r.rss
+	}
+	libs := map[key]bool{}
+	best := map[string]float64{}
+	goKey := key{"ZeRechnung (ce dépôt)", "go"}
+	for _, b := range g.benches {
+		for k, r := range rs[b] {
+			if r.status == "unsupported" {
+				continue
+			}
+			libs[k] = true
+			if r.status == "ok" && val(r) > 0 && !r.child {
+				if v, ok := best[b]; !ok || val(r) < v {
+					best[b] = val(r)
+				}
+			}
+		}
+	}
+	if len(libs) == 0 {
+		return
+	}
+	first := g.benches[0]
+	okVal := func(k key) (float64, bool) {
+		r, ok := rs[first][k]
+		return val(r), ok && r.status == "ok" && val(r) > 0
+	}
+	order := make([]key, 0, len(libs))
+	for k := range libs {
+		order = append(order, k)
+	}
+	sort.Slice(order, func(i, j int) bool {
+		a, aok := okVal(order[i])
+		b, bok := okVal(order[j])
+		switch {
+		case aok && bok:
+			return a < b
+		case aok != bok:
+			return aok
+		default:
+			return less(order[i], order[j])
+		}
+	})
+
+	title := "Temps CPU"
+	if kind == "mem" {
+		title = "Pic mémoire"
+	}
+	fmt.Printf("\n#### %s : %s\n\n", title, g.title)
+	head := append([]string{"Librairie", "Langage"}, g.labels...)
+	fmt.Println("| " + strings.Join(head, " | ") + " |")
+	fmt.Println("|" + strings.Repeat("---|", len(head)))
+	for _, k := range order {
+		row := []string{name(k), langNames[k.lang]}
+		for _, b := range g.benches {
+			r, ok := rs[b][k]
+			switch {
+			case !ok || r.status == "unsupported":
+				row = append(row, "—")
+			case r.status != "ok" || val(r) <= 0:
+				row = append(row, "échec")
+			case kind == "cpu":
+				cell := fmtNs(r.cpu)
+				if r.cpu <= best[b]*1.0001 {
+					cell = "**" + cell + "**"
+				}
+				row = append(row, cell+" ("+pct(r.cpu/r.ns)+")"+dagger(r))
+			default:
+				cell := fmtMiB(r.rss)
+				if r.rss <= best[b]*1.0001 {
+					cell = "**" + cell + "**"
+				}
+				if base, ok := rs[b][goKey]; ok && base.status == "ok" && base.rss > 0 && k != goKey {
+					cell += fmt.Sprintf(" (×%s)", ratio(r.rss/base.rss))
+				}
+				row = append(row, cell+dagger(r))
+			}
+		}
+		fmt.Println("| " + strings.Join(row, " | ") + " |")
+	}
+	fmt.Printf("\n%s : le package Go limité à un cœur ; son ramasse-miettes partage alors le cœur du fil mesuré. † : la librairie lance des processus enfants à chaque appel, dont le CPU et la mémoire ne sont pas comptés.\n", goOneCore)
+	if kind == "cpu" {
+		fmt.Printf("Temps CPU par opération (utilisateur + système, tous les fils du processus) sur la série chronométrée ; entre parenthèses, rapporté au temps réel de la même série (100 %% = un cœur). En gras : le plus faible de la colonne. Tri sur la colonne « %s ».\n", g.labels[0])
+	} else {
+		fmt.Printf("Pic de mémoire résidente du processus qui n'a exécuté que ce benchmark, runtime compris. En gras : le plus faible de la colonne. (×n) : rapporté au package Go de ce dépôt. Tri sur la colonne « %s ».\n", g.labels[0])
+	}
+}
+
 func printNotes(notes map[key]map[string][]string) {
 	if len(notes) == 0 {
 		return
@@ -445,7 +640,10 @@ func less(a, b key) bool {
 }
 
 func langOrder(l string) int {
-	return slices.Index([]string{"go", "typescript", "python", "rust"}, l)
+	if i := slices.Index(langs, l); i >= 0 {
+		return i
+	}
+	return len(langs)
 }
 
 func name(k key) string {
@@ -492,6 +690,30 @@ func fmtNs(ns float64) string {
 	default:
 		return comma(ns, 0) + " ns"
 	}
+}
+
+func fmtMiB(b float64) string {
+	v := b / (1 << 20)
+	switch {
+	case v >= 100:
+		return comma(v, 0) + " Mio"
+	case v >= 1:
+		return comma(v, 1) + " Mio"
+	default:
+		return comma(v, 2) + " Mio"
+	}
+}
+
+func dagger(r resource) string {
+	if r.child {
+		return " †"
+	}
+	return ""
+}
+
+// pct formats a CPU / wall ratio as a percentage of one core.
+func pct(r float64) string {
+	return comma(r*100, 0) + " %"
 }
 
 func ratio(r float64) string {
