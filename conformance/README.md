@@ -117,6 +117,8 @@ Restent hors de la comparaison : le conteneur PDF (Mustang vérifie PDF/A avec v
 
 Le job écrit le tableau de résultats dans le résumé du run et dépose les rapports bruts (KoSIT, Mustang, JSON) en artefact. Un écart absent de [`parity/known.txt`](parity/known.txt) le fait échouer.
 
+Sur `main`, le job `parity-badge` résume `report.json` en un badge shields.io (`go run . badge -report report.json -o badge-parity.json` dans `parity/`) : nombre de validateurs de référence et de factures comparées, vert si tous les écarts sont justifiés, rouge avec le nombre de comparaisons en écart inattendu sinon. Il pousse ce seul fichier, en force, sur la branche orpheline `badges`, que lit le badge du README.
+
 ### Résultats
 
 | Référence | Factures comparées | Mêmes erreurs | Écarts justifiés |
