@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	"html/template"
 	"io"
 	"os"
 	"path/filepath"
@@ -51,7 +52,8 @@ func TestLoadLangsChecksFlag(t *testing.T) {
 }
 
 // TestBuildShowsFlags checks that the compliance page shows the flag of
-// each country and that the language menu shows the flag of each language.
+// each country, the formats table of the home page the flags of the
+// countries of each format, and the language menu the flag of each language.
 func TestBuildShowsFlags(t *testing.T) {
 	out := t.TempDir()
 	if err := build(out, "https://example.org/zerechnung/"); err != nil {
@@ -73,15 +75,23 @@ func TestBuildShowsFlags(t *testing.T) {
 					t.Errorf("%s: no flag before %s in the language menu", s.path(l), m.Name)
 				}
 			}
-			if s.name != "compliance" {
-				continue
-			}
 			if strings.Contains(html, `class="cc"`) {
 				t.Errorf("%s: country codes instead of flags", s.path(l))
 			}
-			for _, c := range comp.Countries {
-				if !strings.Contains(html, flags[c.Code]+`</svg> `+string(markup(typography(l.Code, l.Text["country_"+c.Code])))) {
-					t.Errorf("%s: no flag before the name of %s", s.path(l), c.Code)
+			switch s.name {
+			case "compliance":
+				for _, c := range comp.Countries {
+					if !strings.Contains(html, flags[c.Code]+`</svg> `+string(markup(typography(l.Code, l.Text["country_"+c.Code])))) {
+						t.Errorf("%s: no flag before the name of %s", s.path(l), c.Code)
+					}
+				}
+			case "home":
+				// The formats table names the countries on hover only.
+				for _, code := range []string{"FR", "DE", "EU", "NL", "IT", "ES"} {
+					name := template.HTMLEscapeString(plain(typography(l.Code, l.Text["country_"+code])))
+					if !strings.Contains(html, `<span class="flag-named" title="`+name+`"><svg class="flag-icon" viewBox="`+flagBox+`" aria-hidden="true">`+flags[code]+`</svg><span class="sr">`+name+`</span></span>`) {
+						t.Errorf("%s: no named flag of %s in the formats table", s.path(l), code)
+					}
 				}
 			}
 		}
