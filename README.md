@@ -358,7 +358,7 @@ Every pull request runs the reference validators on the official test corpora an
 - KoSIT validator (XRechnung): the same errors on all 128 invoices.
 - Mustang: the same errors on 239 of 282 invoices. Each of the 43 differences comes from the references themselves and is explained in [known.txt](conformance/parity/known.txt).
 - Dutch NPa validators (NLCIUS): the same rules on 283 of 290 files, with the 7 differences justified.
-- FNFE-MPE XSLT (EXTENDED-CTC-FR, CII and UBL), run by Saxon: the same rules, at the same levels, on 223 of 224 files (the 10 official examples, the 4 test invoices and 210 variants), with the 1 difference justified.
+- FNFE-MPE XSLT (EXTENDED-CTC-FR, CII and UBL), run by Saxon: the same rules, at the same levels, on 226 of 227 files (the 10 official examples, the 4 test invoices and 213 variants), with the 1 difference justified.
 - eSPap schematron (CIUS-PT), compiled by SchXslt and run by Saxon: the same rules, at the same levels and on the same elements, on the 15 official examples, the 3 test invoices and the 5,462 of their 5,765 variants that Saxon completes. On the other 303, Saxon stops on an XPath type error in the test of an assertion, which the package holds failed: it raises that assertion every time.
 - veraPDF corpus, PDF/A-2b and PDF/A-3b: `Check` reports 609 of the 614 invalid test files under a rule of the right clause, and no PDF/A error on the 384 valid ones. The 5 files it misses are listed with their reason in [check_pdfa_corpus_test.go](check_pdfa_corpus_test.go).
 - OpenSSL, xmlsec1 and EU DSS on FatturaPA signatures, both ways: each verifies the CAdES and XAdES files the package signs (DSS finds them CAdES and XAdES Baseline B), and the package verifies the 13 files they sign.
