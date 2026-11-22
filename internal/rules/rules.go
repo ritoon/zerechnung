@@ -224,8 +224,8 @@ type Doc struct {
 	origin map[*xmltree.Node]*xmltree.Node
 
 	// Hybrid tells that the invoice is the XML of a Factur-X or ZUGFeRD
-	// PDF: the Factur-X schematron then applies to the EN 16931 profile too
-	// (see FacturX).
+	// PDF: the Factur-X schematron and schema then apply to the EN 16931
+	// profile too (see FacturX).
 	Hybrid bool
 }
 

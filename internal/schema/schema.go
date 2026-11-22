@@ -12,16 +12,22 @@
 //
 //   - tables_gen.go holds the schemas of the five Factur-X profiles
 //     (MINIMUM, BASIC WL, BASIC, EN 16931, EXTENDED). Types that are
-//     identical in several profiles are shared. PEPPOL invoices are checked
-//     against the EN 16931 schema and EXTENDED-CTC-FR invoices against the
-//     EXTENDED schema. An invoice whose profile is unknown is checked
-//     against the EXTENDED schema, the most permissive, with a warning.
+//     identical in several profiles are shared. The EN 16931 schema applies
+//     to an EN 16931 invoice that is the XML of a Factur-X PDF
+//     (rules.Doc.Hybrid). PEPPOL invoices are checked against the EN 16931
+//     schema and EXTENDED-CTC-FR invoices against the EXTENDED schema. An
+//     invoice whose profile is unknown is checked against the EXTENDED
+//     schema, the most permissive, with a warning.
 //   - cii_d16b_tables_gen.go holds the complete UN/CEFACT CII D16B schema
 //     of the KoSIT validator configuration for XRechnung 3.0.2, against
-//     which XRECHNUNG invoices are checked, as KoSIT does. It accepts the
+//     which XRECHNUNG invoices are checked, as KoSIT does, and so are the
+//     EN 16931 invoices that are not the XML of a Factur-X PDF: D16B is the
+//     schema of the CEN syntax binding (EN 16931-3-3), and their
+//     specification identifier, urn:cen.eu:en16931:2017, says nothing more
+//     than "EN 16931 without a CIUS" (see rules.Doc.FacturX). It accepts the
 //     elements of D16B outside the EN 16931 data set, which the EN 16931
-//     syntax rules (CII-SR) report with the severities of the KoSIT
-//     configuration, and it allows a single ram:InvoiceReferencedDocument,
+//     syntax rules (CII-SR) report with the severities of the CEN or KoSIT
+//     artefacts, and it allows a single ram:InvoiceReferencedDocument,
 //     where the Factur-X schema allows several.
 //   - ubl_tables_gen.go holds the UBL 2.1 schemas of Invoice and CreditNote
 //     (the runtime schemas of the OASIS package). The content of the UBL
@@ -83,7 +89,7 @@ var Catalog = []rules.RuleInfo{
 	{ID: RuleProfile, Severity: rules.Warning, Description: "The profile (BT-24) is unknown: the structure is checked against the EXTENDED schema, the most permissive."},
 	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), p:FatturaElettronica (FatturaPA), or Facturae in the namespace of Facturae 3.2, 3.2.1 or 3.2.2."},
 	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL; none below the root in FatturaPA and Facturae)."},
-	{ID: RuleUnexpected, Severity: rules.Error, Description: "Each element shall be allowed in its parent by the schema (for CII, the schema of the profile; the CII D16B schema for XRECHNUNG)."},
+	{ID: RuleUnexpected, Severity: rules.Error, Description: "Each element shall be allowed in its parent by the schema (for CII, the schema of the profile; the CII D16B schema for XRECHNUNG, and for EN 16931 outside a Factur-X PDF)."},
 	{ID: RuleOrder, Severity: rules.Error, Description: "Child elements shall appear in the order defined by the schema."},
 	{ID: RuleMissing, Severity: rules.Error, Description: "Elements required by the schema (minOccurs > 0) shall be present."},
 	{ID: RuleCount, Severity: rules.Error, Description: "An element shall not occur more often than allowed by the schema (maxOccurs)."},
@@ -247,14 +253,16 @@ func profileIndex(p invoice.Profile) int {
 	return pExtended
 }
 
-// ciiSchema returns the schema a CII invoice of profile p is checked
-// against: the tables, the root element and, for the Factur-X tables, the
-// index of the profile.
-func ciiSchema(p invoice.Profile) (*tables, *particle, int) {
-	if p == invoice.ProfileXRechnung {
+// ciiSchema returns the schema the CII invoice d is checked against: the
+// tables, the root element and, for the Factur-X tables, the index of the
+// profile. An XRECHNUNG invoice and an EN 16931 invoice that is not the XML
+// of a Factur-X PDF (d.FacturX) are checked against the complete CII D16B
+// schema, the schema of the CEN syntax binding, as the KoSIT validator does.
+func ciiSchema(d *rules.Doc) (*tables, *particle, int) {
+	if d.Profile == invoice.ProfileXRechnung || d.Profile == invoice.ProfileEN16931 && !d.FacturX() {
 		return d16bTables, &d16bRoots[0], 0
 	}
-	i := profileIndex(p)
+	i := profileIndex(d.Profile)
 	return ciiTables, &roots[i], i
 }
 
@@ -263,7 +271,8 @@ func ciiSchema(p invoice.Profile) (*tables, *particle, int) {
 func Version() string { return schemaVersion }
 
 // D16BVersion returns the version of the complete UN/CEFACT CII schema
-// XRECHNUNG invoices are checked against ("D16B").
+// XRECHNUNG invoices, and EN 16931 invoices outside a Factur-X PDF, are
+// checked against ("D16B").
 func D16BVersion() string { return d16bSchemaVersion }
 
 // UBLVersion returns the version of the UBL schemas the tables were
@@ -359,7 +368,7 @@ func Check(c *rules.Checker) {
 		c.Fail(RuleProfile, rules.Warning, at,
 			"unknown profile (BT-24 %q): the structure is checked against the EXTENDED schema, the most permissive", c.Doc.SpecificationID())
 	}
-	t, r, p := ciiSchema(c.Doc.Profile)
+	t, r, p := ciiSchema(c.Doc)
 	v := validator{c: c, t: t, p: p}
 	root := c.Doc.Root
 	if root.Name != r.name {

@@ -60,16 +60,6 @@ mustang corpus/ZUGFeRDv2/correct/symtrax/*XRechnung* +PEPPOL-EN16931-* Facture X
 
 mustang corpus/ZUGFeRDv2/fail/FX-With-UBL-REC50304330.pdf +SCHEMA Mustang signale la même erreur, une facture UBL dans un PDF Factur-X, par un message sans identifiant de règle (type 17).
 
-# KoSIT, variants : schéma du profil Factur-X EN 16931
-#
-# Le BT-24 urn:cen.eu:en16931:2017 est aussi celui du profil Factur-X EN 16931 :
-# ZeRechnung valide ces factures contre le XSD de ce profil, qui rend
-# obligatoires la devise, les lignes ou la catégorie de TVA d'une ligne, et
-# n'admet pas ram:TestIndicator ; KoSIT les valide contre le XSD CII D16B
-# complet, qui les laisse facultatifs.
-
-kosit variants/en16931/* +SCHEMA XSD du profil Factur-X EN 16931 chez ZeRechnung, XSD CII D16B complet chez KoSIT ; la règle EN 16931 que le variant teste est levée des deux côtés.
-
 # KoSIT, variants : règles EN 16931 (CEN 1.3.16 dans la configuration KoSIT,
 # 1.3.17 dans ZeRechnung)
 

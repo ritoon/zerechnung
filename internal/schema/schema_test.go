@@ -17,12 +17,20 @@ import (
 // check parses data and runs Check, with the profile read from BT-24.
 func check(t testing.TB, data []byte) *rules.Report {
 	t.Helper()
+	return checkHybrid(t, data, false)
+}
+
+// checkHybrid is check on the XML of a Factur-X PDF when hybrid is set.
+func checkHybrid(t testing.TB, data []byte, hybrid bool) *rules.Report {
+	t.Helper()
 	root, err := xmltree.Parse(data)
 	if err != nil {
 		t.Fatal(err)
 	}
+	d := rules.NewDoc(root, invoice.ProfileUnknown)
+	d.Hybrid = hybrid
 	r := &rules.Report{}
-	Check(&rules.Checker{Doc: rules.NewDoc(root, invoice.ProfileUnknown), Report: r, Source: rules.SourceSyntax})
+	Check(&rules.Checker{Doc: d, Report: r, Source: rules.SourceSyntax})
 	return r
 }
 
@@ -112,6 +120,10 @@ type mutation struct {
 	more     []string // further old, new pairs
 	rules    []string // expected rule of each finding, in order
 	msg      string   // regular expression the first message must match
+	// hybrid checks the document as the XML of a Factur-X PDF: an EN 16931
+	// invoice is then checked against the Factur-X schema of the profile,
+	// otherwise against the CII D16B schema.
+	hybrid bool
 }
 
 var mutations = []mutation{
@@ -278,10 +290,16 @@ var mutations = []mutation{
 		new: "</ram:BuyerTradeParty><ram:AdditionalReferencedDocument><ram:IssuerAssignedID>A1</ram:IssuerAssignedID><ram:TypeCode>916</ram:TypeCode><ram:AttachmentBinaryObject mimeCode=\"text/plain\" filename=\"a.txt\">SGVs\n bG8=</ram:AttachmentBinaryObject></ram:AdditionalReferencedDocument>",
 	},
 	{
-		name: "missing required attributes", base: "en16931",
+		name: "missing required attributes", base: "en16931", hybrid: true,
 		old:   "</ram:BuyerTradeParty>",
 		new:   `</ram:BuyerTradeParty><ram:AdditionalReferencedDocument><ram:IssuerAssignedID>A1</ram:IssuerAssignedID><ram:TypeCode>916</ram:TypeCode><ram:AttachmentBinaryObject>SGVsbG8=</ram:AttachmentBinaryObject></ram:AdditionalReferencedDocument>`,
 		rules: []string{RuleAttributeMissing, RuleAttributeMissing},
+	},
+	{
+		// mimeCode and filename are optional in CII D16B.
+		name: "EN 16931 attachment without attributes", base: "en16931",
+		old: "</ram:BuyerTradeParty>",
+		new: `</ram:BuyerTradeParty><ram:AdditionalReferencedDocument><ram:IssuerAssignedID>A1</ram:IssuerAssignedID><ram:TypeCode>916</ram:TypeCode><ram:AttachmentBinaryObject>SGVsbG8=</ram:AttachmentBinaryObject></ram:AdditionalReferencedDocument>`,
 	},
 	{
 		name: "unknown profile", base: "en16931",
@@ -306,9 +324,24 @@ var mutations = []mutation{
 		},
 	},
 	{
-		name: "D16B element in EN 16931", base: "en16931",
+		name: "EN 16931 accepts D16B", base: "en16931",
+		old: "<rsm:ExchangedDocumentContext>",
+		new: "<rsm:ExchangedDocumentContext><ram:TestIndicator><udt:Indicator>true</udt:Indicator></ram:TestIndicator>",
+		more: []string{
+			"<ram:TypeCode>380</ram:TypeCode>", `<ram:TypeCode listID="1001" listAgencyID="6">380</ram:TypeCode>`,
+			"</ram:IssueDateTime>", "</ram:IssueDateTime><ram:CopyIndicator><udt:Indicator>false</udt:Indicator></ram:CopyIndicator><ram:LanguageID>de</ram:LanguageID>",
+		},
+	},
+	{
+		name: "D16B element in Factur-X EN 16931", base: "en16931", hybrid: true,
 		old:   "<ram:TypeCode>380</ram:TypeCode>",
 		new:   "<ram:TypeCode>380</ram:TypeCode><ram:LanguageID>de</ram:LanguageID>",
+		rules: []string{RuleUnexpected},
+	},
+	{
+		name: "test indicator in Factur-X EN 16931", base: "en16931", hybrid: true,
+		old:   "<rsm:ExchangedDocumentContext>",
+		new:   "<rsm:ExchangedDocumentContext><ram:TestIndicator><udt:Indicator>true</udt:Indicator></ram:TestIndicator>",
 		rules: []string{RuleUnexpected},
 	},
 	{
@@ -337,7 +370,13 @@ var mutations = []mutation{
 		rules: []string{RuleCount},
 	},
 	{
-		name: "EN 16931 several preceding invoices", base: "en16931",
+		name: "EN 16931 one preceding invoice", base: "en16931",
+		old:   "</ram:SpecifiedTradeSettlementHeaderMonetarySummation>",
+		new:   "</ram:SpecifiedTradeSettlementHeaderMonetarySummation>" + invoiceReference + invoiceReference,
+		rules: []string{RuleCount},
+	},
+	{
+		name: "Factur-X EN 16931 several preceding invoices", base: "en16931", hybrid: true,
 		old: "</ram:SpecifiedTradeSettlementHeaderMonetarySummation>",
 		new: "</ram:SpecifiedTradeSettlementHeaderMonetarySummation>" + invoiceReference + invoiceReference,
 	},
@@ -402,7 +441,7 @@ func TestMutations(t *testing.T) {
 	}
 	for _, m := range mutations {
 		t.Run(m.name, func(t *testing.T) {
-			r := check(t, m.apply(t))
+			r := checkHybrid(t, m.apply(t), m.hybrid)
 			var got []string
 			for _, f := range r.Findings {
 				got = append(got, f.Rule)

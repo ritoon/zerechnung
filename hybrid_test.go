@@ -47,3 +47,26 @@ func TestCheckHybrid(t *testing.T) {
 		t.Errorf("PDF: %s", r)
 	}
 }
+
+// TestCheckHybridSchema checks that the XML of a PDF is checked against the
+// Factur-X schema of the EN 16931 profile, and the XML alone against the CII
+// D16B schema of the CEN syntax binding, as the KoSIT validator does: a test
+// indicator, outside the EN 16931 data set, only gets the warning CII-SR-002
+// in the XML alone, and is not allowed in a Factur-X invoice.
+func TestCheckHybridSchema(t *testing.T) {
+	x := strings.Replace(string(readTestdata(t, "EN16931_Einfach.cii.xml")),
+		"<rsm:ExchangedDocumentContext>", "<rsm:ExchangedDocumentContext><ram:TestIndicator><udt:Indicator>true</udt:Indicator></ram:TestIndicator>", 1)
+	if r := validate.XML([]byte(x), nil); !r.Valid() || r.Has("XSD-UNEXPECTED") || !r.Has("CII-SR-002") {
+		t.Errorf("XML alone: %s", r)
+	}
+	if r := validate.XML([]byte(x), &validate.Options{Hybrid: true}); r.Valid() || !r.Has("XSD-UNEXPECTED") {
+		t.Errorf("XML with Hybrid: %s", r)
+	}
+	out, err := Embed(base(pdftest.Options{}), []byte(x), &EmbedOptions{ModDate: testDate})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, _, _ := Check(out, nil); r.Valid() || !r.Has("XSD-UNEXPECTED") {
+		t.Errorf("PDF: %s", r)
+	}
+}
