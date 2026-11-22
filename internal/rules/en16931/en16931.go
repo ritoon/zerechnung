@@ -79,6 +79,7 @@ package en16931
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/internal/xmltree"
@@ -248,10 +249,10 @@ func (k *checker) init(c *rules.Checker) {
 		k.cats = &vatCategoriesUBL
 	}
 	k.mode = profileMode(d)
-	k.syn = cenSyntax
+	k.syn = cenSyntax()
 	switch k.mode {
 	case modeExtendedCTCFR:
-		k.syn = ctcfrSyntax
+		k.syn = ctcfrSyntax()
 		k.cats = &vatCategoriesCTCFR
 	case modeCTCFRUBL:
 		k.cats = &vatCategoriesUBLCTCFR
@@ -330,12 +331,12 @@ func profileMode(d *rules.Doc) mode {
 // level returns the severity that the KoSIT configuration gives to rule id in
 // the XRechnung scenario m, if it changes it.
 func level(d *rules.Doc, m mode, id string) (rules.Severity, bool) {
-	levels := xrechnungLevels
+	levels := xrechnungLevels()
 	if d.UBL != nil {
 		if id == "UBL-CR-646" && m == modeXRechnung && d.UBL.Name == "CreditNote" {
 			return 0, false
 		}
-		levels = xrechnungLevelsUBL
+		levels = xrechnungLevelsUBL()
 	}
 	s, ok := levels[m][id]
 	return s, ok
@@ -366,41 +367,41 @@ func hasTaxRegistration(party *xmltree.Node, scheme string) bool {
 }
 
 // severity maps the rule identifiers of Catalog to their severity.
-var severity = func() map[string]rules.Severity {
+var severity = sync.OnceValue(func() map[string]rules.Severity {
 	m := make(map[string]rules.Severity, len(Catalog))
 	for _, r := range Catalog {
 		m[r.ID] = r.Severity
 	}
 	return m
-}()
+})
 
 // description maps the rule identifiers of Catalog to their description.
-var description = func() map[string]string {
+var description = sync.OnceValue(func() map[string]string {
 	m := make(map[string]string, len(Catalog))
 	for _, r := range Catalog {
 		m[r.ID] = r.Description
 	}
 	return m
-}()
+})
 
 // ctcfrRules maps the rule identifiers of CTCFRCatalog to their entry.
-var ctcfrRules = func() map[string]*rules.RuleInfo {
+var ctcfrRules = sync.OnceValue(func() map[string]*rules.RuleInfo {
 	m := make(map[string]*rules.RuleInfo, len(CTCFRCatalog))
 	for i := range CTCFRCatalog {
 		m[CTCFRCatalog[i].ID] = &CTCFRCatalog[i]
 	}
 	return m
-}()
+})
 
 // desc returns the description of rule id: the message of the
 // EXTENDED-CTC-FR schematron for its syntax rules, the CEN one otherwise.
 func (k *checker) desc(id string) string {
 	if k.syn.ctcfr {
-		if r := ctcfrRules[id]; r != nil {
+		if r := ctcfrRules()[id]; r != nil {
 			return r.Description
 		}
 	}
-	return description[id]
+	return description()[id]
 }
 
 // fail records a finding for rule id located at n, with the severity of the
@@ -409,12 +410,12 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 	if k.ubl && ublNative(id) {
 		return
 	}
-	sev, ok := severity[id]
+	sev, ok := severity()[id]
 	if !ok {
 		sev = rules.Error
 	}
 	if k.ubl {
-		if s, ok := ublSeverity[id]; ok {
+		if s, ok := ublSeverity()[id]; ok {
 			sev = s
 		}
 	}
@@ -422,10 +423,10 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 	case modeExtendedCTCFR:
 		// The rules of the EXTENDED-CTC-FR schematron, with its identifiers
 		// and severities: the CEN rules it removes are not reported.
-		if r, ok := ctcfrRenamed[id]; ok {
+		if r, ok := ctcfrRenamed()[id]; ok {
 			id = r
 		}
-		r := ctcfrRules[id]
+		r := ctcfrRules()[id]
 		if r == nil {
 			return
 		}
@@ -434,7 +435,7 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 		// The CEN UBL rules that the EXTENDED-CTC-FR schematron for UBL
 		// keeps, with its severities. BR-CO-09, whose list and test it
 		// changes, is checked by package ubl.
-		s, ok := ctcfrUBLRules[id]
+		s, ok := ctcfrUBLRules()[id]
 		if !ok || id == "BR-CO-09" {
 			return
 		}
@@ -443,14 +444,14 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 		if strings.HasPrefix(id, "BR-CL-") {
 			return // the code lists of the Factur-X schematron, see package facturx
 		}
-		if !extendedRules[id] {
+		if !extendedRules()[id] {
 			if strings.HasPrefix(id, "CII-") {
 				return
 			}
 			sev = rules.Warning
 			format += " (not enforced for Factur-X EXTENDED)"
 		}
-		if s, ok := facturXLevels[id]; ok {
+		if s, ok := facturXLevels()[id]; ok {
 			if s == notReported {
 				return
 			}
@@ -463,7 +464,7 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 		case strings.HasPrefix(id, "CII-") && !facturXSyntax(k.mode, id):
 			return
 		}
-		if s, ok := facturXLevels[id]; ok {
+		if s, ok := facturXLevels()[id]; ok {
 			if s == notReported {
 				return
 			}
@@ -491,7 +492,7 @@ func ublNative(id string) bool {
 	case strings.HasPrefix(id, "CII-"), strings.HasPrefix(id, "BR-CL-"), strings.HasPrefix(id, "BR-DEC-"):
 		return true
 	}
-	return ublRules[id]
+	return ublRules()[id]
 }
 
 // ublRules lists the business rules whose context or test in the UBL
@@ -499,17 +500,21 @@ func ublNative(id string) bool {
 // attribute that must exist rather than be filled in, the payee compared with
 // the seller trading name, a context on the document, the VAT breakdown of
 // each tax total): package ubl checks them on the UBL document.
-var ublRules = map[string]bool{
-	"BR-09": true, "BR-11": true, "BR-17": true, "BR-20": true, "BR-52": true, "BR-53": true,
-	"BR-55": true, "BR-56": true, "BR-57": true, "BR-61": true, "BR-62": true, "BR-63": true,
-	"BR-64": true, "BR-65": true, "BR-CO-03": true, "BR-CO-14": true, "BR-CO-18": true,
-}
+var ublRules = sync.OnceValue(func() map[string]bool {
+	return map[string]bool{
+		"BR-09": true, "BR-11": true, "BR-17": true, "BR-20": true, "BR-52": true, "BR-53": true,
+		"BR-55": true, "BR-56": true, "BR-57": true, "BR-61": true, "BR-62": true, "BR-63": true,
+		"BR-64": true, "BR-65": true, "BR-CO-03": true, "BR-CO-14": true, "BR-CO-18": true,
+	}
+})
 
 // ublSeverity holds the severities of the UBL artefacts that differ from the
 // CII ones.
-var ublSeverity = map[string]rules.Severity{
-	"BR-51": rules.Warning, // primary account number of a card: flag warning in UBL, fatal in CII
-}
+var ublSeverity = sync.OnceValue(func() map[string]rules.Severity {
+	return map[string]rules.Severity{
+		"BR-51": rules.Warning, // primary account number of a card: flag warning in UBL, fatal in CII
+	}
+})
 
 // failOnce records a finding for rule id unless one was already recorded for
 // the same context node.

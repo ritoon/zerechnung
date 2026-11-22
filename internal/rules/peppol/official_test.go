@@ -59,7 +59,7 @@ func TestOfficial(t *testing.T) {
 				for _, a := range test.Elem("assert").Children {
 					id := strings.TrimSpace(a.Text)
 					covered[id] = true
-					if byID[id] == nil {
+					if byID()[id] == nil {
 						t.Errorf("%s: rule %s is not in Catalog", name, id)
 					}
 					want, sev := 1, rules.Severity(0)
@@ -164,7 +164,7 @@ func TestOfficialUBL(t *testing.T) {
 					}
 					asserts++
 					covered[id] = true
-					if ublByID[id] == nil {
+					if ublByID()[id] == nil {
 						t.Errorf("%s: rule %s is not in UBLCatalog", name, id)
 					}
 					if n := a.Attr("number"); n != "" && a.Name != "success" {
@@ -212,7 +212,7 @@ func checkUBLDoc(root *xmltree.Node) *rules.Report {
 func checkUBLFindings(t *testing.T, r *rules.Report) {
 	t.Helper()
 	for _, f := range r.Findings {
-		info, ok := ublByID[f.Rule]
+		info, ok := ublByID()[f.Rule]
 		if !ok {
 			t.Errorf("rule %s is not in UBLCatalog", f.Rule)
 			continue

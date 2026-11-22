@@ -1,6 +1,10 @@
 package facturx
 
-import "github.com/ritoon/zerechnung/internal/rules"
+import (
+	"sync"
+
+	"github.com/ritoon/zerechnung/internal/rules"
+)
 
 // Profile masks of the rules: the profiles whose official schematron holds
 // the rule. mExt stands for EXTENDED and EXTENDED-CTC-FR; only EXTENDED gets
@@ -293,27 +297,34 @@ var table = []rule{
 	{"FX-NOT-USED", rules.Warning, mLight, "", "The element or attribute is marked as not used in the profile by the official schematron: receivers ignore it."},
 }
 
-// Catalog lists the rules implemented by this package: those of table, then
-// the code list assertions of BASIC, EN 16931 and EXTENDED (see codedb.go).
-var Catalog []rules.RuleInfo
-
-// byID indexes table.
-var byID map[string]*rule
-
-func init() {
-	table = append(table, codeCatalog()...)
-	byID = make(map[string]*rule, len(table))
-	Catalog = make([]rules.RuleInfo, 0, len(table))
-	for i := range table {
-		r := &table[i]
-		if byID[r.id] != nil {
+// catalog is the catalog of the rules, built on first use: table, then the
+// code list assertions of BASIC, EN 16931 and EXTENDED (see codedb.go).
+var catalog = sync.OnceValue(func() (c struct {
+	list []rules.RuleInfo
+	byID map[string]*rule
+}) {
+	all := append(table[:len(table):len(table)], codeCatalog()...)
+	c.byID = make(map[string]*rule, len(all))
+	c.list = make([]rules.RuleInfo, 0, len(all))
+	for i := range all {
+		r := &all[i]
+		if c.byID[r.id] != nil {
 			panic("facturx: rule " + r.id + " listed twice")
 		}
-		byID[r.id] = r
+		c.byID[r.id] = r
 		desc := r.desc
 		if r.fx != "" && r.fx != r.id {
 			desc += " (" + r.fx + ")"
 		}
-		Catalog = append(Catalog, rules.RuleInfo{ID: r.id, Severity: r.sev, Description: desc})
+		c.list = append(c.list, rules.RuleInfo{ID: r.id, Severity: r.sev, Description: desc})
 	}
-}
+	return c
+})
+
+// Catalog lists the rules implemented by this package: those of table, then
+// the code list assertions of BASIC, EN 16931 and EXTENDED (see codedb.go).
+// The caller must not modify it.
+func Catalog() []rules.RuleInfo { return catalog().list }
+
+// byID returns the rule of identifier id, nil when there is none.
+func byID(id string) *rule { return catalog().byID[id] }

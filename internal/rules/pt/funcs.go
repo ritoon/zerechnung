@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -15,11 +16,15 @@ type function struct {
 	fn       func(c *ctx, f *call, args []seq) (seq, error)
 }
 
-// funcs are the functions of the XPath subset.
-var funcs map[string]function
+// funcs returns the functions of the XPath subset, built on first use. The
+// table refers to the evaluator, which refers to funcs: init breaks the
+// initialization cycle.
+var funcs func() map[string]function
 
-func init() {
-	funcs = map[string]function{
+func init() { funcs = sync.OnceValue(newFuncs) }
+
+func newFuncs() map[string]function {
+	return map[string]function{
 		"not": {1, 1, func(_ *ctx, _ *call, a []seq) (seq, error) {
 			b, err := ebv(a[0])
 			return boolSeq(!b), err
@@ -415,10 +420,12 @@ func fnSum(_ *ctx, _ *call, a []seq) (seq, error) {
 }
 
 // reDecimal is the lexical space of xs:decimal.
-var reDecimal = regexp.MustCompile(`^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)$`)
+var reDecimal = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)$`) })
 
 // reDouble is the lexical space of xs:double, but INF, -INF and NaN.
-var reDouble = regexp.MustCompile(`^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$`)
+var reDouble = sync.OnceValue(func() *regexp.Regexp {
+	return regexp.MustCompile(`^[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?$`)
+})
 
 func fnDecimal(_ *ctx, c *call, a []seq) (seq, error) {
 	i, ok, err := oneAtomic(a[0], c.name)
@@ -438,7 +445,7 @@ func fnDecimal(_ *ctx, c *call, a []seq) (seq, error) {
 		return seq{{k: kDecimal, r: new(big.Rat).SetInt64(int64(boolInt(i.b)))}}, nil
 	}
 	s := strings.Trim(i.s, " \t\n\r")
-	if !reDecimal.MatchString(s) {
+	if !reDecimal().MatchString(s) {
 		return nil, dynErr("cannot cast %q to xs:decimal", i.s)
 	}
 	r, ok := new(big.Rat).SetString(strings.TrimSuffix(strings.TrimPrefix(s, "+"), "."))
@@ -467,7 +474,7 @@ func (m lengthMatcher) MatchString(s string) bool {
 	return n >= m.min && n <= m.max
 }
 
-var reBoundedAny = regexp.MustCompile(`^\^\(\.\{(\d+),(\d+)\}\)\$$`)
+var reBoundedAny = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^\^\(\.\{(\d+),(\d+)\}\)\$$`) })
 
 // compileRegex compiles an XPath regular expression with its flags (s, i,
 // m). The syntax of XPath is translated where it differs from package
@@ -487,7 +494,7 @@ func compileRegex(pat, flags string) (matcher, error) {
 			return nil, fmt.Errorf("regular expression %q: flag %c is not supported", pat, f)
 		}
 	}
-	if m := reBoundedAny.FindStringSubmatch(pat); m != nil && prefix == "" {
+	if m := reBoundedAny().FindStringSubmatch(pat); m != nil && prefix == "" {
 		lo, _ := strconv.Atoi(m[1])
 		hi, _ := strconv.Atoi(m[2])
 		if hi > 1000 {

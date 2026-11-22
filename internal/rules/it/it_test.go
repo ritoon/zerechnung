@@ -262,7 +262,7 @@ func TestRules(t *testing.T) {
 				t.Errorf("CII: rules %v, want %v\n%s", got, tc.want, r)
 			}
 			for _, f := range r.Findings {
-				if f.Source != rules.SourceIT || f.Severity != severities[f.Rule] || !strings.HasPrefix(f.Message, "["+f.Rule+"] ") || f.Line == 0 {
+				if f.Source != rules.SourceIT || f.Severity != severities()[f.Rule] || !strings.HasPrefix(f.Message, "["+f.Rule+"] ") || f.Line == 0 {
 					t.Errorf("CII: finding %+v", f)
 				}
 			}
@@ -431,8 +431,8 @@ func TestFits(t *testing.T) {
 }
 
 func TestProvinces(t *testing.T) {
-	if len(provinces) != 111 || !provinces["RM"] || !provinces["SU"] || provinces["EE"] || provinces["rm"] {
-		t.Errorf("%d provinces", len(provinces))
+	if len(provinces()) != 111 || !provinces()["RM"] || !provinces()["SU"] || provinces()["EE"] || provinces()["rm"] {
+		t.Errorf("%d provinces", len(provinces()))
 	}
 }
 

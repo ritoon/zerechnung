@@ -54,7 +54,7 @@ var kindNodes = map[kind]string{
 // name context, each alternative of an absolute context otherwise.
 func syntaxContexts(t *testing.T, ctx string) []string {
 	t.Helper()
-	if kd, ok := kindContexts[ctx]; ok {
+	if kd, ok := kindContexts()[ctx]; ok {
 		p, ok := kindNodes[kd]
 		if !ok {
 			t.Fatalf("no element for the name context %s", ctx)
@@ -267,10 +267,10 @@ func syntaxTableCases(t *testing.T, nots []syntaxNot, counts []syntaxCount, ctcf
 func runSyntaxCase(t *testing.T, c syntaxCase) {
 	t.Helper()
 	base := tBase
-	sev, ok := severity[c.rule]
+	sev, ok := severity()[c.rule]
 	if c.ctcfr {
 		base = strings.Replace(base, "urn:cen.eu:en16931:2017", invoice.URNExtendedCTCFR, 1)
-		r := ctcfrRules[c.rule]
+		r := ctcfrRules()[c.rule]
 		ok = r != nil
 		if ok {
 			sev = r.Severity
@@ -523,7 +523,7 @@ func TestSyntaxKindNodes(t *testing.T) {
 		if n := descend(t, root, splitPath(path)); nodeKind(n) != kd {
 			t.Errorf("%s: kind %d, want %d", path, nodeKind(n), kd)
 		}
-		for _, set := range []*syntaxSet{cenSyntax, ctcfrSyntax} {
+		for _, set := range []*syntaxSet{cenSyntax(), ctcfrSyntax()} {
 			tn := set.trie
 			for _, step := range splitPath(path) {
 				_, local, _ := strings.Cut(step, ":")

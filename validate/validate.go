@@ -467,7 +467,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(EN16931, newRules(en16931.CTCFRCatalog, en16931.Catalog))
 	add(EN16931, ubl.Catalog)
 	add(EN16931, newRules(ubl.CTCFRCatalog, slices.Concat(en16931.Catalog, en16931.CTCFRCatalog, ubl.Catalog)))
-	add(FacturX, facturx.Catalog)
+	add(FacturX, facturx.Catalog())
 	add(France, fr.Catalog)
 	add(France, newRules(fr.UBLCatalog, fr.Catalog))
 	add(France, fr.ProfileCatalog)
@@ -482,7 +482,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(Netherlands, newRules(nl.UBLCatalog, nl.Catalog))
 	add(Italy, it.Catalog)
 	add(Italy, it.SDICatalog)
-	add(Portugal, pt.Catalog)
+	add(Portugal, pt.Catalog())
 	// The rules of the CIUS-PT schematron that the CEN artefacts do not
 	// define (BR-AA-*, UBL-SR-38…): CheckCEN reports them in the EN 16931
 	// rule set for a CIUS-PT invoice.

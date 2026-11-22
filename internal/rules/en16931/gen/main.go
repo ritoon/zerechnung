@@ -233,7 +233,9 @@ func ublRules(sch []byte) ([]byte, error) {
 // EXTENDED-CTC-FR invoice in UBL, the package reports, on the CII view, only
 // the rules of this table: package internal/rules/ubl checks the syntax
 // rules, the code lists and the rules of the schematron on the UBL document.
-var ctcfrUBLRules = map[string]rules.Severity{
+// The map is built on first use.
+var ctcfrUBLRules = sync.OnceValue(func() map[string]rules.Severity {
+	return map[string]rules.Severity{
 `, ctcfrUBLFile, ctcfrUBLSum)
 	seen := map[string]bool{}
 	for _, p := range s.Patterns {
@@ -261,7 +263,7 @@ var ctcfrUBLRules = map[string]rules.Severity{
 	if len(seen) == 0 {
 		return nil, fmt.Errorf("%s: no model assertion found", ctcfrUBLFile)
 	}
-	b.WriteString("}\n")
+	b.WriteString("}\n})\n")
 	return b.Bytes(), nil
 }
 
@@ -417,7 +419,11 @@ var ctcfrSource = source{
 
 package en16931
 
-import "github.com/ritoon/zerechnung/internal/rules"
+import (
+	"sync"
+
+	"github.com/ritoon/zerechnung/internal/rules"
+)
 
 // CTCFRRelease is the release of the FNFE-MPE France_RFE package whose
 // EXTENDED-CTC-FR rules the package implements.
@@ -508,9 +514,9 @@ func generate(sch []byte, src source) ([]byte, error) {
 	b.Write(counts.Bytes())
 	b.WriteString("}\n")
 	if src.lists != "" {
-		fmt.Fprintf(&b, "\n// %s maps the code list assertions to their list: the codes\n// separated by single spaces, with a leading and a trailing space.\nvar %s = map[string]string{\n", src.lists, src.lists)
+		fmt.Fprintf(&b, "\n// %s maps the code list assertions to their list: the codes\n// separated by single spaces, with a leading and a trailing space. The map\n// is built on first use.\nvar %s = sync.OnceValue(func() map[string]string {\n\treturn map[string]string{\n", src.lists, src.lists)
 		b.Write(lists.Bytes())
-		b.WriteString("}\n")
+		b.WriteString("}\n})\n")
 	}
 	for id := range src.skipped {
 		if !seen[id] {

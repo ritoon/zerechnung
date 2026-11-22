@@ -56,6 +56,8 @@ package schema
 import (
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"github.com/ritoon/zerechnung/internal/rules"
@@ -197,37 +199,55 @@ type tables struct {
 	particles  []particle
 	attributes []attribute
 	facetTable []facets
-	regexps    [][]*regexp.Regexp // compiled patterns of facetTable
-	profiles   bool               // types carry the profiles using them (Factur-X)
+	regexps    []atomic.Pointer[[]*regexp.Regexp] // patterns of facetTable, compiled on first use
+	profiles   bool                               // types carry the profiles using them (Factur-X)
 	// alternatives of the choices nested in sequences (FatturaPA).
 	alts []alternative
 }
 
 func newTables(ns []string, ts []ctype, ps []particle, as []attribute, fs []facets, profiles bool) *tables {
-	t := &tables{namespaces: ns, types: ts, particles: ps, attributes: as, facetTable: fs, profiles: profiles}
-	t.regexps = make([][]*regexp.Regexp, len(fs))
-	for i, f := range fs {
-		for _, p := range f.patterns {
-			t.regexps[i] = append(t.regexps[i], regexp.MustCompile("^(?:"+p+")$"))
-		}
-	}
-	return t
+	return &tables{namespaces: ns, types: ts, particles: ps, attributes: as, facetTable: fs, profiles: profiles,
+		regexps: make([]atomic.Pointer[[]*regexp.Regexp], len(fs))}
 }
 
+// patterns returns the compiled patterns of the facets fi, compiled on
+// first use. Two goroutines may compile them at once: either result is
+// kept.
+func (t *tables) patterns(fi uint16) []*regexp.Regexp {
+	if res := t.regexps[fi].Load(); res != nil {
+		return *res
+	}
+	var res []*regexp.Regexp
+	for _, p := range t.facetTable[fi].patterns {
+		res = append(res, regexp.MustCompile("^(?:"+p+")$"))
+	}
+	t.regexps[fi].Store(&res)
+	return res
+}
+
+// The tables of each schema set are built on first use: a program that
+// reads only CII invoices does not pay for those of UBL, FatturaPA and
+// Facturae, and nothing is built at initialization.
 var (
-	ciiTables  = newTables(namespaces[:], types[:], particles[:], attributes[:], facetTable[:], true)
-	d16bTables = newTables(d16bNamespaces[:], d16bTypes[:], d16bParticles[:], d16bAttributes[:], d16bFacetTable[:], false)
-	ublTables  = newTables(ublNamespaces[:], ublTypes[:], ublParticles[:], ublAttributes[:], ublFacetTable[:], false)
-	fpaTables  = func() *tables {
+	ciiTables = sync.OnceValue(func() *tables {
+		return newTables(namespaces[:], types[:], particles[:], attributes[:], facetTable[:], true)
+	})
+	d16bTables = sync.OnceValue(func() *tables {
+		return newTables(d16bNamespaces[:], d16bTypes[:], d16bParticles[:], d16bAttributes[:], d16bFacetTable[:], false)
+	})
+	ublTables = sync.OnceValue(func() *tables {
+		return newTables(ublNamespaces[:], ublTypes[:], ublParticles[:], ublAttributes[:], ublFacetTable[:], false)
+	})
+	fpaTables = sync.OnceValue(func() *tables {
 		t := newTables(fpaNamespaces[:], fpaTypes[:], fpaParticles[:], fpaAttributes[:], fpaFacetTable[:], false)
 		t.alts = fpaAlternatives[:]
 		return t
-	}()
-	facturaeTables = func() *tables {
+	})
+	facturaeTables = sync.OnceValue(func() *tables {
 		t := newTables(facturaeNamespaces[:], facturaeTypes[:], facturaeParticles[:], facturaeAttributes[:], facturaeFacetTable[:], false)
 		t.alts = facturaeAlternatives[:]
 		return t
-	}()
+	})
 )
 
 // profileIndex returns the Factur-X schema used for an invoice profile. The
@@ -252,10 +272,10 @@ func profileIndex(p invoice.Profile) int {
 // index of the profile.
 func ciiSchema(p invoice.Profile) (*tables, *particle, int) {
 	if p == invoice.ProfileXRechnung {
-		return d16bTables, &d16bRoots[0], 0
+		return d16bTables(), &d16bRoots[0], 0
 	}
 	i := profileIndex(p)
-	return ciiTables, &roots[i], i
+	return ciiTables(), &roots[i], i
 }
 
 // Version returns the version of the Factur-X schemas the tables were
@@ -291,7 +311,7 @@ func FatturaPAEnumeration(name string) []string {
 // against the FatturaPA 1.2 schema and records the findings in c.Report.
 // c.Doc may be nil.
 func CheckFatturaPA(c *rules.Checker, root *xmltree.Node) {
-	v := validator{c: c, t: fpaTables}
+	v := validator{c: c, t: fpaTables()}
 	r := &fpaRoots[0]
 	if root.Name != r.name || root.Space != fpaNamespaces[r.ns] {
 		c.Fail(RuleRoot, rules.Error, root, "the root element is %s in namespace %q, expected FatturaElettronica in namespace %q",
@@ -325,7 +345,7 @@ func CheckFacturae(c *rules.Checker, root *xmltree.Node) {
 	if root == nil {
 		return
 	}
-	v := validator{c: c, t: facturaeTables}
+	v := validator{c: c, t: facturaeTables()}
 	for i := range facturaeRoots {
 		r := &facturaeRoots[i]
 		if root.Name == r.name && root.Space == facturaeNamespaces[r.ns] {
@@ -374,7 +394,7 @@ func Check(c *rules.Checker) {
 
 // checkUBL validates the UBL document root.
 func checkUBL(c *rules.Checker, root *xmltree.Node) {
-	v := validator{c: c, t: ublTables}
+	v := validator{c: c, t: ublTables()}
 	for i := range ublRoots {
 		r := &ublRoots[i]
 		if root.Name == r.name && root.Space == ublNamespaces[r.ns] {
@@ -932,7 +952,7 @@ func (t *tables) checkValue(s string, k simpleKind, fi uint16) string {
 		s = trim(s)
 	}
 	f := &t.facetTable[fi]
-	if msg := f.check(s, t.regexps[fi]); msg != "" {
+	if msg := f.check(s, t.patterns(fi)); msg != "" {
 		return msg
 	}
 	if f.minIncl != "" && compare(s, f.minIncl, k) < 0 {

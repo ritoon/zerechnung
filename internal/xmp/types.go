@@ -2,6 +2,7 @@ package xmp
 
 import (
 	"strings"
+	"sync"
 )
 
 // The value types of the properties of the schemas predefined by the XMP
@@ -19,7 +20,7 @@ import (
 //	G  GPSCoordinate
 //	L  language alternative (Lang Alt)
 //	S  structure; its fields are not checked
-var valueTypes = func() map[string]map[string]string {
+var valueTypes = sync.OnceValue(func() map[string]map[string]string {
 	m := map[string]map[string]string{}
 	for ns, props := range map[string]string{
 		nsDC: `contributor=bag:T coverage=T creator=seq:T date=seq:D description=L format=T identifier=T
@@ -84,7 +85,7 @@ var valueTypes = func() map[string]map[string]string {
 		m[ns] = set
 	}
 	return m
-}()
+})
 
 var typeNames = map[byte]string{
 	'T': "Text", 'B': "Boolean", 'I': "Integer", 'R': "Real", 'D': "Date", 'Q': "Rational",

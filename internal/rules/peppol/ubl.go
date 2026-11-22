@@ -131,7 +131,7 @@ func (k *ublChecker) fail(id string, n *xmltree.Node, detail string, args ...any
 	if n == nil {
 		n = k.root
 	}
-	report(k.Checker, ublByID, id, n, detail, args...)
+	report(k.Checker, ublByID(), id, n, detail, args...)
 }
 
 // check records a finding for rule id when ok is false.

@@ -87,7 +87,7 @@ func findings(t *testing.T, doc string, profile invoice.Profile) (*rules.Report,
 	r := check(t, []byte(doc), profile)
 	set := map[string]bool{}
 	for _, f := range r.Findings {
-		if _, ok := severity[f.Rule]; !ok && ctcfrRules[f.Rule] == nil {
+		if _, ok := severity()[f.Rule]; !ok && ctcfrRules()[f.Rule] == nil {
 			t.Errorf("rule %s is not in Catalog", f.Rule)
 		}
 		if f.Message == "" || f.Path == "" || f.Line == 0 {
@@ -357,13 +357,13 @@ func TestCatalogComplete(t *testing.T) {
 			continue
 		}
 		for _, n := range []string{"01", "02", "03", "04", "05", "06", "07", "08", "09", "10"} {
-			if _, ok := severity[v.prefix+n]; ok {
+			if _, ok := severity()[v.prefix+n]; ok {
 				inSource[v.prefix+n] = true
 			}
 		}
 	}
 	for id := range inSource {
-		if _, ok := severity[id]; !ok && ctcfrRules[id] == nil {
+		if _, ok := severity()[id]; !ok && ctcfrRules()[id] == nil {
 			t.Errorf("%s is used but not in Catalog", id)
 		}
 	}
@@ -380,12 +380,12 @@ func TestCatalogComplete(t *testing.T) {
 			t.Errorf("%s: bad catalog entry %+v", r.ID, r)
 		}
 	}
-	for id := range extendedRules {
+	for id := range extendedRules() {
 		if !seen[id] {
 			t.Errorf("EXTENDED rule %s is not in Catalog", id)
 		}
 	}
-	for _, m := range xrechnungLevels {
+	for _, m := range xrechnungLevels() {
 		for id := range m {
 			if !seen[id] {
 				t.Errorf("XRechnung level of %s, which is not in Catalog", id)

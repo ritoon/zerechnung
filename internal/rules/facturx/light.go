@@ -2,6 +2,7 @@ package facturx
 
 import (
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/ritoon/zerechnung/internal/codes"
@@ -30,14 +31,18 @@ const vatPrefixes = " 1A AD AE AF AG AI AL AM AN AO AQ AR AS AT AU AW AX AZ BA B
 var (
 	// invoiceTypeCodes is the UNTDID 1001 subset of the invoice type code
 	// (BT-3), code list 2.
-	invoiceTypeCodes = codeSet("71 80 81 82 83 84 102 130 202 203 204 211 218 219 261 262 295 296 308 325 326 331 380 381 382 383 384 385 386 387 388 389 390 393 394 395 396 420 456 457 458 471 472 473 500 501 502 503 527 532 553 575 623 633 751 780 817 870 875 876 877 935")
+	invoiceTypeCodes = sync.OnceValue(func() map[string]bool {
+		return codeSet("71 80 81 82 83 84 102 130 202 203 204 211 218 219 261 262 295 296 308 325 326 331 380 381 382 383 384 385 386 387 388 389 390 393 394 395 396 420 456 457 458 471 472 473 500 501 502 503 527 532 553 575 623 633 751 780 817 870 875 876 877 935")
+	})
 	// vatCategoryCodes is the UNTDID 5305 subset of the VAT category codes.
-	vatCategoryCodes = codeSet("AE E G K L M O S Z")
+	vatCategoryCodes = sync.OnceValue(func() map[string]bool { return codeSet("AE E G K L M O S Z") })
 	// vatDateCodes is the UNTDID 2005 subset of the VAT point date code (BT-8).
 	vatDateCodes = codeSet("5 29 72")
 	// allowanceReasonCodes is the UNTDID 5189 subset of the document level
 	// allowance reason code (BT-98).
-	allowanceReasonCodes = codeSet("41 42 60 62 63 64 65 66 67 68 70 71 88 95 100 102 103 104 105")
+	allowanceReasonCodes = sync.OnceValue(func() map[string]bool {
+		return codeSet("41 42 60 62 63 64 65 66 67 68 70 71 88 95 100 102 103 104 105")
+	})
 )
 
 func codeSet(s string) map[string]bool {
@@ -655,7 +660,7 @@ func (k *checker) taxCodes(tt *xmltree.Node) {
 				k.fail("FX-SCH-A-000023", ch, "the tax type code %q is not allowed: it must be VAT", ch.Text)
 			}
 		case "CategoryCode":
-			if ch.Text != "" && !vatCategoryCodes[ch.Text] {
+			if ch.Text != "" && !vatCategoryCodes()[ch.Text] {
 				k.fail("FX-SCH-A-000179", ch, "the VAT category code %q is not allowed (expected AE, E, G, K, L, M, O, S or Z)", ch.Text)
 			}
 		case "DueDateTypeCode":
@@ -822,7 +827,7 @@ func (k *checker) allowances() {
 			if rc.Name != "ReasonCode" || rc.Text == "" {
 				continue
 			}
-			if kind == 0 && !allowanceReasonCodes[rc.Text] {
+			if kind == 0 && !allowanceReasonCodes()[rc.Text] {
 				k.fail("FX-SCH-A-000186", rc, "the allowance reason code (BT-98) %q is not in the UNTDID 5189 subset of EN 16931", rc.Text)
 			}
 			if _, list := rc.LookupAttr("listID"); kind == 1 && !list && !codes.ChargeReason(rc.Text) {
@@ -1054,7 +1059,7 @@ func (k *checker) structure() {
 	}
 
 	// Code values.
-	if tc := d.Header.Elem("TypeCode"); tc != nil && tc.Text != "" && !invoiceTypeCodes[tc.Text] {
+	if tc := d.Header.Elem("TypeCode"); tc != nil && tc.Text != "" && !invoiceTypeCodes()[tc.Text] {
 		k.fail("FX-SCH-A-000023", tc, "the invoice type code (BT-3) %q is not allowed in profile %s", tc.Text, k.profileName())
 	}
 	k.dateFormat(d.Header.Elem("IssueDateTime"))

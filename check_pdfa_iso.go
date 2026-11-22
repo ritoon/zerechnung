@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/ritoon/zerechnung/internal/font"
@@ -849,7 +850,7 @@ var standard14 = map[string]bool{
 
 // predefinedCMaps are the CMaps of ISO 32000-1, Table 118, which need not
 // be embedded, with the ordering of their character collection.
-var predefinedCMaps = func() map[string]string {
+var predefinedCMaps = sync.OnceValue(func() map[string]string {
 	m := map[string]string{"Identity-H": "", "Identity-V": ""}
 	for ordering, names := range map[string]string{
 		"GB1":    "GB-EUC-H GB-EUC-V GBpc-EUC-H GBpc-EUC-V GBK-EUC-H GBK-EUC-V GBKp-EUC-H GBKp-EUC-V GBK2K-H GBK2K-V UniGB-UCS2-H UniGB-UCS2-V UniGB-UTF16-H UniGB-UTF16-V",
@@ -862,7 +863,7 @@ var predefinedCMaps = func() map[string]string {
 		}
 	}
 	return m
-}()
+})
 
 // fontDict checks a font dictionary (6.2.11.2, 6.2.11.3, 6.2.11.6): its
 // entries (PDF-59), the encoding of a TrueType font and the cmap table of
@@ -1059,7 +1060,7 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 
 	switch enc := r.Resolve(d.Get("Encoding")).(type) {
 	case pdf.Name:
-		ordering, predefined := predefinedCMaps[string(enc)]
+		ordering, predefined := predefinedCMaps()[string(enc)]
 		switch {
 		case !predefined:
 			s.report("PDF-59", where+" /Encoding", "the CMap %s is neither embedded nor one of the predefined CMaps of ISO 32000-1 (Table 118)", enc)
@@ -1083,14 +1084,14 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 				s.report("PDF-49", ew, "the CMap maps a code to the CID %d; PDF/A admits CIDs up to 65535 (6.1.13)", cid)
 			}
 			for name, i, ok := nextUseCMap(data, 0); ok; name, i, ok = nextUseCMap(data, i) {
-				if _, ok := predefinedCMaps[string(name)]; !ok {
+				if _, ok := predefinedCMaps()[string(name)]; !ok {
 					s.report("PDF-59", ew, "the CMap uses the CMap %s, which is not one of the predefined CMaps", name)
 				}
 			}
 		}
 		switch u := r.Resolve(enc.Dict.Get("UseCMap")).(type) {
 		case pdf.Name:
-			if _, ok := predefinedCMaps[string(u)]; !ok {
+			if _, ok := predefinedCMaps()[string(u)]; !ok {
 				s.report("PDF-59", ew+" /UseCMap", "the CMap uses the CMap %s, which is not one of the predefined CMaps", u)
 			}
 		case *pdf.Stream:

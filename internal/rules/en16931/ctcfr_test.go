@@ -136,10 +136,10 @@ func TestCTCFRSeverities(t *testing.T) {
 	// number found to the message.
 	doc := tLineSettlement + lineAllowance + strings.Repeat("<ram:CategoryTradeTax><ram:TypeCode>VAT</ram:TypeCode><ram:CategoryCode>S</ram:CategoryCode></ram:CategoryTradeTax>", 2) + "</ram:SpecifiedTradeAllowanceCharge>"
 	f := find(ctcfr(t, tLineSettlement, doc), "CII-SR-472")
-	if want := ctcfrRules["CII-SR-472"].Description; !strings.HasPrefix(f.Message, want) || want == description["CII-SR-472"] {
-		t.Errorf("CII-SR-472: message %q, want %q (CEN %q)", f.Message, want, description["CII-SR-472"])
+	if want := ctcfrRules()["CII-SR-472"].Description; !strings.HasPrefix(f.Message, want) || want == description()["CII-SR-472"] {
+		t.Errorf("CII-SR-472: message %q, want %q (CEN %q)", f.Message, want, description()["CII-SR-472"])
 	}
-	if f := find(edit(t, tBase, tLineSettlement, doc), "CII-SR-472"); !strings.HasPrefix(f.Message, description["CII-SR-472"]) {
+	if f := find(edit(t, tBase, tLineSettlement, doc), "CII-SR-472"); !strings.HasPrefix(f.Message, description()["CII-SR-472"]) {
 		t.Errorf("CII-SR-472 (CEN): message %q", f.Message)
 	}
 }
@@ -196,10 +196,10 @@ func TestCTCFRCatalog(t *testing.T) {
 		}
 		for _, m := range ruleID.FindAllStringSubmatch(string(data), -1) {
 			id := m[1]
-			if r, ok := ctcfrRenamed[id]; ok {
+			if r, ok := ctcfrRenamed()[id]; ok {
 				id = r
 			}
-			if ctcfrRules[id] != nil {
+			if ctcfrRules()[id] != nil {
 				reported[id] = true
 			}
 		}
@@ -208,7 +208,7 @@ func TestCTCFRCatalog(t *testing.T) {
 	// The rules built from a prefix and a number, or named in tables.
 	for _, v := range vatCategoriesCTCFR {
 		for n := 1; n <= 12; n++ {
-			if id := fmt.Sprintf("%s%02d", v.prefix, n); ctcfrRules[id] != nil {
+			if id := fmt.Sprintf("%s%02d", v.prefix, n); ctcfrRules()[id] != nil {
 				reported[id] = true
 			}
 		}
@@ -219,7 +219,7 @@ func TestCTCFRCatalog(t *testing.T) {
 		}
 	}
 	reported["BR-FXEXT-S-09"] = true
-	for id := range ctcfrCodeListText {
+	for id := range ctcfrCodeListText() {
 		reported[id] = true
 	}
 	counts := map[string]int{}
@@ -278,7 +278,7 @@ func TestCTCFRCoverage(t *testing.T) {
 	}
 	n := 0
 	for _, r := range CTCFRCatalog {
-		if _, cen := severity[r.ID]; cen || strings.HasPrefix(r.ID, "CII-") {
+		if _, cen := severity()[r.ID]; cen || strings.HasPrefix(r.ID, "CII-") {
 			continue
 		}
 		n++

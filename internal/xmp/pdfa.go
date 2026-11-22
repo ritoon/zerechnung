@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -52,7 +53,7 @@ func (in *Info) Declared() Declared {
 // property of the namespace: the large schemas (Exif, TIFF, Photoshop,
 // Camera Raw, dynamic media, media management) are not listed property by
 // property.
-var predefined = func() map[string]map[string]bool {
+var predefined = sync.OnceValue(func() map[string]map[string]bool {
 	m := map[string]map[string]bool{}
 	for ns, props := range map[string]string{
 		nsDC:                                  "contributor coverage creator date description format identifier language publisher relation rights source subject title type",
@@ -82,7 +83,7 @@ var predefined = func() map[string]map[string]bool {
 		m[ns] = nil
 	}
 	return m
-}()
+})
 
 // CheckPDFA checks an XMP packet against the PDF/A requirements: the packet
 // header has no bytes nor encoding attribute and the packet is UTF-8
@@ -145,7 +146,7 @@ func (p *Packet) CheckPDFA(main Declared, fn func(Issue)) {
 		if space == nsPDFAID && string(prefix) != "pdfaid" {
 			report(IssueProperty, "the property pdfaid:%s has the prefix %q; PDF/A requires pdfaid", name, prefix)
 		}
-		if set, ok := predefined[space]; ok && (set == nil || set[name]) {
+		if set, ok := predefined()[space]; ok && (set == nil || set[name]) {
 			return
 		}
 		if main[space][name] || own[space][name] {
@@ -156,14 +157,14 @@ func (p *Packet) CheckPDFA(main Declared, fn func(Issue)) {
 			return
 		}
 		reported[space+" "+name] = true
-		if _, ok := predefined[space]; ok {
+		if _, ok := predefined()[space]; ok {
 			report(IssueProperty, "the property %s is not defined by its predefined schema (%s)", q, space)
 			return
 		}
 		report(IssueProperty, "the property %s (namespace %s) belongs to no predefined schema and is not described by a PDF/A extension schema", q, space)
 	}
 	typed := func(space string, prefix, local []byte, n *node, attrValue string) {
-		typ := valueTypes[space][string(local)]
+		typ := valueTypes()[space][string(local)]
 		if typ == "" || reported[space+" "+string(local)] {
 			return
 		}

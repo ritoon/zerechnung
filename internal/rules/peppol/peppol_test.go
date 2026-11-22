@@ -415,7 +415,7 @@ func TestMutations(t *testing.T) {
 func checkFindings(t *testing.T, r *rules.Report) {
 	t.Helper()
 	for _, f := range r.Findings {
-		info, ok := byID[f.Rule]
+		info, ok := byID()[f.Rule]
 		if !ok {
 			t.Errorf("rule %s is not in Catalog", f.Rule)
 			continue
@@ -455,8 +455,8 @@ func TestCatalog(t *testing.T) {
 		if r.Description == "" {
 			t.Errorf("no description for %s", r.ID)
 		}
-		if byID[r.ID] == nil || byID[r.ID].Severity != r.Severity {
-			t.Errorf("byID[%s] is not the catalog entry", r.ID)
+		if byID()[r.ID] == nil || byID()[r.ID].Severity != r.Severity {
+			t.Errorf("byID()[%s] is not the catalog entry", r.ID)
 		}
 	}
 	if len(Catalog) != 90 || sev[rules.Error] != 73 || sev[rules.Warning] != 17 {

@@ -261,12 +261,12 @@ func TestUBLCatalog(t *testing.T) {
 		if r.Description == "" || strings.Contains(r.Description, "  ") {
 			t.Errorf("bad description for %s: %q", r.ID, r.Description)
 		}
-		if ublByID[r.ID] == nil || ublByID[r.ID].Severity != r.Severity {
-			t.Errorf("ublByID[%s] is not the catalog entry", r.ID)
+		if ublByID()[r.ID] == nil || ublByID()[r.ID].Severity != r.Severity {
+			t.Errorf("ublByID()[%s] is not the catalog entry", r.ID)
 		}
 		// A rule of both schematrons has the same severity, except
 		// DK-R-003: fatal in the UBL schematron, a warning in the CII one.
-		if c := byID[r.ID]; c != nil && c.Severity != r.Severity && r.ID != "DK-R-003" {
+		if c := byID()[r.ID]; c != nil && c.Severity != r.Severity && r.ID != "DK-R-003" {
 			t.Errorf("%s: severity %v in UBLCatalog, %v in Catalog", r.ID, r.Severity, c.Severity)
 		}
 	}

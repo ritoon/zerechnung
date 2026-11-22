@@ -79,7 +79,7 @@ func TestFacturXSyntax(t *testing.T) {
 		}
 	}
 	for id := range en16931Syntax {
-		if _, ok := severity[id]; !ok {
+		if _, ok := severity()[id]; !ok {
 			t.Errorf("%s is not in Catalog", id)
 		}
 	}

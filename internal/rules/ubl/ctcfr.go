@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/internal/xmltree"
@@ -52,51 +53,55 @@ import (
 // The arithmetic is that of the schematron, see xnum.
 
 // ctcfrSeverity maps the rules of CTCFRCatalog to their severity.
-var ctcfrSeverity = func() map[string]rules.Severity {
+var ctcfrSeverity = sync.OnceValue(func() map[string]rules.Severity {
 	m := make(map[string]rules.Severity, len(CTCFRCatalog))
 	for _, r := range CTCFRCatalog {
 		m[r.ID] = r.Severity
 	}
 	return m
-}()
+})
 
 // ctcfrDescription maps the rules of CTCFRCatalog to their message.
-var ctcfrDescription = func() map[string]string {
+var ctcfrDescription = sync.OnceValue(func() map[string]string {
 	m := make(map[string]string, len(CTCFRCatalog))
 	for _, r := range CTCFRCatalog {
 		m[r.ID] = r.Description
 	}
 	return m
-}()
+})
 
 // ctcfrRenamed maps the CEN code list rules that the schematron keeps, with
 // its own list, under another identifier.
-var ctcfrRenamed = map[string]string{
-	"BR-CL-10": "BR-FREXT-CL-10",
-	"BR-CL-24": "BR-FREXT-CL-24",
-}
+var ctcfrRenamed = sync.OnceValue(func() map[string]string {
+	return map[string]string{
+		"BR-CL-10": "BR-FREXT-CL-10",
+		"BR-CL-24": "BR-FREXT-CL-24",
+	}
+})
 
 // ctcfrCodeListText gives the subject and the list name of the code list
 // rules of the schematron that the CEN artefacts do not have, for messages.
-var ctcfrCodeListText = map[string][2]string{
-	"BR-FREXT-CL-10":        {"identifier scheme", "ISO 6523 ICD, BY and SE"},
-	"BR-FREXT-CL-20":        {"charge reason code", "UNTDID 7161"},
-	"BR-FREXT-CL-20-TAX":    {"charge reason code of list 5153", "UNTDID 5153 without VAT"},
-	"BR-FREXT-CL-20-LISTID": {"charge reason code list identifier", "the lists 7161 and 5153"},
-	"BR-FREXT-CL-24":        {"attached document MIME code (BT-125)", "the MIME codes of the EXTENDED-CTC-FR schematron"},
-	"BR-FREXT-CL-27":        {"delivery terms code", "the Incoterms of the EXTENDED-CTC-FR schematron"},
-	"BR-FREXT-04":           {"item attribute code", "UNTDID 6313 and the Factur-X extension"},
-}
+var ctcfrCodeListText = sync.OnceValue(func() map[string][2]string {
+	return map[string][2]string{
+		"BR-FREXT-CL-10":        {"identifier scheme", "ISO 6523 ICD, BY and SE"},
+		"BR-FREXT-CL-20":        {"charge reason code", "UNTDID 7161"},
+		"BR-FREXT-CL-20-TAX":    {"charge reason code of list 5153", "UNTDID 5153 without VAT"},
+		"BR-FREXT-CL-20-LISTID": {"charge reason code list identifier", "the lists 7161 and 5153"},
+		"BR-FREXT-CL-24":        {"attached document MIME code (BT-125)", "the MIME codes of the EXTENDED-CTC-FR schematron"},
+		"BR-FREXT-CL-27":        {"delivery terms code", "the Incoterms of the EXTENDED-CTC-FR schematron"},
+		"BR-FREXT-04":           {"item attribute code", "UNTDID 6313 and the Factur-X extension"},
+	}
+})
 
 // ctcfrCheck checks value against the list of the schematron for rule, or
 // for the rule that replaces it: normalize-space(value) must contain no space
 // and be in the list. BR-CL-22 looks the code up in upper case and
 // BR-FREXT-CL-24 compares the MIME code exactly.
 func (k *checker) ctcfrCheck(rule string, n *xmltree.Node, value string) {
-	if r, ok := ctcfrRenamed[rule]; ok {
+	if r, ok := ctcfrRenamed()[rule]; ok {
 		rule = r
 	}
-	list, ok := ctcfrLists[rule]
+	list, ok := ctcfrLists()[rule]
 	if !ok {
 		return
 	}
@@ -112,8 +117,8 @@ func (k *checker) ctcfrCheck(rule string, n *xmltree.Node, value string) {
 	if ok {
 		return
 	}
-	what, name := codeListRules[rule].what, codeListRules[rule].list
-	if t, ok := ctcfrCodeListText[rule]; ok {
+	what, name := codeListRules()[rule].what, codeListRules()[rule].list
+	if t, ok := ctcfrCodeListText()[rule]; ok {
 		what, name = t[0], t[1]
 	}
 	k.fail(rule, n, "%s %q is not in %s", what, strings.TrimSpace(value), name)
@@ -364,7 +369,7 @@ func (k *checker) ctcfrVATPrefix(s *xmltree.Node) {
 	if len(prefix) > 2 {
 		prefix = prefix[:2]
 	}
-	if strings.Contains(ctcfrLists["BR-CO-09"], string(prefix)) {
+	if strings.Contains(ctcfrLists()["BR-CO-09"], string(prefix)) {
 		return
 	}
 	k.fail("BR-CO-09", id, "VAT identifier %q does not start with an ISO 3166-1 alpha-2 country prefix", strings.TrimSpace(text(id)))
@@ -436,7 +441,7 @@ func (k *checker) ctcfrSubLine(l *xmltree.Node) {
 	// in the list, the first status of all the references.
 	if isCode {
 		s := first(l, "cac:BillingReference/cac:InvoiceDocumentReference/cbc:DocumentStatusCode")
-		if v := normalize(text(s)); strings.Contains(v, " ") || !strings.Contains(ctcfrLists["BR-FREXT-05"], " "+v+" ") {
+		if v := normalize(text(s)); strings.Contains(v, " ") || !strings.Contains(ctcfrLists()["BR-FREXT-05"], " "+v+" ") {
 			k.fail("BR-FREXT-05", s, "invoice line subtype (EXT-FR-FE-163) %q is not DETAIL, GROUP or INFORMATION", strings.TrimSpace(text(s)))
 		}
 	}
