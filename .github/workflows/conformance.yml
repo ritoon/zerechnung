@@ -149,3 +149,17 @@ jobs:
             conformance/.artifacts/signature/
             !conformance/.artifacts/signature/keys/
           retention-days: 30
+
+  qr:
+    # The QR codes of internal/qr read by gozxing (a port of ZXing) and by the
+    # decoder of piglig/go-qr, in a separate module (conformance/qr) so that
+    # neither enters go.mod.
+    name: Lecture des QR codes par deux décodeurs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Read the symbols with gozxing and piglig/go-qr
+        run: cd conformance/qr && go vet ./... && go test -count=1 -v ./...

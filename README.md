@@ -445,3 +445,5 @@ go test ./...
 ZeRechnung is released under the [MIT license](LICENSE).
 
 The validation rules are rewritten in Go from official artefacts (CEN, FNFE-MPE, FeRD, KoSIT, OpenPEPPOL, the Dutch Peppol authority), which are not included in the repository. Their versions and licenses are listed on [License and provenance](https://github.com/ritoon/zerechnung/wiki/License-and-provenance).
+
+The QR code encoder of [`internal/qr`](internal/qr) is a trimmed copy of the encoder of [piglig/go-qr](https://github.com/piglig/go-qr) v1.1.0, released under the MIT license; its notice is in [internal/qr/LICENSE](internal/qr/LICENSE).
