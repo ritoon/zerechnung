@@ -18,17 +18,27 @@ import (
 type benchData struct {
 	Date    string        `json:"date"`
 	Version string        `json:"version"`
-	Go      []*benchChart `json:"go"`   // ZeRechnung and the other Go libraries
-	Poly    []*benchChart `json:"poly"` // the fastest library of each language
+	Go      []*benchChart `json:"go"`     // ZeRechnung and the other Go libraries
+	Poly    []*benchChart `json:"poly"`   // the fastest library of each language
+	Memory  *memData      `json:"memory"` // what one call allocates
+}
+
+// memData is the memory one call of each operation allocates: bytes, and the
+// number of allocations where the language counts them.
+type memData struct {
+	Go   []*benchChart `json:"go"`
+	Poly []*benchChart `json:"poly"` // the lightest library of each language
 }
 
 // benchChart is one operation on one input: a bar per library.
 type benchChart struct {
-	Op    string      `json:"op"`    // key of the name of the operation
-	Input string      `json:"input"` // key of the description of the input
-	Floor float64     `json:"floor"` // the encoding/xml floor in µs, if shown
-	Rows  []*benchRow `json:"rows"`
+	Op        string      `json:"op"`         // key of the name of the operation
+	Input     string      `json:"input"`      // key of the description of the input
+	Floor     float64     `json:"floor"`      // a reference value drawn as a dashed line, if shown
+	FloorText string      `json:"floor_text"` // key of the text of the floor, bm_floor by default
+	Rows      []*benchRow `json:"rows"`
 
+	Mem     bool        `json:"-"` // bytes allocated per call rather than durations
 	Ticks   []benchTick `json:"-"` // a line per power of ten
 	FloorAt float64     `json:"-"` // position of the floor, in percent
 	Flagged bool        `json:"-"` // whether the rows say how many valid invoices they flag
@@ -37,22 +47,25 @@ type benchChart struct {
 
 // benchRow is the result of one library.
 type benchRow struct {
-	Lib     string  `json:"lib"`
-	Lang    string  `json:"lang"`    // programming language, on the page of all languages
-	US      float64 `json:"us"`      // time per operation, in µs; 0 if it failed
-	Fail    string  `json:"fail"`    // key of why it failed
-	Note    string  `json:"note"`    // key of a remark on the result
-	Flagged *int    `json:"flagged"` // valid invoices of the corpus it reports as invalid
+	Lib     string   `json:"lib"`
+	Lang    string   `json:"lang"`    // programming language, on the page of all languages
+	US      float64  `json:"us"`      // time per operation, in µs; 0 if it failed
+	KB      float64  `json:"kb"`      // bytes allocated per call, in KB of 1024 bytes, on a memory chart
+	Allocs  *float64 `json:"allocs"`  // allocations per call, on a memory chart, if the language counts them
+	Fail    string   `json:"fail"`    // key of why it failed
+	Note    string   `json:"note"`    // key of a remark on the result
+	Flagged *int     `json:"flagged"` // valid invoices of the corpus it reports as invalid
 
+	V      float64 `json:"-"` // the value shown: US, or KB on a memory chart
 	Ours   bool    `json:"-"`
-	Best   bool    `json:"-"` // fastest of the chart
+	Best   bool    `json:"-"` // fastest, or lightest, of the chart
 	Width  float64 `json:"-"` // length of the bar, in percent
-	Factor float64 `json:"-"` // time divided by the fastest time
+	Factor float64 `json:"-"` // value divided by the best value
 }
 
 // benchTick is a grid line of a chart.
 type benchTick struct {
-	US float64
+	V  float64 // µs, or KB on a memory chart
 	At float64 // position, in percent
 }
 
@@ -65,60 +78,93 @@ func loadBench(fsys fs.FS, langs []*lang) (*benchData, error) {
 		return nil, err
 	}
 	src := sourceText(langs)
-	for _, c := range slices.Concat(d.Go, d.Poly) {
-		keys := []string{c.Op, c.Input}
-		var timed []*benchRow
-		for _, r := range c.Rows {
-			keys = append(keys, r.Fail, r.Note)
-			r.Ours = r.Lib == "ZeRechnung"
-			if r.Flagged != nil {
-				c.Flagged = true
-			}
-			switch {
-			case r.US > 0 && r.Fail == "":
-				timed = append(timed, r)
-			case r.US == 0 && r.Fail != "":
-			default:
-				return nil, fmt.Errorf("%s: %s, %s: give either a time or a reason for the failure", name, c.Op, r.Lib)
-			}
+	charts := slices.Concat(d.Go, d.Poly)
+	if m := d.Memory; m != nil {
+		for _, c := range slices.Concat(m.Go, m.Poly) {
+			c.Mem = true
+			charts = append(charts, c)
 		}
-		if !slices.IsSortedFunc(timed, func(a, b *benchRow) int { return cmpFloat(a.US, b.US) }) {
-			return nil, fmt.Errorf("%s: %s %s: sort the rows from the fastest", name, c.Op, c.Input)
-		}
-		if len(timed) < 2 || !slices.ContainsFunc(timed, func(r *benchRow) bool { return r.Ours }) {
-			return nil, fmt.Errorf("%s: %s %s: at least ZeRechnung and one other library", name, c.Op, c.Input)
-		}
-		for _, k := range keys {
-			if _, ok := src[k]; k != "" && !ok {
-				return nil, fmt.Errorf("%s: %s: no text %q in %s.json", name, c.Op, k, sourceLang)
-			}
-		}
-
-		// The scale runs from the power of ten below the fastest time to the
-		// power of ten above the slowest.
-		best, worst := timed[0].US, timed[len(timed)-1].US
-		lo := int(math.Ceil(math.Log10(best))) - 1
-		hi := int(math.Ceil(math.Log10(worst)))
-		pos := func(us float64) float64 {
-			return math.Round(1000*(math.Log10(us)-float64(lo))/float64(hi-lo)) / 10
-		}
-		for e := lo; e <= hi; e++ {
-			us := math.Pow(10, float64(e))
-			c.Ticks = append(c.Ticks, benchTick{US: us, At: pos(us)})
-		}
-		for _, r := range timed {
-			r.Width = pos(r.US)
-			r.Factor = r.US / best
-		}
-		timed[0].Best = true
-		if c.Floor > 0 {
-			c.FloorAt = pos(c.Floor)
-		}
-		if timed[0].Ours {
-			c.Gain = timed[1].US / best
+	}
+	for _, c := range charts {
+		if err := layoutChart(name, c, src); err != nil {
+			return nil, err
 		}
 	}
 	return d, nil
+}
+
+// layoutChart checks the rows of a chart and places its bars and grid lines.
+func layoutChart(name string, c *benchChart, src map[string]string) error {
+	if c.FloorText == "" {
+		c.FloorText = "bm_floor"
+	}
+	keys := []string{c.Op, c.Input}
+	if c.Floor > 0 {
+		keys = append(keys, c.FloorText)
+	}
+	var timed []*benchRow
+	for _, r := range c.Rows {
+		keys = append(keys, r.Fail, r.Note)
+		r.Ours = r.Lib == "ZeRechnung"
+		if r.Flagged != nil {
+			c.Flagged = true
+		}
+		r.V = r.US
+		if c.Mem {
+			if r.US != 0 {
+				return fmt.Errorf("%s: %s, %s: a memory chart gives kb, not us", name, c.Op, r.Lib)
+			}
+			r.V = r.KB
+		} else if r.KB != 0 || r.Allocs != nil {
+			return fmt.Errorf("%s: %s, %s: a time chart gives us, not kb or allocs", name, c.Op, r.Lib)
+		}
+		switch {
+		case r.V > 0 && r.Fail == "":
+			timed = append(timed, r)
+		case r.V == 0 && r.Fail != "":
+		default:
+			return fmt.Errorf("%s: %s, %s: give either a value or a reason for the failure", name, c.Op, r.Lib)
+		}
+	}
+	if !slices.IsSortedFunc(timed, func(a, b *benchRow) int { return cmpFloat(a.V, b.V) }) {
+		return fmt.Errorf("%s: %s %s: sort the rows from the best", name, c.Op, c.Input)
+	}
+	if len(timed) < 2 || !slices.ContainsFunc(timed, func(r *benchRow) bool { return r.Ours }) {
+		return fmt.Errorf("%s: %s %s: at least ZeRechnung and one other library", name, c.Op, c.Input)
+	}
+	for _, k := range keys {
+		if _, ok := src[k]; k != "" && !ok {
+			return fmt.Errorf("%s: %s: no text %q in %s.json", name, c.Op, k, sourceLang)
+		}
+	}
+
+	// The scale runs from the power of ten below the best value to the power
+	// of ten above the worst, and covers the floor.
+	best, worst := timed[0].V, timed[len(timed)-1].V
+	if c.Floor > 0 {
+		best, worst = min(best, c.Floor), max(worst, c.Floor)
+	}
+	lo := int(math.Ceil(math.Log10(best))) - 1
+	hi := int(math.Ceil(math.Log10(worst)))
+	pos := func(v float64) float64 {
+		return math.Round(1000*(math.Log10(v)-float64(lo))/float64(hi-lo)) / 10
+	}
+	for e := lo; e <= hi; e++ {
+		v := math.Pow(10, float64(e))
+		c.Ticks = append(c.Ticks, benchTick{V: v, At: pos(v)})
+	}
+	for _, r := range timed {
+		r.Width = pos(r.V)
+		r.Factor = r.V / timed[0].V
+	}
+	timed[0].Best = true
+	if c.Floor > 0 {
+		c.FloorAt = pos(c.Floor)
+	}
+	if timed[0].Ours && !c.Mem {
+		c.Gain = timed[1].V / timed[0].V
+	}
+	return nil
 }
 
 // compData is the compliance page, read from data/compliance.json: for each
@@ -245,6 +291,68 @@ func (p *page) Status(s string) (template.HTML, error) {
 		return p.Fmt("cp_" + kind)
 	}
 	return p.Fmt("cp_"+kind, year)
+}
+
+// Val writes a value of chart c: a duration in µs, or a size in KB.
+func (p *page) Val(c *benchChart, v float64) string {
+	if c.Mem {
+		return p.size(v, false)
+	}
+	return p.num(v, false)
+}
+
+// TickVal writes the value of a grid line of chart c.
+func (p *page) TickVal(c *benchChart, v float64) string {
+	if c.Mem {
+		return p.size(v, true)
+	}
+	return p.num(v, true)
+}
+
+// size writes a size given in KB of 1024 bytes, as the wiki does: 8,0 KB,
+// 245 KB, 1,3 MB, 65,6 MB. Grid lines are powers of ten in KB, and 1000 KB
+// is written 1 MB, 10 000 KB 10 MB: 2.4 % off, which a logarithmic scale
+// does not show.
+func (p *page) size(kb float64, tick bool) string {
+	v, unit, prec := kb, p.P["unit_kb"], 0
+	switch {
+	case kb >= 1000 && tick:
+		v, unit = kb/1000, p.P["unit_mb"]
+	case kb >= 1000:
+		v, unit, prec = kb/1024, p.P["unit_mb"], 1
+		if v >= 100 {
+			prec = 0
+		}
+	case kb < 10 && !(tick && kb >= 1):
+		prec = 1
+	}
+	return p.decimal(strconv.FormatFloat(v, 'f', prec, 64)) + "\u00a0" + unit
+}
+
+// Allocs writes a number of allocations: 1 allocation, 2 376 allocations.
+func (p *page) Allocs(n float64) (template.HTML, error) {
+	if n == 1 {
+		return p.T["bm_alloc_one"], nil
+	}
+	return p.Fmt("bm_allocs", p.count(n))
+}
+
+// count writes a whole number with the digit grouping of the language:
+// 24,617 in English, 24 617 (narrow no-break space) elsewhere.
+func (p *page) count(n float64) string {
+	s := strconv.FormatInt(int64(math.Round(n)), 10)
+	sep := "\u202f"
+	if p.Lang.Code == "en" {
+		sep = ","
+	}
+	var b strings.Builder
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteString(sep)
+		}
+		b.WriteRune(c)
+	}
+	return b.String()
 }
 
 // Dur writes a duration given in µs, as the wiki does: 3,0 µs, 124 µs,

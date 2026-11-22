@@ -964,6 +964,7 @@ table.bars {
 
 .bars th[scope="row"] { width: 38%; line-height: 1.25; }
 .bars .val { width: 7.6em; padding-right: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bars.mem .val { width: 9.6em; }
 .bars .flag { width: 3.6em; padding-right: 0; text-align: right; font-variant-numeric: tabular-nums; }
 
 @media (min-width: 600px) {
@@ -981,6 +982,7 @@ table.bars {
 }
 
 .x { color: var(--ink-3); font-size: 0.8em; }
+.allocs { display: block; color: var(--ink-3); font-size: 0.76rem; font-weight: 400; }
 .of { color: var(--ink-3); font-size: 0.8em; }
 
 /* The grid: a line per power of ten, the same in every row. */
@@ -1021,12 +1023,17 @@ table.bars {
 .bars tfoot td { padding-top: 6px; }
 
 .bars .axis {
-  position: relative;
-  height: 1.5em;
   padding: 0;
   background: none;
   color: var(--ink-3);
   font-size: 0.72rem;
+}
+
+/* A table cell cannot be a size container: the labels are in a div. */
+.axis div {
+  container-type: inline-size;
+  position: relative;
+  height: 1.5em;
 }
 
 .axis span {
@@ -1037,9 +1044,14 @@ table.bars {
   white-space: nowrap;
 }
 
-.axis span:first-child { transform: none; }
+/* Every label is centred on its grid line: the first and the last run over
+   the empty cells on either side of the axis. */
 .dense .axis span:nth-child(even):not(:last-child) { visibility: hidden; }
-.axis span:last-child { transform: translateX(-100%); }
+/* Four grid lines on a narrow axis: the first and the last labels only. */
+@container (max-width: 140px) {
+  .axis span:nth-child(2):nth-last-child(3),
+  .axis span:nth-child(3):nth-last-child(2) { visibility: hidden; }
+}
 
 .chart-note {
   display: flex;
