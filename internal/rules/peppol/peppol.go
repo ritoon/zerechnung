@@ -77,6 +77,7 @@ import (
 
 	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/internal/xmltree"
+	"github.com/ritoon/zerechnung/invoice"
 )
 
 // Identifiers of Peppol BIS Billing 3.0.
@@ -86,7 +87,7 @@ const (
 	SpecificationID = "urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0"
 	// ProcessBilling is the business process identifier (BT-23) of profile
 	// 01, billing.
-	ProcessBilling = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0"
+	ProcessBilling = invoice.ProcessPeppolBilling
 	// ProcessBillingWithResponse is the business process identifier (BT-23)
 	// of profile 02, billing with response.
 	ProcessBillingWithResponse = "urn:peppol:bis:billing_with_response"

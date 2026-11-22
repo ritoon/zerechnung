@@ -69,7 +69,10 @@ func IsCreditNote(typeCode string) bool {
 // note, the payment due date (BT-9) goes into the first cac:PaymentMeans and
 // the project reference (BT-11) into an additional document reference of type
 // 50. The logistics charges of the model are written as document level
-// charges, which is how EN 16931 counts them.
+// charges, which is how EN 16931 counts them. A Peppol invoice (whose
+// specification identifier is the Peppol one, see invoice.URNPeppol)
+// without business process type (BT-23) gets the one of Peppol billing,
+// invoice.ProcessPeppolBilling, which Peppol requires.
 //
 // When the specification identifier written declares the Dutch G-account
 // extension (see invoice.GAccountExtension), the elements that the extension
@@ -194,7 +197,11 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 	}
 
 	w.leafReq("cbc:CustomizationID", spec)
-	w.leaf("cbc:ProfileID", inv.BusinessProcess)
+	process := inv.BusinessProcess
+	if process == "" && invoice.ProfileFromURN(spec) == invoice.ProfilePeppol {
+		process = invoice.ProcessPeppolBilling
+	}
+	w.leaf("cbc:ProfileID", process)
 	w.leafReq("cbc:ID", inv.Number)
 	if inv.IssueDate.IsZero() {
 		w.leafReq("cbc:IssueDate", "")

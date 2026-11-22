@@ -62,6 +62,19 @@ const xmlDeclaration = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 // the seller, and the ProgressivoInvio the last ten letters and digits of
 // the invoice number, unless the national block gives them.
 //
+// The project (BT-11) and tender (BT-17) references, the CUP and the CIG of
+// an invoice to a public administration, are written with the contract
+// reference (BT-12) in DatiContratto, or with the purchase order reference
+// (BT-13) in DatiOrdineAcquisto when there is no contract reference: without
+// either, FatturaPA has no place for them. The payment terms (BT-20) carry
+// the payment conditions (CondizioniPagamento), optionally followed by the
+// number of days (GiorniTerminiPagamento): "TP01" (instalments), "TP02"
+// (full payment), "TP03" (advance), "TP02 30". The mention of the split
+// payment that rule BR-IT-DC-510 requires at their end has no element of
+// its own. Other payment terms cannot be carried; the conditions are then
+// TP02, which Parse reads back as the payment terms ("TP02", followed by
+// the mention in split payment).
+//
 // The document level allowances and charges (BG-20, BG-21) are written as
 // lines of kind SC (discount) and AC (ancillary charge), except the pension
 // fund contributions: a charge whose reason (BT-104) is a fund type, the
@@ -105,10 +118,7 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 	}
 	format := o.Format
 	if format == "" {
-		format = it.Format
-	}
-	if format == "" {
-		format = formatFor(inv)
+		format = FormatOf(inv)
 	}
 	w.b = append(w.b, xmlDeclaration...)
 	w.b = append(w.b, "<p:FatturaElettronica"...)
@@ -403,6 +413,20 @@ func transmitterOf(inv *invoice.Invoice) (country, code string) {
 		code = cf
 	}
 	return country, code
+}
+
+// FormatOf returns the transmission format (FormatoTrasmissione) that
+// Marshal writes for inv when MarshalOptions.Format is empty: the format of
+// the national block (invoice.Italy.Format), or FormatPA when the buyer's
+// electronic address (BT-49) is an IPA code (scheme 0201) and FormatPrivate
+// otherwise. Parse keeps the format in the national block only when it is
+// not the one that the buyer implies: FormatOf gives the format of an
+// invoice read.
+func FormatOf(inv *invoice.Invoice) string {
+	if inv.Italy != nil && inv.Italy.Format != "" {
+		return inv.Italy.Format
+	}
+	return formatFor(inv)
 }
 
 // formatFor returns the transmission format of an invoice whose national
@@ -727,14 +751,15 @@ func (w *writer) general() {
 	w.start("DatiGenerali")
 	w.document()
 
-	// The tender reference (BT-17) goes with the contract, or with the
-	// order when there is no contract.
+	// The project (BT-11) and tender (BT-17) references, the CUP and the
+	// CIG, go with the contract, or with the order when there is no
+	// contract.
 	orders, contracts := it.PurchaseOrders, it.Contracts
-	tender := inv.TenderReference()
+	project, tender := inv.ProjectReference, inv.TenderReference()
 	if id := inv.PurchaseOrderReference; id != "" && !hasID(orders, id) {
 		order := invoice.RelatedDocument{ID: id, OrderCode: inv.BuyerReference}
 		if inv.ContractReference == "" {
-			order.CIG, tender = tender, ""
+			order.CUP, order.CIG, project, tender = project, tender, "", ""
 		}
 		orders = append([]invoice.RelatedDocument{order}, orders...)
 	} else {
@@ -742,9 +767,9 @@ func (w *writer) general() {
 	}
 	w.related("DatiOrdineAcquisto", orders)
 	if id := inv.ContractReference; id != "" && !hasID(contracts, id) {
-		contracts = append([]invoice.RelatedDocument{{ID: id, CUP: inv.ProjectReference, CIG: tender}}, contracts...)
+		contracts = append([]invoice.RelatedDocument{{ID: id, CUP: project, CIG: tender}}, contracts...)
 	} else {
-		w.loseIf(inv.ProjectReference != "", "BT-11")
+		w.loseIf(project != "", "BT-11")
 		w.loseIf(tender != "", "BT-17")
 	}
 	w.related("DatiContratto", contracts)
