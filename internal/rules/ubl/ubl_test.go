@@ -156,6 +156,8 @@ func checkCases() []checkCase {
 		{name: "scheme name", old: "<cbc:ID>INV-1</cbc:ID>", new: `<cbc:ID schemeName="x">INV-1</cbc:ID>`, want: []string{"UBL-DT-08"}},
 		{name: "name attribute", old: "<cbc:InvoiceTypeCode>", new: `<cbc:InvoiceTypeCode name="x">`, want: []string{"UBL-DT-18"}},
 		{name: "payment means name", old: "<!--payment-->", new: `<cac:PaymentMeans><cbc:PaymentMeansCode name="Cash">10</cbc:PaymentMeansCode></cac:PaymentMeans>`},
+		{name: "payment means names", old: "<!--payment-->", new: `<cac:PaymentMeans><cbc:PaymentMeansCode name="Cash">10</cbc:PaymentMeansCode></cac:PaymentMeans><cac:PaymentMeans><cbc:PaymentMeansCode name="Cash">10</cbc:PaymentMeansCode></cac:PaymentMeans>`, want: []string{"UBL-SR-46"}},
+		{name: "seller identifiers of another tax scheme", old: "</cac:PartyTaxScheme>", new: `</cac:PartyTaxScheme><cac:PartyTaxScheme><cbc:CompanyID>201/113/40209</cbc:CompanyID><cbc:CompanyID>201/113/40210</cbc:CompanyID><cac:TaxScheme><cbc:ID>FC</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>`, want: []string{"UBL-SR-13"}},
 		{name: "G-account elements", old: "<!--payment-->", new: gaPayment, want: []string{"UBL-CR-411", "UBL-CR-453", "UBL-CR-459"}},
 		{name: "G-account elements with the extension", old: "<!--payment-->", new: gaPayment, old2: cenSpecification, new2: gaSpec},
 		{name: "G-account extension keeps the other syntax rules", old: "<!--payment-->", new: strings.Replace(gaPayment, "<!--terms-->", "<cbc:ID>T1</cbc:ID>", 1), old2: cenSpecification, new2: gaSpec, want: []string{"UBL-CR-452"}},
