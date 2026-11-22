@@ -119,13 +119,15 @@ func (s *pdfaScan) contentState() *contentState {
 }
 
 // decodeContent decodes a content stream, or returns nil when it cannot be
-// decoded or the content read is over maxContentBytes.
+// decoded or the content read is over maxContentBytes. The buffer is lent
+// by the scratch of the scan: the content must not be used once the scan
+// ends.
 func (s *pdfaScan) decodeContent(st *pdf.Stream) []byte {
 	cs := s.contentState()
 	if cs.bytes > maxContentBytes {
 		return nil
 	}
-	data, err := s.c.r.Decode(st)
+	data, err := s.c.r.DecodeScratch(st, 0, &s.scratch)
 	if err != nil {
 		return nil
 	}

@@ -5,7 +5,16 @@
 // 1, 2, 5, 10, 20, 50… until one series lasts BENCHTIME seconds, then COUNT
 // timed series of N calls on the monotonic clock, with the process CPU time
 // of each series (cpu_ns_per_op). One thread, no forced GC.
+//
+// measureAlloc gives instead the bytes one call allocates, in a process
+// started with --expose-gc and a young generation of 64 MB (run.sh alloc).
+// V8 does not count its allocations: the bytes are the growth of the V8 heap
+// (heapUsed) and of the ArrayBuffer backing stores during a series of calls,
+// plus what each garbage collection of the series freed (v8.GCProfiler). The
+// series is sized so that no collection runs; when one does all the same,
+// the ArrayBuffers it freed are missed, and gcs says so.
 import { readFileSync } from 'node:fs';
+import v8 from 'node:v8';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -106,8 +115,74 @@ export function maxRSSBytes() {
 	return process.resourceUsage().maxRSS * 1024;
 }
 
-// record builds one bench_typescript.jsonl (or resources_typescript.jsonl) line.
+const ALLOC_WINDOW_NS = 2e8; // length aimed at for the counted series
+const YOUNG_BUDGET = 32e6; // bytes a series may allocate: half the young generation
+
+// window runs k calls and returns the bytes they allocated.
+async function allocWindow(fn, k, isAsync) {
+	globalThis.gc();
+	globalThis.gc();
+	const p = new v8.GCProfiler();
+	p.start();
+	const m0 = process.memoryUsage();
+	let r;
+	if (isAsync) for (let i = 0; i < k; i++) r = await fn();
+	else for (let i = 0; i < k; i++) r = fn();
+	const m1 = process.memoryUsage();
+	const { statistics } = p.stop();
+	sink = r;
+	let freed = 0;
+	for (const s of statistics) freed += s.beforeGC.heapStatistics.usedHeapSize - s.afterGC.heapStatistics.usedHeapSize;
+	const bytes = m1.heapUsed - m0.heapUsed + freed + Math.max(0, m1.arrayBuffers - m0.arrayBuffers);
+	return { bytes, gcs: statistics.length };
+}
+
+// measureAlloc checks the first result like measure, warms up (at least 3
+// calls, up to 100 calls or 0.2 s), then counts the bytes of a series of about
+// 0.2 s (1 to 1000 calls) that fits in the young generation.
+export async function measureAlloc(fn, check) {
+	if (typeof globalThis.gc !== 'function') throw new Error('lancer node avec --expose-gc (run.sh alloc)');
+	const t0 = now();
+	let res = fn();
+	const isAsync = isThenable(res);
+	if (isAsync) res = await res;
+	const first = Number(now() - t0);
+	if (check) await check(res);
+	sink = res;
+
+	const tw = now();
+	let warm = 0;
+	while (warm < 3 || (warm < 100 && Number(now() - tw) < ALLOC_WINDOW_NS)) {
+		sink = isAsync ? await fn() : fn();
+		warm++;
+	}
+	const per = Math.max(1, Number(now() - tw) / warm);
+	const one = await allocWindow(fn, 1, isAsync);
+	let calls = Math.max(1, Math.min(1000, Math.floor(ALLOC_WINDOW_NS / per), Math.floor(YOUNG_BUDGET / Math.max(1, one.bytes))));
+	let w = await allocWindow(fn, calls, isAsync);
+	while (w.gcs > 0 && calls > 1) {
+		calls = Math.max(1, Math.floor(calls / 4));
+		w = await allocWindow(fn, calls, isAsync);
+	}
+	return { alloc: { allocs: null, bytes: Math.round(w.bytes / calls), calls, gcs: w.gcs }, first_call_ns: first };
+}
+
+// record builds one bench_typescript.jsonl (or resources_typescript.jsonl)
+// line, or one alloc_typescript.jsonl line when fields.alloc is set.
 export function record(adapter, bench, fields) {
+	if (fields.alloc) {
+		return {
+			lang: LANG,
+			lib: adapter.lib,
+			pkg: adapter.pkg,
+			version: pkgVersion(adapter.pkg),
+			bench,
+			status: fields.status,
+			...fields.alloc,
+			first_call_ns: fields.first_call_ns ?? null,
+			note: fields.note ?? '',
+		};
+	}
 	return {
 		lang: LANG,
 		lib: adapter.lib,

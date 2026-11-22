@@ -2,12 +2,38 @@ package de
 
 import "github.com/ritoon/zerechnung/internal/rules"
 
-// UBLCatalog lists the 57 assertions that Check applies to a UBL invoice, in
+// UBLCatalog lists the 77 assertions that Check applies to a UBL invoice, in
 // the order of the XRechnung UBL schematron, with the severity of their flag:
-// the 56 assertions of the patterns ubl-pattern, ubl-extension-pattern and
-// ubl-cvd-pattern, and PEPPOL-EN16931-R043. An identifier that is also in
-// Catalog has the same severity and description.
+// the 21 of the Peppol patterns peppol-ubl-pattern-1 and peppol-ubl-pattern-2,
+// then the 56 of the patterns ubl-pattern, ubl-extension-pattern and
+// ubl-cvd-pattern. An identifier that is also in Catalog has the same
+// severity and description.
 var UBLCatalog = []rules.RuleInfo{
+	// peppol-ubl-pattern-1: empty elements.
+	{ID: "PEPPOL-EN16931-R008", Severity: rules.Error, Description: "The document must not contain empty elements."},
+
+	// peppol-ubl-pattern-2: Peppol rules adapted by KoSIT.
+	{ID: "PEPPOL-EN16931-R001", Severity: rules.Error, Description: "The Business process type (BT-23) must be provided."},
+	{ID: "PEPPOL-EN16931-R053", Severity: rules.Error, Description: "At most one Invoice total VAT amount (BT-110) may be given in the Invoice currency; in UBL, exactly one tax total with VAT breakdown."},
+	{ID: "PEPPOL-EN16931-R054", Severity: rules.Error, Description: "The Invoice total VAT amount in accounting currency (BT-111) must be given once if and only if the VAT accounting currency code (BT-6) is."},
+	{ID: "PEPPOL-EN16931-R055", Severity: rules.Error, Description: "The Invoice total VAT amount (BT-110) and the Invoice total VAT amount in accounting currency (BT-111) must have the same sign."},
+	{ID: "PEPPOL-EN16931-R005", Severity: rules.Error, Description: "The VAT accounting currency code (BT-6) must differ from the Invoice currency code (BT-5)."},
+	{ID: "PEPPOL-EN16931-R010", Severity: rules.Error, Description: "The Buyer electronic address (BT-49) must be provided."},
+	{ID: "PEPPOL-EN16931-R020", Severity: rules.Error, Description: "The Seller electronic address (BT-34) must be provided."},
+	{ID: "PEPPOL-EN16931-R041", Severity: rules.Error, Description: "An allowance or charge with a percentage must have a base amount."},
+	{ID: "PEPPOL-EN16931-R042", Severity: rules.Error, Description: "An allowance or charge with a base amount must have a percentage."},
+	{ID: "PEPPOL-EN16931-R040", Severity: rules.Error, Description: "The amount of an allowance or charge with a base amount and a percentage must be base amount x percentage / 100, give or take 0.02 (0.5 in HUF)."},
+	{ID: "PEPPOL-EN16931-R043", Severity: rules.Error, Description: "The allowance or charge indicator must be 'true' or 'false'."},
+	{ID: "PEPPOL-EN16931-R061", Severity: rules.Error, Description: "A direct debit (payment means code 49 or 59) must have a Mandate reference identifier (BT-89)."},
+	{ID: "PEPPOL-EN16931-R110", Severity: rules.Error, Description: "The Invoice line period start date (BT-134) must not be before the Invoicing period start date (BT-73)."},
+	{ID: "PEPPOL-EN16931-R111", Severity: rules.Error, Description: "The Invoice line period end date (BT-135) must not be after the Invoicing period end date (BT-74)."},
+	{ID: "PEPPOL-EN16931-R120", Severity: rules.Warning, Description: "The Invoice line net amount (BT-131) should be quantity x (net price / base quantity) + line charges - line allowances, give or take 0.02 (0.5 in HUF)."},
+	{ID: "PEPPOL-EN16931-R121", Severity: rules.Error, Description: "The Item price base quantity (BT-149) must be above zero."},
+	{ID: "PEPPOL-EN16931-R101", Severity: rules.Error, Description: "An Invoice line object identifier (BT-128) must have the type code 130."},
+	{ID: "PEPPOL-EN16931-R044", Severity: rules.Error, Description: "An Item price discount (BT-147) must not be a charge."},
+	{ID: "PEPPOL-EN16931-R046", Severity: rules.Error, Description: "The Item net price (BT-146) must be the Item gross price (BT-148) minus the Item price discount (BT-147)."},
+	{ID: "PEPPOL-EN16931-R130", Severity: rules.Error, Description: "The unit of the Item price base quantity (BT-150) must be the unit of the Invoiced quantity (BT-130)."},
+
 	// ubl-pattern: XRechnung CIUS.
 	{ID: "BR-DE-1", Severity: rules.Error, Description: "An invoice must contain information on PAYMENT INSTRUCTIONS (BG-16)."},
 	{ID: "BR-DE-15", Severity: rules.Error, Description: "The element Buyer reference (BT-10) must be transmitted."},
@@ -69,7 +95,4 @@ var UBLCatalog = []rules.RuleInfo{
 	{ID: "BR-TMP-CVD-01", Severity: rules.Error, Description: "The scheme identifier of the Item classification identifier (BT-158) must come from UNTDID 7143."},
 	{ID: "BR-DE-CVD-04", Severity: rules.Error, Description: "An Item classification identifier of scheme 'CVD' must be a vehicle category M1, M2, M3, N1, N2 or N3."},
 	{ID: "BR-DE-CVD-05", Severity: rules.Error, Description: "The Item attribute value of the attribute 'cva' must be clean, zero-emission or other."},
-
-	// peppol-ubl-pattern-2.
-	{ID: "PEPPOL-EN16931-R043", Severity: rules.Error, Description: "The allowance or charge indicator must be 'true' or 'false'."},
 }

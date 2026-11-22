@@ -12,14 +12,15 @@ import (
 
 // reference is a reference validator.
 type reference struct {
-	Key     string                       // kosit, mustang, npa: the name used in known.txt
+	Key     string                       // kosit, mustang, npa, pt: the name used in known.txt
 	Title   string                       // for the report
 	dir     string                       // sub-directory of the work directory holding its reports
 	report  func(e entry) string         // name of the report of an invoice
-	parse   func([]byte) (result, error) // reads a report; nil for npa, whose reports npaRun.result reads
+	parse   func([]byte) (result, error) // reads a report; nil for npa and pt, whose reports npaRun.result and ptRun.result read
 	applies func(e entry) bool           // the validator was given the invoice
 	ours    func(string, []byte) result  // validates the invoice with this package
 	levels  bool                         // warnings and informations are compared too, not only errors
+	located bool                         // the rules are keyed RULE@PATH: compared on their element too
 }
 
 var references = []reference{
@@ -29,7 +30,7 @@ var references = []reference{
 		dir:     "kosit",
 		report:  func(e entry) string { return strings.TrimSuffix(e.Name, ".xml") + "-report.xml" },
 		parse:   parseKoSIT,
-		applies: func(e entry) bool { return !e.isPDF() && !e.nl() },
+		applies: func(e entry) bool { return !e.isPDF() && !e.national() },
 		ours:    ours,
 	},
 	{
@@ -38,7 +39,7 @@ var references = []reference{
 		dir:     "mustang",
 		report:  func(e entry) string { return e.Name + ".xml" },
 		parse:   parseMustang,
-		applies: func(e entry) bool { return !e.nl() },
+		applies: func(e entry) bool { return !e.national() && !e.variant() },
 		ours:    ours,
 	},
 	{
@@ -50,6 +51,16 @@ var references = []reference{
 		ours:    oursNL,
 		levels:  true,
 	},
+	{
+		Key:     "pt",
+		Title:   "Schematron CIUS-PT 2.1.1 d'eSPap (SchXslt 1.10.1, Saxon-HE 12.10)",
+		dir:     "pt",
+		report:  func(e entry) string { return e.Name + ".svrl" },
+		applies: func(e entry) bool { return e.pt() },
+		ours:    oursPT,
+		levels:  true,
+		located: true,
+	},
 }
 
 // comparison is the comparison of one invoice with one reference.
@@ -59,8 +70,9 @@ type comparison struct {
 	Negative   bool     `json:"negative"`
 	Ours       result   `json:"ours"`
 	Ref        result   `json:"ref"`
+	Expected   []string `json:"expected,omitempty"`   // rules that the mutation case of a variant expects
 	Known      []string `json:"known,omitempty"`      // justified differences, "+RULE: reason"
-	Unexpected []string `json:"unexpected,omitempty"` // "+RULE" raised as an error by this package only, "-RULE" by the reference only
+	Unexpected []string `json:"unexpected,omitempty"` // "+RULE" raised as an error by this package only, "-RULE" by the reference only, "?RULE" expected by the mutation case and not raised by the reference
 }
 
 func (c *comparison) identical() bool { return len(c.Known) == 0 && len(c.Unexpected) == 0 }
@@ -68,9 +80,9 @@ func (c *comparison) identical() bool { return len(c.Known) == 0 && len(c.Unexpe
 // knownDiff is a line of known.txt: a difference that is understood and
 // justified.
 type knownDiff struct {
-	ref    string // kosit, mustang, npa or *
+	ref    string // kosit, mustang, npa, pt or *
 	glob   string // origin of the invoice, * matching any string (/ included); for ~RULE, syntax/pattern
-	diff   string // +RULE, -RULE, or ~RULE (an NLCIUS assertion that the XSLT never raise); a final * matches a prefix
+	diff   string // +RULE, -RULE (+RULE@PATH, -RULE@PATH for pt), ?RULE (expected by a mutation case, not raised by the reference) or ~RULE (an NLCIUS assertion that the XSLT never raise); a final * matches a prefix
 	reason string
 	line   int
 	used   bool
@@ -106,8 +118,8 @@ func glob(pattern, s string) bool {
 }
 
 // readKnown reads known.txt: one difference per line, "reference invoice
-// difference reason", # starting a comment. A difference is +RULE, -RULE or
-// ~RULE.
+// difference reason", # starting a comment. A difference is +RULE, -RULE,
+// ?RULE or ~RULE.
 func readKnown(name string) ([]*knownDiff, error) {
 	if name == "" {
 		return nil, nil
@@ -125,7 +137,7 @@ func readKnown(name string) ([]*knownDiff, error) {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) < 4 || !strings.ContainsRune("+-~", rune(fields[2][0])) {
+		if len(fields) < 4 || !strings.ContainsRune("+-?~", rune(fields[2][0])) {
 			return nil, fmt.Errorf("%s:%d: want \"reference invoice ±RULE reason\" or \"reference syntax/pattern ~RULE reason\"", name, n)
 		}
 		out = append(out, &knownDiff{
@@ -138,12 +150,28 @@ func readKnown(name string) ([]*knownDiff, error) {
 
 // report is the JSON report.
 type report struct {
-	Comparisons []comparison `json:"comparisons"`
-	NeverFired  []neverFired `json:"never_fired,omitempty"`
+	Comparisons   []comparison    `json:"comparisons"`
+	NeverFired    []neverFired    `json:"never_fired,omitempty"`
+	KoSITCoverage []kositCoverage `json:"kosit_coverage,omitempty"`
 }
 
-func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
+func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error) {
 	entries, err := readIndex(work)
+	if err != nil {
+		return false, err
+	}
+	expected, err := readExpectedRules(work)
+	if err != nil {
+		return false, err
+	}
+	var xsls []kositXSL
+	if kositConfig != "" {
+		if xsls, err = kositStylesheets(kositConfig); err != nil {
+			return false, err
+		}
+	}
+	syntax := map[string]string{} // origin → cii, ubl
+	failed, err := kositFailures(filepath.Join(work, "kosit.log"))
 	if err != nil {
 		return false, err
 	}
@@ -152,6 +180,10 @@ func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
 		return false, err
 	}
 	npa, err := newNPaRun(work)
+	if err != nil {
+		return false, err
+	}
+	pt, err := newPTRun(work)
 	if err != nil {
 		return false, err
 	}
@@ -170,6 +202,7 @@ func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		syntax[e.Source] = docSyntax(data)
 		mine := map[string]result{} // by reference
 		for _, ref := range references {
 			if !ref.applies(e) {
@@ -180,15 +213,27 @@ func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
 				return false, fmt.Errorf("%s (%s): %w", e.Source, ref.Key, err)
 			}
 			var r result
-			if ref.Key == "npa" {
+			switch ref.Key {
+			case "npa":
 				r, err = npa.result(e, rdata)
-			} else {
+			case "pt":
+				r, err = pt.result(e, rdata)
+			default:
 				r, err = ref.parse(rdata)
 			}
 			if err != nil {
 				return false, fmt.Errorf("%s: %s report: %w", e.Source, ref.Key, err)
 			}
+			if f, ok := failed[e.Name]; ok && ref.Key == "kosit" {
+				r.Stopped = kositFailure + f
+			}
 			if !r.Covered {
+				if e.variant() {
+					// A variant is written for the reference: one it does
+					// not check would no longer test its rules.
+					all = append(all, comparison{Reference: ref.Key, Invoice: e.Source, Ref: r,
+						Unexpected: []string{"!" + ref.Key + ": " + r.Note}})
+				}
 				continue
 			}
 			m, ok := mine[ref.Key]
@@ -196,8 +241,15 @@ func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
 				m = ref.ours(e.Name, data)
 				mine[ref.Key] = m
 			}
-			c := comparison{Reference: ref.Key, Invoice: e.Source, Negative: e.negative(), Ours: m, Ref: r}
-			diffs := diff(m.Rules, r, ref.levels)
+			c := comparison{Reference: ref.Key, Invoice: e.Source, Negative: e.negative(), Ours: m, Ref: r, Expected: expected[e.Source]}
+			rules := m.Rules
+			if ref.located && r.Stopped != "" {
+				rules = unlocated(rules) // Saxon does not say on which element it stopped
+			}
+			// The warnings and informations of the variants are compared too:
+			// many of the rules they break are warnings.
+			diffs := diff(rules, r, ref.levels || e.variant())
+			diffs = append(diffs, missing(c.Expected, r, diffs)...)
 			if m.Failure != "" {
 				diffs = append(diffs, "!ZeRechnung: "+m.Failure)
 			}
@@ -235,7 +287,8 @@ func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
 			unused = append(unused, fmt.Sprintf("known.txt:%d: %s %s %s matches no difference", k.line, k.ref, k.glob, k.diff))
 		}
 	}
-	md := markdown(all, never, unused)
+	coverage := coverageOf(xsls, all, syntax)
+	md := markdown(all, never, unused, coverage)
 	fmt.Print(md)
 	if mdFile != "" {
 		if err := os.WriteFile(mdFile, []byte(md), 0o644); err != nil {
@@ -243,7 +296,7 @@ func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
 		}
 	}
 	if jsonFile != "" {
-		b, err := json.MarshalIndent(report{Comparisons: all, NeverFired: never}, "", "  ")
+		b, err := json.MarshalIndent(report{Comparisons: all, NeverFired: never, KoSITCoverage: coverage}, "", "  ")
 		if err != nil {
 			return false, err
 		}
@@ -252,6 +305,26 @@ func compare(work, knownFile, mdFile, jsonFile string) (bool, error) {
 		}
 	}
 	return ok, nil
+}
+
+// missing lists, as "?RULE", the rules that the mutation case of a variant
+// expects and that the reference does not raise, at any level: the variant
+// no longer tests them at the reference. A rule that this package raises
+// alone is already the difference "+RULE", and only the rules that take part
+// in the comparison count. When the reference stopped on a dynamic error,
+// its other assertions are unknown.
+func missing(expected []string, ref result, diffs []string) []string {
+	if ref.Stopped != "" {
+		return nil
+	}
+	var out []string
+	for _, rule := range expected {
+		if _, ok := ref.Rules[rule]; ok || !compared(rule) || slices.Contains(diffs, "+"+rule) {
+			continue
+		}
+		out = append(out, "?"+rule)
+	}
+	return out
 }
 
 // equivalents maps the assertions of the Factur-X 1.09.2 schematrons that
@@ -323,14 +396,20 @@ func errorsOf(m map[string]string) []string {
 // a warning or an information by the other is a difference: the level
 // decides the verdict. With levels, the warnings and informations are
 // compared too: a rule raised at a higher level by this package is "+RULE",
-// at a higher level by the reference "-RULE". When the reference stopped on
-// a dynamic error, only the rule that raised it is compared.
+// at a higher level by the reference "-RULE". When the reference stopped (on
+// a dynamic error, or after the XML schema), only the rules it raised are
+// compared.
 func diff(mine map[string]string, ref result, levels bool) []string {
 	if levels {
 		return diffLevels(mine, ref)
 	}
 	var out []string
 	mineErr, refErr := errorsOf(mine), errorsOf(ref.Rules)
+	if ref.Stopped != "" {
+		mineErr = slices.DeleteFunc(mineErr, func(m string) bool {
+			return !slices.ContainsFunc(refErr, func(r string) bool { return same(r, m) })
+		})
+	}
 	for _, m := range mineErr {
 		if !compared(m) {
 			continue // an equivalent only

@@ -1,0 +1,272 @@
+name: Docker
+
+# The image of zerechnung-server on Docker Hub, for Linux (amd64, arm64,
+# arm/v7) and Windows (Nano Server ltsc2022 and ltsc2025), under one
+# multi-OS tag; and the binaries of the releases.
+#
+# Pull requests build and smoke-test every image without pushing. A push to
+# main publishes the tag edge; a tag vX.Y.Z publishes X.Y.Z, X.Y and latest
+# (a pre-release such as v1.2.0-rc.1 publishes its own tag only), and
+# attaches the binaries to the GitHub release.
+#
+# Settings of the repository:
+#   secrets DOCKERHUB_USERNAME, DOCKERHUB_TOKEN  Docker Hub account and access
+#                                                token (Read & Write; Read,
+#                                                Write & Delete to update the
+#                                                description of the repository)
+#   variable DOCKERHUB_IMAGE                     image name, ritoon/zerechnung
+#                                                by default
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ${{ vars.DOCKERHUB_IMAGE || 'ritoon/zerechnung' }}
+
+jobs:
+  meta:
+    name: Version and tags
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      primary: ${{ steps.meta.outputs.primary }}
+      tags: ${{ steps.meta.outputs.tags }}
+      push: ${{ steps.meta.outputs.push }}
+    steps:
+      - id: meta
+        env:
+          HAS_TOKEN: ${{ secrets.DOCKERHUB_TOKEN != '' }}
+        run: |
+          push=false
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              v=${GITHUB_REF#refs/tags/v}
+              version=v$v
+              if [[ $v =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                tags="$v ${v%.*} latest"
+              else
+                tags=$v
+              fi
+              push=true
+              ;;
+            refs/heads/main)
+              version=edge-${GITHUB_SHA::12}
+              tags=edge
+              push=true
+              ;;
+            *)
+              version=dev-${GITHUB_SHA::12}
+              tags=dev
+              ;;
+          esac
+          if [ "$push" = true ] && [ "$HAS_TOKEN" != true ]; then
+            echo "::warning::DOCKERHUB_TOKEN is not set: the images are built but not pushed"
+            push=false
+          fi
+          {
+            echo "version=$version"
+            echo "primary=${tags%% *}"
+            echo "tags=$tags"
+            echo "push=$push"
+          } >>"$GITHUB_OUTPUT"
+          echo "version $version, tags: $tags, push: $push"
+
+  linux:
+    name: Linux image (amd64, arm64, arm/v7)
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build linux/amd64 for the smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          platforms: linux/amd64
+          build-args: VERSION=${{ needs.meta.outputs.version }}
+          load: true
+          tags: zerechnung:smoke
+          cache-from: type=gha,scope=linux
+          cache-to: type=gha,mode=max,scope=linux
+      - name: Smoke test
+        run: server/scripts/smoke.sh zerechnung:smoke
+      - name: Log in to Docker Hub
+        if: needs.meta.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # The binaries are cross-compiled on the runner's platform: no
+      # emulation is needed for arm64 and arm/v7.
+      - name: Build (and push) every platform
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          build-args: VERSION=${{ needs.meta.outputs.version }}
+          push: ${{ needs.meta.outputs.push == 'true' }}
+          tags: ${{ env.IMAGE }}:${{ needs.meta.outputs.primary }}-linux
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=linux
+
+  windows:
+    name: Windows image (${{ matrix.version }})
+    needs: meta
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            version: ltsc2022
+          - runner: windows-2025
+            version: ltsc2025
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build
+        run: >-
+          docker build -f server/Dockerfile.windows
+          --build-arg WINDOWS_VERSION=${{ matrix.version }}
+          --build-arg VERSION=${{ needs.meta.outputs.version }}
+          -t zerechnung:smoke .
+      - name: Smoke test
+        run: ./server/scripts/smoke.ps1 zerechnung:smoke
+      - name: Log in to Docker Hub
+        if: needs.meta.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push
+        if: needs.meta.outputs.push == 'true'
+        env:
+          TAG: ${{ env.IMAGE }}:${{ needs.meta.outputs.primary }}-nanoserver-${{ matrix.version }}
+        run: |
+          docker tag zerechnung:smoke $env:TAG
+          docker push $env:TAG
+
+  manifest:
+    # One tag for every OS and architecture: Docker picks the image of the
+    # host, and on Windows the one whose os.version matches the host's.
+    name: Multi-OS tags on Docker Hub
+    needs: [meta, linux, windows]
+    if: needs.meta.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Create the tags
+        env:
+          PRIMARY: ${{ needs.meta.outputs.primary }}
+          TAGS: ${{ needs.meta.outputs.tags }}
+        run: |
+          set -eu
+          args=()
+          for t in $TAGS; do args+=(-t "$IMAGE:$t"); done
+          docker buildx imagetools create "${args[@]}" \
+            "$IMAGE:$PRIMARY-linux" \
+            "$IMAGE:$PRIMARY-nanoserver-ltsc2022" \
+            "$IMAGE:$PRIMARY-nanoserver-ltsc2025"
+          docker buildx imagetools inspect "$IMAGE:$PRIMARY"
+      - name: Check the platforms of the index
+        env:
+          PRIMARY: ${{ needs.meta.outputs.primary }}
+        run: |
+          set -eu
+          index=$(docker buildx imagetools inspect --raw "$IMAGE:$PRIMARY")
+          for p in linux/amd64 linux/arm64 linux/arm windows/amd64; do
+            echo "$index" | jq -e --arg p "$p" '[.manifests[].platform | select(.os + "/" + .architecture == $p)] | length > 0' >/dev/null \
+              || { echo "::error::no $p image in $IMAGE:$PRIMARY"; exit 1; }
+          done
+          # Windows hosts pick their image by os.version: one per version.
+          n=$(echo "$index" | jq '[.manifests[].platform | select(.os == "windows") | .["os.version"] | select(. != null)] | unique | length')
+          [ "$n" = 2 ] || { echo "::error::$n Windows os.version in the index, want 2"; exit 1; }
+
+  description:
+    name: Description of the Docker Hub repository
+    needs: [meta, manifest]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # The token needs the scope Read, Write & Delete.
+      - uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.IMAGE }}
+          short-description: "HTTP API for e-invoices (Factur-X, ZUGFeRD, XRechnung): PDF/A-3, PAdES signature, validation"
+          readme-filepath: server/DOCKERHUB.md
+
+  binaries:
+    # zerechnung-server and the zerechnung command, for running without
+    # Docker: Windows, macOS and Linux.
+    name: Release binaries
+    needs: meta
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Build
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          set -eu
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 linux/arm/7 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            IFS=/ read -r os arch arm <<<"$target"
+            name=zerechnung-$VERSION-$os-$arch${arm:+v$arm}
+            ext=; [ "$os" = windows ] && ext=.exe
+            dir=dist/$name
+            mkdir -p "$dir"
+            export CGO_ENABLED=0 GOOS=$os GOARCH=$arch GOARM=$arm GOFLAGS="-trimpath -buildvcs=false"
+            ldflags="-s -w -X main.version=$VERSION"
+            go build -ldflags "$ldflags" -o "$dir/zerechnung$ext" ./cmd/zerechnung
+            (cd server && go build -ldflags "$ldflags" -o "../$dir/zerechnung-server$ext" ./cmd/zerechnung-server)
+            cp LICENSE "$dir/LICENSE"
+            cp server/internal/render/fonts/LICENSE "$dir/LICENSE.fonts"
+            if [ "$os" = windows ]; then
+              (cd dist && zip -qr "$name.zip" "$name")
+            else
+              tar -C dist -czf "dist/$name.tar.gz" "$name"
+            fi
+            rm -rf "$dir"
+          done
+          (cd dist && sha256sum -- * >checksums.txt)
+          ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binaries
+          path: dist/
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes
+          gh release upload "$TAG" dist/* --clobber

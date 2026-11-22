@@ -46,7 +46,28 @@
     </div>
   </section>
 
-  <section id="resources" class="alt">
+  {{with .Bench.Memory}}<section id="memory" class="alt">
+    <div class="wrap">
+      <h2>{{$.T.bm_mem_title}}</h2>
+      <p class="section-lead">{{$.T.bm_mem_lead}}</p>
+      <p class="bm-scale">{{$.T.bm_mem_scale}}</p>
+      <div class="charts">
+        {{range .Go}}{{template "chart" (dict "C" . "Page" $ "Poly" false)}}{{end}}
+      </div>
+    </div>
+  </section>
+
+  <section id="memory-languages">
+    <div class="wrap">
+      <h2>{{$.T.bm_mem_poly_title}}</h2>
+      <p class="section-lead">{{$.T.bm_mem_poly_lead}}</p>
+      <div class="charts">
+        {{range .Poly}}{{template "chart" (dict "C" . "Page" $ "Poly" true)}}{{end}}
+      </div>
+    </div>
+  </section>
+
+  {{end}}<section id="resources" class="alt">
     <div class="wrap">
       <h2>{{.T.bm_res_title}}</h2>
       <p class="section-lead">{{.T.bm_res_lead}}</p>
@@ -88,7 +109,7 @@
         <table>
           <tbody>
             <tr><th scope="row">{{.T.bm_env_machine}}</th><td>Apple M4 Pro · 24 GB · macOS 26.6</td></tr>
-            <tr><th scope="row">Go</th><td>1.26.4 · <code>go test -bench . -benchmem -count 3 -benchtime 1s</code><br>{{.Fmt "bm_env_go_poly" "1.27.4"}}</td></tr>
+            <tr><th scope="row">Go</th><td>1.27.4 · <code>go test -bench . -benchmem -count 3 -benchtime 1s</code></td></tr>
             <tr><th scope="row">TypeScript</th><td>Node 22.15.0</td></tr>
             <tr><th scope="row">Python</th><td>CPython 3.13.18</td></tr>
             <tr><th scope="row">Rust</th><td>rustc 1.93.1, release</td></tr>
@@ -97,6 +118,7 @@
             <tr><th scope="row">C, C++</th><td>Apple clang 21, CMake Release</td></tr>
             <tr><th scope="row">PHP</th><td>PHP 8.6.0 CLI, <code>opcache.enable_cli=0</code></td></tr>
             <tr><th scope="row">{{.T.bm_env_value}}</th><td>{{.T.bm_env_median}}</td></tr>
+            {{if .Bench.Memory}}<tr><th scope="row">{{.T.bm_env_memory}}</th><td>{{.T.bm_env_alloc}}</td></tr>{{end}}
           </tbody>
         </table>
       </div>
@@ -115,20 +137,20 @@
 
 {{define "chart"}}{{$p := .Page}}{{$c := .C}}<figure class="chart" style="--n: {{len $c.Ticks | dec}}">
   <figcaption><h3>{{index $p.T $c.Op}}</h3><span>{{index $p.T $c.Input}}</span></figcaption>
-  <table class="bars{{if $c.Floor}} has-floor{{end}}{{if gt (len $c.Ticks) 4}} dense{{end}}{{if $c.Sparse}} sparse{{end}}"{{if $c.Floor}} style="--floor: {{$c.FloorAt}}%"{{end}}>
-    <thead class="sr"><tr><th scope="col">{{$p.T.bm_th_lib}}</th><th scope="col">{{$p.T.bm_th_bar}}</th><th scope="col">{{$p.T.bm_th_time}}</th>{{if $c.Flagged}}<th scope="col">{{$p.T.bm_th_flagged}}</th>{{end}}</tr></thead>
+  <table class="bars{{if $c.Mem}} mem{{end}}{{if $c.Floor}} has-floor{{end}}{{if gt (len $c.Ticks) 4}} dense{{end}}"{{if $c.Floor}} style="--floor: {{$c.FloorAt}}%"{{end}}>
+    <thead class="sr"><tr><th scope="col">{{$p.T.bm_th_lib}}</th><th scope="col">{{if $c.Mem}}{{$p.T.bm_th_membar}}{{else}}{{$p.T.bm_th_bar}}{{end}}</th><th scope="col">{{if $c.Mem}}{{$p.T.bm_th_mem}}{{else}}{{$p.T.bm_th_time}}{{end}}</th>{{if $c.Flagged}}<th scope="col">{{$p.T.bm_th_flagged}}</th>{{end}}</tr></thead>
     <tbody>
       {{range $c.Rows}}<tr{{if .Ours}} class="ours"{{end}}>
         <th scope="row"><span class="lib">{{.Lib}}</span>{{if .Lang}}<span class="lang-tag">{{.Lang}}</span>{{end}}{{with .Note}}<span class="note">{{index $p.T .}}</span>{{end}}</th>
         {{if .Fail}}<td class="track fail" colspan="2">{{index $p.T .Fail}}</td>{{else}}<td class="track"><span class="bar" style="--w: {{.Width}}%"></span></td>
-        <td class="val">{{$p.Dur .US}}{{if not .Best}} <span class="x">{{$p.Times .Factor}}</span>{{end}}</td>{{end}}
+        <td class="val">{{$p.Val $c .V}}{{if not .Best}} <span class="x">{{$p.Times .Factor}}</span>{{end}}{{with .Allocs}}<span class="allocs">{{$p.Allocs .}}</span>{{end}}</td>{{end}}
         {{if $c.Flagged}}<td class="flag">{{with .Flagged}}{{.}}<span class="of">/26</span>{{end}}</td>{{end}}
       </tr>
       {{end}}
     </tbody>
-    <tfoot aria-hidden="true"><tr><td></td><td class="axis">{{range $c.Ticks}}<span style="--at: {{.At}}%">{{$p.Tick .US}}</span>{{end}}</td><td></td>{{if $c.Flagged}}<td></td>{{end}}</tr></tfoot>
+    <tfoot aria-hidden="true"><tr><td></td><td class="axis"><div>{{range $c.Ticks}}<span style="--at: {{.At}}%">{{$p.TickVal $c .V}}</span>{{end}}</div></td><td></td>{{if $c.Flagged}}<td></td>{{end}}</tr></tfoot>
   </table>
-  {{if $c.Floor}}<p class="chart-note"><span class="floor-key" aria-hidden="true"></span><span>{{if $c.FloorLib}}{{$p.Fmt "bm_floor_generic" ($p.Dur $c.Floor) $c.FloorLib}}{{else}}{{$p.Fmt "bm_floor" ($p.Dur $c.Floor)}}{{end}}</span></p>{{end}}
+  {{if $c.Floor}}<p class="chart-note"><span class="floor-key" aria-hidden="true"></span><span>{{if $c.FloorLib}}{{$p.Fmt $c.FloorText ($p.Val $c $c.Floor) $c.FloorLib}}{{else}}{{$p.Fmt $c.FloorText ($p.Val $c $c.Floor)}}{{end}}</span></p>{{end}}
   {{if $c.Flagged}}<p class="chart-note">{{$p.T.bm_flagged_note}}</p>{{end}}
 </figure>
 {{end}}

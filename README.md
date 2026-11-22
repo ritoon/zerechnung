@@ -17,10 +17,10 @@ ZeRechnung is a Go package for e-invoices in the Factur-X, ZUGFeRD and XRechnung
 Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL). It reads, writes, validates, signs and verifies FatturaPA, the national format of the Italian SDI, and reads, writes and validates Facturae, the Spanish format of FACe and of the B2B reform.
 
 - Pure Go, standard library only. No CGO, no Java, no external binary, no network calls.
-- All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS and CIUS-IT, in CII and UBL 2.1.
-- Validation compared with the reference validators (KoSIT, Mustang) on every pull request, with the French 2026 reform, German, Dutch, Italian and Peppol rules built in.
+- All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS and CIUS-IT, in CII and UBL 2.1, and CIUS-PT in UBL 2.1.
+- Validation compared with the reference validators (KoSIT, Mustang) on every pull request, with the French 2026 reform, German, Dutch, Italian, Portuguese and Peppol rules built in.
 - PDF/A-3 conversion of the PDFs that need no PDF engine for it, with the reasons for a refusal otherwise, checked by veraPDF in the CI.
-- Fast: reading and validating a typical invoice takes about 25 µs.
+- Fast and light: reading and validating a typical invoice takes about 25 µs and allocates 23 KB.
 
 > **Status: v0.** The API may still change before v1.
 
@@ -162,9 +162,10 @@ To pick the rules yourself:
 | French public sector (Chorus Pro) | `Rules: validate.Default \| validate.France \| validate.ChorusPro` |
 | Peppol BIS Billing 3.0 or NLCIUS | `validate.Peppol`, `validate.Netherlands` |
 | CIUS-IT, the Italian CIUS of EN 16931 (BR-IT) | `validate.Italy` |
+| CIUS-PT, the Portuguese CIUS of EN 16931 (BR-CIUS-PT, DT-CIUS-PT) | `validate.Portugal` |
 | An XML file instead of a PDF | `validate.XML(xml, opts)` |
 
-XRechnung, Peppol, NLCIUS and CIUS-IT invoices declare themselves, so their rules apply without any option. All the options and rule sets are described in [Validating invoices](https://github.com/ritoon/zerechnung/wiki/Validating-invoices).
+XRechnung, Peppol, NLCIUS, CIUS-IT and CIUS-PT invoices declare themselves, so their rules apply without any option. All the options and rule sets are described in [Validating invoices](https://github.com/ritoon/zerechnung/wiki/Validating-invoices).
 
 ### Work with the XML directly
 
@@ -307,13 +308,30 @@ warning [PDF] PDF-06: the catalog has no PDF/A output intent (/S /GTS_PDFA1) (ca
 |---|---|
 | `zerechnung info invoice.pdf` | Summarises the PDF and the invoice |
 | `zerechnung extract [-o out.xml] invoice.pdf` | Extracts the XML |
-| `zerechnung validate [-fr] [-de] [-auto] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae), and exits with code 1 on errors |
+| `zerechnung validate [-fr] [-de] [-auto] [-pdfa basic] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae), and exits with code 1 on errors; `-pdfa basic` skips the PDF/A checks that read the pages and the fonts |
 | `zerechnung embed -xml invoice.xml [-attach file]... [-convert-pdfa] input.pdf` | Embeds an XML invoice in a PDF, converting it to PDF/A-3 first with `-convert-pdfa` |
 | `zerechnung pdfa [-o out.pdf] input.pdf` | Converts a PDF to PDF/A-3, or prints why it cannot, one reason per line |
 | `zerechnung json file` | Prints the parsed invoice as JSON (CII, UBL, FatturaPA, signed `.xml.p7m` included, or Facturae; an array for a FatturaPA or Facturae batch) |
 | `zerechnung rules [-fr] [-de] ...` | Lists the rules that are implemented |
 
 Since `validate` exits with code 1 when it finds errors, you can drop it into a CI pipeline as is. Run `zerechnung help` for every flag.
+
+## HTTP server and Docker image
+
+`zerechnung-server` exposes the package as an HTTP API for microservices, in a [Docker image](https://hub.docker.com/r/ritoon/zerechnung) for Linux and Windows Server. One request turns invoice data into a signed Factur-X PDF: rendering as PDF/A-3, CII XML, validation and PAdES signature. Other endpoints validate, sign, verify, extract and convert invoices. Authentication uses a JWT or basic auth, the signing key is a PKCS#12 or PEM file, and logs can go to syslog, GELF, OpenTelemetry, Loki or HTTP.
+
+```bash
+docker run -d -p 8080:8080 \
+  -e ZR_BASIC_USERS='billing:change-me' \
+  -e ZR_SIGN_PKCS12_FILE=/run/secrets/sign.p12 -e ZR_SIGN_PKCS12_PASSWORD='p12 password' \
+  -v "$PWD/company.p12:/run/secrets/sign.p12:ro" \
+  ritoon/zerechnung
+
+curl -u billing:change-me -H 'Content-Type: application/json' \
+  --data-binary @server/examples/invoice-request.json -o invoice.pdf http://localhost:8080/v1/invoices
+```
+
+The [server's README](server/README.md) documents the endpoints, the settings and the deployment with Compose and Kubernetes. The server is a module of its own, as it uses the network (JWKS, log collectors), which this package never does.
 
 ## What's supported
 
@@ -324,21 +342,23 @@ Since `validate` exits with code 1 when it finds errors, you can drop it into a 
 | Peppol BIS Billing 3.0 (CII and UBL) | yes | yes | yes |
 | NLCIUS, the Netherlands (CII and UBL) | yes | yes | yes |
 | CIUS-IT, Italy (CII and UBL), with its extensions EXT-IT in UBL | yes | yes | yes |
+| CIUS-PT, Portugal (UBL) | yes | yes | yes |
 | UBL 2.1 Invoice and CreditNote (EN 16931) | yes | yes | yes |
 | FatturaPA 1.2, Italy (FPA12 and FPR12) | yes | yes | XSD 1.2.4 and the SDI checks on the content; CIUS-IT and EXT-IT rules through UBL |
 | FatturaPA signatures, CAdES (`.xml.p7m`) and XAdES | yes | yes, Baseline B | the SDI checks (§5.1.1) and the file size |
 | Facturae 3.2, 3.2.1 and 3.2.2, Spain | yes | yes (3.2.2) | XSD of its version; EN 16931 rules through CII or UBL |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
 
-Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Chorus Pro checks and 72 checks of the PDF container. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
+Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Portuguese CIUS-PT rules (schematron 2.1.1 of eSPap), the Chorus Pro checks and 72 checks of the PDF container. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
 
 ## How accurate is it?
 
 Every pull request runs the reference validators on the official test corpora and compares the results invoice by invoice:
 
 - KoSIT validator (XRechnung): the same errors on all 128 invoices.
-- Mustang: the same errors on 241 of 282 invoices. Each of the 41 differences comes from the references themselves and is explained in [known.txt](conformance/parity/known.txt).
+- Mustang: the same errors on 239 of 282 invoices. Each of the 43 differences comes from the references themselves and is explained in [known.txt](conformance/parity/known.txt).
 - Dutch NPa validators (NLCIUS): the same rules on 283 of 290 files, with the 7 differences justified.
+- eSPap schematron (CIUS-PT), compiled by SchXslt and run by Saxon: the same rules, at the same levels and on the same elements, on the 15 official examples, the 3 test invoices and the 5,462 of their 5,765 variants that Saxon completes. On the other 303, Saxon stops on an XPath type error in the test of an assertion, which the package holds failed: it raises that assertion every time.
 - veraPDF corpus, PDF/A-2b and PDF/A-3b: `Check` reports 609 of the 614 invalid test files under a rule of the right clause, and no PDF/A error on the 384 valid ones. The 5 files it misses are listed with their reason in [check_pdfa_corpus_test.go](check_pdfa_corpus_test.go).
 - OpenSSL, xmlsec1 and EU DSS on FatturaPA signatures, both ways: each verifies the CAdES and XAdES files the package signs (DSS finds them CAdES and XAdES Baseline B), and the package verifies the 13 files they sign.
 - veraPDF on the files `ConvertPDFA` writes: of the 998 test files of the same corpus, 836 are converted and 835 of them pass; the other one is a known failure (a value type of an XMP extension schema), listed in [convert_corpus_test.go](convert_corpus_test.go). The non-conforming PDFs the tests generate all pass once converted.
@@ -347,18 +367,29 @@ A new difference fails the build. The method is described on [Coverage and accur
 
 ## Performance
 
-Measured on an Apple M4 Pro with Go 1.26.4 (v0.1.0), against the fastest other Go package that handles the same operation:
+Measured on an Apple M4 Pro with Go 1.27.4 (commit `3a3b11a`, November 22, 2026), against the fastest other Go package that handles the same operation:
 
 | Operation | ZeRechnung | Best other Go package |
 |---|---|---|
-| Extract the XML from a 149 KB PDF | 30 µs | 75 µs |
-| Read and fully validate a 13 KB invoice | 24 µs | 126 µs |
-| Embed the XML in a PDF | 89 µs | 522 µs |
-| Check a 149 KB hybrid PDF | 74 µs | 1.14 ms |
+| Extract the XML from a 149 KB PDF | 30 µs | 73 µs |
+| Read and fully validate a 13 KB invoice | 25 µs | 128 µs |
+| Embed the XML in a PDF | 99 µs | 529 µs |
+| Check a 149 KB hybrid PDF | 832 µs | 1.11 ms |
 
-Since v0.1.0, `Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included. These checks are always on, since they catch what veraPDF would reject. Checking the same 149 KB PDF now takes about 0.8 ms, 0.2 ms of it for the content streams and the fonts.
+`Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included, to catch what veraPDF would reject; v0.1.0 checked the same PDF in 74 µs without them. Most of the time goes to decompressing its three font programs. Since the measurements below, the buffers of the font programs and content streams are reused from one call to the next: the full check of the same PDF allocates about 256 KB instead of 701 KB. When the PDF/A conformance is checked elsewhere, or only the invoice and its attachment matter, `validate.Options{PDFA: validate.PDFABasic}` (`-pdfa basic` on the command line) skips the checks that read the pages, the fonts and the file structure (PDF-41 to PDF-69, PDF-71, PDF-72): the same check then takes about 80 µs and allocates 87 KB.
 
-The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11-17/tables.md), and a comparison with 32 TypeScript, Python and Rust libraries is in [bench/polyglot](bench/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
+What one call allocates, as `go test -benchmem` counts it, against the other Go package that allocates the least:
+
+| Operation | ZeRechnung | Lightest other Go package |
+|---|---|---|
+| Extract the XML from a 149 KB PDF | 39 KB in 228 allocations | 184 KB in 4,926 |
+| Read a 13 KB invoice | 28 KB in 104 allocations | 53 KB in 1,165 |
+| Read and fully validate a 13 KB invoice | 23 KB in 75 allocations | 67 KB in 1,462 |
+| Write a 13 KB invoice | 8 KB in 1 allocation | 32 KB in 175 |
+| Embed the XML in a PDF | 245 KB in 456 allocations | 1.3 MB in 9,593 |
+| Check a 149 KB hybrid PDF | 701 KB in 2,376 allocations | 896 KB in 24,617 |
+
+The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11-22/tables.md), and a comparison with 32 TypeScript, Python and Rust libraries is in [bench/polyglot](bench/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
 
 ## Limitations
 
@@ -370,6 +401,7 @@ The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11
 - FatturaPA is validated against its XSD schema 1.2.4 (the content of the XML signature excepted) and against the 40 checks of the SDI on the content that need none of its data (codes 00300 to 00476 of appendix 1 of its technical specifications, under these codes): the tax codes are checked by their format and check character, not looked up in the Anagrafe tributaria, and neither the duplicate invoices (00404) nor the recipient codes (00311, 00312) are checked. The date of the invoice is compared with `Options.ReceivedAt`, the current time by default (00403). Convert it to UBL to apply the CIUS-IT rules and those of its extensions. `Marshal` writes one invoice per file. CIUS-IT invoices are checked against the rules of appendix 2 of the Italian technical rules, except BR-IT-DC-291 and BR-IT-DC-480, which depend on facts the invoice does not carry, and against the 45 rules of the Italian extensions of appendix 3 (BR-IT-DE-*, EXT-IT) when the seller is in Italy: on the UBL extensions and elements of the domestic invoice, which only UBL carries (BR-IT-DE-052 also applies to CII). `ubl.Parse` and `ubl.Marshal` map them to the FatturaPA data of the model (appendix 4.2) when the specification identifier declares the extension, so FatturaPA converted to UBL and back keeps what they carry; the rest, such as the bank details of FatturaPA or the CIG and CUP codes that BT-17 and BT-11 cannot hold, is reported by strict mode. CII carries none of it.
 - FatturaPA signatures are written in Baseline B, without timestamps (B-T and above). `VerifySignature` fetches nothing: it checks trust against the roots you pass (the list of qualified authorities the SDI accepts is not embedded) and revocation against the CRLs and OCSP responses you pass.
 - Facturae is validated against the XSD schema of its version (the content of the XML signature and of the extensions excepted): no official mapping to EN 16931 is published, so the `facturae` package follows its own, described in its documentation, and the EN 16931 rules apply once the invoice is converted to UBL or CII. The XAdES signature is neither created nor verified. Spain has published no Schematron nor NIF check for its B2B invoices, so there is no Spanish rule set.
+- CIUS-PT invoices are checked against the schematron 2.1.1 of eSPap, which replaces the CEN artefacts for them, as on the validator of the Portuguese public administration; the CIUS-PT has no CII binding, so a CII invoice that declares it gets `PT-SYNTAX-01`. The check digit of a Portuguese VAT identifier (NIF) is only a warning (`PT-NIF-02`), as the official examples carry invented NIFs. The CIUS-PT does not put the ATCUD, the QR code or the certificate of the invoicing software in the XML: only the format of the structured notes that carry the number and hash of a certified program is checked. SAF-T (PT), the e-fatura communication and the transmission are out of scope. A PDF written by `Create` or `Embed`, as an incremental update, can then receive a PAdES signature without losing its PDF/A conformance (tested with the signer of `zerechnung-server`); producing a qualified signature is up to you.
 - For EXTENDED-CTC-FR, only the CII syntax rules of the FNFE schematron are applied, not its business rules (BR-FREXT).
 - Only EN 16931-1:2017 is supported. An invoice whose specification identifier (BT-24) names EN 16931-1:2026, such as `urn:cen.eu:en16931:2026`, gets the error `EN16931-EDITION-01` and no other rule, since the 2026 validation artefacts are not published yet. Force a profile (`Options.Profile`, `-profile`) to apply the 2017 rules anyway. `Create` and `embed` do not write this edition.
 - The rules are rewritten in Go from the official artefacts, so a new version of an artefact needs a code update.
@@ -388,6 +420,7 @@ The full list is on [Coverage and accuracy](https://github.com/ritoon/zerechnung
 | `facturae` | Read Facturae 3.2, 3.2.1 and 3.2.2 XML and write Facturae 3.2.2 (Spain) |
 | `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-DE, Peppol, BR-NL, BR-IT, Chorus Pro |
 | `cmd/zerechnung` | The command-line tool |
+| `server` | The HTTP server and its Docker image (a module of its own) |
 
 ## Documentation
 
@@ -416,3 +449,5 @@ go test ./...
 ZeRechnung is released under the [MIT license](LICENSE).
 
 The validation rules are rewritten in Go from official artefacts (CEN, FNFE-MPE, FeRD, KoSIT, OpenPEPPOL, the Dutch Peppol authority), which are not included in the repository. Their versions and licenses are listed on [License and provenance](https://github.com/ritoon/zerechnung/wiki/License-and-provenance).
+
+The QR code encoder of [`internal/qr`](internal/qr) is a trimmed copy of the encoder of [piglig/go-qr](https://github.com/piglig/go-qr) v1.1.0, released under the MIT license; its notice is in [internal/qr/LICENSE](internal/qr/LICENSE).

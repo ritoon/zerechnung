@@ -223,6 +223,10 @@ type checker struct {
 	paymentRefs             int
 	financialCards          int
 	debtorAccounts          int
+
+	// catHdr, catLine and catTax, of tax type VAT only (UBL:
+	// cac:TaxScheme/normalize-space(upper-case(cbc:ID)) = 'VAT').
+	catHdrVAT, catLineVAT, catTaxVAT [nCat]int
 }
 
 func (k *checker) init(c *rules.Checker) {
@@ -474,12 +478,12 @@ func ublNative(id string) bool {
 // ublRules lists the business rules whose context or test in the UBL
 // artefacts the CII view cannot render (an address that must exist, an
 // attribute that must exist rather than be filled in, the payee compared with
-// the seller trading name, a context on the document): package ubl checks
-// them on the UBL document.
+// the seller trading name, a context on the document, the VAT breakdown of
+// each tax total): package ubl checks them on the UBL document.
 var ublRules = map[string]bool{
 	"BR-09": true, "BR-11": true, "BR-17": true, "BR-20": true, "BR-52": true, "BR-53": true,
 	"BR-55": true, "BR-56": true, "BR-57": true, "BR-61": true, "BR-62": true, "BR-63": true,
-	"BR-64": true, "BR-65": true, "BR-CO-03": true, "BR-CO-18": true,
+	"BR-64": true, "BR-65": true, "BR-CO-03": true, "BR-CO-14": true, "BR-CO-18": true,
 }
 
 // ublSeverity holds the severities of the UBL artefacts that differ from the

@@ -5,9 +5,10 @@
 #   ./run.sh setup              corpus (via bench/ecosystem), then each language's dependencies
 #   ./run.sh survey    [lang…]  correctness surveys
 #   ./run.sh bench     [lang…]  benchmarks, one language after the other
+#   ./run.sh alloc     [lang…]  allocations of one call of each operation (go, typescript, python, rust)
 #   ./run.sh resources [lang…]  CPU time and peak memory, one process per benchmark
 #   ./run.sh report             tables in results/<date>/tables.md
-#   ./run.sh all       [lang…]  the five in a row
+#   ./run.sh all       [lang…]  all of the above in a row
 #
 # Languages: go typescript python rust java csharp c cpp php (all by default).
 # Results go to results/<date>/ (OUT can be overridden); COUNT and BENCHTIME as
@@ -34,7 +35,11 @@ each() {
 	shift
 	for l in $(langs "$@"); do
 		echo "== $cmd $l"
-		if [ "$l" = go ]; then
+		if [ "$l" = go ] && [ "$cmd" = alloc ]; then
+			echo "   go test -benchmem gives them with the benchmarks (bench)"
+		elif [ "$cmd" = alloc ] && [[ " typescript python rust " != *" $l "* ]]; then
+			echo "   no allocation counter in the $l harness"
+		elif [ "$l" = go ]; then
 			# The Go harness takes BENCHTIME as a duration.
 			(cd ../ecosystem && BENCHTIME="${BENCHTIME}s" ${awake[@]+"${awake[@]}"} ./run.sh "$cmd" facturx)
 		else
@@ -136,11 +141,12 @@ shift || true
 case "$cmd" in
 setup) setup ;;
 survey | bench) each "$cmd" "$@" ;;
+alloc) each alloc "$@" ;;
 resources) resources "$@" ;;
 report) report ;;
-all) setup && each survey "$@" && each bench "$@" && resources "$@" && report ;;
+all) setup && each survey "$@" && each bench "$@" && each alloc "$@" && resources "$@" && report ;;
 *)
-	sed -n '2,14p' "$0"
+	sed -n '2,15p' "$0"
 	exit 2
 	;;
 esac

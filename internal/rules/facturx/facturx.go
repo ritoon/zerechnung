@@ -180,12 +180,12 @@ func (k *checker) profile() {
 
 // specializes reports whether invoices declaring profile declared conform to
 // profile checked: EXTENDED-CTC-FR is a subset of EXTENDED, XRECHNUNG,
-// PEPPOL, NLCIUS and CIUS-IT are CIUS of EN 16931.
+// PEPPOL, NLCIUS, CIUS-IT and CIUS-PT are CIUS of EN 16931.
 func specializes(declared, checked invoice.Profile) bool {
 	switch declared {
 	case invoice.ProfileExtendedCTCFR:
 		return checked == invoice.ProfileExtended
-	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT:
+	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT:
 		return checked == invoice.ProfileEN16931
 	}
 	return false

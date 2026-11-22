@@ -210,6 +210,14 @@ func TestCorpusRoundTrip(t *testing.T) {
 			}
 			back.SpecificationID = inv.SpecificationID
 		}
+		if inv.BusinessProcess == "" && (target == invoice.ProfileXRechnung || target == invoice.ProfilePeppol) {
+			// Marshal writes the business process type of Peppol billing,
+			// which PEPPOL-EN16931-R001 requires (BT-23).
+			if back.BusinessProcess != invoice.ProcessPeppolBilling {
+				t.Errorf("%s: BT-23 of the invoice written in %v is %q, want %q", f.name, target, back.BusinessProcess, invoice.ProcessPeppolBilling)
+			}
+			back.BusinessProcess = ""
+		}
 		if !lossy {
 			if d := diffInvoices(inv, back); d != "" {
 				t.Errorf("%s: round trip in %v changes the model:\n%s", f.name, target, d)

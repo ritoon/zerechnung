@@ -25,6 +25,8 @@ python3 -m http.server -d public 8000
 
 Then open http://localhost:8000/. Without `-base`, the canonical links and the sitemap point to the published site. `go test -short` skips running the examples.
 
+In the Claude app, the `site` configuration of [`.claude/launch.json`](../.claude/launch.json) does the same in its browser pane: it regenerates the site from scratch, then serves it on port 8791.
+
 ## Add an example
 
 An example is a complete program in `examples/<lang>-<n>-<name>/main.go`, shown on the examples page of the language `<lang>` at position `<n>`. Each language has at least three. The page cuts the program into steps, so it follows this layout:

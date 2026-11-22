@@ -32,14 +32,17 @@ func zlibHeader(b []byte) bool {
 // inflate decompresses zlib (or raw deflate) data. The Adler-32 checksum is
 // not verified. hint, when positive, is the expected decoded size. On a
 // truncated stream it returns the data decoded so far with an error.
-func inflate(src []byte, hint int) ([]byte, error) {
+func inflate(src []byte, hint int) ([]byte, error) { return inflateIn(src, hint, nil) }
+
+// inflateIn is inflate with the output buffer lent by sc, when not nil.
+func inflateIn(src []byte, hint int, sc *Scratch) ([]byte, error) {
 	if zlibHeader(src) {
-		out, err := inflateRaw(src[2:], hint)
+		out, err := inflateRawIn(src[2:], hint, sc)
 		if err == nil || len(out) > 0 {
 			return out, err
 		}
 	}
-	return inflateRaw(src, hint)
+	return inflateRawIn(src, hint, sc)
 }
 
 // Huffman table entries: sym<<16 | flags | length. A link to a subtable is
@@ -285,7 +288,12 @@ func fixedTables() {
 }
 
 // inflateRaw decompresses raw deflate data.
-func inflateRaw(src []byte, hint int) ([]byte, error) {
+func inflateRaw(src []byte, hint int) ([]byte, error) { return inflateRawIn(src, hint, nil) }
+
+// inflateRawIn is inflateRaw with the output buffer lent by sc, when not
+// nil. The decoder never reads output it has not written, so a lent buffer
+// needs no clearing.
+func inflateRawIn(src []byte, hint int, sc *Scratch) ([]byte, error) {
 	d, _ := decoders.Get().(*decoder)
 	if d == nil {
 		d = &decoder{}
@@ -296,12 +304,13 @@ func inflateRaw(src []byte, hint int) ([]byte, error) {
 		// reach from this input: guess, and grow as needed.
 		hint = 4*len(src) + 64
 	}
-	d.out = make([]byte, min(hint, maxDecoded))
+	d.out = sc.get(min(hint, maxDecoded))
 	err := d.run()
 	if err != nil && d.truncated() {
 		err = errTruncated
 	}
 	out := d.out[:d.w]
+	sc.keep(d.out)
 	d.in, d.out = nil, nil
 	decoders.Put(d)
 	return out, err

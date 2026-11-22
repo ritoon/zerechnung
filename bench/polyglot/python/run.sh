@@ -5,6 +5,7 @@
 #   ./run.sh survey    [lib…]    relevés d'exactitude  -> $OUT/survey_python.jsonl
 #   ./run.sh bench     [lib…]    benchmarks            -> $OUT/bench_python.jsonl
 #   ./run.sh resources [lib…]    CPU et pic mémoire    -> $OUT/resources_python.jsonl
+#   ./run.sh alloc     [lib…]    allocations par appel -> $OUT/alloc_python.jsonl
 #
 # Variables : OUT (../results/<date>), COUNT (3), BENCHTIME (1, secondes), PYTHON (python3.13).
 set -euo pipefail
@@ -13,6 +14,7 @@ cd "$(dirname "$0")"
 PYTHON=${PYTHON:-python3.13}
 VENV=.venv
 ART=.artefacts
+ALLOC=.alloc/alloccount.so
 
 # Artefacts de validation officiels (releases GitHub), vérifiés par SHA-256.
 CEN_VERSION=1.3.17
@@ -48,20 +50,23 @@ setup() {
 	"$VENV/bin/python" -m pip check
 	fetch "$CEN_URL" "$CEN_SHA256" "en16931-cii-$CEN_VERSION.zip" "cen-$CEN_VERSION"
 	fetch "$XR_URL" "$XR_SHA256" "xrechnung-3.0.2-schematron-$XR_VERSION.zip" "xrechnung-$XR_VERSION"
+	# Compteur d'allocations, inséré dans les processus de « alloc ».
+	mkdir -p "$(dirname "$ALLOC")"
+	${CC:-cc} -O2 -Wall -shared -fPIC -o "$ALLOC" alloccount.c
 	[ -d ../../ecosystem/corpus/XML-Rechnung ] || echo "corpus absent : lancer ../../ecosystem/run.sh setup" >&2
 	[ -f ../../ecosystem/host.pdf ] || echo "host.pdf absent : lancer ../../ecosystem/run.sh setup" >&2
 	echo "== $("$VENV/bin/python" --version), artefacts CEN $CEN_VERSION et KoSIT XRechnung $XR_VERSION prêts"
 }
 
 need() {
-	[ -x "$VENV/bin/python" ] && [ -d "$ART/cen-$CEN_VERSION" ] || setup
+	[ -x "$VENV/bin/python" ] && [ -d "$ART/cen-$CEN_VERSION" ] && [ -f "$ALLOC" ] || setup
 }
 
 cmd=${1:-}
 shift || true
 case "$cmd" in
 setup) setup ;;
-survey | bench | resources)
+survey | bench | resources | alloc)
 	need
 	# resources: harness.py starts one child per benchmark with the same
 	# interpreter (sys.executable, the venv's python, no wrapper); the child
@@ -69,7 +74,7 @@ survey | bench | resources)
 	"$VENV/bin/python" -I harness.py "$cmd" "$@"
 	;;
 *)
-	sed -n '2,9p' "$0"
+	sed -n '2,10p' "$0"
 	exit 2
 	;;
 esac

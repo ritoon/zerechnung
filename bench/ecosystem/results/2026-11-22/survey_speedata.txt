@@ -1,0 +1,2 @@
+SURVEY validate: 0/26 valid samples flagged
+SURVEY extract: 104/104 PDFs

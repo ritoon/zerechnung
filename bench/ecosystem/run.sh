@@ -4,6 +4,7 @@
 #   ./run.sh setup              fetch the corpus and dependencies, build the host PDFs
 #   ./run.sh survey [module…]   correctness surveys on the whole corpus
 #   ./run.sh bench  [module…]   benchmarks (COUNT and BENCHTIME can be overridden)
+#   ./run.sh report             tables in results/<date>/tables.md
 #   ./run.sh all    [module…]   setup + survey + bench + report
 #
 # Results go to results/<date>/ (OUT can be overridden).
@@ -81,7 +82,7 @@ bench) bench "$@" ;;
 report) report ;;
 all) setup && survey "$@" && bench "$@" && report ;;
 *)
-	sed -n '2,9p' "$0"
+	sed -n '2,10p' "$0"
 	exit 2
 	;;
 esac

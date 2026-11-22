@@ -92,54 +92,54 @@ Référence : les schematrons officiels (CEN EN 16931 et KoSIT) signalent 6 des 
 | Librairie | Langage | EN 16931, 149 Ko | EN 16931, 1,1 Mo | MINIMUM FNFE, 89 Ko | EXTENDED ZF 2.0, 157 Ko | Premier appel |
 |---|---|---|---|---|---|---|
 | qpdf-c | C | **27,9 µs** (×0,9) | **32,8 µs** (×1,0) | 15,7 µs (×1,4) | 26,6 µs (×0,7) | 1,60 ms |
-| kura | C++ | 28,9 µs (×1,0) | 34,3 µs (×1,0) | 16,9 µs (×1,5) | 28,2 µs (×0,8) | 6,98 ms |
-| **ZeRechnung (ce dépôt)** | Go | 29,9 µs | 33,4 µs | 11,3 µs | 36,9 µs | — |
-| pdfbox | Java | 30,9 µs (×1,0) | 41,7 µs (×1,2) | 18,7 µs (×1,7) | 34,8 µs (×0,9) | 50,20 ms |
-| mupdf | C | 31,2 µs (×1,0) | 44,4 µs (×1,3) | 19,7 µs (×1,7) | 33,6 µs (×0,9) | 2,62 ms |
-| pdfpig | C# | 31,8 µs (×1,1) | 795 µs (×24) | 21,0 µs (×1,9) | 39,8 µs (×1,1) | 149,04 ms |
-| podofo | C++ | 32,5 µs (×1,1) | 42,1 µs (×1,3) | 19,9 µs (×1,8) | 34,5 µs (×0,9) | 1,37 ms |
-| einvoice-validator | Rust | 33,0 µs (×1,1) | 42,8 µs (×1,3) | 23,4 µs (×2,1) | 37,6 µs (×1,0) | 1,75 ms |
-| qpdf | C++ | 53,6 µs (×1,8) | 39,0 µs (×1,2) | 14,9 µs (×1,3) | **25,9 µs** (×0,7) | 406 µs |
-| quittio/core | PHP | 72,8 µs (×2,4) | 125 µs (×3,7) | 59,8 µs (×5,3) | 67,9 µs (×1,8) | 2,69 ms |
-| lopdf | Rust | 73,7 µs (×2,5) | 96,5 µs (×2,9) | 42,9 µs (×3,8) | 65,5 µs (×1,8) | 531 µs |
-| pdfa | Rust | 77,8 µs (×2,6) | échec | **495 ns** (×0,0) | échec | 155 µs |
-| pdfsharp | C# | 79,4 µs (×2,7) | 178 µs (×5,3) | 48,0 µs (×4,2) | 68,9 µs (×1,9) | 37,37 ms |
-| pdf-invoice | Rust | 79,6 µs (×2,7) | 102 µs (×3,1) | 48,5 µs (×4,3) | 75,3 µs (×2,0) | 1,16 ms |
-| zugferd-pdf | Python | 79,6 µs (×2,7) | 118 µs (×3,5) | 52,5 µs (×4,6) | 92,5 µs (×2,5) | 1,90 ms |
-| antiphon | C# | 79,7 µs (×2,7) | 175 µs (×5,2) | 47,9 µs (×4,2) | 69,8 µs (×1,9) | 32,44 ms |
-| international-einvoicing | C# | 80,7 µs (×2,7) | 420 µs (×13) | 49,9 µs (×4,4) | 68,8 µs (×1,9) | 31,98 ms |
-| balsoft | C# | 80,8 µs (×2,7) | 200 µs (×6,0) | 50,1 µs (×4,4) | 69,4 µs (×1,9) | 28,43 ms |
-| mcp-einvoicing-de | Python | 89,8 µs (×3,0) | 123 µs (×3,7) | 52,6 µs (×4,7) | 232 µs (×6,3) | 453 µs |
-| zugferd-rs | Rust | 91,5 µs (×3,1) | 122 µs (×3,6) | 55,0 µs (×4,9) | 85,3 µs (×2,3) | 1,22 ms |
-| dealerweb/einvoice | PHP | 94,2 µs (×3,1) | 153 µs (×4,6) | 89,6 µs (×7,9) | 93,7 µs (×2,5) | 3,85 ms |
-| paniolo | Java | 116 µs (×3,9) | 128 µs (×3,8) | 96,3 µs (×8,5) | 109 µs (×3,0) | 55,26 ms |
-| officeimo | C# | 119 µs (×4,0) | 1,14 ms (×34) | 74,9 µs (×6,6) | 116 µs (×3,2) | 75,44 ms |
-| @attestwire/en16931 | TypeScript | 176 µs (×5,9) | 203 µs (×6,1) | 108 µs (×9,5) | 214 µs (×5,8) | 4,69 ms |
-| pycheval | Python | 202 µs (×6,7) | échec | 182 µs (×16) | échec | 941 µs |
-| facturxdotnet | C# | 225 µs (×7,5) | 539 µs (×16) | 144 µs (×13) | échec | 33,02 ms |
-| getafix | Python | 237 µs (×7,9) | 385 µs (×12) | 215 µs (×19) | 210 µs (×5,7) | 939 µs |
-| factur-x | Python | 257 µs (×8,6) | 399 µs (×12) | 204 µs (×18) | 279 µs (×7,6) | 2,31 ms |
-| @ekwo-ai/factur-x | TypeScript | 270 µs (×9,0) | 321 µs (×9,6) | 139 µs (×12) | 251 µs (×6,8) | 4,70 ms |
-| @lucaapp/zugferd-ts | TypeScript | 271 µs (×9,0) | 371 µs (×11) | 133 µs (×12) | 249 µs (×6,8) | 4,84 ms |
-| intragile/php-einvoicing | PHP | 275 µs (×9,2) | 315 µs (×9,5) | 198 µs (×18) | 305 µs (×8,3) | 7,23 ms |
-| @conformo/toolkit | TypeScript | 287 µs (×9,6) | 10,36 ms (×310) | 135 µs (×12) | 245 µs (×6,6) | 4,81 ms |
-| @stackforge-eu/factur-x | TypeScript | 288 µs (×9,6) | 338 µs (×10) | 143 µs (×13) | 258 µs (×7,0) | 4,86 ms |
-| en16931 | Rust | 392 µs (×13) | 713 µs (×21) | 250 µs (×22) | 291 µs (×7,9) | 1,68 ms |
-| @stafyniaksacha/facturx | TypeScript | 406 µs (×14) | 3,51 ms (×105) | 186 µs (×16) | 484 µs (×13) | 7,98 ms |
-| @fin.cx/einvoice | TypeScript | 430 µs (×14) | 536 µs (×16) | 147 µs (×13) | 464 µs (×13) | 46,71 ms |
+| kura | C++ | 28,9 µs (×0,9) | 34,3 µs (×1,0) | 16,9 µs (×1,5) | 28,2 µs (×0,8) | 6,98 ms |
+| pdfbox | Java | 30,9 µs (×1,0) | 41,7 µs (×1,3) | 18,7 µs (×1,7) | 34,8 µs (×1,0) | 50,20 ms |
+| mupdf | C | 31,2 µs (×1,0) | 44,4 µs (×1,4) | 19,7 µs (×1,8) | 33,6 µs (×0,9) | 2,62 ms |
+| **ZeRechnung (ce dépôt)** | Go | 31,5 µs | 32,9 µs | 11,1 µs | 36,0 µs | — |
+| pdfpig | C# | 31,8 µs (×1,0) | 795 µs (×24) | 21,0 µs (×1,9) | 39,8 µs (×1,1) | 149,04 ms |
+| podofo | C++ | 32,5 µs (×1,0) | 42,1 µs (×1,3) | 19,9 µs (×1,8) | 34,5 µs (×1,0) | 1,37 ms |
+| einvoice-validator | Rust | 32,8 µs (×1,0) | 42,3 µs (×1,3) | 23,4 µs (×2,1) | 37,7 µs (×1,0) | 1,42 ms |
+| qpdf | C++ | 53,6 µs (×1,7) | 39,0 µs (×1,2) | 14,9 µs (×1,3) | **25,9 µs** (×0,7) | 406 µs |
+| quittio/core | PHP | 72,8 µs (×2,3) | 125 µs (×3,8) | 59,8 µs (×5,4) | 67,9 µs (×1,9) | 2,69 ms |
+| lopdf | Rust | 74,0 µs (×2,3) | 97,3 µs (×3,0) | 44,0 µs (×4,0) | 66,5 µs (×1,8) | 734 µs |
+| pdfa | Rust | 78,6 µs (×2,5) | échec | **504 ns** (×0,0) | échec | 137 µs |
+| pdfsharp | C# | 79,4 µs (×2,5) | 178 µs (×5,4) | 48,0 µs (×4,3) | 68,9 µs (×1,9) | 37,37 ms |
+| mcp-einvoicing-de | Python | 79,5 µs (×2,5) | 115 µs (×3,5) | 52,0 µs (×4,7) | 229 µs (×6,4) | 432 µs |
+| antiphon | C# | 79,7 µs (×2,5) | 175 µs (×5,3) | 47,9 µs (×4,3) | 69,8 µs (×1,9) | 32,44 ms |
+| zugferd-pdf | Python | 79,8 µs (×2,5) | 116 µs (×3,5) | 52,3 µs (×4,7) | 92,9 µs (×2,6) | 1,95 ms |
+| pdf-invoice | Rust | 80,1 µs (×2,5) | 104 µs (×3,2) | 52,8 µs (×4,8) | 75,1 µs (×2,1) | 227 µs |
+| international-einvoicing | C# | 80,7 µs (×2,6) | 420 µs (×13) | 49,9 µs (×4,5) | 68,8 µs (×1,9) | 31,98 ms |
+| balsoft | C# | 80,8 µs (×2,6) | 200 µs (×6,1) | 50,1 µs (×4,5) | 69,4 µs (×1,9) | 28,43 ms |
+| zugferd-rs | Rust | 91,9 µs (×2,9) | 116 µs (×3,5) | 54,9 µs (×4,9) | 85,5 µs (×2,4) | 1,11 ms |
+| dealerweb/einvoice | PHP | 94,2 µs (×3,0) | 153 µs (×4,7) | 89,6 µs (×8,1) | 93,7 µs (×2,6) | 3,85 ms |
+| paniolo | Java | 116 µs (×3,7) | 128 µs (×3,9) | 96,3 µs (×8,7) | 109 µs (×3,0) | 55,26 ms |
+| officeimo | C# | 119 µs (×3,8) | 1,14 ms (×35) | 74,9 µs (×6,8) | 116 µs (×3,2) | 75,44 ms |
+| @attestwire/en16931 | TypeScript | 180 µs (×5,7) | 204 µs (×6,2) | 109 µs (×9,8) | 207 µs (×5,8) | 4,33 ms |
+| pycheval | Python | 200 µs (×6,3) | échec | 180 µs (×16) | échec | 998 µs |
+| facturxdotnet | C# | 225 µs (×7,1) | 539 µs (×16) | 144 µs (×13) | échec | 33,02 ms |
+| getafix | Python | 227 µs (×7,2) | 373 µs (×11) | 210 µs (×19) | 205 µs (×5,7) | 1,27 ms |
+| factur-x | Python | 251 µs (×8,0) | 386 µs (×12) | 201 µs (×18) | 271 µs (×7,5) | 2,26 ms |
+| @lucaapp/zugferd-ts | TypeScript | 258 µs (×8,2) | 297 µs (×9,0) | 123 µs (×11) | 231 µs (×6,4) | 4,48 ms |
+| @ekwo-ai/factur-x | TypeScript | 273 µs (×8,7) | 321 µs (×9,8) | 140 µs (×13) | 247 µs (×6,8) | 4,90 ms |
+| intragile/php-einvoicing | PHP | 275 µs (×8,7) | 315 µs (×9,6) | 198 µs (×18) | 305 µs (×8,5) | 7,23 ms |
+| @conformo/toolkit | TypeScript | 279 µs (×8,8) | 10,47 ms (×318) | 136 µs (×12) | 243 µs (×6,8) | 4,80 ms |
+| @stackforge-eu/factur-x | TypeScript | 283 µs (×9,0) | 330 µs (×10) | 142 µs (×13) | 253 µs (×7,0) | 4,69 ms |
+| @stafyniaksacha/facturx | TypeScript | 381 µs (×12) | 3,15 ms (×96) | 175 µs (×16) | 446 µs (×12) | 7,41 ms |
+| en16931 | Rust | 393 µs (×12) | 705 µs (×21) | 251 µs (×23) | 284 µs (×7,9) | 1,75 ms |
+| @fin.cx/einvoice | TypeScript | 421 µs (×13) | 506 µs (×15) | 144 µs (×13) | 444 µs (×12) | 45,17 ms |
 | poppler-cpp | C++ | 458 µs (×15) | 485 µs (×15) | 404 µs (×36) | 506 µs (×14) | 8,68 ms |
-| @kontor-mcp/core | TypeScript | 708 µs (×24) | 1,47 ms (×44) | 702 µs (×62) | 769 µs (×21) | 8,95 ms |
-| smalot/pdfparser | PHP | 881 µs (×29) | 2,25 ms (×67) | 608 µs (×54) | 919 µs (×25) | 7,22 ms |
-| tiime/factur-x | PHP | 911 µs (×30) | 2,47 ms (×74) | 618 µs (×55) | échec | 4,48 ms |
-| atgp/factur-x | PHP | 923 µs (×31) | 2,55 ms (×76) | 664 µs (×59) | 938 µs (×25) | 8,41 ms |
-| horstoeko/zugferd | PHP | 938 µs (×31) | 2,33 ms (×70) | 649 µs (×57) | 972 µs (×26) | 11,24 ms |
-| @sweberdev/summand | TypeScript | 949 µs (×32) | 20,97 ms (×628) | 468 µs (×41) | 1,22 ms (×33) | 3,49 ms |
-| zugferd-csharp | C# | 1,09 ms (×36) | 931 µs (×28) | 275 µs (×24) | 1,77 ms (×48) | 88,49 ms |
-| mustang | Java | 1,87 ms (×62) | 2,94 ms (×88) | 826 µs (×73) | 4,67 ms (×127) | 294,22 ms |
-| horstoeko/invoicesuite | PHP | 5,82 ms (×194) | échec | 3,08 ms (×272) | 10,61 ms (×288) | 84,01 ms |
-| mahdiabderraouf/facturx-php | PHP | 27,02 ms (×902) | 27,81 ms (×833) | 26,63 ms (×2 354) | 25,94 ms (×703) | 50,78 ms |
-| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 29,06 ms (×971) | 31,80 ms (×952) | 28,77 ms (×2 543) | 25,95 ms (×704) | 148,05 ms |
-| securibox | C# | 61,96 ms (×2 069) | 39,56 ms (×1 185) | 4,02 ms (×355) | échec | 300,61 ms |
+| @kontor-mcp/core | TypeScript | 708 µs (×22) | 1,49 ms (×45) | 811 µs (×73) | 764 µs (×21) | 9,26 ms |
+| smalot/pdfparser | PHP | 881 µs (×28) | 2,25 ms (×69) | 608 µs (×55) | 919 µs (×26) | 7,22 ms |
+| tiime/factur-x | PHP | 911 µs (×29) | 2,47 ms (×75) | 618 µs (×56) | échec | 4,48 ms |
+| atgp/factur-x | PHP | 923 µs (×29) | 2,55 ms (×77) | 664 µs (×60) | 938 µs (×26) | 8,41 ms |
+| horstoeko/zugferd | PHP | 938 µs (×30) | 2,33 ms (×71) | 649 µs (×59) | 972 µs (×27) | 11,24 ms |
+| @sweberdev/summand | TypeScript | 941 µs (×30) | 20,68 ms (×629) | 486 µs (×44) | 1,10 ms (×31) | 3,08 ms |
+| zugferd-csharp | C# | 1,09 ms (×34) | 931 µs (×28) | 275 µs (×25) | 1,77 ms (×49) | 88,49 ms |
+| mustang | Java | 1,87 ms (×59) | 2,94 ms (×89) | 826 µs (×74) | 4,67 ms (×130) | 294,22 ms |
+| horstoeko/invoicesuite | PHP | 5,82 ms (×185) | échec | 3,08 ms (×277) | 10,61 ms (×294) | 84,01 ms |
+| mahdiabderraouf/facturx-php | PHP | 27,02 ms (×858) | 27,81 ms (×846) | 26,63 ms (×2 400) | 25,94 ms (×720) | 50,78 ms |
+| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 29,06 ms (×923) | 31,80 ms (×967) | 28,77 ms (×2 593) | 25,95 ms (×720) | 148,05 ms |
+| securibox | C# | 61,96 ms (×1 967) | 39,56 ms (×1 204) | 4,02 ms (×362) | échec | 300,61 ms |
 | pat-o-dev/factur-x | PHP | échec | échec | échec | échec | — |
 
 En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du package Go de ce dépôt. Tri sur la colonne « EN 16931, 149 Ko » ; « Premier appel » : durée du premier appel dans le processus, même colonne (non mesurée pour Go).
@@ -149,50 +149,50 @@ En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du pack
 | Librairie | Langage | 13 Ko | 19 Ko | 1,3 Mo | Premier appel |
 |---|---|---|---|---|---|
 | pugixml | C++ | **5,6 µs** (×0,3) | **7,3 µs** (×0,2) | **238 µs** (×0,2) | 365 µs |
-| **ZeRechnung (ce dépôt)** | Go | 18,8 µs | 33,6 µs | 1,32 ms | — |
-| zugferd-rs | Rust | 24,5 µs (×1,3) | 37,9 µs (×1,1) | échec | 1,70 ms |
-| pdf-invoice | Rust | 25,4 µs (×1,4) | 38,5 µs (×1,1) | 1,69 ms (×1,3) | 790 µs |
-| antiphon | C# | 28,7 µs (×1,5) | 44,7 µs (×1,3) | 2,18 ms (×1,6) | 11,30 ms |
-| balsoft | C# | 30,0 µs (×1,6) | 47,4 µs (×1,4) | 2,68 ms (×2,0) | 13,35 ms |
-| core-invoice | Rust | 45,0 µs (×2,4) | 67,5 µs (×2,0) | 3,65 ms (×2,8) | 579 µs |
-| securibox | C# | 52,1 µs (×2,8) | 74,8 µs (×2,2) | 4,19 ms (×3,2) | 386 µs |
-| libxml2 | C | 54,7 µs (×2,9) | 81,9 µs (×2,4) | 708 µs (×0,5) | 187 µs |
-| imixs-e-invoice | Java | 68,3 µs (×3,6) | 95,8 µs (×2,8) | 715 µs (×0,5) | 30,66 ms |
-| @ekwo-ai/factur-x | TypeScript | 70,6 µs (×3,8) | 117 µs (×3,5) | 22,90 ms (×17) | 1,76 ms |
-| en16931 | Rust | 73,7 µs (×3,9) | 126 µs (×3,8) | 6,95 ms (×5,3) | 1,72 ms |
-| officeimo | C# | 76,6 µs (×4,1) | 127 µs (×3,8) | 4,46 ms (×3,4) | 11,48 ms |
-| ph-cii | Java | 88,8 µs (×4,7) | 120 µs (×3,6) | 2,68 ms (×2,0) | 201,22 ms |
-| @conformo/toolkit | TypeScript | 93,4 µs (×5,0) | 157 µs (×4,7) | 1,70 ms (×1,3) | 1,59 ms |
-| international-einvoicing | C# | 93,5 µs (×5,0) | 158 µs (×4,7) | 6,32 ms (×4,8) | 11,01 ms |
-| @attestwire/en16931 | TypeScript | 136 µs (×7,2) | 235 µs (×7,0) | 3,35 ms (×2,5) | 2,67 ms |
-| paniolo | Java | 145 µs (×7,7) | 184 µs (×5,5) | 5,71 ms (×4,3) | 31,73 ms |
-| @lucaapp/zugferd-ts | TypeScript | 169 µs (×9,0) | 319 µs (×9,5) | échec | 2,68 ms |
-| xerces-c | C++ | 208 µs (×11) | 347 µs (×10) | 1,06 ms (×0,8) | 672 µs |
-| pycheval | Python | 230 µs (×12) | échec | échec | 918 µs |
-| tiime/cross-industry-invoice | PHP | 234 µs (×12) | 353 µs (×10) | 692 µs (×0,5) | 27,83 ms |
-| john-wink/en16931-php | PHP | 270 µs (×14) | 409 µs (×12) | 646 µs (×0,5) | 3,29 ms |
-| intragile/php-einvoicing | PHP | 287 µs (×15) | 428 µs (×13) | 1,36 ms (×1,0) | 9,19 ms |
-| factur-x-kit | TypeScript | 294 µs (×16) | échec | échec | 8,36 ms |
-| einvoice | Rust | 323 µs (×17) | 542 µs (×16) | 12,06 ms (×9,1) | 1,47 ms |
-| mcp-einvoicing-de | Python | 349 µs (×19) | 495 µs (×15) | 906 µs (×0,7) | 3,81 ms |
-| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 369 µs (×20) | 572 µs (×17) | 1,35 ms (×1,0) | 10,83 ms |
-| quittio/core | PHP | 411 µs (×22) | 616 µs (×18) | 975 µs (×0,7) | 22,60 ms |
-| dealerweb/einvoice | PHP | 464 µs (×25) | 724 µs (×22) | 999 µs (×0,8) | 13,85 ms |
-| drafthorse | Python | 601 µs (×32) | 996 µs (×30) | 1,11 ms (×0,8) | 3,29 ms |
-| zugferd-csharp | C# | 687 µs (×37) | 1,10 ms (×33) | 12,40 ms (×9,4) | 748 µs |
-| @stafyniaksacha/facturx | TypeScript | 1,06 ms (×56) | 1,87 ms (×56) | 5,91 ms (×4,5) | 8,94 ms |
-| @kontor-mcp/core | TypeScript | 1,18 ms (×63) | 1,81 ms (×54) | 4,66 ms (×3,5) | 13,52 ms |
-| easybill/e-invoicing | PHP | 1,21 ms (×64) | 1,71 ms (×51) | 5,16 ms (×3,9) | 15,70 ms |
-| getafix | Python | 1,25 ms (×66) | 2,14 ms (×64) | échec | 2,81 ms |
-| easybill/zugferd-php | PHP | 1,34 ms (×71) | 1,91 ms (×57) | 2,02 ms (×1,5) | 28,40 ms |
-| factur-x | Python | 1,49 ms (×79) | 2,11 ms (×63) | 12,55 ms (×9,5) | 5,95 ms |
-| mustang | Java | 1,79 ms (×95) | 2,73 ms (×81) | 7,20 ms (×5,5) | 2,43 ms |
-| @fin.cx/einvoice | TypeScript | 2,26 ms (×120) | 4,03 ms (×120) | 7,53 ms (×5,7) | 18,18 ms |
-| invoice4j | Java | 2,45 ms (×130) | 4,28 ms (×127) | échec | 67,99 ms |
-| horstoeko/invoicesuite | PHP | 5,65 ms (×301) | 7,27 ms (×216) | 21,27 ms (×16) | 25,11 ms |
-| en16931 | C# | 6,85 ms (×365) | échec | 21,86 ms (×17) | 309,79 ms |
-| horstoeko/zugferd | PHP | 7,90 ms (×420) | 9,46 ms (×281) | 10,45 ms (×7,9) | 51,54 ms |
-| factur-x | Rust | échec | échec | 1,66 ms (×1,3) | — |
+| **ZeRechnung (ce dépôt)** | Go | 18,1 µs | 31,8 µs | 1,17 ms | — |
+| zugferd-rs | Rust | 24,5 µs (×1,4) | 37,7 µs (×1,2) | échec | 1,71 ms |
+| pdf-invoice | Rust | 25,6 µs (×1,4) | 39,0 µs (×1,2) | 1,72 ms (×1,5) | 90,2 µs |
+| antiphon | C# | 28,7 µs (×1,6) | 44,7 µs (×1,4) | 2,18 ms (×1,9) | 11,30 ms |
+| balsoft | C# | 30,0 µs (×1,7) | 47,4 µs (×1,5) | 2,68 ms (×2,3) | 13,35 ms |
+| core-invoice | Rust | 45,9 µs (×2,5) | 68,5 µs (×2,2) | 3,67 ms (×3,1) | 325 µs |
+| securibox | C# | 52,1 µs (×2,9) | 74,8 µs (×2,4) | 4,19 ms (×3,6) | 386 µs |
+| libxml2 | C | 54,7 µs (×3,0) | 81,9 µs (×2,6) | 708 µs (×0,6) | 187 µs |
+| imixs-e-invoice | Java | 68,3 µs (×3,8) | 95,8 µs (×3,0) | 715 µs (×0,6) | 30,66 ms |
+| @ekwo-ai/factur-x | TypeScript | 70,8 µs (×3,9) | 115 µs (×3,6) | 26,78 ms (×23) | 1,80 ms |
+| en16931 | Rust | 75,2 µs (×4,2) | 130 µs (×4,1) | 7,19 ms (×6,1) | 2,25 ms |
+| officeimo | C# | 76,6 µs (×4,2) | 127 µs (×4,0) | 4,46 ms (×3,8) | 11,48 ms |
+| ph-cii | Java | 88,8 µs (×4,9) | 120 µs (×3,8) | 2,68 ms (×2,3) | 201,22 ms |
+| @conformo/toolkit | TypeScript | 92,8 µs (×5,1) | 160 µs (×5,0) | 1,71 ms (×1,5) | 1,59 ms |
+| international-einvoicing | C# | 93,5 µs (×5,2) | 158 µs (×5,0) | 6,32 ms (×5,4) | 11,01 ms |
+| @attestwire/en16931 | TypeScript | 136 µs (×7,5) | 234 µs (×7,4) | 3,24 ms (×2,8) | 2,26 ms |
+| paniolo | Java | 145 µs (×8,0) | 184 µs (×5,8) | 5,71 ms (×4,9) | 31,73 ms |
+| @lucaapp/zugferd-ts | TypeScript | 160 µs (×8,9) | 285 µs (×9,0) | échec | 2,46 ms |
+| xerces-c | C++ | 208 µs (×12) | 347 µs (×11) | 1,06 ms (×0,9) | 672 µs |
+| pycheval | Python | 224 µs (×12) | échec | échec | 900 µs |
+| tiime/cross-industry-invoice | PHP | 234 µs (×13) | 353 µs (×11) | 692 µs (×0,6) | 27,83 ms |
+| john-wink/en16931-php | PHP | 270 µs (×15) | 409 µs (×13) | 646 µs (×0,6) | 3,29 ms |
+| factur-x-kit | TypeScript | 273 µs (×15) | échec | échec | 7,53 ms |
+| intragile/php-einvoicing | PHP | 287 µs (×16) | 428 µs (×13) | 1,36 ms (×1,2) | 9,19 ms |
+| mcp-einvoicing-de | Python | 332 µs (×18) | 477 µs (×15) | 704 µs (×0,6) | 1,47 ms |
+| einvoice | Rust | 341 µs (×19) | 567 µs (×18) | 12,40 ms (×11) | 1,83 ms |
+| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 369 µs (×20) | 572 µs (×18) | 1,35 ms (×1,2) | 10,83 ms |
+| quittio/core | PHP | 411 µs (×23) | 616 µs (×19) | 975 µs (×0,8) | 22,60 ms |
+| dealerweb/einvoice | PHP | 464 µs (×26) | 724 µs (×23) | 999 µs (×0,9) | 13,85 ms |
+| drafthorse | Python | 601 µs (×33) | 996 µs (×31) | 1,09 ms (×0,9) | 3,40 ms |
+| zugferd-csharp | C# | 687 µs (×38) | 1,10 ms (×35) | 12,40 ms (×11) | 748 µs |
+| @stafyniaksacha/facturx | TypeScript | 945 µs (×52) | 1,68 ms (×53) | 5,61 ms (×4,8) | 8,42 ms |
+| @kontor-mcp/core | TypeScript | 1,15 ms (×64) | 1,78 ms (×56) | 4,59 ms (×3,9) | 13,18 ms |
+| easybill/e-invoicing | PHP | 1,21 ms (×67) | 1,71 ms (×54) | 5,16 ms (×4,4) | 15,70 ms |
+| getafix | Python | 1,21 ms (×67) | 2,10 ms (×66) | échec | 3,57 ms |
+| easybill/zugferd-php | PHP | 1,34 ms (×74) | 1,91 ms (×60) | 2,02 ms (×1,7) | 28,40 ms |
+| factur-x | Python | 1,51 ms (×83) | 2,08 ms (×66) | 12,32 ms (×11) | 5,38 ms |
+| mustang | Java | 1,79 ms (×99) | 2,73 ms (×86) | 7,20 ms (×6,1) | 2,43 ms |
+| @fin.cx/einvoice | TypeScript | 2,16 ms (×119) | 3,85 ms (×121) | 7,30 ms (×6,2) | 12,74 ms |
+| invoice4j | Java | 2,45 ms (×135) | 4,28 ms (×135) | échec | 67,99 ms |
+| horstoeko/invoicesuite | PHP | 5,65 ms (×312) | 7,27 ms (×229) | 21,27 ms (×18) | 25,11 ms |
+| en16931 | C# | 6,85 ms (×378) | échec | 21,86 ms (×19) | 309,79 ms |
+| horstoeko/zugferd | PHP | 7,90 ms (×436) | 9,46 ms (×297) | 10,45 ms (×8,9) | 51,54 ms |
+| factur-x | Rust | échec | échec | 1,67 ms (×1,4) | — |
 | facturxdotnet | C# | échec | échec | échec | — |
 
 En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du package Go de ce dépôt. Tri sur la colonne « 13 Ko » ; « Premier appel » : durée du premier appel dans le processus, même colonne (non mesurée pour Go).
@@ -201,66 +201,66 @@ En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du pack
 
 | Librairie | Langage | Valides signalés /26 | 13 Ko | 19 Ko | 1,3 Mo | Premier appel |
 |---|---|---|---|---|---|---|
-| pdf-invoice | Rust | 20/26 | **26,1 µs** (×1,0) | **39,5 µs** (×0,9) | 1,64 ms (×1,9) | 90,3 µs |
-| **ZeRechnung (ce dépôt)** | Go | 6/26 | 26,4 µs | 46,0 µs | 882 µs | — |
-| xsd | C# | 0/26 | 30,1 µs (×1,1) | 48,6 µs (×1,1) | 3,35 ms (×3,8) | 16,08 ms |
-| balsoft | C# | 5/26 | 31,2 µs (×1,2) | 46,7 µs (×1,0) | 2,49 ms (×2,8) | 17,97 ms |
-| libxml2 | C | 0/26 | 66,1 µs (×2,5) | 101 µs (×2,2) | 2,17 ms (×2,5) | 12,33 ms |
-| @ekwo-ai/factur-x | TypeScript | 3/26 | 71,2 µs (×2,7) | 117 µs (×2,5) | 23,50 ms (×27) | 1,87 ms |
-| core-invoice | Rust | 7/26 | 76,0 µs (×2,9) | 120 µs (×2,6) | 5,69 ms (×6,5) | 1,84 ms |
-| en16931 | Rust | 2/26 | 76,1 µs (×2,9) | 129 µs (×2,8) | 6,94 ms (×7,9) | 1,28 ms |
-| pat-o-dev/factur-x | PHP | 2/26 | 109 µs (×4,1) | 158 µs (×3,4) | **466 µs** (×0,5) | 1,52 ms |
-| ph-cii | Java | 0/26 | 136 µs (×5,2) | 192 µs (×4,2) | 4,08 ms (×4,6) | 51,32 ms |
-| @attestwire/en16931 | TypeScript | 2/26 | 208 µs (×7,9) | 341 µs (×7,4) | 7,18 ms (×8,1) | 8,52 ms |
-| xerces-c | C++ | 0/26 | 253 µs (×9,6) | 438 µs (×9,5) | 5,36 ms (×6,1) | 10,72 ms |
-| factur-x-kit | TypeScript | 18/26 | 325 µs (×12) | échec | échec | 10,25 ms |
-| saxon-schematron | Java | 6/26 | 419 µs (×16) | 668 µs (×15) | 5,54 ms (×6,3) | 629,49 ms |
-| einvoice-validator | Rust | 2/26 | 483 µs (×18) | 781 µs (×17) | 3,86 ms (×4,4) | 28,36 ms |
-| ext-dom | PHP | 0/26 | 493 µs (×19) | 525 µs (×11) | 2,21 ms (×2,5) | 1,82 ms |
-| drafthorse | Python | 0/26 | 508 µs (×19) | 549 µs (×12) | 8,27 ms (×9,4) | 1,63 ms |
-| factur-x | Python | 0/26 | 513 µs (×19) | 538 µs (×12) | 5,47 ms (×6,2) | 818 µs |
-| saxoncs | C# | 6/26 | 528 µs (×20) | 847 µs (×18) | 11,14 ms (×13) | 706,84 ms |
-| atgp/factur-x | PHP | 4/26 | 533 µs (×20) | 554 µs (×12) | échec | 3,99 ms |
-| easybill/zugferd-php | PHP | 0/26 | 550 µs (×21) | 587 µs (×13) | 2,42 ms (×2,7) | 2,63 ms |
-| phive | Java | 2/26 | 564 µs (×21) | 796 µs (×17) | 6,49 ms (×7,4) | 771,74 ms |
-| tiime/factur-x | PHP | 4/26 | 570 µs (×22) | 638 µs (×14) | échec | 3,68 ms |
-| mahdiabderraouf/facturx-php | PHP | 4/26 | 621 µs (×24) | 658 µs (×14) | échec | 2,25 ms |
-| zugferd-csharp | C# | 3/26 | 689 µs (×26) | 1,12 ms (×24) | 12,96 ms (×15) | 3,04 ms |
-| paniolo | Java | 6/26 | 813 µs (×31) | 1,36 ms (×29) | 8,90 ms (×10) | 768,29 ms |
-| @stackforge-eu/factur-x | TypeScript | 0/26 | 826 µs (×31) | 892 µs (×19) | 10,30 ms (×12) | 38,80 ms |
-| saxonc-he | C++ | 6/26 | 862 µs (×33) | 1,40 ms (×30) | 13,29 ms (×15) | 269,43 ms |
-| @sweberdev/summand | TypeScript | 6/26 | 908 µs (×34) | 1,59 ms (×35) | 8,25 ms (×9,3) | 17,44 ms |
-| saxonche-schematron | Python | 6/26 | 915 µs (×35) | 1,49 ms (×32) | 12,53 ms (×14) | 304,39 ms |
-| stann/factur-x | PHP | 0/26 | 1,25 ms (×47) | 1,31 ms (×28) | 2,95 ms (×3,3) | 4,14 ms |
-| getafix | Python | 6/26 | 1,55 ms (×59) | 2,62 ms (×57) | échec | 3,09 ms |
-| kosit-validator | Java | 6/26 | 1,57 ms (×60) | 2,32 ms (×50) | 6,95 ms (×7,9) | 2,05 s |
-| zugferd-rs | Rust | 7/26 | 2,02 ms (×77) | 2,72 ms (×59) | 5,14 ms (×5,8) | 5,94 ms |
-| pax-xrechnung | C# | 6/26 | 2,83 ms (×108) | 4,85 ms (×105) | — | 717,18 ms |
-| international-einvoicing | C# | 2/26 | 3,18 ms (×121) | 6,06 ms (×132) | 27,52 ms (×31) | 50,20 ms |
-| @fin.cx/einvoice | TypeScript | 0/26 | 3,21 ms (×122) | 5,66 ms (×123) | 11,21 ms (×13) | 18,06 ms |
-| invoice4j | Java | 26/26 | 3,21 ms (×122) | 5,12 ms (×111) | échec | 29,22 ms |
-| officeimo | C# | 23/26 | 4,10 ms (×156) | 4,29 ms (×93) | 18,07 ms (×20) | 49,46 ms |
-| pnscripts/pn-invoice | PHP | 0/26 | 5,02 ms (×190) | 5,67 ms (×123) | 6,89 ms (×7,8) | 13,13 ms |
-| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 1/26 | 5,05 ms (×192) | 4,98 ms (×108) | 7,80 ms (×8,8) | 13,36 ms |
-| quittio/core | PHP | 6/26 | 5,17 ms (×196) | 5,58 ms (×121) | 8,52 ms (×9,7) | 40,08 ms |
-| antiphon | C# | 2/26 | 5,28 ms (×200) | 9,82 ms (×214) | 13,21 ms (×15) | 107,12 ms |
-| en16931 | C# | 2/26 | 5,46 ms (×207) | 8,21 ms (×178) | 13,67 ms (×15) | 6,28 ms |
-| john-wink/en16931-php | PHP | 0/26 | 6,66 ms (×252) | 7,71 ms (×168) | 9,76 ms (×11) | 16,63 ms |
-| horstoeko/invoicesuite | PHP | 0/26 | 7,98 ms (×303) | 10,19 ms (×222) | 52,07 ms (×59) | 13,45 ms |
-| dealerweb/einvoice | PHP | 6/26 | 8,03 ms (×305) | 10,76 ms (×234) | 12,08 ms (×14) | 24,47 ms |
-| horstoeko/zugferd | PHP | 0/26 | 8,73 ms (×331) | 10,23 ms (×222) | 16,00 ms (×18) | 24,36 ms |
-| mustang | Java | 2/26 | 10,90 ms (×414) | 15,41 ms (×335) | 33,67 ms (×38) | 809,36 ms |
-| intragile/php-einvoicing | PHP | 6/26 | 11,69 ms (×444) | 16,07 ms (×349) | 16,19 ms (×18) | 36,82 ms |
-| en16931 | TypeScript | 6/26 | 15,78 ms (×599) | 27,81 ms (×605) | 42,46 ms (×48) | 171,66 ms |
-| erechnung-validator | Rust | 6/26 | 31,57 ms (×1 198) | 55,42 ms (×1 205) | 83,26 ms (×94) | 150,33 ms |
-| securibox | C# | 6/26 | 37,64 ms (×1 428) | 60,18 ms (×1 308) | 53,45 ms (×61) | 39,61 ms |
-| @kontor-mcp/core | TypeScript | 2/26 | 46,58 ms (×1 767) | 53,34 ms (×1 160) | 73,63 ms (×83) | 152,92 ms |
-| invoicepress/vampire-php | PHP | 6/26 | 63,70 ms (×2 417) | 97,59 ms (×2 122) | 86,72 ms (×98) | 85,54 ms |
-| @stafyniaksacha/facturx | TypeScript | 12/26 | 69,47 ms (×2 636) | 86,20 ms (×1 874) | 89,87 ms (×102) | 144,33 ms |
-| @conformo/toolkit | TypeScript | 6/26 | 71,81 ms (×2 724) | 76,49 ms (×1 663) | 121,63 ms (×138) | 114,40 ms |
-| mcp-einvoicing-de | Python | 2/26 | 108,01 ms (×4 098) | 113,93 ms (×2 477) | 160,02 ms (×181) | 333,97 ms |
-| @lucaapp/zugferd-ts | TypeScript | 8/26 | 2,85 s (×108 180) | 9,19 s (×199 772) | 4,37 s (×4 954) | 3,07 s |
-| factur-x | Rust | 17/26 | échec | échec | 1,65 ms (×1,9) | — |
+| **ZeRechnung (ce dépôt)** | Go | 6/26 | **24,8 µs** | 45,4 µs | 794 µs | — |
+| pdf-invoice | Rust | 20/26 | 26,3 µs (×1,1) | **40,1 µs** (×0,9) | 1,71 ms (×2,2) | 38,2 µs |
+| xsd | C# | 0/26 | 30,1 µs (×1,2) | 48,6 µs (×1,1) | 3,35 ms (×4,2) | 16,08 ms |
+| balsoft | C# | 5/26 | 31,2 µs (×1,3) | 46,7 µs (×1,0) | 2,49 ms (×3,1) | 17,97 ms |
+| libxml2 | C | 0/26 | 66,1 µs (×2,7) | 101 µs (×2,2) | 2,17 ms (×2,7) | 12,33 ms |
+| @ekwo-ai/factur-x | TypeScript | 3/26 | 71,1 µs (×2,9) | 115 µs (×2,5) | 27,40 ms (×35) | 1,75 ms |
+| core-invoice | Rust | 7/26 | 77,2 µs (×3,1) | 121 µs (×2,7) | 5,28 ms (×6,7) | 1,17 ms |
+| en16931 | Rust | 2/26 | 77,6 µs (×3,1) | 131 µs (×2,9) | 6,87 ms (×8,6) | 1,60 ms |
+| pat-o-dev/factur-x | PHP | 2/26 | 109 µs (×4,4) | 158 µs (×3,5) | **466 µs** (×0,6) | 1,52 ms |
+| ph-cii | Java | 0/26 | 136 µs (×5,5) | 192 µs (×4,2) | 4,08 ms (×5,1) | 51,32 ms |
+| @attestwire/en16931 | TypeScript | 2/26 | 202 µs (×8,1) | 331 µs (×7,3) | 6,93 ms (×8,7) | 7,98 ms |
+| xerces-c | C++ | 0/26 | 253 µs (×10) | 438 µs (×9,6) | 5,36 ms (×6,7) | 10,72 ms |
+| factur-x-kit | TypeScript | 18/26 | 294 µs (×12) | échec | échec | 10,56 ms |
+| saxon-schematron | Java | 6/26 | 419 µs (×17) | 668 µs (×15) | 5,54 ms (×7,0) | 629,49 ms |
+| einvoice-validator | Rust | 2/26 | 483 µs (×19) | 781 µs (×17) | 3,94 ms (×5,0) | 22,63 ms |
+| ext-dom | PHP | 0/26 | 493 µs (×20) | 525 µs (×12) | 2,21 ms (×2,8) | 1,82 ms |
+| drafthorse | Python | 0/26 | 507 µs (×20) | 542 µs (×12) | 8,21 ms (×10) | 2,45 ms |
+| factur-x | Python | 0/26 | 518 µs (×21) | 552 µs (×12) | 5,41 ms (×6,8) | 791 µs |
+| saxoncs | C# | 6/26 | 528 µs (×21) | 847 µs (×19) | 11,14 ms (×14) | 706,84 ms |
+| atgp/factur-x | PHP | 4/26 | 533 µs (×21) | 554 µs (×12) | échec | 3,99 ms |
+| easybill/zugferd-php | PHP | 0/26 | 550 µs (×22) | 587 µs (×13) | 2,42 ms (×3,0) | 2,63 ms |
+| phive | Java | 2/26 | 564 µs (×23) | 796 µs (×18) | 6,49 ms (×8,2) | 771,74 ms |
+| tiime/factur-x | PHP | 4/26 | 570 µs (×23) | 638 µs (×14) | échec | 3,68 ms |
+| mahdiabderraouf/facturx-php | PHP | 4/26 | 621 µs (×25) | 658 µs (×14) | échec | 2,25 ms |
+| zugferd-csharp | C# | 3/26 | 689 µs (×28) | 1,12 ms (×25) | 12,96 ms (×16) | 3,04 ms |
+| paniolo | Java | 6/26 | 813 µs (×33) | 1,36 ms (×30) | 8,90 ms (×11) | 768,29 ms |
+| @stackforge-eu/factur-x | TypeScript | 0/26 | 831 µs (×33) | 883 µs (×19) | 10,33 ms (×13) | 30,32 ms |
+| @sweberdev/summand | TypeScript | 6/26 | 854 µs (×34) | 1,40 ms (×31) | 7,68 ms (×9,7) | 17,64 ms |
+| saxonc-he | C++ | 6/26 | 862 µs (×35) | 1,40 ms (×31) | 13,29 ms (×17) | 269,43 ms |
+| saxonche-schematron | Python | 6/26 | 900 µs (×36) | 1,47 ms (×32) | 12,29 ms (×15) | 136,64 ms |
+| stann/factur-x | PHP | 0/26 | 1,25 ms (×50) | 1,31 ms (×29) | 2,95 ms (×3,7) | 4,14 ms |
+| kosit-validator | Java | 6/26 | 1,57 ms (×63) | 2,32 ms (×51) | 6,95 ms (×8,7) | 2,05 s |
+| getafix | Python | 6/26 | 1,60 ms (×64) | 2,62 ms (×58) | échec | 2,97 ms |
+| zugferd-rs | Rust | 7/26 | 2,00 ms (×81) | 2,78 ms (×61) | 5,22 ms (×6,6) | 5,66 ms |
+| pax-xrechnung | C# | 6/26 | 2,83 ms (×114) | 4,85 ms (×107) | — | 717,18 ms |
+| @fin.cx/einvoice | TypeScript | 0/26 | 3,15 ms (×127) | 5,37 ms (×118) | 10,76 ms (×14) | 17,52 ms |
+| international-einvoicing | C# | 2/26 | 3,18 ms (×128) | 6,06 ms (×133) | 27,52 ms (×35) | 50,20 ms |
+| invoice4j | Java | 26/26 | 3,21 ms (×129) | 5,12 ms (×113) | échec | 29,22 ms |
+| officeimo | C# | 23/26 | 4,10 ms (×165) | 4,29 ms (×95) | 18,07 ms (×23) | 49,46 ms |
+| pnscripts/pn-invoice | PHP | 0/26 | 5,02 ms (×202) | 5,67 ms (×125) | 6,89 ms (×8,7) | 13,13 ms |
+| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 1/26 | 5,05 ms (×203) | 4,98 ms (×110) | 7,80 ms (×9,8) | 13,36 ms |
+| quittio/core | PHP | 6/26 | 5,17 ms (×208) | 5,58 ms (×123) | 8,52 ms (×11) | 40,08 ms |
+| antiphon | C# | 2/26 | 5,28 ms (×212) | 9,82 ms (×216) | 13,21 ms (×17) | 107,12 ms |
+| en16931 | C# | 2/26 | 5,46 ms (×220) | 8,21 ms (×181) | 13,67 ms (×17) | 6,28 ms |
+| john-wink/en16931-php | PHP | 0/26 | 6,66 ms (×268) | 7,71 ms (×170) | 9,76 ms (×12) | 16,63 ms |
+| horstoeko/invoicesuite | PHP | 0/26 | 7,98 ms (×321) | 10,19 ms (×224) | 52,07 ms (×66) | 13,45 ms |
+| dealerweb/einvoice | PHP | 6/26 | 8,03 ms (×323) | 10,76 ms (×237) | 12,08 ms (×15) | 24,47 ms |
+| horstoeko/zugferd | PHP | 0/26 | 8,73 ms (×351) | 10,23 ms (×225) | 16,00 ms (×20) | 24,36 ms |
+| mustang | Java | 2/26 | 10,90 ms (×439) | 15,41 ms (×339) | 33,67 ms (×42) | 809,36 ms |
+| intragile/php-einvoicing | PHP | 6/26 | 11,69 ms (×470) | 16,07 ms (×354) | 16,19 ms (×20) | 36,82 ms |
+| en16931 | TypeScript | 6/26 | 14,81 ms (×596) | 26,27 ms (×578) | 41,09 ms (×52) | 164,49 ms |
+| erechnung-validator | Rust | 6/26 | 31,86 ms (×1 282) | 55,39 ms (×1 219) | 82,79 ms (×104) | 153,04 ms |
+| securibox | C# | 6/26 | 37,64 ms (×1 515) | 60,18 ms (×1 325) | 53,45 ms (×67) | 39,61 ms |
+| @kontor-mcp/core | TypeScript | 2/26 | 47,59 ms (×1 915) | 53,48 ms (×1 177) | 74,76 ms (×94) | 146,69 ms |
+| @stafyniaksacha/facturx | TypeScript | 12/26 | 63,00 ms (×2 535) | 80,75 ms (×1 777) | 79,63 ms (×100) | 127,70 ms |
+| invoicepress/vampire-php | PHP | 6/26 | 63,70 ms (×2 563) | 97,59 ms (×2 148) | 86,72 ms (×109) | 85,54 ms |
+| @conformo/toolkit | TypeScript | 6/26 | 72,29 ms (×2 909) | 76,06 ms (×1 674) | 121,35 ms (×153) | 114,69 ms |
+| mcp-einvoicing-de | Python | 2/26 | 101,48 ms (×4 084) | 105,54 ms (×2 323) | 159,17 ms (×200) | 285,41 ms |
+| @lucaapp/zugferd-ts | TypeScript | 8/26 | 2,70 s (×108 660) | 9,24 s (×203 400) | 4,35 s (×5 475) | 2,91 s |
+| factur-x | Rust | 17/26 | échec | échec | 1,63 ms (×2,1) | — |
 | facturxdotnet | C# | 15/26 | échec | échec | échec | — |
 
 En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du package Go de ce dépôt. Tri sur la colonne « 13 Ko » ; « Premier appel » : durée du premier appel dans le processus, même colonne (non mesurée pour Go).
@@ -269,56 +269,56 @@ En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du pack
 
 | Librairie | Langage | 13 Ko | 19 Ko | Premier appel |
 |---|---|---|---|---|
-| **ZeRechnung (ce dépôt)** | Go | **3,5 µs** | 5,5 µs | — |
-| pugixml | C++ | 3,7 µs (×1,1) | **5,5 µs** (×1,0) | 144 µs |
-| zugferd-rs | Rust | 6,9 µs (×2,0) | 11,8 µs (×2,1) | 609 µs |
-| balsoft | C# | 9,6 µs (×2,8) | 16,9 µs (×3,1) | 3,93 ms |
-| @ekwo-ai/factur-x | TypeScript | 10,9 µs (×3,2) | — | 431 µs |
-| core-invoice | Rust | 11,0 µs (×3,2) | 17,5 µs (×3,2) | 43,7 µs |
-| libxml2 | C | 12,0 µs (×3,5) | 21,5 µs (×3,9) | 357 µs |
-| securibox | C# | 12,8 µs (×3,7) | 21,9 µs (×3,9) | 152 µs |
-| antiphon | C# | 14,5 µs (×4,2) | 26,1 µs (×4,7) | 5,06 ms |
-| @stackforge-eu/factur-x | TypeScript | 14,7 µs (×4,2) | — | 1,59 ms |
-| zugferd-csharp | C# | 19,3 µs (×5,6) | 35,3 µs (×6,4) | 209 µs |
-| @conformo/toolkit | TypeScript | 21,4 µs (×6,2) | 37,4 µs (×6,8) | 1,65 ms |
-| international-einvoicing | C# | 22,4 µs (×6,5) | 39,4 µs (×7,1) | 5,28 ms |
-| zugferd | Rust | 28,8 µs (×8,3) | — | 404 µs |
-| invoice4j | Java | 29,5 µs (×8,5) | 46,2 µs (×8,3) | 2,84 ms |
-| imixs-e-invoice | Java | 29,6 µs (×8,6) | 43,1 µs (×7,8) | 16,07 ms |
-| gallop | Java | 34,6 µs (×10) | — | 35,94 ms |
-| einvoice | Rust | 36,7 µs (×11) | 65,0 µs (×12) | 766 µs |
-| tiime/cross-industry-invoice | PHP | 40,9 µs (×12) | 72,5 µs (×13) | 92,2 µs |
-| @attestwire/en16931 | TypeScript | 43,7 µs (×13) | 83,2 µs (×15) | 1,06 ms |
-| en16931 | Rust | 46,4 µs (×13) | 80,4 µs (×15) | 920 µs |
-| xerces-c | C++ | 46,5 µs (×13) | 102 µs (×18) | 61,8 µs |
-| mahdiabderraouf/facturx-php | PHP | 61,2 µs (×18) | — | 3,29 ms |
-| paniolo | Java | 62,9 µs (×18) | 91,6 µs (×17) | 22,88 ms |
-| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 75,5 µs (×22) | 131 µs (×24) | 1,39 ms |
-| pycheval | Python | 78,3 µs (×23) | échec | 152 µs |
-| @stafyniaksacha/facturx | TypeScript | 78,8 µs (×23) | 130 µs (×23) | 1,34 ms |
-| mustang | Java | 81,5 µs (×24) | 125 µs (×23) | 7,29 ms |
-| ph-cii | Java | 81,8 µs (×24) | 145 µs (×26) | 119,32 ms |
-| pat-o-dev/factur-x | PHP | 95,7 µs (×28) | — | 2,14 ms |
-| pnscripts/pn-invoice | PHP | 95,8 µs (×28) | — | 1,11 ms |
-| @lucaapp/zugferd-ts | TypeScript | 110 µs (×32) | 193 µs (×35) | 5,12 ms |
-| mcp-einvoicing-de | Python | 112 µs (×32) | 191 µs (×34) | 384 µs |
-| intragile/php-einvoicing | PHP | 118 µs (×34) | 202 µs (×36) | 1,71 ms |
-| quittio/core | PHP | 119 µs (×34) | 198 µs (×36) | 2,00 ms |
-| zugferd-pdf | Python | 122 µs (×35) | — | 370 µs |
-| erechnung | Python | 127 µs (×37) | — | 2,08 ms |
-| en16931 | C# | 140 µs (×41) | échec | 7,19 ms |
-| factur-x-kit | TypeScript | 188 µs (×54) | échec | 5,48 ms |
-| @fin.cx/einvoice | TypeScript | 366 µs (×106) | 500 µs (×90) | 3,64 ms |
-| horstoeko/zugferd | PHP | 386 µs (×112) | 668 µs (×120) | 1,46 ms |
-| getafix | Python | 402 µs (×116) | 707 µs (×128) | 837 µs |
-| factur-x | Python | 696 µs (×201) | 856 µs (×154) | 2,44 ms |
-| dealerweb/einvoice | PHP | 923 µs (×267) | 1,47 ms (×265) | 3,73 ms |
-| node-zugferd | TypeScript | 981 µs (×284) | — | 5,28 ms |
-| easybill/e-invoicing | PHP | 989 µs (×286) | 1,34 ms (×241) | 2,28 ms |
-| drafthorse | Python | 991 µs (×286) | 1,35 ms (×244) | 1,36 ms |
-| easybill/zugferd-php | PHP | 1,05 ms (×305) | 1,41 ms (×255) | 3,85 ms |
-| horstoeko/invoicesuite | PHP | 7,99 ms (×2 308) | 13,61 ms (×2 455) | 25,62 ms |
-| @e-invoice-eu/core | TypeScript | 41,52 ms (×12 000) | — | 90,92 ms |
+| **ZeRechnung (ce dépôt)** | Go | **3,3 µs** | **5,3 µs** | — |
+| pugixml | C++ | 3,7 µs (×1,1) | 5,5 µs (×1,1) | 144 µs |
+| zugferd-rs | Rust | 7,0 µs (×2,1) | 12,0 µs (×2,3) | 59,7 µs |
+| balsoft | C# | 9,6 µs (×2,9) | 16,9 µs (×3,2) | 3,93 ms |
+| core-invoice | Rust | 10,7 µs (×3,3) | 17,1 µs (×3,3) | 46,5 µs |
+| @ekwo-ai/factur-x | TypeScript | 11,1 µs (×3,4) | — | 431 µs |
+| libxml2 | C | 12,0 µs (×3,7) | 21,5 µs (×4,1) | 357 µs |
+| securibox | C# | 12,8 µs (×3,9) | 21,9 µs (×4,2) | 152 µs |
+| @stackforge-eu/factur-x | TypeScript | 14,1 µs (×4,3) | — | 525 µs |
+| antiphon | C# | 14,5 µs (×4,4) | 26,1 µs (×5,0) | 5,06 ms |
+| zugferd-csharp | C# | 19,3 µs (×5,9) | 35,3 µs (×6,7) | 209 µs |
+| @conformo/toolkit | TypeScript | 21,6 µs (×6,6) | 37,5 µs (×7,1) | 1,55 ms |
+| international-einvoicing | C# | 22,4 µs (×6,8) | 39,4 µs (×7,5) | 5,28 ms |
+| zugferd | Rust | 29,4 µs (×9,0) | — | 446 µs |
+| invoice4j | Java | 29,5 µs (×9,0) | 46,2 µs (×8,8) | 2,84 ms |
+| imixs-e-invoice | Java | 29,6 µs (×9,0) | 43,1 µs (×8,2) | 16,07 ms |
+| gallop | Java | 34,6 µs (×11) | — | 35,94 ms |
+| einvoice | Rust | 37,5 µs (×11) | 66,1 µs (×13) | 1,91 ms |
+| tiime/cross-industry-invoice | PHP | 40,9 µs (×12) | 72,5 µs (×14) | 92,2 µs |
+| @attestwire/en16931 | TypeScript | 41,9 µs (×13) | 83,6 µs (×16) | 926 µs |
+| xerces-c | C++ | 46,5 µs (×14) | 102 µs (×19) | 61,8 µs |
+| en16931 | Rust | 46,6 µs (×14) | 80,5 µs (×15) | 708 µs |
+| mahdiabderraouf/facturx-php | PHP | 61,2 µs (×19) | — | 3,29 ms |
+| paniolo | Java | 62,9 µs (×19) | 91,6 µs (×17) | 22,88 ms |
+| @stafyniaksacha/facturx | TypeScript | 73,4 µs (×22) | 122 µs (×23) | 1,22 ms |
+| daniel-jorg-schuppelius/php-erechnung-toolkit | PHP | 75,5 µs (×23) | 131 µs (×25) | 1,39 ms |
+| pycheval | Python | 77,3 µs (×24) | échec | 143 µs |
+| mustang | Java | 81,5 µs (×25) | 125 µs (×24) | 7,29 ms |
+| ph-cii | Java | 81,8 µs (×25) | 145 µs (×28) | 119,32 ms |
+| pat-o-dev/factur-x | PHP | 95,7 µs (×29) | — | 2,14 ms |
+| pnscripts/pn-invoice | PHP | 95,8 µs (×29) | — | 1,11 ms |
+| @lucaapp/zugferd-ts | TypeScript | 109 µs (×33) | 194 µs (×37) | 5,09 ms |
+| mcp-einvoicing-de | Python | 109 µs (×33) | 184 µs (×35) | 179 µs |
+| intragile/php-einvoicing | PHP | 118 µs (×36) | 202 µs (×38) | 1,71 ms |
+| quittio/core | PHP | 119 µs (×36) | 198 µs (×38) | 2,00 ms |
+| zugferd-pdf | Python | 122 µs (×37) | — | 273 µs |
+| erechnung | Python | 124 µs (×38) | — | 328 µs |
+| en16931 | C# | 140 µs (×43) | échec | 7,19 ms |
+| factur-x-kit | TypeScript | 175 µs (×53) | échec | 5,69 ms |
+| @fin.cx/einvoice | TypeScript | 354 µs (×108) | 486 µs (×93) | 3,45 ms |
+| horstoeko/zugferd | PHP | 386 µs (×118) | 668 µs (×127) | 1,46 ms |
+| getafix | Python | 399 µs (×122) | 688 µs (×131) | 817 µs |
+| factur-x | Python | 696 µs (×213) | 851 µs (×162) | 2,05 ms |
+| dealerweb/einvoice | PHP | 923 µs (×282) | 1,47 ms (×279) | 3,73 ms |
+| node-zugferd | TypeScript | 931 µs (×284) | — | 4,91 ms |
+| drafthorse | Python | 983 µs (×300) | 1,39 ms (×264) | 1,38 ms |
+| easybill/e-invoicing | PHP | 989 µs (×302) | 1,34 ms (×255) | 2,28 ms |
+| easybill/zugferd-php | PHP | 1,05 ms (×322) | 1,41 ms (×269) | 3,85 ms |
+| horstoeko/invoicesuite | PHP | 7,99 ms (×2 438) | 13,61 ms (×2 589) | 25,62 ms |
+| @e-invoice-eu/core | TypeScript | 39,65 ms (×12 104) | — | 81,68 ms |
 | factur-x | Rust | échec | échec | — |
 | pdf-invoice | Rust | échec | échec | — |
 | facturxdotnet | C# | échec | échec | — |
@@ -330,40 +330,40 @@ En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du pack
 
 | Librairie | Langage | hôte à xref classique | hôte à flux xref | Premier appel |
 |---|---|---|---|---|
-| pdfa | Rust | **87,1 µs** (×0,9) | échec | 106 µs |
-| **ZeRechnung (ce dépôt)** | Go | 101 µs | **105 µs** | — |
-| mupdf | C | 114 µs (×1,1) | 123 µs (×1,2) | 164 µs |
-| pdf-invoice | Rust | 158 µs (×1,6) | 182 µs (×1,7) | 209 µs |
-| zugferd-rs | Rust | 198 µs (×2,0) | 217 µs (×2,1) | 233 µs |
-| balsoft | C# | 362 µs (×3,6) | 388 µs (×3,7) | 264 µs |
-| qpdf | C++ | 419 µs (×4,2) | 505 µs (×4,8) | 586 µs |
-| podofo | C++ | 425 µs (×4,2) | 395 µs (×3,8) | 427 µs |
-| mcp-einvoicing-de | Python | 808 µs (×8,0) | 711 µs (×6,8) | 1,63 ms |
-| international-einvoicing | C# | 854 µs (×8,5) | 875 µs (×8,4) | 287 µs |
-| zugferd-pdf | Python | 873 µs (×8,7) | 764 µs (×7,3) | 5,03 ms |
-| antiphon | C# | 880 µs (×8,7) | 881 µs (×8,4) | 240 µs |
-| @stackforge-eu/factur-x | TypeScript | 1,16 ms (×12) | 1,22 ms (×12) | 15,13 ms |
+| pdfa | Rust | **88,6 µs** (×0,9) | échec | 131 µs |
+| **ZeRechnung (ce dépôt)** | Go | 96,2 µs | **96,7 µs** | — |
+| mupdf | C | 114 µs (×1,2) | 123 µs (×1,3) | 164 µs |
+| pdf-invoice | Rust | 164 µs (×1,7) | 180 µs (×1,9) | 180 µs |
+| zugferd-rs | Rust | 206 µs (×2,1) | 221 µs (×2,3) | 218 µs |
+| balsoft | C# | 362 µs (×3,8) | 388 µs (×4,0) | 264 µs |
+| qpdf | C++ | 419 µs (×4,4) | 505 µs (×5,2) | 586 µs |
+| podofo | C++ | 425 µs (×4,4) | 395 µs (×4,1) | 427 µs |
+| mcp-einvoicing-de | Python | 775 µs (×8,1) | 679 µs (×7,0) | 1,49 ms |
+| international-einvoicing | C# | 854 µs (×8,9) | 875 µs (×9,0) | 287 µs |
+| antiphon | C# | 880 µs (×9,2) | 881 µs (×9,1) | 240 µs |
+| zugferd-pdf | Python | 888 µs (×9,2) | 782 µs (×8,1) | 5,17 ms |
 | officeimo | C# | 1,19 ms (×12) | échec | 19,83 ms |
-| horstoeko/zugferd | PHP | 1,35 ms (×13) | échec | 8,49 ms |
-| atgp/factur-x | PHP | 1,62 ms (×16) | échec | 6,81 ms |
-| @fin.cx/einvoice | TypeScript | 1,78 ms (×18) | 1,82 ms (×17) | 50,83 ms |
-| quittio/core | PHP | 1,86 ms (×18) | échec | 30,54 ms |
-| @ekwo-ai/factur-x | TypeScript | 1,95 ms (×19) | 2,25 ms (×21) | 12,78 ms |
-| dealerweb/einvoice | PHP | 2,06 ms (×20) | 2,14 ms (×20) | 10,73 ms |
-| drafthorse | Python | 2,11 ms (×21) | 2,12 ms (×20) | 3,50 ms |
-| getafix | Python | 2,11 ms (×21) | 2,19 ms (×21) | 3,46 ms |
-| @lucaapp/zugferd-ts | TypeScript | 2,13 ms (×21) | 2,30 ms (×22) | 13,57 ms |
-| stann/factur-x | PHP | 2,55 ms (×25) | échec | 33,78 ms |
-| pycheval | Python | 2,57 ms (×26) | 2,60 ms (×25) | 3,81 ms |
-| @conformo/toolkit | TypeScript | 2,79 ms (×28) | 2,82 ms (×27) | 15,53 ms |
-| mahdiabderraouf/facturx-php | PHP | 3,02 ms (×30) | échec | 10,19 ms |
-| horstoeko/invoicesuite | PHP | 3,67 ms (×36) | échec | 14,46 ms |
-| factur-x | Python | 4,39 ms (×44) | 3,98 ms (×38) | 6,45 ms |
-| mustang | Java | 5,19 ms (×52) | 5,42 ms (×52) | 5,37 ms |
-| zugferd-csharp | C# | 5,30 ms (×53) | 4,55 ms (×43) | 4,85 ms |
-| tiime/factur-x | PHP | 6,26 ms (×62) | échec | 26,43 ms |
-| kura | C++ | 25,12 ms (×249) | 12,59 ms (×120) | 12,17 ms |
-| securibox | C# | 41,38 ms (×411) | 41,60 ms (×397) | 40,73 ms |
+| @stackforge-eu/factur-x | TypeScript | 1,19 ms (×12) | 1,17 ms (×12) | 14,46 ms |
+| horstoeko/zugferd | PHP | 1,35 ms (×14) | échec | 8,49 ms |
+| atgp/factur-x | PHP | 1,62 ms (×17) | échec | 6,81 ms |
+| quittio/core | PHP | 1,86 ms (×19) | échec | 30,54 ms |
+| @fin.cx/einvoice | TypeScript | 1,88 ms (×20) | 1,95 ms (×20) | 52,01 ms |
+| dealerweb/einvoice | PHP | 2,06 ms (×21) | 2,14 ms (×22) | 10,73 ms |
+| getafix | Python | 2,10 ms (×22) | 2,13 ms (×22) | 2,88 ms |
+| drafthorse | Python | 2,13 ms (×22) | 2,16 ms (×22) | 3,38 ms |
+| @lucaapp/zugferd-ts | TypeScript | 2,15 ms (×22) | 2,03 ms (×21) | 11,96 ms |
+| @ekwo-ai/factur-x | TypeScript | 2,49 ms (×26) | 2,06 ms (×21) | 12,36 ms |
+| @conformo/toolkit | TypeScript | 2,50 ms (×26) | 2,54 ms (×26) | 15,69 ms |
+| stann/factur-x | PHP | 2,55 ms (×27) | échec | 33,78 ms |
+| pycheval | Python | 2,55 ms (×27) | 2,65 ms (×27) | 3,48 ms |
+| mahdiabderraouf/facturx-php | PHP | 3,02 ms (×31) | échec | 10,19 ms |
+| horstoeko/invoicesuite | PHP | 3,67 ms (×38) | échec | 14,46 ms |
+| factur-x | Python | 4,32 ms (×45) | 3,98 ms (×41) | 6,58 ms |
+| mustang | Java | 5,19 ms (×54) | 5,42 ms (×56) | 5,37 ms |
+| zugferd-csharp | C# | 5,30 ms (×55) | 4,55 ms (×47) | 4,85 ms |
+| tiime/factur-x | PHP | 6,26 ms (×65) | échec | 26,43 ms |
+| kura | C++ | 25,12 ms (×261) | 12,59 ms (×130) | 12,17 ms |
+| securibox | C# | 41,38 ms (×430) | 41,60 ms (×430) | 40,73 ms |
 | @stafyniaksacha/facturx | TypeScript | échec | échec | — |
 | en16931 | Rust | échec | échec | — |
 | paniolo | Java | échec | échec | — |
@@ -377,21 +377,61 @@ En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du pack
 
 | Librairie | Langage | 149 Ko | 1,1 Mo | Premier appel |
 |---|---|---|---|---|
-| zugferd-pdf | Python | **212 µs** (×0,2) | **270 µs** (×0,3) | 446 µs |
+| zugferd-pdf | Python | **213 µs** (×0,3) | **269 µs** (×0,3) | 589 µs |
 | officeimo | C# | 261 µs (×0,3) | 1,29 ms (×1,5) | 5,30 ms |
-| @attestwire/en16931 | TypeScript | 372 µs (×0,4) | 407 µs (×0,5) | 11,05 ms |
-| en16931 | Rust | 484 µs (×0,6) | 827 µs (×0,9) | 518 µs |
-| **ZeRechnung (ce dépôt)** | Go | 863 µs | 886 µs | — |
-| @sweberdev/summand | TypeScript | 2,13 ms (×2,5) | 23,13 ms (×26) | 19,45 ms |
-| kura | C++ | 2,84 ms (×3,3) | 2,98 ms (×3,4) | 1,75 ms |
-| paniolo | Java | 11,89 ms (×14) | 15,59 ms (×18) | 600,54 ms |
-| mustang | Java | 22,18 ms (×26) | 30,09 ms (×34) | 387,16 ms |
-| erechnung-validator | Rust | 31,86 ms (×37) | 35,97 ms (×41) | 32,14 ms |
-| securibox | C# | 42,68 ms (×49) | 40,08 ms (×45) | 35,91 ms |
-| @conformo/toolkit | TypeScript | 71,92 ms (×83) | 92,45 ms (×104) | 119,47 ms |
+| @attestwire/en16931 | TypeScript | 368 µs (×0,5) | 403 µs (×0,5) | 11,29 ms |
+| en16931 | Rust | 489 µs (×0,6) | 817 µs (×1,0) | 515 µs |
+| **ZeRechnung (ce dépôt)** | Go | 811 µs | 856 µs | — |
+| @sweberdev/summand | TypeScript | 1,90 ms (×2,3) | 21,72 ms (×25) | 18,68 ms |
+| kura | C++ | 2,84 ms (×3,5) | 2,98 ms (×3,5) | 1,75 ms |
+| paniolo | Java | 11,89 ms (×15) | 15,59 ms (×18) | 600,54 ms |
+| mustang | Java | 22,18 ms (×27) | 30,09 ms (×35) | 387,16 ms |
+| erechnung-validator | Rust | 32,88 ms (×41) | 37,11 ms (×43) | 33,75 ms |
+| securibox | C# | 42,68 ms (×53) | 40,08 ms (×47) | 35,91 ms |
+| @conformo/toolkit | TypeScript | 75,14 ms (×93) | 95,02 ms (×111) | 118,45 ms |
 | facturxdotnet | C# | échec | 592 µs (×0,7) | — |
 
 En gras : le plus rapide de la colonne. (×n) : temps rapporté à celui du package Go de ce dépôt. Tri sur la colonne « 149 Ko » ; « Premier appel » : durée du premier appel dans le processus, même colonne (non mesurée pour Go).
+
+#### Allocations par appel
+
+| Librairie | Langage | Extraction, PDF de 149 Ko | Lecture, XML de 13 Ko | Validation, XML de 13 Ko | Validation, XML de 1,3 Mo | Écriture, XML de 13 Ko | Injection, hôte à flux xref | Contrôle, PDF de 149 Ko |
+|---|---|---|---|---|---|---|---|---|
+| **ZeRechnung (ce dépôt)** | Go | 39 Ko · 228 | **28 Ko · 111** | **23 Ko · 82** | 1,3 Mo · 159 | **8 Ko · 1** | **245 Ko · 456** | 700 Ko · 2 383 |
+| @attestwire/en16931 | TypeScript | 397 Ko | 278 Ko | 425 Ko | 3,0 Mo | 174 Ko | — | 755 Ko |
+| @conformo/toolkit | TypeScript | 483 Ko | 336 Ko | ≥ 60,9 Mo | ≥ 83,2 Mo | 112 Ko | 1,3 Mo | ≥ 62,2 Mo |
+| @e-invoice-eu/core | TypeScript | — | — | — | — | ≥ 184,7 Mo | — | — |
+| @ekwo-ai/factur-x | TypeScript | 485 Ko | 164 Ko | 164 Ko | 1,2 Mo | 49 Ko | 1,0 Mo | — |
+| @fin.cx/einvoice | TypeScript | 1,1 Mo | 7,4 Mo | 11,8 Mo | 15,1 Mo | 773 Ko | 1,2 Mo | — |
+| @kontor-mcp/core | TypeScript | 2,1 Mo | 4,5 Mo | 39,0 Mo | 54,7 Mo | — | — | — |
+| @lucaapp/zugferd-ts | TypeScript | 493 Ko | 431 Ko | ≥ 13,2 Go | ≥ 20,3 Go | 419 Ko | 1,1 Mo | — |
+| @stackforge-eu/factur-x | TypeScript | 484 Ko | — | 112 Ko | 120 Ko | 44 Ko | 2,4 Mo | — |
+| @stafyniaksacha/facturx | TypeScript | 501 Ko | 1,0 Mo | ≥ 145,5 Mo | ≥ 164,5 Mo | 118 Ko | échec | — |
+| @sweberdev/summand | TypeScript | 235 Ko | — | 3,1 Mo | 6,2 Mo | — | — | 3,4 Mo |
+| en16931 | TypeScript | — | — | ≥ 100,4 Mo | ≥ 118,7 Mo | — | — | — |
+| factur-x-kit | TypeScript | — | 638 Ko | 696 Ko | échec | 385 Ko | — | — |
+| node-zugferd | TypeScript | — | — | — | — | 2,4 Mo | — | — |
+| drafthorse | Python | — | 416 Ko · 5 034 | 819 Ko · 6 235 | 164,9 Mo · 6 716 | 1,3 Mo · 12 116 | 5,3 Mo · 34 504 | — |
+| erechnung | Python | — | — | — | — | 222 Ko · 2 166 | — | — |
+| factur-x | Python | 545 Ko · 3 108 | 2,2 Mo · 24 916 | 795 Ko · 6 359 | 3,6 Mo · 6 505 | 1,1 Mo · 9 710 | 7,0 Mo · 52 592 | — |
+| getafix | Python | 623 Ko · 2 723 | 489 Ko · 5 741 | 787 Ko · 9 188 | échec | 505 Ko · 5 306 | 5,4 Mo · 35 125 | — |
+| mcp-einvoicing-de | Python | 186 Ko · 1 553 | 572 Ko · 6 040 | 5,0 Mo · 41 334 | 48,8 Mo · 58 413 | 190 Ko · 1 898 | 3,4 Mo · 5 847 | — |
+| pycheval | Python | 544 Ko · 2 637 | 374 Ko · 3 302 | — | — | 122 Ko · 1 254 | 6,0 Mo · 39 854 | — |
+| saxonche-schematron | Python | — | — | 321 Ko · 749 | 12,7 Mo · 1 332 | — | — | — |
+| zugferd-pdf | Python | 187 Ko · 1 552 | — | — | — | 207 Ko · 1 804 | 3,7 Mo · 5 582 | **466 Ko · 4 008** |
+| core-invoice | Rust | — | 120 Ko · 113 | 201 Ko · 141 | 3,9 Mo · 191 | 24 Ko · 396 | — | — |
+| einvoice | Rust | — | 409 Ko · 8 465 | — | — | 79 Ko · 981 | — | — |
+| einvoice-validator | Rust | 94 Ko · 255 | — | 397 Ko · 7 188 | 1,7 Mo · 8 030 | — | — | — |
+| en16931 | Rust | 1,3 Mo · 2 199 | 130 Ko · 1 312 | 131 Ko · 1 330 | 3,5 Mo · 1 656 | 80 Ko · 539 | échec | 1,5 Mo · 3 834 |
+| erechnung-validator | Rust | — | — | 151,1 Mo · 850 719 | 317,3 Mo · 1 941 234 | — | — | 151,9 Mo · 851 698 |
+| factur-x | Rust | — | échec | échec | 2,6 Mo · 1 133 | échec | — | — |
+| lopdf | Rust | 529 Ko · 415 | — | — | — | — | — | — |
+| pdf-invoice | Rust | 363 Ko · 447 | 82 Ko · 64 | 84 Ko · 87 | **102 Ko · 86** | échec | 949 Ko · 615 | — |
+| pdfa | Rust | **36 Ko · 18** | — | — | — | — | échec | — |
+| zugferd | Rust | — | — | — | — | 86 Ko · 529 | — | — |
+| zugferd-rs | Rust | 544 Ko · 503 | 81 Ko · 77 | 204 Ko · 2 943 | 221 Ko · 2 945 | 28 Ko · 196 | 1,6 Mo · 979 | — |
+
+Octets alloués · nombre d'allocations, pour un appel, après le même contrôle du résultat et un échauffement. Go : `go test -benchmem`, médiane des exécutions. Rust : allocateur global du harnais, qui compte chaque `alloc` et `realloc`. Python : `PYTHONMALLOC=malloc` et un compteur inséré dans le processus, qui compte chaque `malloc`, objets Python et extensions C comprises (libxml2, qpdf). TypeScript : croissance du tas V8 et des ArrayBuffer pendant la série d'appels ; V8 ne compte pas ses allocations, d'où l'absence de nombre, et « ≥ » quand un ramasse-miettes a tourné pendant la série. En gras : le moins d'octets alloués de la colonne.
 
 #### Ressources par langage
 
@@ -736,8 +776,8 @@ Temps CPU par opération (utilisateur + système, tous les fils du processus) su
 | qpdf | C++ | 3,5 Mio (×0,2) | 4,5 Mio (×0,2) | 3,4 Mio (×0,2) | 3,6 Mio (×0,2) |
 | qpdf-c | C | 3,6 Mio (×0,2) | 4,5 Mio (×0,2) | 3,3 Mio (×0,2) | 3,7 Mio (×0,2) |
 | lopdf | Rust | 3,6 Mio (×0,2) | 7,4 Mio (×0,3) | 3,0 Mio (×0,2) | 3,8 Mio (×0,2) |
-| kura | C++ | 4,4 Mio (×0,2) | 5,4 Mio (×0,2) | 4,2 Mio (×0,2) | 4,5 Mio (×0,2) |
 | en16931 | Rust | 4,4 Mio (×0,2) | 7,4 Mio (×0,3) | 3,9 Mio (×0,2) | 4,7 Mio (×0,2) |
+| kura | C++ | 4,4 Mio (×0,2) | 5,4 Mio (×0,2) | 4,2 Mio (×0,2) | 4,5 Mio (×0,2) |
 | pdf-invoice | Rust | 7,9 Mio (×0,4) | 11,6 Mio (×0,5) | 7,2 Mio (×0,4) | 8,0 Mio (×0,4) |
 | zugferd-rs | Rust | 8,2 Mio (×0,4) | 12,0 Mio (×0,6) | 7,4 Mio (×0,4) | 8,3 Mio (×0,4) |
 | podofo | C++ | 8,6 Mio (×0,4) | 9,5 Mio (×0,4) | 8,4 Mio (×0,4) | 8,8 Mio (×0,4) |
@@ -858,8 +898,8 @@ Pic de mémoire résidente du processus qui n'a exécuté que ce benchmark, runt
 | pat-o-dev/factur-x | PHP | 39,6 Mio (×2,1) | 39,7 Mio (×2,1) | 44,9 Mio (×1,8) |
 | mahdiabderraouf/facturx-php | PHP | 40,2 Mio (×2,2) | 40,6 Mio (×2,1) | échec |
 | tiime/factur-x | PHP | 40,3 Mio (×2,2) | 41,0 Mio (×2,1) | échec |
-| ext-dom | PHP | 40,5 Mio (×2,2) | 40,6 Mio (×2,1) | 45,5 Mio (×1,8) |
 | atgp/factur-x | PHP | 40,5 Mio (×2,2) | 40,6 Mio (×2,1) | échec |
+| ext-dom | PHP | 40,5 Mio (×2,2) | 40,6 Mio (×2,1) | 45,5 Mio (×1,8) |
 | easybill/zugferd-php | PHP | 40,5 Mio (×2,2) | 40,7 Mio (×2,1) | 45,5 Mio (×1,8) |
 | stann/factur-x | PHP | 41,4 Mio (×2,2) | 41,5 Mio (×2,2) | 46,5 Mio (×1,9) |
 | horstoeko/zugferd | PHP | 42,8 Mio (×2,3) | 43,0 Mio (×2,3) | 54,1 Mio (×2,2) |

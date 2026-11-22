@@ -1,0 +1,25 @@
+go version go1.27.4 darwin/arm64
+goos: darwin
+goarch: arm64
+pkg: github.com/ritoon/zerechnung/bench/ecosystem/goblde
+cpu: Apple M4 Pro
+BenchmarkParse_Small-14            	    1994	    505547 ns/op	  26.02 MB/s	  262322 B/op	    5245 allocs/op
+BenchmarkParse_Small-14            	    2430	    495561 ns/op	  26.54 MB/s	  262632 B/op	    5246 allocs/op
+BenchmarkParse_Small-14            	    2407	    502730 ns/op	  26.16 MB/s	  263218 B/op	    5246 allocs/op
+BenchmarkParse_Lines-14            	    1546	    782209 ns/op	  24.04 MB/s	  417230 B/op	    9035 allocs/op
+BenchmarkParse_Lines-14            	    1454	    785914 ns/op	  23.92 MB/s	  417316 B/op	    9035 allocs/op
+BenchmarkParse_Lines-14            	    1537	    787161 ns/op	  23.89 MB/s	  417225 B/op	    9035 allocs/op
+BenchmarkParse_Large-14            	      50	  22167561 ns/op	  58.88 MB/s	10701155 B/op	    5993 allocs/op
+BenchmarkParse_Large-14            	      54	  22191258 ns/op	  58.82 MB/s	10700080 B/op	    5993 allocs/op
+BenchmarkParse_Large-14            	      55	  22192584 ns/op	  58.82 MB/s	10696044 B/op	    5990 allocs/op
+BenchmarkParseValidate_Small-14    	     698	   1639753 ns/op	   8.02 MB/s	 1007331 B/op	   15545 allocs/op
+BenchmarkParseValidate_Small-14    	     734	   1641370 ns/op	   8.01 MB/s	 1004179 B/op	   15543 allocs/op
+BenchmarkParseValidate_Small-14    	     746	   1616276 ns/op	   8.14 MB/s	 1004058 B/op	   15543 allocs/op
+BenchmarkParseValidate_Lines-14    	     472	   2570850 ns/op	   7.31 MB/s	 1573974 B/op	   25542 allocs/op
+BenchmarkParseValidate_Lines-14    	     474	   2537091 ns/op	   7.41 MB/s	 1574326 B/op	   25542 allocs/op
+BenchmarkParseValidate_Lines-14    	     460	   2576217 ns/op	   7.30 MB/s	 1576909 B/op	   25544 allocs/op
+BenchmarkParseValidate_Large-14    	      50	  23957195 ns/op	  54.49 MB/s	11679269 B/op	   17821 allocs/op
+BenchmarkParseValidate_Large-14    	      50	  23898048 ns/op	  54.62 MB/s	11692148 B/op	   17829 allocs/op
+BenchmarkParseValidate_Large-14    	      51	  23971589 ns/op	  54.45 MB/s	11689994 B/op	   17830 allocs/op
+PASS
+ok  	github.com/ritoon/zerechnung/bench/ecosystem/goblde	21.724s

@@ -1,5 +1,7 @@
 // node bench.mjs <lib> <Benchmark>              →  one line of bench_typescript.jsonl
 // node bench.mjs --resources <lib> <Benchmark>  →  one line of resources_typescript.jsonl
+// node --expose-gc … bench.mjs --alloc <lib> <Benchmark>  →  one line of
+//   alloc_typescript.jsonl: the bytes one call allocates (run.sh alloc)
 //
 // One process per library and benchmark, so that first_call_ns is the first
 // call of the operation in a fresh process and no benchmark warms another.
@@ -7,7 +9,7 @@
 // memory of this process, read after the series.
 import { pathToFileURL } from 'node:url';
 import * as corpus from './lib/corpus.mjs';
-import { emit, errMessage, maxRSSBytes, measure, record, silenceConsole, Unsupported, Wrong } from './lib/harness.mjs';
+import { emit, errMessage, maxRSSBytes, measure, measureAlloc, record, silenceConsole, Unsupported, Wrong } from './lib/harness.mjs';
 import { loadAdapter } from './adapters/index.mjs';
 import { HAND_NOTE } from './lib/handmodels.mjs';
 
@@ -44,7 +46,7 @@ const checkCount = (r) => {
 	if (!r || typeof r.errors !== 'number' || Number.isNaN(r.errors)) throw new Wrong(`résultat de validation illisible : ${JSON.stringify(r)?.slice(0, 200)}`);
 };
 
-export async function runBenchmark(adapter, bench) {
+export async function runBenchmark(adapter, bench, alloc = false) {
 	const spec = BENCHMARKS[bench];
 	if (!spec) throw new Error(`unknown benchmark ${bench}`);
 	const op = spec.op;
@@ -111,7 +113,7 @@ export async function runBenchmark(adapter, bench) {
 				break;
 			}
 		}
-		const m = await measure(fn, check);
+		const m = alloc ? await measureAlloc(fn, check) : await measure(fn, check);
 		return record(adapter, bench, { status: 'ok', ...m, note: joinNotes(opNote, extraNote) });
 	} catch (e) {
 		if (e instanceof Unsupported) return record(adapter, bench, { status: 'unsupported', note: joinNotes(e.message) });
@@ -128,7 +130,8 @@ async function fallbackExtract(pdf) {
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 	const resources = process.argv[2] === '--resources';
-	const [lib, bench] = process.argv.slice(resources ? 3 : 2);
+	const alloc = process.argv[2] === '--alloc';
+	const [lib, bench] = process.argv.slice(resources || alloc ? 3 : 2);
 	if (process.argv[2] === '--list') {
 		process.stdout.write(Object.keys(BENCHMARKS).join(' ') + '\n');
 		process.exit(0);
@@ -158,7 +161,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 		process.exit(0);
 	});
 	process.on('exit', (code) => crash(`processus terminé (code ${code}) sans résultat`));
-	const r = await runBenchmark(adapter, bench);
+	const r = await runBenchmark(adapter, bench, alloc);
 	done = true;
 	if (resources && r.status === 'ok') r.max_rss_bytes = maxRSSBytes();
 	emit(r);

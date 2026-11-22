@@ -1,0 +1,36 @@
+FLAG EN16931_1_Teilrechnung.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Kraftfahrversicherung_Bruttopreise.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Rabatte.cii.xml: 1 errors, err=<nil>
+FLAG EN16931_Sachversicherung_berechneter_Steuersatz.cii.xml: 1 errors, err=<nil>
+SURVEY validate: 4/26 valid samples flagged
+SURVEY parse: 26/26 CII
+MISS zugferd_2p0_BASIC_Einfach.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_BASIC_Rechnungskorrektur.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_BASIC_Taxifahrt.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_1_Teilrechnung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_2_Teilrechnung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_AbweichenderZahlungsempf.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Betriebskostenabrechnung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Einfach.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Elektron.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_ElektronischeAdresse.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Gutschrift.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Haftpflichtversicherung_Versicherungssteuer.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Innergemeinschaftliche_Lieferungen.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Kraftfahrversicherung_Bruttopreise.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Miete.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_OEPNV.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Physiotherapeut.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Rabatte.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_RechnungsUebertragung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Rechnungskorrektur.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Reisekostenabrechnung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_SEPA_Prenotification.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EN16931_Sachversicherung_berechneter_Steuersatz.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Fremdwaehrung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_InnergemeinschLieferungMehrereBestellungen.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Kostenrechnung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Rechnungskorrektur.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_EXTENDED_Warenrechnung.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+MISS zugferd_2p0_MINIMUM.pdf: facturx: read attachments: dict=fileSpecDict entry=AFRelationship: unsupported in version 1.3
+SURVEY extract: 75/104 PDFs

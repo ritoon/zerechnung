@@ -6,6 +6,7 @@
 #   ./run.sh survey    [lib…]    relevés d'exactitude  -> $OUT/survey_typescript.jsonl
 #   ./run.sh bench     [lib…]    benchmarks            -> $OUT/bench_typescript.jsonl
 #   ./run.sh resources [lib…]    CPU et pic mémoire    -> $OUT/resources_typescript.jsonl
+#   ./run.sh alloc     [lib…]    octets alloués par appel -> $OUT/alloc_typescript.jsonl
 #
 # Variables : OUT (../results/<date>), COUNT (3), BENCHTIME (1, secondes).
 # Librairies (toutes par défaut) : node adapters/index.mjs
@@ -106,6 +107,30 @@ resources() {
 	merge resources "$RES_PARTS"
 }
 
+# Octets alloués par appel : un processus par benchmark, avec gc() exposé et
+# une jeune génération de 64 Mo, pour que la série comptée tienne sans
+# ramasse-miettes (voir lib/harness.mjs).
+ALLOC_FLAGS=(--expose-gc --min-semi-space-size=64 --max-semi-space-size=64)
+SHOWALLOC='let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);console.log(`   ${r.bench.padEnd(20)} ${r.status.padEnd(11)} ${r.bytes==null?"":r.bytes+" B/op (N="+r.calls+(r.gcs?", GC "+r.gcs:"")+")"}`)})'
+
+alloc() {
+	mkdir -p "$PARTS"
+	local benches
+	benches=$(node bench.mjs --list)
+	for id in $(libs "$@"); do
+		echo "== alloc $id"
+		: >"$PARTS/alloc_$id.jsonl.tmp"
+		for b in $benches; do
+			line=$(node "${ALLOC_FLAGS[@]}" bench.mjs --alloc "$id" "$b") || true
+			[ -n "$line" ] || line=$(node bench.mjs --failed "$id" "$b" "processus node terminé sans résultat")
+			echo "$line" >>"$PARTS/alloc_$id.jsonl.tmp"
+			echo "$line" | node -e "$SHOWALLOC"
+		done
+		mv "$PARTS/alloc_$id.jsonl.tmp" "$PARTS/alloc_$id.jsonl"
+	done
+	merge alloc
+}
+
 cmd=${1:-}
 shift || true
 case "$cmd" in
@@ -122,8 +147,12 @@ resources)
 	need
 	resources "$@"
 	;;
+alloc)
+	need
+	alloc "$@"
+	;;
 *)
-	sed -n '2,11p' "$0"
+	sed -n '2,12p' "$0"
 	exit 2
 	;;
 esac

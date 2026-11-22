@@ -8,10 +8,10 @@
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
-//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
+//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-json] invoice.pdf|invoice.xml
 //	zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-o out.pdf] input.pdf
 //	zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
-//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it]
+//	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt]
 //
 // validate exits with status 1 when the invoice has errors.
 package main
@@ -48,13 +48,13 @@ FatturaPA file signed in CAdES (.xml.p7m).
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
   zerechnung info invoice.pdf
-  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
+  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-pt] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-json] invoice.pdf|invoice.xml
   zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-convert-pdfa] [-o out.pdf] input.pdf
   zerechnung pdfa [-o out.pdf] input.pdf
   zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
-  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it]
+  zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt]
 
-Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it.
+Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it, cius-pt.
 `
 
 func main() {
@@ -196,20 +196,30 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	pep := fs.Bool("peppol", false, "apply the Peppol BIS Billing 3.0 rules (applied anyway when BT-24 is the Peppol identifier)")
 	nl := fs.Bool("nl", false, "apply the Dutch rules BR-NL of NLCIUS (applied anyway when BT-24 is the NLCIUS identifier)")
 	ita := fs.Bool("it", false, "apply the Italian rules BR-IT of the CIUS-IT (applied anyway when BT-24 is a CIUS-IT identifier)")
+	por := fs.Bool("pt", false, "apply the Portuguese rules of the CIUS-PT (applied anyway when BT-24 is a CIUS-PT identifier)")
 	profile := fs.String("profile", "", "validate against this profile instead of BT-24")
 	hybrid := fs.Bool("hybrid", false, "the XML is the invoice of a Factur-X PDF: check an EN 16931 invoice against the Factur-X schematron (always the case for a PDF)")
+	pdfa := fs.String("pdfa", "full", "PDF/A checks of a PDF: full, or basic to skip those that read the pages and the font programs (PDF-41 to PDF-69, PDF-71, PDF-72), about ten times faster")
 	asJSON := fs.Bool("json", false, "print the report as JSON")
 	_, data, err := oneFile(fs, args)
 	if err != nil {
 		return 0, err
 	}
 	opts := &validate.Options{Auto: *auto, RejectBasicWL: *rejectBasicWL, Hybrid: *hybrid}
+	switch *pdfa {
+	case "full":
+		opts.PDFA = validate.PDFAFull
+	case "basic":
+		opts.PDFA = validate.PDFABasic
+	default:
+		return 0, fmt.Errorf("unknown PDF/A check level %q (full or basic)", *pdfa)
+	}
 	if *profile != "" {
 		if opts.Profile = invoice.ParseProfile(*profile); opts.Profile == invoice.ProfileUnknown {
 			return 0, fmt.Errorf("unknown profile %q", *profile)
 		}
 	}
-	if *fr || *de || *cpro || *pep || *nl || *ita {
+	if *fr || *de || *cpro || *pep || *nl || *ita || *por {
 		opts.Rules = validate.Default
 		if *fr {
 			opts.Rules |= validate.France
@@ -228,6 +238,9 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		}
 		if *ita {
 			opts.Rules |= validate.Italy
+		}
+		if *por {
+			opts.Rules |= validate.Portugal
 		}
 	}
 	opts.PublicBuyer = validate.PublicBuyer{ServiceCodeRequired: *serviceRequired, EngagementRequired: *engagementRequired}
@@ -432,6 +445,7 @@ func rulesCmd(args []string) error {
 	pep := fs.Bool("peppol", false, "include the Peppol BIS Billing 3.0 rules")
 	nl := fs.Bool("nl", false, "include the Dutch rules of NLCIUS")
 	ita := fs.Bool("it", false, "include the Italian rules of the CIUS-IT")
+	por := fs.Bool("pt", false, "include the Portuguese rules of the CIUS-PT")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -453,6 +467,9 @@ func rulesCmd(args []string) error {
 	}
 	if *ita {
 		set |= validate.Italy
+	}
+	if *por {
+		set |= validate.Portugal
 	}
 	for _, r := range validate.Catalog(set) {
 		fmt.Printf("%-28s %-8s %s\n", r.ID, r.Severity, strings.TrimSpace(r.Description))

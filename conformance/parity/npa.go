@@ -268,10 +268,11 @@ func flagLevel(flag string) string {
 // report.
 type svrlFinding struct {
 	id, flag, message string
+	location          string // XPath of the context node
 }
 
-// svrlReport is what NPaBatch writes for an invoice: an SVRL report, or the
-// dynamic error that stopped the transformation.
+// svrlReport is what NPaBatch (or CiusPtBatch) writes for an invoice: an
+// SVRL report, or the dynamic error that stopped the transformation.
 type svrlReport struct {
 	findings []svrlFinding
 	errCode  string
@@ -279,7 +280,7 @@ type svrlReport struct {
 	errMsg   string
 }
 
-// parseSVRL reads a report written by NPaBatch.
+// parseSVRL reads a report written by NPaBatch or CiusPtBatch.
 func parseSVRL(data []byte) (svrlReport, error) {
 	var rep svrlReport
 	d := xml.NewDecoder(bytes.NewReader(data))
@@ -311,7 +312,7 @@ func parseSVRL(data []byte) (svrlReport, error) {
 			}
 			switch t.Name.Local {
 			case "failed-assert", "successful-report":
-				cur = &svrlFinding{id: attr(t, "id"), flag: attr(t, "flag")}
+				cur = &svrlFinding{id: attr(t, "id"), flag: attr(t, "flag"), location: attr(t, "location")}
 			case "text":
 				if cur != nil {
 					in = true

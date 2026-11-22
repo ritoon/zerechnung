@@ -7,14 +7,16 @@
 //! `unsupported` for each one the library cannot do).
 //!
 //! `bench-<lib> bench` measures the operations and writes one JSON line per
-//! benchmark to `$OUT/rust-parts/bench_<lib>.jsonl`; `bench-<lib> survey` runs
-//! the correctness surveys and writes `$OUT/rust-parts/survey_<lib>.jsonl`.
+//! benchmark to `$OUT/rust-parts/bench_<lib>.jsonl`; `bench-<lib> alloc`
+//! counts the allocations of one call of each operation and writes
+//! `$OUT/rust-parts/alloc_<lib>.jsonl`; `bench-<lib> survey` runs the
+//! correctness surveys and writes `$OUT/rust-parts/survey_<lib>.jsonl`.
 //! `bench-<lib> resources <Bench>` runs that one benchmark as `bench` does and
 //! appends its line, with the peak RSS of the process (`max_rss_bytes`, from
 //! `getrusage` at the end of the series), to
 //! `$OUT/rust-res-parts/resources_<lib>.jsonl`; `run.sh` starts one such
 //! process per benchmark. `run.sh` merges the parts into `bench_rust.jsonl`,
-//! `survey_rust.jsonl` and `resources_rust.jsonl`.
+//! `alloc_rust.jsonl`, `survey_rust.jsonl` and `resources_rust.jsonl`.
 //!
 //! Rules, as in the Go harness: a first call outside the measurement checks the
 //! result (`fail` with the message when it is wrong or an error, `unsupported`
@@ -24,13 +26,21 @@
 //! Next to it, the CPU time of the process (`getrusage(RUSAGE_SELF)`, user +
 //! system, all threads) is read before and after each series:
 //! `cpu_ns_per_op`, parallel to `ns_per_op`.
+//!
+//! Allocations are counted by the global allocator of every library binary
+//! ([`Counting`]): after the same first call and a warm-up, it counts the
+//! calls to `alloc`, `alloc_zeroed` and `realloc` (each one an allocation of
+//! the size asked for) during a series of calls, as `go test -benchmem` does.
+//! Outside that series it only reads one atomic flag per allocation.
 
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::fs::{self, File, OpenOptions};
 use std::hint::black_box;
 use std::io::Write as _;
 use std::panic::{self, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
@@ -95,7 +105,61 @@ pub struct Findings {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Bench,
+    Alloc,
     Survey,
+}
+
+// ---------------------------------------------------------------- allocations
+
+/// The global allocator of the library binaries: the system allocator, which
+/// counts allocations while [`count_allocs`] runs.
+pub struct Counting;
+
+static COUNTING: AtomicBool = AtomicBool::new(false);
+static ALLOCS: AtomicU64 = AtomicU64::new(0);
+static ALLOC_BYTES: AtomicU64 = AtomicU64::new(0);
+
+#[inline]
+fn note_alloc(size: usize) {
+    if COUNTING.load(Relaxed) {
+        ALLOCS.fetch_add(1, Relaxed);
+        ALLOC_BYTES.fetch_add(size as u64, Relaxed);
+    }
+}
+
+unsafe impl GlobalAlloc for Counting {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        note_alloc(layout.size());
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        note_alloc(layout.size());
+        unsafe { System.alloc_zeroed(layout) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        unsafe { System.dealloc(ptr, layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        note_alloc(new_size);
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+}
+
+#[global_allocator]
+static GLOBAL: Counting = Counting;
+
+/// Runs `f` and returns the number of allocations and of bytes allocated
+/// meanwhile, by every thread of the process.
+fn count_allocs(f: impl FnOnce()) -> (u64, u64) {
+    ALLOCS.store(0, Relaxed);
+    ALLOC_BYTES.store(0, Relaxed);
+    COUNTING.store(true, Relaxed);
+    f();
+    COUNTING.store(false, Relaxed);
+    (ALLOCS.load(Relaxed), ALLOC_BYTES.load(Relaxed))
 }
 
 // ---------------------------------------------------------------- corpus
@@ -351,7 +415,7 @@ impl Harness {
 
     /// Marks an operation the library cannot perform.
     pub fn unsupported(&mut self, op: Op, note: &str) {
-        if self.mode == Mode::Bench {
+        if self.mode != Mode::Survey {
             for b in op.benches() {
                 if self.wanted(b) {
                     self.bench_line(b, "unsupported", &[], &[], 0, 0, note);
@@ -391,6 +455,42 @@ impl Harness {
         self.bench_line(bench, "ok", &ns, &cpu, n, first, note);
     }
 
+    /// Counts the allocations of `f`, after the first call `first` passed: a
+    /// warm-up of at least 3 calls (up to 100 calls or 0.2 s), then a series
+    /// of calls lasting about 0.2 s, at least 1 and at most 1000.
+    fn alloc_measure<T>(&mut self, bench: &str, first: u128, note: &str, mut f: impl FnMut() -> T) {
+        let window = Duration::from_millis(200);
+        let t = Instant::now();
+        let mut warm = 0u32;
+        while warm < 3 || (warm < 100 && t.elapsed() < window) {
+            black_box(f());
+            warm += 1;
+        }
+        let per = (t.elapsed() / warm).as_nanos().max(1);
+        let calls = (window.as_nanos() / per).clamp(1, 1000) as u64;
+        let (n, bytes) = count_allocs(|| {
+            for _ in 0..calls {
+                black_box(f());
+            }
+        });
+        let (allocs, bytes) = (n as f64 / calls as f64, bytes as f64 / calls as f64);
+        let v = json!({
+            "lang": "rust",
+            "lib": self.lib.lib,
+            "pkg": self.lib.pkg,
+            "version": self.lib.version,
+            "bench": bench,
+            "status": "ok",
+            "allocs": (allocs * 10.0).round() / 10.0,
+            "bytes": bytes.round(),
+            "calls": calls,
+            "first_call_ns": first as u64,
+            "note": note,
+        });
+        eprintln!("   {:<22} {:>12.0} B/op {:>10.1} allocs/op  (N={calls})", bench, bytes, allocs);
+        self.line(v);
+    }
+
     /// Runs the first call and either measures or records the failure.
     fn bench_one<T>(
         &mut self,
@@ -403,6 +503,7 @@ impl Harness {
         let r = guarded(&mut f);
         let first = t.elapsed().as_nanos();
         match r.and_then(|v| guarded(|| check(v))) {
+            Ok(()) if self.mode == Mode::Alloc => self.alloc_measure(bench, first, note, || f()),
             Ok(()) => self.measure(bench, first, note, || f()),
             Err(e) => {
                 let msg = if note.is_empty() { shorten(&e) } else { format!("{} — {note}", shorten(&e)) };
@@ -430,7 +531,7 @@ impl Harness {
     /// PDF → bytes of the invoice XML.
     pub fn extract(&mut self, note: &str, f: impl Fn(&[u8]) -> Result<Vec<u8>, String>) {
         match self.mode {
-            Mode::Bench => {
+            Mode::Bench | Mode::Alloc => {
                 for b in Op::Extract.benches() {
                     if !self.gate(b) {
                         continue;
@@ -461,7 +562,7 @@ impl Harness {
     /// XML → the library's model.
     pub fn parse<M>(&mut self, note: &str, f: impl Fn(&[u8]) -> Result<M, String>) {
         match self.mode {
-            Mode::Bench => {
+            Mode::Bench | Mode::Alloc => {
                 for b in Op::Parse.benches() {
                     if !self.gate(b) {
                         continue;
@@ -494,7 +595,7 @@ impl Harness {
         summarize: impl Fn(&R) -> Findings,
     ) {
         match self.mode {
-            Mode::Bench => {
+            Mode::Bench | Mode::Alloc => {
                 for b in Op::Validate.benches() {
                     if !self.gate(b) {
                         continue;
@@ -532,7 +633,7 @@ impl Harness {
         parse: impl Fn(&[u8]) -> Result<M, String>,
         write: impl Fn(&M) -> Result<O, String>,
     ) {
-        if self.mode != Mode::Bench {
+        if self.mode == Mode::Survey {
             return;
         }
         for b in Op::Write.benches() {
@@ -562,7 +663,7 @@ impl Harness {
         f: impl Fn(&[u8], &[u8]) -> Result<Vec<u8>, String>,
         extract: impl Fn(&[u8]) -> Result<Vec<u8>, String>,
     ) {
-        if self.mode != Mode::Bench {
+        if self.mode == Mode::Survey {
             return;
         }
         let xml = sample("XMLSmall");
@@ -582,7 +683,7 @@ impl Harness {
 
     /// Native complete check of a hybrid PDF (container + XML).
     pub fn check_pdf<R>(&mut self, note: &str, f: impl Fn(&[u8]) -> Result<R, String>) {
-        if self.mode != Mode::Bench {
+        if self.mode == Mode::Survey {
             return;
         }
         for b in Op::CheckPdf.benches() {
@@ -605,18 +706,19 @@ impl Harness {
     }
 }
 
-/// Entry point of every library binary: `bench-<lib> bench|survey [Bench…]`
+/// Entry point of every library binary: `bench-<lib> bench|alloc|survey [Bench…]`
 /// or `bench-<lib> resources Bench`.
 pub fn run(lib: Lib, body: impl FnOnce(&mut Harness) + Send + 'static) {
     let args: Vec<String> = std::env::args().collect();
     let (mode, resources) = match args.get(1).map(String::as_str) {
         Some("bench") => (Mode::Bench, false),
+        Some("alloc") => (Mode::Alloc, false),
         Some("survey") => (Mode::Survey, false),
         // The resources pass: this process runs one benchmark exactly as
         // bench does, and its record adds the peak RSS of the process.
         Some("resources") if args.len() == 3 => (Mode::Bench, true),
         _ => {
-            eprintln!("usage: {} bench|survey [BenchName…] | resources BenchName", args[0]);
+            eprintln!("usage: {} bench|alloc|survey [BenchName…] | resources BenchName", args[0]);
             std::process::exit(2);
         }
     };
@@ -627,6 +729,7 @@ pub fn run(lib: Lib, body: impl FnOnce(&mut Harness) + Send + 'static) {
     let kind = match (mode, resources) {
         (_, true) => "resources",
         (Mode::Bench, _) => "bench",
+        (Mode::Alloc, _) => "alloc",
         (Mode::Survey, _) => "survey",
     };
     let path = out_dir.join(format!("{kind}_{}.jsonl", lib.lib));

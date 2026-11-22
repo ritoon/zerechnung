@@ -17,7 +17,7 @@ Les factures contiennent des données personnelles et commerciales. Dans une iss
 
 Une contribution qui s'en écarte ne sera pas acceptée en l'état :
 
-- **Pur Go, bibliothèque standard uniquement.** `go.mod` n'a aucune dépendance et doit le rester : pas de CGO, pas de binaire externe, pas d'appel réseau à l'exécution. Les outils qui ont besoin d'autre chose (benchmarks, comparaison avec KoSIT et Mustang) vivent dans des modules séparés, sous `bench/` et `conformance/parity/`.
+- **Pur Go, bibliothèque standard uniquement.** `go.mod` n'a aucune dépendance et doit le rester : pas de CGO, pas de binaire externe, pas d'appel réseau à l'exécution. Les outils qui ont besoin d'autre chose (benchmarks, comparaison avec KoSIT et Mustang) vivent dans des modules séparés, sous `bench/` et `conformance/parity/`. Le serveur HTTP, qui appelle le réseau (JWKS, collecteurs de logs), est lui aussi un module à part, sous `server/`, sans dépendance hors de la bibliothèque standard.
 - **Règles réécrites, pas interprétées.** Les règles des schematrons sont réécrites en Go à partir des artefacts officiels, en reprenant leurs identifiants, leurs niveaux et leurs messages, pour que les rapports correspondent aux validateurs de référence. Toute règle ajoutée ou modifiée cite sa source : artefact, version, identifiant.
 - **Artefacts officiels hors du dépôt.** Les schémas sont compilés en tables Go et les catalogues de règles régénérés par `go generate`, qui télécharge les artefacts et vérifie leur SHA-256. Les fichiers `*_gen.go` ne se modifient pas à la main : on modifie le générateur, puis on relance `go generate` dans le paquet concerné.
 - **Rien n'est perdu en silence.** Une valeur illisible est signalée sans arrêter la lecture ; une donnée que le profil visé n'admet pas est signalée par l'option `Strict` de `Marshal`.
@@ -46,6 +46,13 @@ golangci-lint run
 ```
 
 `gofmt -l` ne doit rien afficher. La CI utilise golangci-lint v2.15.0, avec les réglages de [.golangci.yml](.golangci.yml).
+
+Si la pull request touche au serveur (`server/`), lancez aussi ses tests, et le test de bout en bout de l'image Docker :
+
+```bash
+(cd server && go vet ./... && go test -race ./... && golangci-lint run --config=../.golangci.yml)
+docker build -f server/Dockerfile -t zerechnung:test . && server/scripts/smoke.sh zerechnung:test
+```
 
 Si la pull request touche aux règles, aux schémas ou à la lecture et l'écriture du XML, lancez aussi les tests sur les artefacts officiels :
 

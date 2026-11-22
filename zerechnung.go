@@ -18,6 +18,13 @@
 //
 // Sub-packages give direct access to each layer: invoice (the EN 16931
 // model), cii (CII XML), validate (validation of XML invoices).
+//
+// The functions of this package and of packages cii, ubl, facturae,
+// fatturapa and validate can be called from several goroutines at once, on
+// the same arguments: they only read the byte slices and the invoices they
+// are given. The exception is Create with CreateOptions.Calculate, which
+// fills in the amounts of the invoice: that invoice must not be used by
+// another goroutine meanwhile.
 package zerechnung
 
 import (
@@ -51,7 +58,8 @@ type CreateOptions struct {
 	// Profile is the profile to write; zero means inv.Profile, or EN 16931
 	// when inv.Profile is not set.
 	Profile invoice.Profile
-	// Calculate runs inv.Calculate before writing the XML.
+	// Calculate runs inv.Calculate before writing the XML, so that Create
+	// modifies inv.
 	Calculate bool
 	// Validate, when not nil, validates the XML before embedding it and makes
 	// Create fail with a *ValidationError when the report has errors.
@@ -124,6 +132,11 @@ func Create(pdf []byte, inv *invoice.Invoice, opts *CreateOptions) ([]byte, erro
 // The XML is validated with opts.Hybrid set: an EN 16931 invoice in a
 // Factur-X PDF is checked against the Factur-X schematron of the EN 16931
 // profile, like BASIC and EXTENDED invoices (see validate.Options.Hybrid).
+//
+// opts.PDFA selects the PDF/A checks of the container. The default,
+// validate.PDFAFull, reads the content streams of the pages and the font
+// programs they use, which takes most of the time and memory of a check;
+// validate.PDFABasic skips them (see validate.PDFALevel).
 func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, error) {
 	o := validate.Options{}
 	if opts != nil {
@@ -144,7 +157,7 @@ func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, e
 			return 0
 		}
 		return countriesOf(validate.RulesFor(rules.NewDoc(t, opts.Profile), opts))
-	})
+	}, opts.PDFA)
 	if err != nil && att == nil && len(findings) == 0 {
 		return nil, nil, err
 	}

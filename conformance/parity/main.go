@@ -1,28 +1,42 @@
 // Command parity compares the rules that this package raises with the ones
 // raised by the reference validators, invoice by invoice: the KoSIT validator
-// with the XRechnung configuration, and Mustang; and, for NLCIUS, the XSLT of
-// the schematrons of the Dutch Peppol Authority (NPa). See ../README.md.
+// with the XRechnung configuration, and Mustang; for NLCIUS, the XSLT of the
+// schematrons of the Dutch Peppol Authority (NPa); for the CIUS-PT, the
+// schematron of eSPap compiled by SchXslt. See ../README.md.
 //
-//	parity stage -corpus DIR -kosit DIR -work DIR [-nl DIR -nl-tests DIR -repo DIR -nl-variants DIR]
-//	parity compare -work DIR [-known known.txt] [-md report.md] [-json report.json]
+//	parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR]
+//	parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]
 //
 // stage copies the invoices of the ZUGFeRD corpus and of the KoSIT test suite
 // into DIR/in under short unique names (0001.xml, 0002.pdf…), lists them in
 // DIR/index.tsv with their origin, and writes the lists of files to give to
 // each validator (DIR/kosit.list: the XML files, DIR/mustang.list: all).
-// With -nl, it adds the NLCIUS invoices: the SimplerInvoicing test files
+// With -variants, it adds the documents of the mutation cases of the EN 16931
+// and XRechnung rules (go test -variants, one directory per rule package),
+// which only the KoSIT validator receives, and writes the rules that each
+// case expects to DIR/expected.tsv. With -nl, it adds the NLCIUS invoices: the SimplerInvoicing test files
 // (-nl-tests), the NLCIUS invoices of the repository (-repo) and the
 // variants of the mutation tests (-nl-variants), which only the NPa XSLT
 // receive, each with the stylesheet a validator picks for it
-// (DIR/npa.list).
+// (DIR/npa.list). With -pt, it adds the CIUS-PT invoices: the examples of
+// eSPap (the XML files of the archive -pt), the CIUS-PT invoices of the
+// repository and the variants of the mutation tests (-pt-variants), which
+// only the CIUS-PT schematron receives (DIR/pt.list).
 //
 // compare reads the reports that the validators wrote in DIR/kosit
-// (0001-report.xml), DIR/mustang (0001.xml.xml) and DIR/npa (0001.xml.svrl),
-// validates each invoice with this package, and compares the rules raised as
-// errors, and also as warnings for the NPa XSLT. It lists the assertions of
-// the NLCIUS patterns that no invoice makes fail. A difference, or an
-// assertion that never fails, that known.txt does not justify makes the
-// command exit with status 1.
+// (0001-report.xml), DIR/mustang (0001.xml.xml), DIR/npa and DIR/pt
+// (0001.xml.svrl), and the table at the end of DIR/kosit.log, which alone
+// tells the documents that KoSIT could not assess; it validates each invoice
+// with this package, and compares the rules raised as errors, and also as
+// warnings for the NPa XSLT, the CIUS-PT schematron and the variants, on the
+// same element for the CIUS-PT schematron (whose XSLT, compiled by SchXslt,
+// it reads from DIR/cius-pt.xsl). Each variant must raise, at the reference,
+// the rules that its mutation case expects. It lists the assertions of the
+// NLCIUS patterns that no invoice makes fail and, with -kosit-config (the
+// unzipped configuration of the KoSIT validator), counts the assertions of
+// the KoSIT schematrons that at least one invoice raises. A difference, a
+// rule expected and not raised, or an assertion that never fails, that
+// known.txt does not justify makes the command exit with status 1.
 package main
 
 import (
@@ -43,14 +57,22 @@ func main() {
 		corpus := fs.String("corpus", "", "clone of ZUGFeRD/corpus")
 		kosit := fs.String("kosit", "", "clone of itplr-kosit/xrechnung-testsuite")
 		work := fs.String("work", "", "work directory")
-		var nl nlInputs
+		repo := fs.String("repo", "", "root of this repository")
+		var (
+			nl nlInputs
+			pt ptInputs
+		)
 		fs.StringVar(&nl.npa, "nl", "", "clone of peppolautoriteit-nl/validation (FX_NL)")
 		fs.StringVar(&nl.tests, "nl-tests", "", "SimplerInvoicing test files of phive-rules (FX_NL_TESTS)")
-		fs.StringVar(&nl.repo, "repo", "", "root of this repository")
 		fs.StringVar(&nl.variants, "nl-variants", "", "documents of the mutation cases of internal/rules/nl")
+		variants := fs.String("variants", "", "documents of the mutation cases of the EN 16931 and XRechnung rules, one directory per package")
+		fs.StringVar(&pt.examples, "pt", "", "archive of the CIUS-PT examples of eSPap (FX_PT)")
+		fs.StringVar(&pt.variants, "pt-variants", "", "documents of the mutation cases of internal/rules/pt")
 		fs.Parse(os.Args[2:])
+		nl.repo, pt.repo = *repo, *repo
 		if *corpus == "" || *kosit == "" || *work == "" ||
-			nl.npa != "" && (nl.tests == "" || nl.repo == "" || nl.variants == "") {
+			nl.npa != "" && (nl.tests == "" || *repo == "" || nl.variants == "") ||
+			pt.examples != "" && (*repo == "" || pt.variants == "") {
 			usage()
 		}
 		if nl.npa != "" {
@@ -58,10 +80,11 @@ func main() {
 				break
 			}
 		}
-		err = stage(*corpus, *kosit, *work, nl)
+		err = stage(*corpus, *kosit, *work, nl, pt, *variants)
 	case "compare":
 		fs := flag.NewFlagSet("compare", flag.ExitOnError)
 		work := fs.String("work", "", "work directory")
+		kositConfig := fs.String("kosit-config", "", "unzipped configuration of the KoSIT validator")
 		known := fs.String("known", "", "file of the known differences")
 		md := fs.String("md", "", "Markdown report")
 		js := fs.String("json", "", "JSON report")
@@ -70,7 +93,7 @@ func main() {
 			usage()
 		}
 		var ok bool
-		ok, err = compare(*work, *known, *md, *js)
+		ok, err = compare(*work, *kositConfig, *known, *md, *js)
 		if err == nil && !ok {
 			os.Exit(1)
 		}
@@ -85,7 +108,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
-  parity stage -corpus DIR -kosit DIR -work DIR [-nl DIR -nl-tests DIR -repo DIR -nl-variants DIR]
-  parity compare -work DIR [-known known.txt] [-md report.md] [-json report.json]`)
+  parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR]
+  parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]`)
 	os.Exit(2)
 }

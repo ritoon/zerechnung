@@ -3,6 +3,8 @@ package zerechnung
 import (
 	"os"
 	"testing"
+
+	"github.com/ritoon/zerechnung/validate"
 )
 
 func BenchmarkExtract(b *testing.B) {
@@ -34,6 +36,27 @@ func BenchmarkCheckContainer(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func benchCheck(b *testing.B, opts *validate.Options) {
+	data, err := os.ReadFile("testdata/EN16931_Einfach.pdf")
+	if err != nil {
+		b.Skip(err)
+	}
+	b.SetBytes(int64(len(data)))
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, att, err := Check(data, opts); err != nil || att == nil {
+			b.Fatal(att, err)
+		}
+	}
+}
+
+// BenchmarkCheck measures Check with every PDF/A check, BenchmarkCheckBasic
+// with validate.PDFABasic.
+func BenchmarkCheck(b *testing.B) { benchCheck(b, nil) }
+func BenchmarkCheckBasic(b *testing.B) {
+	benchCheck(b, &validate.Options{PDFA: validate.PDFABasic})
 }
 
 func benchEmbed(b *testing.B, host string, opts *EmbedOptions) {

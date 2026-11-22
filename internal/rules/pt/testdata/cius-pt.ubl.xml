@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A CIUS-PT 2.1.1 invoice written for the tests of package pt: a
+     Portuguese supplier invoices a Portuguese public body, with the national
+     document type FT, a line at the standard rate (S, 23 %) and a line at
+     the reduced rate (RED, 6 %). The NIFs have valid check digits. -->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:2.1.1</cbc:CustomizationID>
+  <cbc:ID>FT ZR2026/41</cbc:ID>
+  <cbc:IssueDate>2026-11-20</cbc:IssueDate>
+  <cbc:DueDate>2026-12-20</cbc:DueDate>
+  <cbc:InvoiceTypeCode>FT</cbc:InvoiceTypeCode>
+  <cbc:Note>Manutenção trimestral e documentação técnica</cbc:Note>
+  <cbc:Note>#NUMBER@ATCERTIFIEDPROGRAM#9999/AT#</cbc:Note>
+  <cbc:Note>#HASHCODE@ATCERTIFIEDPROGRAM#Zr4q#</cbc:Note>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>CC-2026-118</cbc:BuyerReference>
+  <cac:InvoicePeriod>
+    <cbc:StartDate>2026-08-01</cbc:StartDate>
+    <cbc:EndDate>2026-10-31</cbc:EndDate>
+    <cbc:DescriptionCode>35</cbc:DescriptionCode>
+  </cac:InvoicePeriod>
+  <cac:OrderReference>
+    <cbc:ID>CMP-2026-0457</cbc:ID>
+  </cac:OrderReference>
+  <cac:ContractDocumentReference>
+    <cbc:ID>CT-2025-12</cbc:ID>
+  </cac:ContractDocumentReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9946">PT501234560</cbc:EndpointID>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="0001">PT501234560</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Oficina Exemplo</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Rua das Flores 12</cbc:StreetName>
+        <cbc:CityName>Porto</cbc:CityName>
+        <cbc:PostalZone>4050-262</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>PT501234560</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Oficina Exemplo, Lda.</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0001">PT501234560</cbc:CompanyID>
+        <cbc:CompanyLegalForm>Capital social 5 000 EUR</cbc:CompanyLegalForm>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Joana Silva</cbc:Name>
+        <cbc:Telephone>220000000</cbc:Telephone>
+        <cbc:ElectronicMail>faturas@oficina.example</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9946">PT600012344</cbc:EndpointID>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="0001">PT600012344</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Serviço Municipal</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Praça do Município 1</cbc:StreetName>
+        <cbc:CityName>Braga</cbc:CityName>
+        <cbc:PostalZone>4704-514</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>PT600012344</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Serviço Municipal de Exemplo</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0001">PT600012344</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Departamento financeiro</cbc:Name>
+        <cbc:ElectronicMail>contabilidade@municipio.example</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>2026-10-31</cbc:ActualDeliveryDate>
+    <cac:DeliveryLocation>
+      <cac:Address>
+        <cbc:StreetName>Rua do Armazém 3</cbc:StreetName>
+        <cbc:CityName>Braga</cbc:CityName>
+        <cbc:PostalZone>4700-001</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:Address>
+    </cac:DeliveryLocation>
+  </cac:Delivery>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>30</cbc:PaymentMeansCode>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>PT50000201231234567890154</cbc:ID>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:PaymentTerms>
+    <cbc:Note>Pagamento a 30 dias</cbc:Note>
+  </cac:PaymentTerms>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="EUR">71.40</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">300.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">69.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>23.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">40.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">2.40</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>RED</cbc:ID>
+        <cbc:Percent>6.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">340.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="EUR">340.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">411.40</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="EUR">411.40</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="HUR">2.00</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">300.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Manutenção de equipamento</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>23.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">150.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">1.00</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">40.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Manual técnico</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>RED</cbc:ID>
+        <cbc:Percent>6.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">40.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

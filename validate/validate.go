@@ -3,8 +3,8 @@
 // Factur-X profile rules, and optionally the French (BR-FR) and German
 // (BR-DE) rules, the profiles that France and Germany admit, the checks of
 // Chorus Pro for French B2G invoices, the Peppol BIS Billing 3.0 rules, the
-// Dutch rules of NLCIUS (BR-NL) and the Italian rules of the CIUS-IT
-// (BR-IT).
+// Dutch rules of NLCIUS (BR-NL), the Italian rules of the CIUS-IT (BR-IT)
+// and the Portuguese rules of the CIUS-PT.
 //
 // The syntax is detected from the root element. A UBL 2.1 Invoice or
 // CreditNote is checked against the OASIS UBL 2.1 XML schema of its document
@@ -19,6 +19,17 @@
 // document itself, with their own rule identifiers, contexts and messages
 // (see the UBLCatalog of each package). The Chorus Pro and the Italian
 // rules run on a CII view of the UBL document. All findings are located in the UBL document.
+//
+// A UBL invoice of the CIUS-PT (BT-24 urn:cen.eu:en16931:2017#compliant#
+// urn:feap.gov.pt:CIUS-PT:2.1.1) is checked against the schematron of eSPap,
+// which the validator of the Portuguese public administration applies
+// instead of the artefacts of CEN/TC 434: in the EN 16931 rule set, the UBL
+// syntax rules and the rules of EN 16931 in the versions of the CIUS-PT
+// replace those of the CEN artefacts (its code lists accept the Portuguese
+// document types and VAT categories, and its totals a tolerance of ±1.00);
+// in the Portugal rule set, its own rules (BR-CIUS-PT, DT-CIUS-PT) and the
+// check of the Portuguese VAT identifier (PT-NIF-*). See package
+// internal/rules/pt.
 //
 // A ZUGFeRD 1.0 invoice (rsm:CrossIndustryDocument, see cii.IsZUGFeRD1)
 // gets a minimal structural check, part of the Schema rule set: a ZUGFeRD
@@ -62,6 +73,7 @@
 package validate
 
 import (
+	"slices"
 	"time"
 
 	"github.com/ritoon/zerechnung/cii"
@@ -75,6 +87,7 @@ import (
 	"github.com/ritoon/zerechnung/internal/rules/it"
 	"github.com/ritoon/zerechnung/internal/rules/nl"
 	"github.com/ritoon/zerechnung/internal/rules/peppol"
+	"github.com/ritoon/zerechnung/internal/rules/pt"
 	"github.com/ritoon/zerechnung/internal/rules/ubl"
 	"github.com/ritoon/zerechnung/internal/schema"
 	"github.com/ritoon/zerechnung/internal/xmltree"
@@ -113,6 +126,7 @@ const (
 	SourcePeppol    = rules.SourcePeppol
 	SourceNL        = rules.SourceNL
 	SourceIT        = rules.SourceIT
+	SourcePT        = rules.SourcePT
 	SourceSDI       = rules.SourceSDI
 )
 
@@ -131,12 +145,14 @@ const (
 	Peppol                             // Peppol BIS Billing 3.0 rules (PEPPOL-*) and their national rules (NO, DK, IT, SE, NL; for UBL also GR, IS, DE)
 	Netherlands                        // Dutch rules of NLCIUS (BR-NL), and for UBL the SI-UBL 2.0 version check (SI-V20-INV-R000) and the rules of the G-account extension (BR-GA)
 	Italy                              // Italian rules of the CIUS-IT (BR-IT) and of its extensions (BR-IT-DE), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
+	Portugal                           // Portuguese rules of the CIUS-PT schematron of eSPap (BR-CIUS-PT, DT-CIUS-PT), the check of the NIF (PT-NIF-*) and of the UBL syntax of a CIUS-PT invoice (PT-SYNTAX-01)
 
 	// Default is the set used when Options.Rules is zero: schema, EN 16931
 	// and profile rules. Whatever the rule sets, the German rules apply to
 	// XRECHNUNG invoices, the Peppol rules to invoices whose BT-24 is the
-	// Peppol BIS Billing 3.0 identifier, the Dutch rules to NLCIUS invoices
-	// and the Italian rules to CIUS-IT invoices (see RulesFor).
+	// Peppol BIS Billing 3.0 identifier, the Dutch rules to NLCIUS invoices,
+	// the Italian rules to CIUS-IT invoices and the Portuguese rules to
+	// CIUS-PT invoices (see RulesFor).
 	Default = Schema | EN16931 | FacturX
 )
 
@@ -176,6 +192,11 @@ type Options struct {
 	// PDF extracted by other means. BASIC and EXTENDED invoices are checked
 	// against their Factur-X schematron whatever Hybrid.
 	Hybrid bool
+	// PDFA selects the PDF/A checks zerechnung.Check applies to the PDF
+	// container: all of them by default (PDFAFull), or those that need not
+	// read the pages and the font programs (PDFABasic). It has no effect on
+	// the validation of an XML document.
+	PDFA PDFALevel
 
 	// PublicBuyer gives the settings of the public buyer in the Chorus Pro
 	// directory, used by the ChorusPro rules.
@@ -185,6 +206,31 @@ type Options struct {
 	// of the invoice must not be later (00403). The current time when zero.
 	ReceivedAt time.Time
 }
+
+// PDFALevel selects the PDF/A checks of the PDF container (see
+// Options.PDFA and zerechnung.ContainerCatalog).
+type PDFALevel uint8
+
+// PDF/A check levels.
+const (
+	// PDFAFull applies every check of zerechnung.ContainerCatalog: the
+	// content streams of the pages and the font programs they use are read
+	// (PDF-41 to PDF-69, PDF-71 and PDF-72, the requirements of ISO 19005-2
+	// and 19005-3 checked clause by clause).
+	PDFAFull PDFALevel = iota
+	// PDFABasic skips PDF-41 to PDF-69, PDF-71 and PDF-72, as for a
+	// document that declares PDF/A-4: no content stream, font program,
+	// image, colour space or file structure is read, which takes most of
+	// the time and memory of a check. The checks of the invoice attachment,
+	// of the XMP metadata and of the PDF/A identification remain (PDF-01 to
+	// PDF-30, PDF-40, PDF-70), with those that do not read the pages:
+	// embedded fonts, JavaScript, actions, document information, associated
+	// files (PDF-31 to PDF-39), and the filters of the streams of the
+	// pages, their resources, the embedded files and the metadata (PDF-38,
+	// without the other streams of the file). A PDF can pass them and still
+	// not be PDF/A.
+	PDFABasic
+)
 
 // PublicBuyer holds the settings of a public structure in the Chorus Pro
 // directory that change the ChorusPro rules. The zero value requires
@@ -263,6 +309,13 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	run(Schema, SourceSyntax, schema.Check)
 	if isUBL {
 		run(EN16931, SourceEN16931, func(c *rules.Checker) {
+			// The validator of eSPap applies the CIUS-PT schematron, which
+			// restates the UBL syntax rules and the rules of EN 16931 in
+			// its own versions, instead of the CEN artefacts.
+			if pt.Applies(c.Doc) {
+				pt.CheckCEN(c)
+				return
+			}
 			en16931.Check(c)
 			ubl.Check(c)
 		})
@@ -296,6 +349,8 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	// CII view of a UBL invoice, and located in the UBL document; the rules
 	// of the Italian extensions (BR-IT-DE) read the UBL document itself.
 	run(Italy, SourceIT, it.Check)
+	// The CIUS-PT schematron is a UBL one, checked on the UBL document.
+	run(Portugal, SourcePT, pt.Check)
 	return r
 }
 
@@ -311,8 +366,9 @@ func isFatturaPA(root *xmltree.Node) bool {
 
 // RulesFor returns the rule sets that apply to doc with opts: opts.Rules
 // (Default when zero), plus the German rules for an XRECHNUNG invoice, the
-// Peppol rules for a Peppol invoice, the Dutch rules for an NLCIUS invoice
-// and the Italian rules for a CIUS-IT invoice whatever opts.Rules, plus the
+// Peppol rules for a Peppol invoice, the Dutch rules for an NLCIUS invoice,
+// the Italian rules for a CIUS-IT invoice and the Portuguese rules for a
+// CIUS-PT invoice whatever opts.Rules, plus the
 // national rules of the seller's country with opts.Auto. The profile is the
 // one of doc, which Options.Profile overrides.
 func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
@@ -329,6 +385,8 @@ func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
 		set |= Netherlands
 	case invoice.ProfileCIUSIT:
 		set |= Italy
+	case invoice.ProfileCIUSPT:
+		set |= Portugal
 	}
 	if opts.Auto {
 		switch doc.Agreement.Value("SellerTradeParty/PostalTradeAddress/CountryID") {
@@ -343,7 +401,10 @@ func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
 
 // Catalog returns the rules implemented by the selected rule sets, for the
 // CII and the UBL syntax. A French, German, Peppol or Dutch rule of both
-// syntaxes appears once.
+// syntaxes appears once. The Portugal rule set lists the rules of the
+// CIUS-PT and, of the rules of its schematron that it restates from EN 16931
+// and the UBL syntax rules (which CheckCEN reports in the EN 16931 rule set
+// for a CIUS-PT invoice), those that the CEN artefacts do not define.
 func Catalog(set RuleSet) []RuleInfo {
 	var out []RuleInfo
 	add := func(s RuleSet, c []RuleInfo) {
@@ -373,6 +434,11 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(Netherlands, newRules(nl.UBLCatalog, nl.Catalog))
 	add(Italy, it.Catalog)
 	add(Italy, it.SDICatalog)
+	add(Portugal, pt.Catalog)
+	// The rules of the CIUS-PT schematron that the CEN artefacts do not
+	// define (BR-AA-*, UBL-SR-38…): CheckCEN reports them in the EN 16931
+	// rule set for a CIUS-PT invoice.
+	add(Portugal, newRules(pt.CENCatalog, slices.Concat(en16931.Catalog, ubl.Catalog)))
 	return out
 }
 

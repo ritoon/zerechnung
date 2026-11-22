@@ -524,7 +524,7 @@ func (r *Reader) readXrefStream(st *Stream) (*xrefStream, error) {
 		}
 		x.index = []uint32{0, uint32(size)}
 	}
-	data, err := r.decode(st, 0)
+	data, err := r.decode(st, 0, nil)
 	if err != nil && len(data) == 0 {
 		return nil, err
 	}
@@ -805,7 +805,7 @@ func (r *Reader) objStm(num uint32) *objStm {
 }
 
 func (r *Reader) decodeObjStm(st *Stream) *objStm {
-	data, err := r.decode(st, 0)
+	data, err := r.decode(st, 0, nil)
 	if err != nil && len(data) == 0 {
 		return nil
 	}

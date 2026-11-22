@@ -66,14 +66,27 @@ Deux mesures complètent le temps réel, dans tous les langages :
 
 Ces deux mesures viennent d'une passe à part, `resources` : un processus par librairie et par benchmark, `COUNT=1` et `BENCHTIME=1` par défaut (`RES_COUNT`, `RES_BENCHTIME` dans `run.sh` à la racine). Les temps des tableaux principaux restent ceux de la passe `bench`. Le travail d'un processus enfant lancé par une librairie (une JVM, un outil en ligne de commande) n'est pas compté ; le harnais le signale dans `note`.
 
+## Allocations
+
+`run.sh alloc` mesure ce qu'alloue **un appel** de chaque opération : les octets demandés à l'allocateur et, quand le langage les compte, le nombre d'allocations. C'est toute la mémoire que l'appel demande, y compris ce qu'il libère avant de rendre la main ; pas la mémoire qu'occupe le processus.
+
+- Même contrôle du résultat que pour les temps (premier appel, `first_call_ns`), puis un échauffement : au moins 3 appels, jusqu'à 100 appels ou 0,2 s.
+- Puis une série comptée d'environ 0,2 s, de 1 à 1 000 appels. Valeur retenue : la moyenne par appel.
+- **Go** : `go test -benchmem` (B/op, allocs/op) donne les chiffres avec les benchmarks ; `run.sh alloc go` ne fait rien.
+- **Rust** : le harnais installe un `#[global_allocator]` qui enveloppe `System`. Pendant la série, chaque `alloc`, `alloc_zeroed` et `realloc` compte pour une allocation de la taille demandée ; hors série, l'allocateur ne lit qu'un indicateur atomique.
+- **Python** : le processus de mesure tourne avec `PYTHONMALLOC=malloc` (chaque objet passe par `malloc`) et charge [`python/alloccount.c`](python/alloccount.c) par `DYLD_INSERT_LIBRARIES` (macOS) ou `LD_PRELOAD` (Linux). Ce compteur intercepte `malloc`, `calloc`, `realloc`, `posix_memalign` et `aligned_alloc` de tout le processus, extensions C comprises (libxml2, qpdf, pydantic-core). La mémoire gérée par `mmap` directement (tas GraalVM de saxonche) n'est pas vue. Le processus est lancé avec `-s -P` et sans les autres variables `PYTHON*` (`-I` ignorerait `PYTHONMALLOC`) ; un contrôle préalable vérifie que le compteur voit bien une allocation de 4 Ko.
+- **TypeScript** : V8 ne compte pas ses allocations. Le processus tourne avec `--expose-gc` et une jeune génération de 64 Mo (`--min-semi-space-size=64 --max-semi-space-size=64`). Octets = croissance de `heapUsed` et de `arrayBuffers` pendant la série + ce que chaque passage du ramasse-miettes a libéré (`v8.GCProfiler`). La série est dimensionnée pour allouer au plus 32 Mo ; si un ramasse-miettes passe quand même, elle est réduite (jusqu'à 1 appel), puis la valeur est notée comme un minimum (`gcs` > 0, « ≥ » dans les tableaux). Pas de nombre d'allocations (`allocs: null`). Un processus par benchmark.
+- **Java, C#, C, C++, PHP** : pas encore de compteur ; `run.sh alloc` à la racine les saute.
+
 ## Sorties
 
 `run.sh` dans chaque dossier, avec les mêmes sous-commandes que `bench/ecosystem/run.sh` :
 
 ```bash
 ./run.sh setup              # dépendances (npm, venv, cargo, Maven, dotnet, CMake, Composer)
-./run.sh survey [lib…]      # relevés d'exactitude
-./run.sh bench  [lib…]      # benchmarks
+./run.sh survey    [lib…]   # relevés d'exactitude
+./run.sh bench     [lib…]   # benchmarks
+./run.sh alloc     [lib…]   # allocations par appel (TypeScript, Python, Rust)
 ./run.sh resources [lib…]   # temps CPU et pic mémoire, un processus par benchmark
 ```
 
@@ -86,6 +99,12 @@ Variables : `OUT` (défaut `../results/$(date +%F)`), `COUNT` (3), `BENCHTIME` (
 ```
 
 `resources_<lang>.jsonl` : les mêmes champs, une série par défaut, plus `max_rss_bytes` (octets).
+
+`alloc_<lang>.jsonl`, une ligne par librairie et benchmark (`gcs` en TypeScript seulement) :
+
+```json
+{"lang":"rust","lib":"en16931","pkg":"en16931-formats","version":"0.10.1","bench":"Extract_Small","status":"ok","allocs":2199.0,"bytes":1390014.0,"calls":370,"first_call_ns":2006333,"note":""}
+```
 
 `survey_<lang>.jsonl`, une ligne par librairie et opération (`validate` : XML valides signalés sur 26 ; `parse` : XML lus sur 26 ; `extract` : PDF extraits sur 104) :
 

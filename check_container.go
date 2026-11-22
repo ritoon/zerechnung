@@ -140,6 +140,7 @@ func containerSeverity(id string) rules.Severity {
 // containerCheck accumulates findings.
 type containerCheck struct {
 	findings []rules.Finding
+	level    validate.PDFALevel // the PDF/A checks to apply
 }
 
 func (k *containerCheck) add(id, path, format string, args ...any) {
@@ -169,14 +170,14 @@ func (k *containerCheck) add(id, path, format string, args ...any) {
 // encrypted (finding PDF-01) or has no readable invoice attachment (finding
 // PDF-09). The error is reserved for files that cannot be read as a PDF.
 func CheckContainer(pdfData []byte) (*Attachment, []rules.Finding, error) {
-	return checkContainer(pdfData, nil)
+	return checkContainer(pdfData, nil, validate.PDFAFull)
 }
 
 // checkContainer implements CheckContainer. national, when not nil, returns
 // the countries whose rules apply to the invoice XML; the German rules
-// always apply to XRECHNUNG.
-func checkContainer(pdfData []byte, national func(xml []byte) countries) (*Attachment, []rules.Finding, error) {
-	k := &containerCheck{}
+// always apply to XRECHNUNG. level selects the PDF/A checks.
+func checkContainer(pdfData []byte, national func(xml []byte) countries, level validate.PDFALevel) (*Attachment, []rules.Finding, error) {
+	k := &containerCheck{level: level}
 	c, err := openContainer(pdfData)
 	if err != nil {
 		if errors.Is(err, ErrEncrypted) {
@@ -528,14 +529,14 @@ func xmlProfile(root, id string) (p invoice.Profile, zf1 bool) {
 	return invoice.ProfileFromURN(id), false
 }
 
-// sameLevel maps EXTENDED-CTC-FR to EXTENDED, PEPPOL, NLCIUS and CIUS-IT
-// to EN 16931: the Factur-X specification defines no XMP ConformanceLevel
+// sameLevel maps EXTENDED-CTC-FR to EXTENDED, PEPPOL, NLCIUS, CIUS-IT and
+// CIUS-PT to EN 16931: the Factur-X specification defines no XMP ConformanceLevel
 // of their own.
 func sameLevel(p invoice.Profile) invoice.Profile {
 	switch p {
 	case invoice.ProfileExtendedCTCFR:
 		return invoice.ProfileExtended
-	case invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT:
+	case invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT:
 		return invoice.ProfileEN16931
 	}
 	return p
