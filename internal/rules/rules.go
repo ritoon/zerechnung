@@ -118,7 +118,14 @@ type Report struct {
 }
 
 // Add appends findings to the report.
-func (r *Report) Add(f ...Finding) { r.Findings = append(r.Findings, f...) }
+func (r *Report) Add(f ...Finding) {
+	if tracing {
+		for i := range f {
+			Trace(f[i].Rule)
+		}
+	}
+	r.Findings = append(r.Findings, f...)
+}
 
 // Valid reports whether the report holds no error.
 func (r *Report) Valid() bool {

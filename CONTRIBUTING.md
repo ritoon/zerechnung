@@ -67,7 +67,7 @@ go test ./...
 
 - Les commentaires du code sont en anglais. Chaque symbole exporté a un commentaire de documentation qui commence par son nom et se termine par un point (règles `revive` et `godot` du linter).
 - Une correction vient avec un test qui échouait avant elle.
-- Une règle ajoutée ou modifiée vient avec un test qui la déclenche sur une facture modifiée pour l'enfreindre, et la facture valide qui ne la déclenche pas.
+- Une règle ajoutée ou modifiée vient avec un test qui la déclenche sur une facture modifiée pour l'enfreindre, et la facture valide qui ne la déclenche pas. Le job *Tests sur les artefacts officiels* le vérifie : une règle des catalogues qu'aucun test ne lève le fait échouer, sauf si elle est déjà dans [testdata/rule-coverage.txt](testdata/rule-coverage.txt), la liste des règles qu'aucun test ne lève encore. Un test qui lève une règle de cette liste fait échouer le job tant que la ligne n'est pas retirée (voir [conformance](conformance/README.md#règles-levées-par-la-suite)).
 - Un fichier de test ajouté est fictif, ou provient d'un corpus public dont la licence permet la copie ; sa source et sa licence sont alors indiquées, comme dans [testdata/NOTICE](testdata/NOTICE).
 - Quand le comportement change, le README suit : sections [Couverture](README.md#couverture) et [Limites](README.md#limites), nombres de règles, exemples.
 
