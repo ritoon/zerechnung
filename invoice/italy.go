@@ -67,12 +67,14 @@ type Italy struct {
 
 	// Related documents (2.1.2 to 2.1.6) that the EN 16931 references do
 	// not carry: those with line references, a date or an item, and those
-	// after the first. An order with its identifier alone is the purchase
-	// order reference (BT-13) and its CodiceCommessaConvenzione the buyer
-	// reference (BT-10); a contract is the contract reference (BT-12), with
+	// after the first. A contract is the contract reference (BT-12), with
 	// its CUP and CIG codes as the project (BT-11) and tender (BT-17)
-	// references; a receipt is the receiving advice reference (BT-15); a
-	// linked invoice is a preceding invoice (BG-3).
+	// references; an order with its identifier alone is the purchase order
+	// reference (BT-13) and its CodiceCommessaConvenzione the buyer
+	// reference (BT-10), its CUP and CIG codes the project and tender
+	// references when there is no such contract; a receipt is the receiving
+	// advice reference (BT-15); a linked invoice is a preceding invoice
+	// (BG-3).
 	PurchaseOrders []RelatedDocument // 2.1.2 DatiOrdineAcquisto
 	Contracts      []RelatedDocument // 2.1.3 DatiContratto
 	Agreements     []RelatedDocument // 2.1.4 DatiConvenzione

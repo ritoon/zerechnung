@@ -576,3 +576,144 @@ func TestOfficialExamples(t *testing.T) {
 		}
 	}
 }
+
+// TestProjectReference writes the project reference (BT-11), the CUP of an
+// invoice to a public administration, with the contract (BT-12) when there
+// is one, with the order (BT-13) otherwise, and reads it back from there,
+// with the tender reference (BT-17), the CIG, that goes along. Without
+// contract nor order, FatturaPA has no place for them.
+func TestProjectReference(t *testing.T) {
+	const cup, cig = "J12F26000010001", "B12C345678"
+	for _, c := range []struct {
+		contract, order string
+		in              string // element that holds the CUP and the CIG, "" when they are lost
+	}{
+		{"REP-1187/2026", "ORD-2026-17", "DatiContratto"},
+		{"", "ORD-2026-17", "DatiOrdineAcquisto"},
+		{"REP-1187/2026", "", "DatiContratto"},
+		{"", "", ""},
+	} {
+		name := "contract " + c.contract + ", order " + c.order
+		src, err := cii.Parse(read(t, ciusitInvoice))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if src.TenderReference() != cig {
+			t.Fatalf("BT-17 %q", src.TenderReference())
+		}
+		src.ProjectReference, src.ContractReference, src.PurchaseOrderReference = cup, c.contract, c.order
+		src.BuyerReference = ""
+
+		_, err = Marshal(src, &MarshalOptions{Strict: true})
+		var le *LossError
+		var lost []string
+		if errors.As(err, &le) {
+			lost = le.Terms
+		}
+		if got := slices.Contains(lost, "BT-11") && slices.Contains(lost, "BT-17"); got != (c.in == "") {
+			t.Errorf("%s: lost terms %q", name, lost)
+		}
+
+		out, err := Marshal(src, &MarshalOptions{Indent: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		checkSchema(t, name, out)
+		if c.in != "" {
+			doc := string(out)
+			start := strings.Index(doc, "<"+c.in+">")
+			end := strings.Index(doc, "</"+c.in+">")
+			if start < 0 || end < start || !strings.Contains(doc[start:end], "<CodiceCUP>"+cup+"</CodiceCUP>") ||
+				!strings.Contains(doc[start:end], "<CodiceCIG>"+cig+"</CodiceCIG>") {
+				t.Errorf("%s: CUP and CIG not written in %s:\n%s", name, c.in, out)
+			}
+		}
+
+		inv, err := Parse(out)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		wantCUP, wantCIG := cup, cig
+		if c.in == "" {
+			wantCUP, wantCIG = "", ""
+		}
+		if inv.ProjectReference != wantCUP || inv.TenderReference() != wantCIG ||
+			inv.ContractReference != c.contract || inv.PurchaseOrderReference != c.order || inv.Italy != nil {
+			t.Errorf("%s: read back BT-11 %q, BT-17 %q, BT-12 %q, BT-13 %q, national block %+v",
+				name, inv.ProjectReference, inv.TenderReference(), inv.ContractReference, inv.PurchaseOrderReference, inv.Italy)
+		}
+	}
+}
+
+// TestReadBack checks what an invoice written by Marshal reads back as,
+// when it differs from the invoice written: the payment terms (BT-20) are
+// the payment conditions, TP02 for payment terms that FatturaPA cannot
+// carry; the rates have two decimals; the transmission format is kept in
+// the national block only when the buyer does not imply it, and FormatOf
+// gives it in every case.
+func TestReadBack(t *testing.T) {
+	for _, c := range []struct {
+		terms, want string
+		lost        bool
+	}{
+		{"", "TP02", false},
+		{"TP02", "TP02", false},
+		{"TP01 30", "TP01 30", false},
+		{"TP03", "TP03", false},
+		{"Pagamento a 30 giorni", "TP02", true},
+		{"TP02 a 30 giorni", "TP02", true},
+	} {
+		src, err := cii.Parse(read(t, ciusitInvoice))
+		if err != nil {
+			t.Fatal(err)
+		}
+		src.PaymentTerms[0].Description = c.terms
+		_, err = Marshal(src, &MarshalOptions{Strict: true})
+		var le *LossError
+		if lost := errors.As(err, &le) && slices.Contains(le.Terms, "BT-20"); lost != c.lost {
+			t.Errorf("BT-20 %q: lost %t, want %t", c.terms, lost, c.lost)
+		}
+		out, err := Marshal(src, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inv, err := Parse(out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := inv.PaymentTerms[0].Description; got != c.want {
+			t.Errorf("BT-20 %q reads back as %q, want %q", c.terms, got, c.want)
+		}
+		if r, want := inv.VATBreakdown[0].Rate, src.VATBreakdown[0].Rate; r.String() != "22.00" || !r.Equal(want) {
+			t.Errorf("rate %s reads back as %s", want, r)
+		}
+	}
+
+	// The buyer of the public administration invoice has an IPA code: the
+	// format FPA12 is not kept, unless it is not the one of the buyer.
+	inv := parse(t, paInvoice)
+	if inv.Italy.Format != "" || FormatOf(inv) != FormatPA {
+		t.Errorf("format %q, FormatOf %q", inv.Italy.Format, FormatOf(inv))
+	}
+	inv.Italy.Format = FormatPrivate
+	out, err := Marshal(inv, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(out, []byte(`versione="FPR12"`)) {
+		t.Errorf("format not written:\n%s", out)
+	}
+	back, err := Parse(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.Italy.Format != FormatPrivate || FormatOf(back) != FormatPrivate {
+		t.Errorf("format %q, FormatOf %q", back.Italy.Format, FormatOf(back))
+	}
+	if inv := parse(t, privateInvoice); FormatOf(inv) != FormatPrivate {
+		t.Errorf("FormatOf %q for an invoice between private parties", FormatOf(inv))
+	}
+	if FormatOf(&invoice.Invoice{}) != FormatPrivate {
+		t.Error("FormatOf an empty invoice")
+	}
+}

@@ -74,7 +74,9 @@ func (e *LossError) Error() string {
 // identifier BT-24 is inv.SpecificationID when it identifies the target
 // profile (this keeps, for example, the XRechnung version), the target's URN
 // otherwise: a ZUGFeRD 1.0 identifier, which only a CrossIndustryDocument
-// carries, is replaced.
+// carries, is replaced. A PEPPOL invoice without business process type
+// (BT-23) gets the one of Peppol billing, invoice.ProcessPeppolBilling,
+// which Peppol requires.
 //
 // The Dutch G-account extension (see invoice.GAccountExtension) is defined
 // for UBL only, the Dutch Peppol Authority publishing no such extension of
@@ -218,9 +220,13 @@ func (w *writer) context(inv *invoice.Invoice, target invoice.Profile) {
 			w.lose("EXT TestIndicator")
 		}
 	}
-	if inv.BusinessProcess != "" {
+	process := inv.BusinessProcess
+	if process == "" && target == invoice.ProfilePeppol {
+		process = invoice.ProcessPeppolBilling
+	}
+	if process != "" {
 		w.start("ram:BusinessProcessSpecifiedDocumentContextParameter")
-		w.leafReq("ram:ID", inv.BusinessProcess)
+		w.leafReq("ram:ID", process)
 		w.end("ram:BusinessProcessSpecifiedDocumentContextParameter")
 	}
 	spec := target.URNFor(inv.Seller.Address.CountryCode)

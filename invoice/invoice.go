@@ -24,7 +24,9 @@ type Invoice struct {
 	// same profile (this keeps, for example, the XRechnung version).
 	SpecificationID string
 	// BusinessProcess is the business process type (BT-23). In France it is
-	// the "cadre de facturation" (B1, S1, M1…).
+	// the "cadre de facturation" (B1, S1, M1…); in Peppol it is
+	// ProcessPeppolBilling, which ubl.Marshal and cii.Marshal write for a
+	// Peppol invoice when the field is empty.
 	BusinessProcess string
 	// TestIndicator marks a test document (CII TestIndicator, EXT).
 	TestIndicator bool
@@ -601,7 +603,21 @@ const (
 	PaymentSEPACreditTransfer = "58"
 	PaymentSEPADirectDebit    = "59"
 
-	// Party identifier schemes (ISO 6523 ICD) and electronic address schemes (EAS).
+	// VAT exemption reason codes (BT-121, BT-120 in text, CEF VATEX list):
+	// the codes of the VAT categories K, AE, G and O, and of the French
+	// VAT franchise of small businesses (category E).
+	VATEXIntraCommunity = "VATEX-EU-IC"        // intra-community supply of goods and services (K)
+	VATEXReverseCharge  = "VATEX-EU-AE"        // reverse charge (AE)
+	VATEXExport         = "VATEX-EU-G"         // export outside the EU (G)
+	VATEXOutOfScope     = "VATEX-EU-O"         // not subject to VAT (O)
+	VATEXFranchise      = "VATEX-FR-FRANCHISE" // franchise en base de TVA, art. 293 B of the French CGI (E)
+
+	// Party identifier schemes (ISO 6523 ICD) and electronic address schemes
+	// (EAS), for the party identifiers (BT-29, BT-46, BT-60), the legal
+	// registration identifiers (BT-30, BT-47, BT-61) and the electronic
+	// addresses (BT-34, BT-49). The VAT number schemes (99xx) are electronic
+	// address schemes only: the identifier is the VAT number with its
+	// country prefix (ESB12345678).
 	SchemeSIREN       = "0002"
 	SchemeSIRET       = "0009"
 	SchemeGLN         = "0088"
@@ -609,4 +625,28 @@ const (
 	SchemeLeitwegID   = "0204"
 	SchemeGEBA        = "0246" // German Electronic Business Address, based on the W-IdNr
 	SchemeEmail       = "EM"
+
+	SchemeSEOrgNumber        = "0007" // Swedish organisation number (organisationsnummer)
+	SchemeKvK                = "0106" // Dutch Chamber of Commerce number (KvK-nummer)
+	SchemeCVR                = "0184" // Danish business register number (CVR)
+	SchemeOIN                = "0190" // Dutch government organisation identifier (OIN)
+	SchemeNOOrgNumber        = "0192" // Norwegian organisation number (Enhetsregisteret)
+	SchemeIPA                = "0201" // Italian public administration office code (codice univoco ufficio IPA)
+	SchemePEC                = "0202" // Italian certified e-mail address (PEC)
+	SchemeCodiceDestinatario = "0205" // recipient code of the Italian SDI
+	SchemeBEEnterprise       = "0208" // Belgian enterprise number (KBO-BCE)
+	SchemeCodiceFiscale      = "0210" // Italian tax code
+	SchemePartitaIVA         = "0211" // Italian VAT number (partita IVA)
+
+	SchemeATVAT = "9914" // Austrian VAT number (UID)
+	SchemeESVAT = "9920" // Spanish VAT number (NIF-IVA)
+	SchemeBEVAT = "9925" // Belgian VAT number
+	SchemeDEVAT = "9930" // German VAT number (USt-IdNr.)
+	SchemeHRVAT = "9934" // Croatian VAT number
+	SchemeIEVAT = "9935" // Irish VAT number
+	SchemeLUVAT = "9938" // Luxembourg VAT number
+	SchemeNLVAT = "9944" // Dutch VAT number (btw-id)
+	SchemePLVAT = "9945" // Polish VAT number
+	SchemePTVAT = "9946" // Portuguese VAT number (NIF)
+	SchemeFRVAT = "9957" // French VAT number
 )

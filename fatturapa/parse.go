@@ -111,7 +111,21 @@ func Parse(data []byte) (*invoice.Invoice, error) {
 // computed: the sum of the line net amounts (BT-106), the charges (BT-108),
 // the total without VAT (BT-109) and the VAT total (BT-110); the amount due
 // (BT-115) is the total with VAT (ImportoTotaleDocumento, BT-112, or the
-// computed one) plus the rounding (Arrotondamento, BT-114).
+// computed one) plus the rounding (Arrotondamento, BT-114). Amounts,
+// quantities and rates keep the decimals of the document: FatturaPA writes
+// rates with two, so that a rate of 22 % reads as 22.00, which
+// invoice.Decimal.Equal finds equal to 22.
+//
+// The payment terms (BT-20) are the payment conditions of the first
+// DatiPagamento followed by its number of days and, in split payment, by
+// the mention that rule BR-IT-DC-510 requires: "TP02", "TP01 30", "TP02 The
+// total is without the VAT amount…". The conditions are mandatory in
+// FatturaPA, and BT-20 is the only place EN 16931 has for them; Marshal
+// writes them back from BT-20 (see Marshal). The values that Marshal derives
+// from the EN 16931 fields are not kept in the national block (see
+// invoice.Italy): the transmitter when it is the seller, the
+// ProgressivoInvio when it comes from the invoice number, and the
+// transmission format when the buyer implies it, which FormatOf gives.
 //
 // Nothing is dropped, except the XAdES signature: the elements and
 // attributes that the format does not define are kept as extensions (see
@@ -933,13 +947,13 @@ func (r *reader) general(n *xmltree.Node, inv *invoice.Invoice) {
 	plain := func(d invoice.RelatedDocument) bool {
 		return len(d.Lines) == 0 && d.Date.IsZero() && d.Item == ""
 	}
-	// The tender reference (BT-17) is the CIG of the contract, or of the
-	// order when there is no contract.
+	// The project (BT-11) and tender (BT-17) references are the CUP and the
+	// CIG of the contract, or of the order when there is no contract.
 	contract := len(contracts) > 0 && plain(contracts[0]) && contracts[0].OrderCode == ""
 	tender := ""
 	for i, d := range orders {
-		if i == 0 && plain(d) && d.CUP == "" && (d.CIG == "" || !contract) {
-			inv.PurchaseOrderReference, inv.BuyerReference, tender = d.ID, d.OrderCode, d.CIG
+		if i == 0 && plain(d) && (d.CUP == "" && d.CIG == "" || !contract) {
+			inv.PurchaseOrderReference, inv.BuyerReference, inv.ProjectReference, tender = d.ID, d.OrderCode, d.CUP, d.CIG
 			continue
 		}
 		it.PurchaseOrders = append(it.PurchaseOrders, d)

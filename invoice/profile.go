@@ -52,6 +52,13 @@ const (
 	urnExtendedCTCFR2 = "urn:cen.eu:en16931:2017#conformant#urn:cpro.gouv.fr:1p0:extended-ctc-fr"
 )
 
+// ProcessPeppolBilling is the business process type (BT-23) of a Peppol
+// BIS Billing 3.0 invoice or credit note (profile 01, billing), which rule
+// PEPPOL-EN16931-R001 requires. ubl.Marshal and cii.Marshal write it when
+// they write an invoice as Peppol (ProfilePeppol) whose BusinessProcess is
+// empty.
+const ProcessPeppolBilling = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0"
+
 // GAccountExtension ends the specification identifier (BT-24) of an SI-UBL
 // 2.0 invoice that uses the Dutch G-account extension: URNNLCIUS followed by
 // it. Such an invoice is paid in part to the G-account of the supplier (a
