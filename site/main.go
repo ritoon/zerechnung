@@ -1,12 +1,21 @@
-// Command site builds the presentation site of ZeRechnung: one page per
-// language, from the template and the translations embedded below, plus a
-// language chooser at the root, a 404 page and a sitemap.
+// Command site builds the presentation site of ZeRechnung: for each
+// language, a home page, a page of worked examples, a page of benchmarks and
+// a page of compliance by country, from the templates, the translations, the
+// example programs and the data files embedded below, plus a language chooser
+// at the root, a 404 page and a sitemap.
 //
 //	go run . -out public
 //
 // Each file of i18n/ is one language. A language is added by copying
 // i18n/en.json and translating its texts; the build fails if a translation
 // lacks a text or has one the English file does not.
+//
+// Each directory of examples/ is a complete Go program shown on the
+// examples page of one language (see parseExample). The tests run every
+// program and compare what it prints with the output shown on the page.
+//
+// The files of data/ hold the figures of the benchmarks and compliance pages;
+// their texts are in the translations.
 package main
 
 import (
@@ -28,6 +37,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -39,6 +49,12 @@ var templatesFS embed.FS
 
 //go:embed static
 var staticFS embed.FS
+
+//go:embed examples/*/main.go
+var examplesFS embed.FS
+
+//go:embed data/*.json
+var dataFS embed.FS
 
 const (
 	defaultBase = "https://ritoon.github.io/zerechnung/"
@@ -59,27 +75,81 @@ type lang struct {
 	Text     map[string]string `json:"text"`
 }
 
+// section is a page of the site, generated in every language.
+type section struct {
+	name string // name of its template, without .html, and of the links to it
+	slug string // key of the translated last element of its path; none for home
+	meta string // prefix of the keys of its title and description
+}
+
+var sections = []section{
+	{name: "home"},
+	{name: "examples", slug: "examples_slug", meta: "examples_"},
+	{name: "benchmarks", slug: "benchmarks_slug", meta: "benchmarks_"},
+	{name: "compliance", slug: "compliance_slug", meta: "compliance_"},
+}
+
+// path returns the path of the section in l from the site root: /de/,
+// /de/beispiele/, /fr/exemples/.
+func (s section) path(l *lang) string {
+	if s.slug == "" {
+		return l.Code + "/"
+	}
+	return l.Code + "/" + l.Text[s.slug] + "/"
+}
+
 // page is the data of one generated page.
 type page struct {
 	Lang        *lang
 	Langs       []*lang
+	Section     string                   // name of the section of the page
 	T           map[string]template.HTML // texts, with `code` and **strong** marked up
 	P           map[string]string        // the same texts as plain text, for attributes
 	Title       string
 	Description string
 	Canonical   string
+	XDefault    string // absolute URL of the hreflang x-default alternate
 	Base        string // absolute URL of the site, ending with a slash
 	Root        string // path from the page to the site root, ending with a slash
 	Repo        string
 	MenuRows    int
-	assets      map[string]string // static file name to content hash
+	Examples    []*example // the examples of the language
+	Bench       *benchData
+	Comp        *compData
+
+	path   func(*lang) string // path of the same page in another language
+	assets map[string]string  // static file name to content hash
 }
 
-// Href returns the link from the page to the page of l.
-func (p *page) Href(l *lang) string { return p.Root + l.Code + "/" }
+// Href returns the link from the page to the same page in l.
+func (p *page) Href(l *lang) string { return p.Root + p.path(l) }
 
-// Abs returns the absolute URL of the page of l.
-func (p *page) Abs(l *lang) string { return p.Base + l.Code + "/" }
+// Abs returns the absolute URL of the same page in l.
+func (p *page) Abs(l *lang) string { return p.Base + p.path(l) }
+
+// Link returns the link from the page to a section, in the language of the
+// page.
+func (p *page) Link(name string) (string, error) {
+	for _, s := range sections {
+		if s.name == name {
+			return p.Root + s.path(p.Lang), nil
+		}
+	}
+	return "", fmt.Errorf("no section %q", name)
+}
+
+// Fmt returns the text of key with {1}, {2}… replaced by args.
+func (p *page) Fmt(key string, args ...string) (template.HTML, error) {
+	t, ok := p.T[key]
+	if !ok {
+		return "", fmt.Errorf("no text %q", key)
+	}
+	s := string(t)
+	for i, a := range args {
+		s = strings.ReplaceAll(s, "{"+strconv.Itoa(i+1)+"}", html.EscapeString(a))
+	}
+	return template.HTML(s), nil
+}
 
 // Asset returns the link to a static file, with its content hash so that
 // browsers fetch it again when it changes.
@@ -95,6 +165,9 @@ func (p *page) Asset(name string) (string, error) {
 func (p *page) EditURL(l *lang) string {
 	return p.Repo + "/edit/main/site/i18n/" + l.Code + ".json"
 }
+
+// ExamplesURL returns the GitHub folder of the example programs.
+func (p *page) ExamplesURL() string { return p.Repo + "/tree/main/site/examples" }
 
 // Codes returns the language codes, for the redirection of the root page.
 func (p *page) Codes() []string {
@@ -132,11 +205,30 @@ func build(out, base string) error {
 	if err != nil {
 		return err
 	}
+	examples, err := loadExamples(examplesFS, langs)
+	if err != nil {
+		return err
+	}
 	assets, err := hashAssets(staticFS)
 	if err != nil {
 		return err
 	}
-	tmpl, err := template.New("").Option("missingkey=error").ParseFS(templatesFS, "templates/*.html")
+	tmpl, err := template.New("").Option("missingkey=error").Funcs(template.FuncMap{
+		"dict":  dict,
+		"inc":   func(i int) int { return i + 1 },
+		"odd":   func(i int) bool { return i%2 == 1 },
+		"dec":   func(i int) int { return i - 1 },
+		"lower": strings.ToLower,
+	}).ParseFS(templatesFS, "templates/*.html")
+	if err != nil {
+		return err
+	}
+
+	bench, err := loadBench(dataFS, langs)
+	if err != nil {
+		return err
+	}
+	comp, err := loadComp(dataFS, langs)
 	if err != nil {
 		return err
 	}
@@ -147,53 +239,92 @@ func build(out, base string) error {
 			en = l
 		}
 	}
-	newPage := func(l *lang, root, canonical string) *page {
+	newPage := func(l *lang, s section) *page {
 		p := &page{
-			Lang:      l,
-			Langs:     langs,
-			T:         make(map[string]template.HTML, len(l.Text)),
-			P:         make(map[string]string, len(l.Text)),
-			Canonical: canonical,
-			Base:      base,
-			Root:      root,
-			Repo:      repoURL,
-			MenuRows:  min(len(langs), menuRows),
-			assets:    assets,
+			Lang:     l,
+			Langs:    langs,
+			Section:  s.name,
+			T:        make(map[string]template.HTML, len(l.Text)),
+			P:        make(map[string]string, len(l.Text)),
+			XDefault: base,
+			Base:     base,
+			Root:     strings.Repeat("../", strings.Count(s.path(l), "/")),
+			Repo:     repoURL,
+			MenuRows: min(len(langs), menuRows),
+			Examples: examples[l.Code],
+			Bench:    bench,
+			Comp:     comp,
+			path:     s.path,
+			assets:   assets,
 		}
 		for k, v := range l.Text {
 			v = typography(l.Code, v)
 			p.T[k] = markup(v)
 			p.P[k] = plain(v)
 		}
-		p.Title = p.P["meta_title"]
-		p.Description = p.P["meta_description"]
+		p.Canonical = base + s.path(l)
+		if s.slug != "" {
+			p.XDefault = base + s.path(en)
+		}
+		p.Title = p.P[s.meta+"meta_title"]
+		p.Description = p.P[s.meta+"meta_description"]
 		return p
 	}
 
 	for _, l := range langs {
-		p := newPage(l, "../", base+l.Code+"/")
-		if err := render(tmpl, "page.html", p, filepath.Join(out, l.Code, "index.html")); err != nil {
-			return err
+		for _, s := range sections {
+			p := newPage(l, s)
+			file := filepath.Join(out, filepath.FromSlash(s.path(l)), "index.html")
+			if err := render(tmpl, s.name+".html", p, file); err != nil {
+				return err
+			}
 		}
 	}
 	// The root page lists the languages and sends the visitor to the one
 	// of the browser. The 404 page is served at any depth, so its links
 	// start from the root of the site.
-	if err := render(tmpl, "root.html", newPage(en, "", base), filepath.Join(out, "index.html")); err != nil {
+	root := newPage(en, sections[0])
+	root.Root = ""
+	root.Canonical = base
+	if err := render(tmpl, "root.html", root, filepath.Join(out, "index.html")); err != nil {
 		return err
 	}
-	if err := render(tmpl, "404.html", newPage(en, basePath, ""), filepath.Join(out, "404.html")); err != nil {
+	notFound := newPage(en, sections[0])
+	notFound.Root = basePath
+	notFound.Canonical = ""
+	if err := render(tmpl, "404.html", notFound, filepath.Join(out, "404.html")); err != nil {
 		return err
 	}
 	if err := copyStatic(staticFS, out); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(out, "sitemap.xml"), sitemap(base, langs), 0o644); err != nil {
+	sm := sitemap(base, langs, en)
+	if err := os.WriteFile(filepath.Join(out, "sitemap.xml"), sm, 0o644); err != nil {
 		return err
 	}
 	robots := "User-agent: *\nAllow: /\n\nSitemap: " + base + "sitemap.xml\n"
 	return os.WriteFile(filepath.Join(out, "robots.txt"), []byte(robots), 0o644)
 }
+
+// dict makes a map of its arguments, keys and values in turn, to pass
+// several values to a template.
+func dict(kv ...any) (map[string]any, error) {
+	if len(kv)%2 != 0 {
+		return nil, errors.New("dict: odd number of arguments")
+	}
+	m := make(map[string]any, len(kv)/2)
+	for i := 0; i < len(kv); i += 2 {
+		k, ok := kv[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("dict: key %v is not a string", kv[i])
+		}
+		m[k] = kv[i+1]
+	}
+	return m, nil
+}
+
+// slugRE is the form of a translated path element.
+var slugRE = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
 // loadLangs reads every translation, sorted by language code, and checks
 // that each has the texts of the English one, no more, no less.
@@ -219,6 +350,20 @@ func loadLangs(fsys fs.FS) ([]*lang, error) {
 		}
 		if l.Name == "" {
 			return nil, fmt.Errorf("%s: \"name\" is empty", name)
+		}
+		slugs := make(map[string]string)
+		for _, s := range sections {
+			v, ok := l.Text[s.slug]
+			if s.slug == "" || !ok {
+				continue
+			}
+			if !slugRE.MatchString(v) {
+				return nil, fmt.Errorf("%s: %s %q: use lower-case letters, digits and hyphens", name, s.slug, v)
+			}
+			if k, dup := slugs[v]; dup {
+				return nil, fmt.Errorf("%s: %s and %s are both %q", name, k, s.slug, v)
+			}
+			slugs[v] = s.slug
 		}
 		langs = append(langs, l)
 	}
@@ -358,18 +503,24 @@ func copyStatic(fsys fs.FS, out string) error {
 	})
 }
 
-// sitemap lists the page of every language, each with its alternates, as
+// sitemap lists the pages of every language, each with its alternates, as
 // search engines expect for a multilingual site.
-func sitemap(base string, langs []*lang) []byte {
+func sitemap(base string, langs []*lang, en *lang) []byte {
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">` + "\n")
-	for _, l := range langs {
-		fmt.Fprintf(&b, "  <url>\n    <loc>%s</loc>\n", html.EscapeString(base+l.Code+"/"))
-		for _, alt := range langs {
-			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s\"/>\n", alt.Code, html.EscapeString(base+alt.Code+"/"))
+	for _, s := range sections {
+		xDefault := base + s.path(en)
+		if s.slug == "" {
+			xDefault = base
 		}
-		fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"%s\"/>\n  </url>\n", html.EscapeString(base))
+		for _, l := range langs {
+			fmt.Fprintf(&b, "  <url>\n    <loc>%s</loc>\n", html.EscapeString(base+s.path(l)))
+			for _, alt := range langs {
+				fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"%s\" href=\"%s\"/>\n", alt.Code, html.EscapeString(base+s.path(alt)))
+			}
+			fmt.Fprintf(&b, "    <xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"%s\"/>\n  </url>\n", html.EscapeString(xDefault))
+		}
 	}
 	b.WriteString("</urlset>\n")
 	return []byte(b.String())

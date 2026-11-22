@@ -5,29 +5,7 @@
 <script src="{{.Asset "site.js"}}" defer></script>
 </head>
 <body>
-<a class="skip" href="#main">{{.T.skip}}</a>
-
-<header class="top">
-  <div class="wrap top-in">
-    <a class="brand" href="./">{{template "boat"}}<span>ZeRechnung</span></a>
-    <nav class="nav" aria-label="{{.P.nav_label}}">
-      <a href="#features">{{.T.nav_features}}</a>
-      <a href="#formats">{{.T.nav_formats}}</a>
-      <a href="#accuracy">{{.T.nav_accuracy}}</a>
-      <a href="#start">{{.T.nav_start}}</a>
-    </nav>
-    <details class="lang">
-      <summary>{{template "icon-globe"}}<span class="sr">{{.T.lang_label}}:</span> <span>{{.Lang.Name}}</span></summary>
-      <ul style="--rows: {{.MenuRows}}">{{template "langlist" .}}</ul>
-    </details>
-    <a class="gh" href="{{.Repo}}" aria-label="GitHub">{{template "icon-github"}}</a>
-  </div>
-</header>
-
-{{if not .Lang.Reviewed}}<div class="notice" role="note">
-  <div class="wrap">{{.T.review_notice}} <a href="{{.EditURL .Lang}}">{{.T.review_link}}</a></div>
-</div>
-{{end}}
+{{template "header" .}}
 <main id="main">
   <section class="hero">
     <div class="wrap hero-in">
@@ -76,7 +54,18 @@
     </div>
   </section>
 
-  <section id="formats" class="alt">
+  <section id="explore" class="alt">
+    <div class="wrap">
+      <h2>{{.T.explore_title}}</h2>
+      <div class="cards explore">
+        <a class="card link-card" href="{{.Link "examples"}}"><div class="icon">{{template "icon-example"}}</div><h3>{{.T.nav_examples}}</h3><p>{{.T.explore_examples}}</p></a>
+        <a class="card link-card" href="{{.Link "benchmarks"}}"><div class="icon">{{template "icon-speed"}}</div><h3>{{.T.nav_benchmarks}}</h3><p>{{.T.explore_benchmarks}}</p></a>
+        <a class="card link-card" href="{{.Link "compliance"}}"><div class="icon">{{template "icon-map"}}</div><h3>{{.T.nav_compliance}}</h3><p>{{.T.explore_compliance}}</p></a>
+      </div>
+    </div>
+  </section>
+
+  <section id="formats">
     <div class="wrap">
       <h2>{{.T.formats_title}}</h2>
       <p class="section-lead">{{.T.formats_lead}}</p>
@@ -101,7 +90,7 @@
     </div>
   </section>
 
-  <section id="accuracy">
+  <section id="accuracy" class="alt">
     <div class="wrap">
       <h2>{{.T.accuracy_title}}</h2>
       <p class="section-lead">{{.T.accuracy_lead}}</p>
@@ -115,7 +104,7 @@
     </div>
   </section>
 
-  <section id="start" class="alt">
+  <section id="start">
     <div class="wrap">
       <h2>{{.T.start_title}}</h2>
       <ol class="steps">
@@ -158,7 +147,7 @@ zerechnung validate -auto invoice.pdf</code></pre></div>
     </div>
   </section>
 
-  <section id="open">
+  <section id="open" class="alt">
     <div class="wrap open">
       <div>
         <h2>{{.T.open_title}}</h2>
@@ -173,15 +162,6 @@ zerechnung validate -auto invoice.pdf</code></pre></div>
   </section>
 </main>
 
-<footer>
-  <div class="wrap foot">
-    <p>ZeRechnung · {{.T.footer_license}}</p>
-    <nav aria-label="ZeRechnung">
-      <a href="{{.Repo}}">GitHub</a>
-      <a href="https://pkg.go.dev/github.com/ritoon/zerechnung">pkg.go.dev</a>
-      <a href="{{.Repo}}/wiki">Wiki</a>
-    </nav>
-  </div>
-</footer>
+{{template "footer" .}}
 </body>
 </html>
