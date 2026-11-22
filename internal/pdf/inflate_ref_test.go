@@ -231,12 +231,9 @@ func refFixedTables() {
 	}
 }
 
-// inflateRaw decompresses raw deflate data.
-func refInflateRaw(src []byte, hint int) ([]byte, error) { return refInflateRawIn(src, hint, nil) }
-
-// inflateRawIn is inflateRaw with the output buffer lent by sc, when not
-// nil. The refDecoder never reads output it has not written, so a lent buffer
-// needs no clearing.
+// refInflateRawIn decompresses raw deflate data into the output buffer lent
+// by sc, when not nil. The refDecoder never reads output it has not written,
+// so a lent buffer needs no clearing.
 func refInflateRawIn(src []byte, hint int, sc *Scratch) ([]byte, error) {
 	d, _ := refDecoders.Get().(*refDecoder)
 	if d == nil {
