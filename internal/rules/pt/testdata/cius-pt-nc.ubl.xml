@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A CIUS-PT 2.1.1 credit note written for the tests of package pt: the
+     national document type NC credits part of an invoice, at the exempt rate
+     (ISE, exemption code M07), with a document level allowance. -->
+<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+            xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+            xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:2.1.1</cbc:CustomizationID>
+  <cbc:ID>NC ZR2026/7</cbc:ID>
+  <cbc:IssueDate>2026-11-21</cbc:IssueDate>
+  <cbc:CreditNoteTypeCode>NC</cbc:CreditNoteTypeCode>
+  <cbc:Note>Devolução de material de formação</cbc:Note>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>CC-2026-118</cbc:BuyerReference>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>FT ZR2026/39</cbc:ID>
+      <cbc:IssueDate>2026-11-02</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9946">PT501234560</cbc:EndpointID>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="0001">PT501234560</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Oficina Exemplo</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Rua das Flores 12</cbc:StreetName>
+        <cbc:CityName>Porto</cbc:CityName>
+        <cbc:PostalZone>4050-262</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>PT501234560</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Oficina Exemplo, Lda.</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0001">PT501234560</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Joana Silva</cbc:Name>
+        <cbc:ElectronicMail>faturas@oficina.example</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9946">PT600012344</cbc:EndpointID>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="0001">PT600012344</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Serviço Municipal</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Praça do Município 1</cbc:StreetName>
+        <cbc:CityName>Braga</cbc:CityName>
+        <cbc:PostalZone>4704-514</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>PT600012344</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Serviço Municipal de Exemplo</cbc:RegistrationName>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Telephone>253000000</cbc:Telephone>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:Delivery>
+    <cac:DeliveryLocation>
+      <cac:Address>
+        <cbc:StreetName>Praça do Município 1</cbc:StreetName>
+        <cbc:CityName>Braga</cbc:CityName>
+        <cbc:PostalZone>4704-514</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:Address>
+    </cac:DeliveryLocation>
+  </cac:Delivery>
+  <cac:PaymentTerms>
+    <cbc:Note>Compensação na próxima fatura</cbc:Note>
+  </cac:PaymentTerms>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReasonCode>95</cbc:AllowanceChargeReasonCode>
+    <cbc:AllowanceChargeReason>Desconto</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">5.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>ISE</cbc:ID>
+      <cbc:Percent>0.00</cbc:Percent>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">115.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>ISE</cbc:ID>
+        <cbc:Percent>0.00</cbc:Percent>
+        <cbc:TaxExemptionReasonCode>M07</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReason>Isento artigo 9.º do CIVA</cbc:TaxExemptionReason>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">120.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="EUR">115.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">115.00</cbc:TaxInclusiveAmount>
+    <cbc:AllowanceTotalAmount currencyID="EUR">5.00</cbc:AllowanceTotalAmount>
+    <cbc:PayableAmount currencyID="EUR">115.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:CreditNoteLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:CreditedQuantity unitCode="C62">3.00</cbc:CreditedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">120.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Sessão de formação</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>ISE</cbc:ID>
+        <cbc:Percent>0.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+      <cac:AdditionalItemProperty>
+        <cbc:Name>#TAXEXEMPTIONREASONCODE@CLASSIFIEDTAXCATEGORY#</cbc:Name>
+        <cbc:Value>M07</cbc:Value>
+      </cac:AdditionalItemProperty>
+      <cac:AdditionalItemProperty>
+        <cbc:Name>#TAXEXEMPTIONREASON@CLASSIFIEDTAXCATEGORY#</cbc:Name>
+        <cbc:Value>Isento artigo 9.º do CIVA</cbc:Value>
+      </cac:AdditionalItemProperty>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">40.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:CreditNoteLine>
+</CreditNote>

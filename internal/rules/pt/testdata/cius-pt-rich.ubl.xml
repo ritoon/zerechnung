@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A CIUS-PT 2.1.1 invoice written for the tests of package pt, which fills
+     the optional groups and terms the two other base documents leave out:
+     the structured notes of the CIUS-PT (certified program, withholding tax,
+     ATM payment), the document references, a payee and a tax
+     representative, document level allowances and charges at the standard
+     (S), lower (AA) and exempt (E) rates, and lines with their own period,
+     allowance, charge, price discount and item identifiers. -->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:feap.gov.pt:CIUS-PT:2.1.1</cbc:CustomizationID>
+  <cbc:ID>FT ZR2026/77</cbc:ID>
+  <cbc:IssueDate>2026-11-21</cbc:IssueDate>
+  <cbc:DueDate>2026-12-21</cbc:DueDate>
+  <cbc:InvoiceTypeCode>FT</cbc:InvoiceTypeCode>
+  <cbc:Note>Fornecimento e instalação de sinalética</cbc:Note>
+  <cbc:Note>#NUMBER@ATCERTIFIEDPROGRAM#9999/AT#</cbc:Note>
+  <cbc:Note>#HASHCODE@ATCERTIFIEDPROGRAM#Qx7m#</cbc:Note>
+  <cbc:Note>#DESCRIPTION@ATCERTIFIEDPROGRAM#Programa de faturação de teste#</cbc:Note>
+  <cbc:Note>#DESCRIPTION@INVOICEPERIOD#Outubro de 2026#</cbc:Note>
+  <cbc:Note>#ADDITIONALPROPERTY#Obra#Escola Básica n.º 2#</cbc:Note>
+  <cbc:Note>#WITHHOLDINGTAXTYPE@WITHHOLDINGTAX-001#IRF#</cbc:Note>
+  <cbc:Note>#WITHHOLDINGTAXDESCRIPTION@WITHHOLDINGTAX-001#Retenção na fonte#</cbc:Note>
+  <cbc:Note>#WITHHOLDINGTAXAMOUNT@WITHHOLDINGTAX-001#12.50#</cbc:Note>
+  <cbc:Note>#ENTITY@ATMPAYMENT-001#21312#</cbc:Note>
+  <cbc:Note>#REFERENCE@ATMPAYMENT-001#123456789#</cbc:Note>
+  <cbc:Note>#AMOUNT@ATMPAYMENT-001#758.00#</cbc:Note>
+  <cbc:Note>#DESCRIPTION@ATMPAYMENT-001#Pagamento por referência multibanco#</cbc:Note>
+  <cbc:TaxPointDate>2026-10-31</cbc:TaxPointDate>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:AccountingCost>CC-ENS-2026</cbc:AccountingCost>
+  <cbc:BuyerReference>REQ-2026-311</cbc:BuyerReference>
+  <cac:InvoicePeriod>
+    <cbc:StartDate>2026-10-01</cbc:StartDate>
+    <cbc:EndDate>2026-10-31</cbc:EndDate>
+  </cac:InvoicePeriod>
+  <cac:OrderReference>
+    <cbc:ID>CMP-2026-0912</cbc:ID>
+    <cbc:SalesOrderID>EV-2026-55</cbc:SalesOrderID>
+  </cac:OrderReference>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>FT ZR2026/12</cbc:ID>
+      <cbc:IssueDate>2026-03-02</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cac:DespatchDocumentReference>
+    <cbc:ID>GR 2026/88</cbc:ID>
+  </cac:DespatchDocumentReference>
+  <cac:ReceiptDocumentReference>
+    <cbc:ID>RC-2026-14</cbc:ID>
+  </cac:ReceiptDocumentReference>
+  <cac:OriginatorDocumentReference>
+    <cbc:ID>CP-2026-03</cbc:ID>
+  </cac:OriginatorDocumentReference>
+  <cac:ContractDocumentReference>
+    <cbc:ID>CT-2026-07</cbc:ID>
+  </cac:ContractDocumentReference>
+  <cac:AdditionalDocumentReference>
+    <cbc:ID schemeID="AAG">LOTE-4</cbc:ID>
+    <cbc:DocumentTypeCode>130</cbc:DocumentTypeCode>
+  </cac:AdditionalDocumentReference>
+  <cac:AdditionalDocumentReference>
+    <cbc:ID>Mapa de quantidades</cbc:ID>
+    <cbc:DocumentDescription>Mapa de quantidades da obra</cbc:DocumentDescription>
+    <cac:Attachment>
+      <cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain" filename="mapa.txt">TWFwYSBkZSBxdWFudGlkYWRlcw==</cbc:EmbeddedDocumentBinaryObject>
+      <cac:ExternalReference>
+        <cbc:URI>https://oficina.example/mapas/2026-77</cbc:URI>
+      </cac:ExternalReference>
+    </cac:Attachment>
+  </cac:AdditionalDocumentReference>
+  <cac:ProjectReference>
+    <cbc:ID>PRJ-ESC-2</cbc:ID>
+  </cac:ProjectReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9946">PT501234560</cbc:EndpointID>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="0001">PT501234560</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Oficina Exemplo</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Rua das Flores 12</cbc:StreetName>
+        <cbc:AdditionalStreetName>Edifício B</cbc:AdditionalStreetName>
+        <cbc:CityName>Porto</cbc:CityName>
+        <cbc:PostalZone>4050-262</cbc:PostalZone>
+        <cbc:CountrySubentity>Porto</cbc:CountrySubentity>
+        <cac:AddressLine>
+          <cbc:Line>2.º andar</cbc:Line>
+        </cac:AddressLine>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>PT501234560</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Oficina Exemplo, Lda.</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0001">PT501234560</cbc:CompanyID>
+        <cbc:CompanyLegalForm>Capital social 5 000 EUR</cbc:CompanyLegalForm>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Joana Silva</cbc:Name>
+        <cbc:Telephone>220000000</cbc:Telephone>
+        <cbc:ElectronicMail>faturas@oficina.example</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9946">PT600012344</cbc:EndpointID>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="0001">PT600012344</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Agrupamento de Escolas</cbc:Name>
+      </cac:PartyName>
+      <cac:PostalAddress>
+        <cbc:StreetName>Avenida Central 40</cbc:StreetName>
+        <cbc:AdditionalStreetName>Bloco administrativo</cbc:AdditionalStreetName>
+        <cbc:CityName>Braga</cbc:CityName>
+        <cbc:PostalZone>4710-229</cbc:PostalZone>
+        <cbc:CountrySubentity>Braga</cbc:CountrySubentity>
+        <cac:AddressLine>
+          <cbc:Line>Secretaria</cbc:Line>
+        </cac:AddressLine>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>PT600012344</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Agrupamento de Escolas de Exemplo</cbc:RegistrationName>
+        <cbc:CompanyID schemeID="0001">PT600012344</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Name>Serviços administrativos</cbc:Name>
+        <cbc:Telephone>253000000</cbc:Telephone>
+        <cbc:ElectronicMail>compras@escolas.example</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:PayeeParty>
+    <cac:PartyIdentification>
+      <cbc:ID schemeID="0001">PT503000019</cbc:ID>
+    </cac:PartyIdentification>
+    <cac:PartyName>
+      <cbc:Name>Factoring Exemplo</cbc:Name>
+    </cac:PartyName>
+    <cac:PartyLegalEntity>
+      <cbc:CompanyID schemeID="0001">PT503000019</cbc:CompanyID>
+    </cac:PartyLegalEntity>
+  </cac:PayeeParty>
+  <cac:TaxRepresentativeParty>
+    <cac:PartyName>
+      <cbc:Name>Representação Fiscal Exemplo</cbc:Name>
+    </cac:PartyName>
+    <cac:PostalAddress>
+      <cbc:StreetName>Rua Augusta 100</cbc:StreetName>
+      <cbc:AdditionalStreetName>Sala 3</cbc:AdditionalStreetName>
+      <cbc:CityName>Lisboa</cbc:CityName>
+      <cbc:PostalZone>1100-053</cbc:PostalZone>
+      <cbc:CountrySubentity>Lisboa</cbc:CountrySubentity>
+      <cac:AddressLine>
+        <cbc:Line>Piso 1</cbc:Line>
+      </cac:AddressLine>
+      <cac:Country>
+        <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+      </cac:Country>
+    </cac:PostalAddress>
+    <cac:PartyTaxScheme>
+      <cbc:CompanyID>PT504000020</cbc:CompanyID>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:PartyTaxScheme>
+  </cac:TaxRepresentativeParty>
+  <cac:Delivery>
+    <cbc:ActualDeliveryDate>2026-10-30</cbc:ActualDeliveryDate>
+    <cac:DeliveryLocation>
+      <cbc:ID schemeID="0088">5600000000017</cbc:ID>
+      <cac:Address>
+        <cbc:StreetName>Rua da Escola 2</cbc:StreetName>
+        <cbc:AdditionalStreetName>Portão norte</cbc:AdditionalStreetName>
+        <cbc:CityName>Braga</cbc:CityName>
+        <cbc:PostalZone>4715-001</cbc:PostalZone>
+        <cbc:CountrySubentity>Braga</cbc:CountrySubentity>
+        <cac:AddressLine>
+          <cbc:Line>Pavilhão</cbc:Line>
+        </cac:AddressLine>
+        <cac:Country>
+          <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:Address>
+    </cac:DeliveryLocation>
+    <cac:DeliveryParty>
+      <cac:PartyName>
+        <cbc:Name>Escola Básica n.º 2</cbc:Name>
+      </cac:PartyName>
+    </cac:DeliveryParty>
+  </cac:Delivery>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode name="Transferência">30</cbc:PaymentMeansCode>
+    <cbc:PaymentID>#REFERENCE@ATMPAYMENT#123456789#</cbc:PaymentID>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>PT50000201231234567890154</cbc:ID>
+      <cbc:Name>Factoring Exemplo</cbc:Name>
+      <cac:FinancialInstitutionBranch>
+        <cbc:ID>CGDIPTPL</cbc:ID>
+      </cac:FinancialInstitutionBranch>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>59</cbc:PaymentMeansCode>
+    <cbc:InstructionNote>Débito direto SEPA do saldo</cbc:InstructionNote>
+    <cac:PaymentMandate>
+      <cbc:ID>MD-2026-0003</cbc:ID>
+      <cac:PayerFinancialAccount>
+        <cbc:ID>PT50003506510000000000033</cbc:ID>
+      </cac:PayerFinancialAccount>
+    </cac:PaymentMandate>
+  </cac:PaymentMeans>
+  <cac:PaymentTerms>
+    <cbc:Note>Pagamento a 30 dias</cbc:Note>
+  </cac:PaymentTerms>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReasonCode>95</cbc:AllowanceChargeReasonCode>
+    <cbc:AllowanceChargeReason>Desconto comercial</cbc:AllowanceChargeReason>
+    <cbc:MultiplierFactorNumeric>2.00</cbc:MultiplierFactorNumeric>
+    <cbc:Amount currencyID="EUR">10.00</cbc:Amount>
+    <cbc:BaseAmount currencyID="EUR">500.00</cbc:BaseAmount>
+    <cac:TaxCategory>
+      <cbc:ID>S</cbc:ID>
+      <cbc:Percent>23.00</cbc:Percent>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>true</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReasonCode>FC</cbc:AllowanceChargeReasonCode>
+    <cbc:AllowanceChargeReason>Transporte</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">15.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>S</cbc:ID>
+      <cbc:Percent>23.00</cbc:Percent>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReason>Desconto de quantidade</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">5.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>AA</cbc:ID>
+      <cbc:Percent>13.00</cbc:Percent>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>true</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReason>Embalagem</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">8.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>AA</cbc:ID>
+      <cbc:Percent>13.00</cbc:Percent>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReason>Desconto de formação</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">20.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>E</cbc:ID>
+      <cbc:Percent>0.00</cbc:Percent>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>true</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReason>Material de formação</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">4.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>E</cbc:ID>
+      <cbc:Percent>0.00</cbc:Percent>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="EUR">116.04</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">435.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">100.05</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>23.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">123.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">15.99</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>AA</cbc:ID>
+        <cbc:Percent>13.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">184.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>E</cbc:ID>
+        <cbc:Percent>0.00</cbc:Percent>
+        <cbc:TaxExemptionReasonCode>M07</cbc:TaxExemptionReasonCode>
+        <cbc:TaxExemptionReason>Isento nos termos do artigo 9.º do CIVA</cbc:TaxExemptionReason>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">750.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="EUR">742.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">858.04</cbc:TaxInclusiveAmount>
+    <cbc:AllowanceTotalAmount currencyID="EUR">35.00</cbc:AllowanceTotalAmount>
+    <cbc:ChargeTotalAmount currencyID="EUR">27.00</cbc:ChargeTotalAmount>
+    <cbc:PrepaidAmount currencyID="EUR">100.00</cbc:PrepaidAmount>
+    <cbc:PayableRoundingAmount currencyID="EUR">-0.04</cbc:PayableRoundingAmount>
+    <cbc:PayableAmount currencyID="EUR">758.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:Note>Instalação no átrio principal</cbc:Note>
+    <cbc:InvoicedQuantity unitCode="HUR">10.00</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">430.00</cbc:LineExtensionAmount>
+    <cbc:AccountingCost>CC-ENS-INST</cbc:AccountingCost>
+    <cac:InvoicePeriod>
+      <cbc:StartDate>2026-10-05</cbc:StartDate>
+      <cbc:EndDate>2026-10-09</cbc:EndDate>
+    </cac:InvoicePeriod>
+    <cac:OrderLineReference>
+      <cbc:LineID>3</cbc:LineID>
+    </cac:OrderLineReference>
+    <cac:DocumentReference>
+      <cbc:ID schemeID="AAG">LOTE-4-1</cbc:ID>
+      <cbc:DocumentTypeCode>130</cbc:DocumentTypeCode>
+    </cac:DocumentReference>
+    <cac:AllowanceCharge>
+      <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+      <cbc:AllowanceChargeReasonCode>95</cbc:AllowanceChargeReasonCode>
+      <cbc:AllowanceChargeReason>Desconto de instalação</cbc:AllowanceChargeReason>
+      <cbc:MultiplierFactorNumeric>5.00</cbc:MultiplierFactorNumeric>
+      <cbc:Amount currencyID="EUR">25.00</cbc:Amount>
+      <cbc:BaseAmount currencyID="EUR">500.00</cbc:BaseAmount>
+    </cac:AllowanceCharge>
+    <cac:AllowanceCharge>
+      <cbc:ChargeIndicator>true</cbc:ChargeIndicator>
+      <cbc:AllowanceChargeReasonCode>FC</cbc:AllowanceChargeReasonCode>
+      <cbc:AllowanceChargeReason>Deslocação</cbc:AllowanceChargeReason>
+      <cbc:Amount currencyID="EUR">5.00</cbc:Amount>
+    </cac:AllowanceCharge>
+    <cac:Item>
+      <cbc:Description>Montagem de placas de sinalização</cbc:Description>
+      <cbc:Name>Instalação de sinalética</cbc:Name>
+      <cac:BuyersItemIdentification>
+        <cbc:ID>AQ-771</cbc:ID>
+      </cac:BuyersItemIdentification>
+      <cac:SellersItemIdentification>
+        <cbc:ID>SRV-INST</cbc:ID>
+      </cac:SellersItemIdentification>
+      <cac:StandardItemIdentification>
+        <cbc:ID schemeID="0160">5600000000024</cbc:ID>
+      </cac:StandardItemIdentification>
+      <cac:OriginCountry>
+        <cbc:IdentificationCode>PT</cbc:IdentificationCode>
+      </cac:OriginCountry>
+      <cac:CommodityClassification>
+        <cbc:ItemClassificationCode listID="STI">45233290</cbc:ItemClassificationCode>
+      </cac:CommodityClassification>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>S</cbc:ID>
+        <cbc:Percent>23.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+      <cac:AdditionalItemProperty>
+        <cbc:Name>Cor</cbc:Name>
+        <cbc:Value>Verde</cbc:Value>
+      </cac:AdditionalItemProperty>
+      <cac:AdditionalItemProperty>
+        <cbc:Name>#LINEID@COMMITMENTLINEREFERENCE#</cbc:Name>
+        <cbc:Value>CB-2026-41/1</cbc:Value>
+      </cac:AdditionalItemProperty>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">45.00</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="HUR">1.00</cbc:BaseQuantity>
+      <cac:AllowanceCharge>
+        <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+        <cbc:Amount currencyID="EUR">5.00</cbc:Amount>
+        <cbc:BaseAmount currencyID="EUR">50.00</cbc:BaseAmount>
+      </cac:AllowanceCharge>
+    </cac:Price>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">4.00</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">120.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Conjunto de pictogramas</cbc:Name>
+      <cac:SellersItemIdentification>
+        <cbc:ID>PIC-12</cbc:ID>
+      </cac:SellersItemIdentification>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>AA</cbc:ID>
+        <cbc:Percent>13.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">30.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>3</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">1.00</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">200.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Ação de formação</cbc:Name>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>E</cbc:ID>
+        <cbc:Percent>0.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+      <cac:AdditionalItemProperty>
+        <cbc:Name>#TAXEXEMPTIONREASONCODE@CLASSIFIEDTAXCATEGORY#</cbc:Name>
+        <cbc:Value>M07</cbc:Value>
+      </cac:AdditionalItemProperty>
+      <cac:AdditionalItemProperty>
+        <cbc:Name>#TAXEXEMPTIONREASON@CLASSIFIEDTAXCATEGORY#</cbc:Name>
+        <cbc:Value>Isento nos termos do artigo 9.º do CIVA</cbc:Value>
+      </cac:AdditionalItemProperty>
+      <cac:AdditionalItemProperty>
+        <cbc:Name>#ID@INVOICEDOCUMENTREFERENCE@BILLINGREFERENCE-001#</cbc:Name>
+        <cbc:Value>FT ZR2026/12</cbc:Value>
+      </cac:AdditionalItemProperty>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">200.00</cbc:PriceAmount>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>
