@@ -132,19 +132,3 @@ jobs:
               exit 1
             fi
           done
-
-  bench:
-    # The benchmark harness is made of separate modules; only the one that
-    # measures this package is compiled here, the others need ./run.sh setup.
-    name: Benchmark module
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-      - name: go vet
-        run: |
-          cd bench/ecosystem/facturx && go vet ./...
-          cd ../report && go vet ./...
-          cd ../../polyglot/report && go vet ./...

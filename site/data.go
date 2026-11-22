@@ -14,8 +14,8 @@ import (
 
 // benchData holds the benchmark results shown on the benchmarks page, read
 // from data/benchmarks.json. The Go figures come from the wiki page
-// Benchmarks, those of the other languages from bench/polyglot/README.md and
-// its tables; the texts are in the translations.
+// Benchmarks, those of the other languages from polyglot/README.md and its
+// tables in github.com/ritoon/invoice-bench; the texts are in the translations.
 type benchData struct {
 	Date       string        `json:"date"`        // of the Go campaign, YYYY-MM-DD
 	Version    string        `json:"version"`     // of ZeRechnung in the Go campaign
