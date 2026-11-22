@@ -36,7 +36,7 @@
 
 {{define "yes"}}<td class="c yes">{{template "icon-check"}}<span class="sr">{{.T.yes}}</span></td>{{end}}
 
-{{define "langlist"}}{{range .Langs}}<li><a href="{{$.Href .}}" lang="{{.Code}}" hreflang="{{.Code}}" data-lang="{{.Code}}"{{if eq .Code $.Lang.Code}} aria-current="true"{{end}}>{{.Name}}</a></li>{{end}}{{end}}
+{{define "langlist"}}{{range .Langs}}<li><a href="{{$.Href .}}" lang="{{.Code}}" hreflang="{{.Code}}" data-lang="{{.Code}}"{{if eq .Code $.Lang.Code}} aria-current="true"{{end}}>{{$.Flag .Flag}} {{.Name}}</a></li>{{end}}{{end}}
 
 {{define "icon-cross"}}<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>{{end}}
 

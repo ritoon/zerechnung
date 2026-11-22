@@ -30,7 +30,7 @@
     <img src="{{.Asset "gopher.webp"}}" width="720" height="679" alt="{{.P.gopher_alt}}">
     <h1>ZeRechnung</h1>
     <p class="chooser-sub">Go package for Factur-X, ZUGFeRD and XRechnung e-invoices</p>
-    <ul>{{range .Langs}}<li><a href="{{$.Href .}}" lang="{{.Code}}" hreflang="{{.Code}}" data-lang="{{.Code}}">{{.Name}}</a></li>{{end}}</ul>
+    <ul>{{range .Langs}}<li><a href="{{$.Href .}}" lang="{{.Code}}" hreflang="{{.Code}}" data-lang="{{.Code}}">{{$.Flag .Flag}} {{.Name}}</a></li>{{end}}</ul>
     <p class="chooser-gh"><a href="{{.Repo}}">github.com/ritoon/zerechnung</a></p>
   </div>
 </main>

@@ -1,6 +1,7 @@
 {
   "lang": "de",
   "name": "Deutsch",
+  "flag": "DE",
   "reviewed": false,
   "text": {
     "meta_title": "ZeRechnung · E-Rechnungen mit Factur-X, ZUGFeRD und XRechnung in Go",

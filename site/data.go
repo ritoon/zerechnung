@@ -183,6 +183,9 @@ func loadComp(fsys fs.FS, langs []*lang) (*compData, error) {
 		if err := need("country_" + c.Code); err != nil {
 			return nil, err
 		}
+		if _, ok := flags[c.Code]; !ok {
+			return nil, fmt.Errorf("%s: %s: no flag in flags.go", name, c.Code)
+		}
 		for _, s := range []string{c.B2G, c.B2B} {
 			kind, year, _ := strings.Cut(s, " ")
 			withYear, ok := statusKinds[kind]

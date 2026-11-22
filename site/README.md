@@ -6,11 +6,12 @@ It is a separate Go module, so the package itself stays untouched. Its only depe
 
 | Path | Content |
 |---|---|
-| `i18n/` | One JSON file per language: its code, its name in that language, the texts and the translated page paths (`*_slug`) |
+| `i18n/` | One JSON file per language: its code, its name in that language, its flag, the texts and the translated page paths (`*_slug`) |
 | `templates/` | One template per page (`home`, `examples`, `benchmarks`, `compliance`), the shared parts, the language chooser at the root and the 404 page (`html/template`) |
 | `examples/` | The worked examples: one Go program per directory, `<lang>-<n>-<name>` |
 | `data/` | `benchmarks.json` (the results published in the wiki) and `compliance.json` (the standards by country) |
 | `static/` | Style sheet, script, images, copied as is |
+| `flags.go` | The flags of the countries and languages, as inline SVG |
 | `main.go`, `examples.go`, `data.go` | The generator |
 
 ## Build and preview
@@ -62,7 +63,7 @@ func main() {
 
 ## Benchmarks and compliance
 
-The two pages read their figures from `data/`. Update `benchmarks.json` when the wiki publishes new results: each chart lists its rows from the fastest, with the time in microseconds or the reason of a failure, and the scale is computed from them. `compliance.json` lists, per country, the B2G and B2B obligations and the formats ZeRechnung covers, and for the countries with a guide the checkpoints and the rules that verify them. The texts they refer to are keys of the i18n files, and `go test` checks that they exist.
+The two pages read their figures from `data/`. Update `benchmarks.json` when the wiki publishes new results: each chart lists its rows from the fastest, with the time in microseconds or the reason of a failure, and the scale is computed from them. `compliance.json` lists, per country, the B2G and B2B obligations and the formats ZeRechnung covers, and for the countries with a guide the checkpoints and the rules that verify them. The texts they refer to are keys of the i18n files, and `go test` checks that they exist, and that each country has a flag in `flags.go`.
 
 ## Translate
 
@@ -71,6 +72,7 @@ Translations are welcome, in every language of Europe.
 To add a language, copy `i18n/en.json` to `i18n/<code>.json`, where `<code>` is the ISO 639-1 code of the language (`it`, `pl`, `sv`…). Then:
 
 - set `"lang"` to that code and `"name"` to the name of the language in that language: `"Italiano"`, `"Polski"`, `"Svenska"`;
+- set `"flag"` to the ISO 3166-1 code of the country whose flag the language menu shows before the name: `"IT"`, `"PL"`, `"SE"`. If `flags.go` does not have it yet, add it there;
 - translate every text, and keep the keys as they are;
 - translate the page paths (`examples_slug`, `benchmarks_slug`, `compliance_slug`): lower-case letters, digits and hyphens;
 - write at least three examples for the language (see above);
