@@ -57,10 +57,12 @@ const (
 )
 
 // ProcessPeppolBilling is the business process type (BT-23) of a Peppol
-// BIS Billing 3.0 invoice or credit note (profile 01, billing), which rule
-// PEPPOL-EN16931-R001 requires. ubl.Marshal and cii.Marshal write it when
-// they write an invoice as Peppol (ProfilePeppol) whose BusinessProcess is
-// empty.
+// BIS Billing 3.0 invoice or credit note (profile 01, billing). Rule
+// PEPPOL-EN16931-R001 requires a business process type in Peppol and, through
+// the XRechnung schematron, in XRechnung, which takes this one too. ubl.Marshal
+// and cii.Marshal write it when they write an invoice as Peppol
+// (ProfilePeppol) whose BusinessProcess is empty; an XRechnung invoice sets it
+// itself.
 const ProcessPeppolBilling = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0"
 
 // GAccountExtension ends the specification identifier (BT-24) of an SI-UBL

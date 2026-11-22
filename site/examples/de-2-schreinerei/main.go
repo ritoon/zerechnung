@@ -67,9 +67,13 @@ func main() {
 	// Die Rechnung nennt die Bestellung der Gemeinde (BT-13), das Datum der
 	// Aufstellung und drei Positionen: die Uhr, die Bänke und die Montage
 	// nach Stunden (UN/ECE-Code HUR). Alle tragen den Regelsteuersatz.
+	// XRechnung übernimmt außerdem Peppol-Regeln: der Geschäftsprozess
+	// (BT-23) ist Pflicht (PEPPOL-EN16931-R001), hier der von Peppol BIS
+	// Billing 3.0.
 	d := invoice.MustDecimal
 	inv := &invoice.Invoice{
 		Profile:                invoice.ProfileXRechnung,
+		BusinessProcess:        invoice.ProcessPeppolBilling,
 		Number:                 "2026-0417",
 		TypeCode:               invoice.TypeCommercialInvoice,
 		IssueDate:              invoice.NewDate(2026, time.November, 20),
