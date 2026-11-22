@@ -1,0 +1,57 @@
+<style>
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ch{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 8px;border-radius:var(--radius);margin:2px 4px 2px 0;line-height:1.5;border:0.5px solid transparent}
+.y{background:var(--bg-success);color:var(--text-success)}.p{background:var(--bg-warning);color:var(--text-warning)}.n{background:var(--bg-danger);color:var(--text-danger)}.x{background:var(--bg-neutral);color:var(--text-secondary)}
+.ft{background:transparent;border-color:currentColor}.fut{border-style:dashed;border-color:currentColor}
+.mx{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.mx td,.mx th{border-bottom:0.5px solid var(--border);padding:8px 6px;vertical-align:top;text-align:left}
+.mx th{font-weight:500;color:var(--text-secondary);font-size:12px}
+.fl{width:22px;height:16px;border-radius:3px;vertical-align:-3px;margin-right:8px;box-shadow:0 0 0 0.5px var(--border-strong);object-fit:cover}
+.fs{width:18px;height:13px;border-radius:2px;margin:2px 3px 0 0;box-shadow:0 0 0 0.5px var(--border-strong);object-fit:cover}
+.iss{display:block;margin:4px 0 0 30px;font-size:11px}.iss a{color:var(--text-accent);text-decoration:none;margin-right:6px}
+.bar{display:flex;height:4px;border-radius:2px;background:var(--bg-neutral);overflow:hidden;margin-top:6px}
+.seg button{font-size:13px;padding:4px 10px}.seg button.on{background:var(--bg-neutral);border-color:var(--border-stronger)}
+.mc{background:var(--bg-neutral);border-radius:var(--radius);padding:12px 14px}.mc .l{font-size:12px;color:var(--text-secondary)}.mc .v{font-size:22px;font-weight:500}
+.fc{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:10px 12px;font-size:12px}
+</style>
+<h2 class="sr">Matrice pays par pays, avec drapeaux et liens vers les issues GitHub, des normes de facture électronique en Europe et des fonctionnalités, avec leur couverture par ZeRechnung.</h2>
+<div id="metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px;margin:0.5rem 0 1rem"></div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px">
+<div class="seg" style="display:flex;gap:4px" id="seg"><button data-r="all" class="on">Tous</button><button data-r="ue">UE</button><button data-r="aele">EEE, Suisse, R.-U.</button><button data-r="autre">Autres pays</button></div>
+<select id="sort" style="font-size:13px"><option value="az">Alphabétique</option><option value="lo">Couverture croissante</option><option value="hi">Couverture décroissante</option></select>
+<label style="font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px"><input type="checkbox" id="hide"> Masquer les pays couverts à 100 %</label>
+</div>
+<div id="legend" style="margin-bottom:6px"></div>
+<table class="mx"><thead><tr><th style="width:160px">Pays et issues</th><th style="width:78px">Normes</th><th>Normes (pleines) et fonctionnalités (contour)</th></tr></thead><tbody id="rows"></tbody></table>
+<div id="cnt" style="font-size:12px;color:var(--text-muted);margin:6px 0 1.25rem"></div>
+<div style="font-size:13px;font-weight:500;margin-bottom:8px">Fonctionnalités, tous pays confondus</div>
+<div id="feats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:0.5rem"></div>
+<script>
+const DATA=__MATRIX_DATA__;
+const GH="https://github.com/"+DATA.repo+"/issues/";
+const FLAG=c=>"https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/flags/4x3/"+c.toLowerCase()+".svg";
+const ST={y:["ti-circle-check","couvert"],p:["ti-circle-half-2","partiel"],n:["ti-circle-x","à faire"],x:["ti-minus","hors périmètre (transmission)"]};
+const FK={pdf:["ti-file-type-pdf","PDF hybride"],sig:["ti-signature","Signature"],qr:["ti-qrcode","QR code"],net:["ti-send","Plateforme"],rep:["ti-report-analytics","E-reporting"]};
+const q=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const R=DATA.countries.map(x=>{const ns=x.norms,y=ns.filter(z=>z.status==="y").length,p=ns.filter(z=>z.status==="p").length;return{...x,y,p,sc:ns.length?(y+p/2)/ns.length:0}});
+const chip=z=>`<span class="ch ${z.status}${z.future?" fut":""}" title="${q(ST[z.status][1]+(z.future?", à venir":"")+(z.note?" : "+z.note:""))}"><i class="ti ${ST[z.status][0]}" aria-hidden="true"></i>${q(z.label)}${z.future?" · à venir":""}</span>`;
+const fchip=z=>`<span class="ch ft ${z.status}" title="${q(FK[z.kind][1]+", "+ST[z.status][1]+(z.note?" : "+z.note:""))}"><i class="ti ${FK[z.kind][0]}" aria-hidden="true"></i>${q(z.label)}<i class="ti ${ST[z.status][0]}" aria-hidden="true"></i></span>`;
+document.getElementById("legend").innerHTML=["y","p","n","x"].map(s=>chip({label:ST[s][1].split(" (")[0],status:s})).join("")+chip({label:"norme",status:"n",future:true});
+let reg="all";
+function render(){
+const hide=document.getElementById("hide").checked,so=document.getElementById("sort").value;
+let L=R.filter(x=>reg==="all"||x.region===reg);
+const A=L;
+if(hide)L=L.filter(x=>x.y<x.norms.length||x.features.some(z=>z.status==="n"||z.status==="p"));
+L=[...L].sort((a,b)=>so==="az"?a.name.localeCompare(b.name,"fr"):so==="lo"?a.sc-b.sc||a.name.localeCompare(b.name,"fr"):b.sc-a.sc||a.name.localeCompare(b.name,"fr"));
+document.getElementById("rows").innerHTML=L.map(x=>{const t=x.norms.length||1;return `<tr><td><img class="fl" src="${FLAG(x.code)}" alt="${x.code}" title="${x.code}">${q(x.name)}${x.issues.length?`<span class="iss">${x.issues.map(i=>`<a href="${GH}${i}">#${i}</a>`).join("")}</span>`:""}</td><td><div style="font-weight:500">${x.y}/${x.norms.length}</div>${x.p?`<div style="font-size:11px;color:var(--text-warning)">+${x.p} partiel${x.p>1?"s":""}</div>`:""}<div class="bar"><span style="width:${x.y/t*100}%;background:var(--fill-success)"></span><span style="width:${x.p/t*100}%;background:var(--fill-warning)"></span></div></td><td><div>${x.norms.map(chip).join("")}</div>${x.features.length?`<div style="margin-top:4px">${x.features.map(fchip).join("")}</div>`:""}</td></tr>`}).join("");
+document.getElementById("cnt").textContent=L.length+" pays affichés sur "+A.length+". État de main au commit "+DATA.asof.commit+" ("+DATA.asof.date.split("-").reverse().join("/")+"). Survolez une pastille pour le détail.";
+const all=A.flatMap(x=>x.norms),c=s=>all.filter(z=>z.status===s).length,full=A.filter(x=>x.y===x.norms.length).length,iss=new Set(A.flatMap(x=>x.issues)).size;
+const M=[["Pays",A.length],["Normes",all.length],["Couvertes",c("y")],["Partielles",c("p")],["À faire",c("n")],["Pays à 100 %",full],["Issues ouvertes",iss]];
+document.getElementById("metrics").innerHTML=M.map(m=>`<div class="mc"><div class="l">${m[0]}</div><div class="v">${m[1]}</div></div>`).join("");
+document.getElementById("feats").innerHTML=Object.keys(FK).map(k=>{const H=A.filter(x=>x.features.some(z=>z.kind===k)),Z=A.flatMap(x=>x.features.filter(z=>z.kind===k)),n=s=>Z.filter(z=>z.status===s).length;const st=[["y","couvert","success"],["p","partiel","warning"],["n","à faire","danger"],["x","hors périmètre","secondary"]].filter(a=>n(a[0])).map(a=>`<span style="color:var(--text-${a[2]})">${n(a[0])} ${a[1]}</span>`).join(" · ");return `<div class="fc"><div style="display:flex;align-items:center;gap:6px;font-weight:500;font-size:13px"><i class="ti ${FK[k][0]}" style="font-size:18px" aria-hidden="true"></i>${FK[k][1]}</div><div style="margin:4px 0;color:var(--text-secondary)">${H.length} pays</div><div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${H.map(x=>`<img class="fs" src="${FLAG(x.code)}" alt="${x.code}" title="${q(x.name)}">`).join("")}</div><div>${st||"—"}</div></div>`}).join("");
+}
+document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{reg=b.dataset.r;document.querySelectorAll("#seg button").forEach(o=>o.classList.toggle("on",o===b));render()});
+document.getElementById("sort").onchange=render;document.getElementById("hide").onchange=render;
+render();
+</script>
