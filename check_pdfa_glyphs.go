@@ -309,7 +309,7 @@ func (s *pdfaScan) readCIDFont(d pdf.Dict, f *glyphFont) {
 		}
 	case *pdf.Stream:
 		if data, err := r.Decode(enc); err == nil {
-			if m := parseCMap(data); len(m.space) > 0 && !useCMapOp.Match(data) && !enc.Dict.Has("UseCMap") {
+			if m := parseCMap(data); len(m.space) > 0 && !hasUseCMap(data) && !enc.Dict.Has("UseCMap") {
 				f.cmap = m
 			}
 		}
