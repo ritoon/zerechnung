@@ -12,14 +12,15 @@ import (
 
 // reference is a reference validator.
 type reference struct {
-	Key     string                       // kosit, mustang, npa: the name used in known.txt
+	Key     string                       // kosit, mustang, npa, pt: the name used in known.txt
 	Title   string                       // for the report
 	dir     string                       // sub-directory of the work directory holding its reports
 	report  func(e entry) string         // name of the report of an invoice
-	parse   func([]byte) (result, error) // reads a report; nil for npa, whose reports npaRun.result reads
+	parse   func([]byte) (result, error) // reads a report; nil for npa and pt, whose reports npaRun.result and ptRun.result read
 	applies func(e entry) bool           // the validator was given the invoice
 	ours    func(string, []byte) result  // validates the invoice with this package
 	levels  bool                         // warnings and informations are compared too, not only errors
+	located bool                         // the rules are keyed RULE@PATH: compared on their element too
 }
 
 var references = []reference{
@@ -29,7 +30,7 @@ var references = []reference{
 		dir:     "kosit",
 		report:  func(e entry) string { return strings.TrimSuffix(e.Name, ".xml") + "-report.xml" },
 		parse:   parseKoSIT,
-		applies: func(e entry) bool { return !e.isPDF() && !e.nl() },
+		applies: func(e entry) bool { return !e.isPDF() && !e.national() },
 		ours:    ours,
 	},
 	{
@@ -38,7 +39,7 @@ var references = []reference{
 		dir:     "mustang",
 		report:  func(e entry) string { return e.Name + ".xml" },
 		parse:   parseMustang,
-		applies: func(e entry) bool { return !e.nl() && !e.variant() },
+		applies: func(e entry) bool { return !e.national() && !e.variant() },
 		ours:    ours,
 	},
 	{
@@ -49,6 +50,16 @@ var references = []reference{
 		applies: func(e entry) bool { return e.nl() },
 		ours:    oursNL,
 		levels:  true,
+	},
+	{
+		Key:     "pt",
+		Title:   "Schematron CIUS-PT 2.1.1 d'eSPap (SchXslt 1.10.1, Saxon-HE 12.10)",
+		dir:     "pt",
+		report:  func(e entry) string { return e.Name + ".svrl" },
+		applies: func(e entry) bool { return e.pt() },
+		ours:    oursPT,
+		levels:  true,
+		located: true,
 	},
 }
 
@@ -69,9 +80,9 @@ func (c *comparison) identical() bool { return len(c.Known) == 0 && len(c.Unexpe
 // knownDiff is a line of known.txt: a difference that is understood and
 // justified.
 type knownDiff struct {
-	ref    string // kosit, mustang, npa or *
+	ref    string // kosit, mustang, npa, pt or *
 	glob   string // origin of the invoice, * matching any string (/ included); for ~RULE, syntax/pattern
-	diff   string // +RULE, -RULE, ?RULE (expected by a mutation case, not raised by the reference) or ~RULE (an NLCIUS assertion that the XSLT never raise); a final * matches a prefix
+	diff   string // +RULE, -RULE (+RULE@PATH, -RULE@PATH for pt), ?RULE (expected by a mutation case, not raised by the reference) or ~RULE (an NLCIUS assertion that the XSLT never raise); a final * matches a prefix
 	reason string
 	line   int
 	used   bool
@@ -172,6 +183,10 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 	if err != nil {
 		return false, err
 	}
+	pt, err := newPTRun(work)
+	if err != nil {
+		return false, err
+	}
 	justify := func(ref, src, d string) (string, bool) {
 		for _, k := range known {
 			if k.match(ref, src, d) {
@@ -198,9 +213,12 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 				return false, fmt.Errorf("%s (%s): %w", e.Source, ref.Key, err)
 			}
 			var r result
-			if ref.Key == "npa" {
+			switch ref.Key {
+			case "npa":
 				r, err = npa.result(e, rdata)
-			} else {
+			case "pt":
+				r, err = pt.result(e, rdata)
+			default:
 				r, err = ref.parse(rdata)
 			}
 			if err != nil {
@@ -224,9 +242,13 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 				mine[ref.Key] = m
 			}
 			c := comparison{Reference: ref.Key, Invoice: e.Source, Negative: e.negative(), Ours: m, Ref: r, Expected: expected[e.Source]}
+			rules := m.Rules
+			if ref.located && r.Stopped != "" {
+				rules = unlocated(rules) // Saxon does not say on which element it stopped
+			}
 			// The warnings and informations of the variants are compared too:
 			// many of the rules they break are warnings.
-			diffs := diff(m.Rules, r, ref.levels || e.variant())
+			diffs := diff(rules, r, ref.levels || e.variant())
 			diffs = append(diffs, missing(c.Expected, r, diffs)...)
 			if m.Failure != "" {
 				diffs = append(diffs, "!ZeRechnung: "+m.Failure)

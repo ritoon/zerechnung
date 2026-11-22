@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/zip"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -46,6 +48,14 @@ func (e entry) nl() bool { return strings.HasPrefix(e.Source, "nl/") }
 // the EN 16931 or XRechnung rules, which only the KoSIT validator receives.
 func (e entry) variant() bool { return strings.HasPrefix(e.Source, "variants/") }
 
+// pt reports whether the invoice is one of the CIUS-PT comparison, which only
+// the CIUS-PT schematron receives.
+func (e entry) pt() bool { return strings.HasPrefix(e.Source, "pt/") }
+
+// national reports whether the invoice is one of the NLCIUS or CIUS-PT
+// comparisons, which KoSIT and Mustang do not receive.
+func (e entry) national() bool { return e.nl() || e.pt() }
+
 // nlTestDirs are the directories of the SimplerInvoicing test files (FX_NL_TESTS)
 // for the versions of the NPa artefacts: SI-UBL 2.0.3, NLCIUS-CII 1.0.3 and
 // the G-account extension 1.0.
@@ -61,15 +71,24 @@ type nlInputs struct {
 	variants string // documents of the mutation cases of internal/rules/nl (go test -variants)
 }
 
+// ptInputs are the inputs of the CIUS-PT comparison. The invoices are staged
+// under the origins pt/espap/<file>, pt/zerechnung/<path> and
+// pt/variants/<file>.
+type ptInputs struct {
+	examples string // FX_PT: archive of the examples of eSPap
+	repo     string // root of this repository, whose internal/rules/pt/testdata holds the CIUS-PT invoices
+	variants string // documents of the mutation cases of internal/rules/pt (go test -variants)
+}
+
 // stage stages the invoices. variants, when not empty, holds one directory
 // per rule package (de, en16931, ubl) with the documents of its mutation
 // cases (go test -variants), staged under the origin variants/<package>/<file>
 // for the KoSIT validator. The rules that each mutation case expects, read
 // from the expected.tsv of its directory (package internal/variants), are
 // written to DIR/expected.tsv by origin.
-func stage(corpus, kosit, work string, nl nlInputs, variants string) error {
-	var sources []string // origin
-	files := map[string]string{}
+func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, variants string) error {
+	var sources []string                        // origin
+	read := map[string]func() ([]byte, error){} // origin → contents
 	var expected strings.Builder
 	readExpected := func(dir, prefix string) error {
 		data, err := os.ReadFile(filepath.Join(dir, "expected.tsv"))
@@ -109,9 +128,35 @@ func stage(corpus, kosit, work string, nl nlInputs, variants string) error {
 			}
 			src := prefix + "/" + filepath.ToSlash(rel)
 			sources = append(sources, src)
-			files[src] = p
+			read[src] = func() ([]byte, error) { return os.ReadFile(p) }
 			return nil
 		})
+	}
+	// addZip adds the XML files of an archive.
+	addZip := func(name, prefix string) error {
+		z, err := zip.OpenReader(name)
+		if err != nil {
+			return err
+		}
+		defer z.Close()
+		for _, f := range z.File {
+			if f.FileInfo().IsDir() || strings.ToLower(path.Ext(f.Name)) != ".xml" {
+				continue
+			}
+			rc, err := f.Open()
+			if err != nil {
+				return err
+			}
+			data, err := io.ReadAll(rc)
+			rc.Close()
+			if err != nil {
+				return fmt.Errorf("%s: %s: %w", name, f.Name, err)
+			}
+			src := prefix + "/" + f.Name
+			sources = append(sources, src)
+			read[src] = func() ([]byte, error) { return data, nil }
+		}
+		return nil
 	}
 	for _, d := range corpusDirs {
 		if err := add(corpus, "corpus", d); err != nil {
@@ -153,6 +198,17 @@ func stage(corpus, kosit, work string, nl nlInputs, variants string) error {
 			}
 		}
 	}
+	if pt.examples != "" {
+		if err := addZip(pt.examples, "pt/espap"); err != nil {
+			return err
+		}
+		if err := add(pt.repo, "pt/zerechnung", "internal/rules/pt/testdata", ".xml"); err != nil {
+			return err
+		}
+		if err := add(pt.variants, "pt/variants", ".", ".xml"); err != nil {
+			return err
+		}
+	}
 	sort.Strings(sources)
 
 	in := filepath.Join(work, "in")
@@ -162,12 +218,12 @@ func stage(corpus, kosit, work string, nl nlInputs, variants string) error {
 	if err := os.MkdirAll(in, 0o755); err != nil {
 		return err
 	}
-	var index, kositList, mustangList, npaList strings.Builder
-	nlFiles, variantFiles := 0, 0
+	var index, kositList, mustangList, npaList, ptList strings.Builder
+	nlFiles, ptFiles, variantFiles := 0, 0, 0
 	for i, src := range sources {
 		ext := strings.ToLower(filepath.Ext(src))
 		e := entry{Name: fmt.Sprintf("%04d%s", i+1, ext), Source: src}
-		data, err := os.ReadFile(files[src])
+		data, err := read[src]()
 		if err != nil {
 			return err
 		}
@@ -188,6 +244,9 @@ func stage(corpus, kosit, work string, nl nlInputs, variants string) error {
 			}
 			fmt.Fprintf(&npaList, "%s\t%s\n", filepath.Join(nl.npa, "xsl", xsl), abs)
 			nlFiles++
+		case e.pt():
+			fmt.Fprintln(&ptList, abs)
+			ptFiles++
 		case e.variant():
 			fmt.Fprintln(&kositList, abs)
 			variantFiles++
@@ -198,12 +257,12 @@ func stage(corpus, kosit, work string, nl nlInputs, variants string) error {
 			fmt.Fprintln(&mustangList, abs)
 		}
 	}
-	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "expected.tsv": expected.String()} {
+	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "expected.tsv": expected.String()} {
 		if err := os.WriteFile(filepath.Join(work, name), []byte(s), 0o644); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, variantFiles)
+	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, variantFiles)
 	return nil
 }
 

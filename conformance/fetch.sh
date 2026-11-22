@@ -158,6 +158,16 @@ Facturaev3_2_1.xml  f0f24f27729db91fdd90b715a5dc16f2d779612b4e9e9f193c2903f0e67d
 Facturaev3_2_2.xml  b4bbcd587f5fb0a8a906336cca09b0a40d06ffaa78c6a62f6e438c4e6ea86e07
 EOF
 
+# CIUS-PT 2.1.1 of eSPap, page Normas of www.espap.gov.pt: the examples of
+# invoices and credit notes (FX_PT), not copied into the repository as their
+# terms of use are not stated, and the schematron archive (FX_PT_SCH) that
+# internal/rules/pt/gen reads, which checks the same sum.
+ESPAP=https://www.espap.gov.pt/Imagens/Documento.ashx
+fetch_file "$DEST/cius-pt/urn_feap.gov.pt_cius-pt_examples.zip" "$ESPAP?id=254" \
+	c7380610bf80e3fdaf8543846f96ffade2150432f1ac12df2041e3b2d8ed51b0
+fetch_file "$DEST/cius-pt/urn_feap.gov.pt_cius-pt_schematron.zip" "$ESPAP?id=267" \
+	89e908d2290d361a3ed9fc5c3dd5c7a661da249d4a3c4515b53a8f4b8cb6d005
+
 # Reference XML of the valid PDFs of the corpus (FX_CORPUS_XML), extracted by
 # pdfdetach: the attachment named factur-x.xml, xrechnung.xml or
 # zugferd-invoice.xml (any case), else the only XML attachment. Each file has
@@ -199,5 +209,7 @@ vars=(
 	"FX_FATTURAPA=$DEST/fatturapa"
 	"FX_FATTURAPA_XSD=$DEST/fatturapa-xsd"
 	"FX_FACTURAE_XSD=$DEST/facturae-xsd"
+	"FX_PT=$DEST/cius-pt/urn_feap.gov.pt_cius-pt_examples.zip"
+	"FX_PT_SCH=$DEST/cius-pt/urn_feap.gov.pt_cius-pt_schematron.zip"
 )
 export_vars "${vars[@]}"

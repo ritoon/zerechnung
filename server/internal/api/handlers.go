@@ -829,8 +829,8 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 		AuthMethods:  s.Auth.Methods(),
 		Languages:    render.Languages(),
 		Formats:      []string{"cii", "ubl", "fatturapa", "facturae"},
-		Profiles:     []string{"minimum", "basicwl", "basic", "en16931", "extended", "xrechnung", "extended-ctc-fr", "peppol", "nlcius", "cius-it"},
-		RuleSets:     []string{"fr", "de", "choruspro", "peppol", "nl", "it"},
+		Profiles:     []string{"minimum", "basicwl", "basic", "en16931", "extended", "xrechnung", "extended-ctc-fr", "peppol", "nlcius", "cius-it", "cius-pt"},
+		RuleSets:     []string{"fr", "de", "choruspro", "peppol", "nl", "it", "pt"},
 		MaxBodyBytes: s.MaxBodyBytes,
 	}
 	if ri := reqInfoOf(r); ri != nil && ri.principal != nil {

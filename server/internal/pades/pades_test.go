@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ritoon/zerechnung"
+	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/internal/cms"
 	"github.com/ritoon/zerechnung/internal/pdf"
 	"github.com/ritoon/zerechnung/internal/pdf/pdftest"
@@ -41,6 +42,28 @@ func facturX(t *testing.T) []byte {
 	t.Helper()
 	out, err := zerechnung.Embed(testdata(t, "host.pdf"), testdata(t, "EN16931_Einfach.cii.xml"), &zerechnung.EmbedOptions{
 		ModDate: time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// created returns a one-page PDF with the invoice of EN16931_Einfach
+// written by Create, which validates it and converts the PDF to PDF/A-3B
+// first (testdata/host.pdf cannot be converted: its font is not embedded).
+func created(t *testing.T) []byte {
+	t.Helper()
+	inv, err := cii.Parse(testdata(t, "EN16931_Einfach.cii.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := zerechnung.Create(minimal(pdftest.Options{}, "", "", nil), inv, &zerechnung.CreateOptions{
+		Validate: &validate.Options{},
+		Embed: zerechnung.EmbedOptions{
+			ModDate:     time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC),
+			ConvertPDFA: true,
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -104,9 +127,13 @@ func TestSignVerify(t *testing.T) {
 	}{
 		{"EN16931_Einfach.pdf", testdata(t, "EN16931_Einfach.pdf")},
 		{"host.pdf with Embed", facturX(t)},
+		{"Create", created(t)},
 	}
 	for _, doc := range docs {
 		before := pdfErrors(t, doc.data)
+		if doc.name == "Create" && len(before) > 0 {
+			t.Fatalf("%s: PDF errors before signing:\n%s", doc.name, strings.Join(before, "\n"))
+		}
 		att, err := zerechnung.Extract(doc.data)
 		if err != nil {
 			t.Fatal(err)

@@ -141,9 +141,11 @@ func main() {
 	// base), os totais e o resumo do IVA, com decimais exatos. Com Auto, a
 	// validação acrescentaria as regras nacionais do país do vendedor. Para
 	// Portugal não há nenhuma: a CIUS-PT, a especificação portuguesa das
-	// faturas ao Estado, não está implementada. Aplicam-se o esquema, as
-	// regras EN 16931 e as do perfil Factur-X. Uma fatura inválida é
-	// recusada: Create devolve os erros e não escreve nada.
+	// faturas ao Estado, aplica-se às faturas UBL que a declaram
+	// (validate.Portugal), não a esta fatura Factur-X para um cliente
+	// francês. Aplicam-se o esquema, as regras EN 16931 e as do perfil
+	// Factur-X. Uma fatura inválida é recusada: Create devolve os erros e
+	// não escreve nada.
 	out, err := zerechnung.Create(pdf, inv, &zerechnung.CreateOptions{
 		Calculate: true,
 		Validate:  &validate.Options{Auto: true},
