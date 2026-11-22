@@ -1,9 +1,0 @@
-[package]
-name = "bench-einvoice-validator"
-version = "0.1.0"
-edition.workspace = true
-publish.workspace = true
-
-[dependencies]
-harness.workspace = true
-einvoice-validator = "=0.4.0"
