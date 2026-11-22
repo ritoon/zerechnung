@@ -307,7 +307,7 @@ warning [PDF] PDF-06: the catalog has no PDF/A output intent (/S /GTS_PDFA1) (ca
 |---|---|
 | `zerechnung info invoice.pdf` | Summarises the PDF and the invoice |
 | `zerechnung extract [-o out.xml] invoice.pdf` | Extracts the XML |
-| `zerechnung validate [-fr] [-de] [-auto] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae), and exits with code 1 on errors |
+| `zerechnung validate [-fr] [-de] [-auto] [-pdfa basic] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae), and exits with code 1 on errors; `-pdfa basic` skips the PDF/A checks that read the pages and the fonts |
 | `zerechnung embed -xml invoice.xml [-attach file]... [-convert-pdfa] input.pdf` | Embeds an XML invoice in a PDF, converting it to PDF/A-3 first with `-convert-pdfa` |
 | `zerechnung pdfa [-o out.pdf] input.pdf` | Converts a PDF to PDF/A-3, or prints why it cannot, one reason per line |
 | `zerechnung json file` | Prints the parsed invoice as JSON (CII, UBL, FatturaPA, signed `.xml.p7m` included, or Facturae; an array for a FatturaPA or Facturae batch) |
@@ -356,7 +356,7 @@ Measured on an Apple M4 Pro with Go 1.26.4 (v0.1.0), against the fastest other G
 | Embed the XML in a PDF | 89 µs | 522 µs |
 | Check a 149 KB hybrid PDF | 74 µs | 1.14 ms |
 
-Since v0.1.0, `Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included. These checks are always on, since they catch what veraPDF would reject. Checking the same 149 KB PDF now takes about 0.8 ms, 0.2 ms of it for the content streams and the fonts.
+Since v0.1.0, `Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included, to catch what veraPDF would reject. Checking the same 149 KB PDF takes about 0.77 ms and allocates 255 KB (Go 1.27.4), most of the time going to decompressing its three font programs. When the PDF/A conformance is checked elsewhere, or only the invoice and its attachment matter, `validate.Options{PDFA: validate.PDFABasic}` (`-pdfa basic` on the command line) skips the checks that read the pages, the fonts and the file structure (PDF-41 to PDF-69, PDF-71, PDF-72): the same check then takes about 80 µs and allocates 87 KB.
 
 The full tables are in [bench/ecosystem/results](bench/ecosystem/results/2026-11-17/tables.md), and a comparison with 32 TypeScript, Python and Rust libraries is in [bench/polyglot](bench/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
 

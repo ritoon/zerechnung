@@ -8,7 +8,7 @@
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
-//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
+//	zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-json] invoice.pdf|invoice.xml
 //	zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-o out.pdf] input.pdf
 //	zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
 //	zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it]
@@ -48,7 +48,7 @@ FatturaPA file signed in CAdES (.xml.p7m).
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
   zerechnung info invoice.pdf
-  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-json] invoice.pdf|invoice.xml
+  zerechnung validate [-fr] [-de] [-peppol] [-nl] [-it] [-auto] [-reject-basicwl] [-choruspro [-service-required] [-engagement-required]] [-profile p] [-hybrid] [-pdfa full|basic] [-json] invoice.pdf|invoice.xml
   zerechnung embed -xml invoice.xml [-profile p] [-attach file]... [-require-pdfa] [-convert-pdfa] [-o out.pdf] input.pdf
   zerechnung pdfa [-o out.pdf] input.pdf
   zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
@@ -198,12 +198,21 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	ita := fs.Bool("it", false, "apply the Italian rules BR-IT of the CIUS-IT (applied anyway when BT-24 is a CIUS-IT identifier)")
 	profile := fs.String("profile", "", "validate against this profile instead of BT-24")
 	hybrid := fs.Bool("hybrid", false, "the XML is the invoice of a Factur-X PDF: check an EN 16931 invoice against the Factur-X schematron (always the case for a PDF)")
+	pdfa := fs.String("pdfa", "full", "PDF/A checks of a PDF: full, or basic to skip those that read the pages and the font programs (PDF-41 to PDF-69, PDF-71, PDF-72), about ten times faster")
 	asJSON := fs.Bool("json", false, "print the report as JSON")
 	_, data, err := oneFile(fs, args)
 	if err != nil {
 		return 0, err
 	}
 	opts := &validate.Options{Auto: *auto, RejectBasicWL: *rejectBasicWL, Hybrid: *hybrid}
+	switch *pdfa {
+	case "full":
+		opts.PDFA = validate.PDFAFull
+	case "basic":
+		opts.PDFA = validate.PDFABasic
+	default:
+		return 0, fmt.Errorf("unknown PDF/A check level %q (full or basic)", *pdfa)
+	}
 	if *profile != "" {
 		if opts.Profile = invoice.ParseProfile(*profile); opts.Profile == invoice.ProfileUnknown {
 			return 0, fmt.Errorf("unknown profile %q", *profile)

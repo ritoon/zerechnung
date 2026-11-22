@@ -595,8 +595,11 @@ func (s *pdfaScan) program(fd pdf.Dict) *fontProgram {
 		if id != "" {
 			cs.programs[id] = p
 		}
-		data, err := r.Decode(st)
-		if err != nil || key == "FontFile" {
+		if key == "FontFile" {
+			return p // Type 1 programs are not read: no need to decode them
+		}
+		data, err := s.decodeProgram(st, key)
+		if err != nil {
 			return p
 		}
 		if key == "FontFile2" {
@@ -611,6 +614,21 @@ func (s *pdfaScan) program(fd pdf.Dict) *fontProgram {
 		return p
 	}
 	return &fontProgram{}
+}
+
+// decodeProgram decodes the font program of a FontFile2 or FontFile3
+// stream. /Length1, the length of a TrueType program once decoded, sizes the
+// buffer: the default estimate, four times the encoded length, is about
+// twice what a deflated TrueType program takes. The buffer is lent by the
+// scratch of the scan: the program must not be used once the scan ends.
+func (s *pdfaScan) decodeProgram(st *pdf.Stream, key pdf.Name) ([]byte, error) {
+	hint := 0
+	if key == "FontFile2" {
+		if n, ok := pdf.AsInt(s.c.r.Resolve(st.Dict.Get("Length1"))); ok && n > 0 && n <= math.MaxInt32 {
+			hint = int(n)
+		}
+	}
+	return s.c.r.DecodeScratch(st, hint, &s.scratch)
 }
 
 // type3Width returns the width wx a d0 or d1 operator at the start of the

@@ -176,6 +176,11 @@ type Options struct {
 	// PDF extracted by other means. BASIC and EXTENDED invoices are checked
 	// against their Factur-X schematron whatever Hybrid.
 	Hybrid bool
+	// PDFA selects the PDF/A checks zerechnung.Check applies to the PDF
+	// container: all of them by default (PDFAFull), or those that need not
+	// read the pages and the font programs (PDFABasic). It has no effect on
+	// the validation of an XML document.
+	PDFA PDFALevel
 
 	// PublicBuyer gives the settings of the public buyer in the Chorus Pro
 	// directory, used by the ChorusPro rules.
@@ -185,6 +190,31 @@ type Options struct {
 	// of the invoice must not be later (00403). The current time when zero.
 	ReceivedAt time.Time
 }
+
+// PDFALevel selects the PDF/A checks of the PDF container (see
+// Options.PDFA and zerechnung.ContainerCatalog).
+type PDFALevel uint8
+
+// PDF/A check levels.
+const (
+	// PDFAFull applies every check of zerechnung.ContainerCatalog: the
+	// content streams of the pages and the font programs they use are read
+	// (PDF-41 to PDF-69, PDF-71 and PDF-72, the requirements of ISO 19005-2
+	// and 19005-3 checked clause by clause).
+	PDFAFull PDFALevel = iota
+	// PDFABasic skips PDF-41 to PDF-69, PDF-71 and PDF-72, as for a
+	// document that declares PDF/A-4: no content stream, font program,
+	// image, colour space or file structure is read, which takes most of
+	// the time and memory of a check. The checks of the invoice attachment,
+	// of the XMP metadata and of the PDF/A identification remain (PDF-01 to
+	// PDF-30, PDF-40, PDF-70), with those that do not read the pages:
+	// embedded fonts, JavaScript, actions, document information, associated
+	// files (PDF-31 to PDF-39), and the filters of the streams of the
+	// pages, their resources, the embedded files and the metadata (PDF-38,
+	// without the other streams of the file). A PDF can pass them and still
+	// not be PDF/A.
+	PDFABasic
+)
 
 // PublicBuyer holds the settings of a public structure in the Chorus Pro
 // directory that change the ChorusPro rules. The zero value requires

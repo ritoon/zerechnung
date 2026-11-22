@@ -97,6 +97,29 @@ func TestValidateDeclaredRules(t *testing.T) {
 	}
 }
 
+// TestValidatePDFAOption checks that -pdfa basic skips the PDF/A rules that
+// read the file structure and the pages (here PDF-41, on a header of PDF
+// 1.8), that -pdfa full is the default, and that another level is refused.
+func TestValidatePDFAOption(t *testing.T) {
+	pdf := mutated(t, "../../testdata/EN16931_Einfach.pdf", "%PDF-1.4", "%PDF-1.8")
+	for _, c := range []struct {
+		flags []string
+		want  bool
+	}{
+		{nil, true},
+		{[]string{"-pdfa", "full"}, true},
+		{[]string{"-pdfa", "basic"}, false},
+	} {
+		_, got := runValidate(t, append(c.flags, pdf)...)
+		if got["PDF-41"] != c.want {
+			t.Errorf("validate %v on a PDF 1.8 header: PDF-41 reported %v, want %v", c.flags, got["PDF-41"], c.want)
+		}
+	}
+	if _, err := validateCmd([]string{"-pdfa", "none", pdf}, &bytes.Buffer{}); err == nil {
+		t.Error("validate -pdfa none: no error")
+	}
+}
+
 // TestValidateNLOption checks that -nl applies the Dutch rules to an invoice
 // that does not declare NLCIUS (on a UBL invoice, the SI-UBL 2.0 version
 // check reports it), and that they are not applied otherwise.
