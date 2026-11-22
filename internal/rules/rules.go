@@ -48,6 +48,22 @@ func (s Severity) String() string {
 // MarshalText implements encoding.TextMarshaler.
 func (s Severity) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
 
+// UnmarshalText implements encoding.TextUnmarshaler: it reads the names
+// MarshalText writes, so that a JSON report reads back.
+func (s *Severity) UnmarshalText(b []byte) error {
+	switch string(b) {
+	case "error":
+		*s = Error
+	case "warning":
+		*s = Warning
+	case "info":
+		*s = Info
+	default:
+		return fmt.Errorf("unknown severity %q", b)
+	}
+	return nil
+}
+
 // Sources of findings.
 const (
 	SourceSyntax    = "syntax"     // XML well-formedness and CII structure

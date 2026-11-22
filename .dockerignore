@@ -1,0 +1,16 @@
+# The build context of the images (server/Dockerfile, server/Dockerfile.windows)
+# is the root of the repository: the server module builds on the root module
+# through a replace directive. Only the Go sources are needed.
+.git
+.github
+.claude
+**/.DS_Store
+bench
+conformance
+docs
+site
+testdata
+**/testdata
+**/*_test.go
+**/*.md
+dist

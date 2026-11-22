@@ -1,0 +1,8 @@
+Go-Regular.ttf and Go-Bold.ttf are the Go fonts, created by the Bigelow &
+Holmes foundry for the Go project (https://go.dev/blog/go-fonts).
+
+They are copied unchanged from golang.org/x/image v0.47.0,
+font/gofont/ttfs/, and are distributed under the BSD-style license in the
+LICENSE file of this directory (the README of that directory).
+
+The renderer embeds a subset of them in each PDF it writes.
