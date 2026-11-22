@@ -116,15 +116,18 @@ if ! java -cp "$SAXON_CP" "$here/parity/NPaBatch.java" "$WORK/npa" "$WORK/npa.li
 fi
 # The CIUS-PT schematron compiled by SchXslt (its pipeline: inclusion of the
 # abstract and concrete patterns, instantiation, compilation into an XSLT
-# that writes SVRL), then run by Saxon on every CIUS-PT file.
+# that writes SVRL), then run by Saxon on every CIUS-PT file. The expansion
+# of the abstract patterns recurses deeper than the default thread stack of
+# the JVM on Linux x64 allows (1 MB: Saxon stops on SXLM0001), hence -Xss,
+# for the run as well.
 log "CIUS-PT schematron 2.1.1, SchXslt 1.10.1"
-if ! java -cp "$SAXON_CP" net.sf.saxon.Transform -xsl:"$SCHXSLT/xslt/2.0/pipeline-for-svrl.xsl" \
+if ! java -Xss8m -cp "$SAXON_CP" net.sf.saxon.Transform -xsl:"$SCHXSLT/xslt/2.0/pipeline-for-svrl.xsl" \
 	-s:"$PT_SCH/urn_feap.gov.pt_CIUS-PT_2.1.1.sch" -o:"$WORK/cius-pt.xsl" >"$WORK/schxslt.log" 2>&1; then
 	tail -20 "$WORK/schxslt.log" >&2
 	die "SchXslt failed on the CIUS-PT schematron, see $WORK/schxslt.log"
 fi
 log "CIUS-PT XSLT, Saxon-HE 12.10 ($(wc -l <"$WORK/pt.list" | tr -d ' ') XML files)"
-if ! java -cp "$SAXON_CP" "$here/parity/CiusPtBatch.java" "$WORK/cius-pt.xsl" "$WORK/pt" "$WORK/pt.list" >"$WORK/pt.log" 2>&1; then
+if ! java -Xss8m -cp "$SAXON_CP" "$here/parity/CiusPtBatch.java" "$WORK/cius-pt.xsl" "$WORK/pt" "$WORK/pt.list" >"$WORK/pt.log" 2>&1; then
 	tail -20 "$WORK/pt.log" >&2
 	die "the CIUS-PT XSLT failed, see $WORK/pt.log"
 fi
