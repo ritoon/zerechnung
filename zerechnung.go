@@ -143,8 +143,15 @@ func Create(pdf []byte, inv *invoice.Invoice, opts *CreateOptions) ([]byte, erro
 // opts.PDFA selects the PDF/A checks of the container. The default,
 // validate.PDFAFull, reads the content streams of the pages and the font
 // programs they use, which takes most of the time and memory of a check;
-// validate.PDFABasic skips them (see validate.PDFALevel).
+// validate.PDFABasic skips them (see validate.PDFALevel). A Checker keeps
+// the font programs it reads from one check to the next.
 func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, error) {
+	return check(pdf, opts, nil)
+}
+
+// check implements Check, with the font cache of a Checker when fonts is
+// not nil.
+func check(pdf []byte, opts *validate.Options, fonts *fontCache) (*validate.Report, *Attachment, error) {
 	o := validate.Options{}
 	if opts != nil {
 		o = *opts
@@ -164,7 +171,7 @@ func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, e
 			return 0
 		}
 		return countriesOf(validate.RulesFor(rules.NewDoc(t, opts.Profile), opts))
-	}, opts.PDFA)
+	}, opts.PDFA, fonts)
 	if err != nil && att == nil && len(findings) == 0 {
 		return nil, nil, err
 	}

@@ -614,37 +614,42 @@ func (s *pdfaScan) program(fd pdf.Dict) *fontProgram {
 		if key == "FontFile" {
 			return p // Type 1 programs are not read: no need to decode them
 		}
-		data, err := s.decodeProgram(st, key)
-		if err != nil {
-			return p
-		}
-		if key == "FontFile2" {
-			p.tt, _ = font.ParseTrueType(data)
-		} else if c, err := font.ParseCFF(data); err == nil {
-			p.cff = c
-		} else if tt, err := font.ParseTrueType(data); err == nil {
-			if c, err := font.ParseCFF(tt.Table("CFF ")); err == nil {
-				p.tt, p.cff = tt, c
-			}
-		}
+		p.tt, p.cff = s.readProgram(st, key)
 		return p
 	}
 	return &fontProgram{}
 }
 
-// decodeProgram decodes the font program of a FontFile2 or FontFile3
-// stream. /Length1, the length of a TrueType program once decoded, sizes the
-// buffer: the default estimate, four times the encoded length, is about
-// twice what a deflated TrueType program takes. The buffer is lent by the
-// scratch of the scan: the program must not be used once the scan ends.
-func (s *pdfaScan) decodeProgram(st *pdf.Stream, key pdf.Name) ([]byte, error) {
-	hint := 0
+// programHint returns the size of a font program once decoded, to size
+// the buffer: /Length1 for a TrueType program. Without it, the default
+// estimate, four times the encoded length, is about twice what a deflated
+// TrueType program takes.
+func (s *pdfaScan) programHint(st *pdf.Stream, key pdf.Name) int {
 	if key == "FontFile2" {
 		if n, ok := pdf.AsInt(s.c.r.Resolve(st.Dict.Get("Length1"))); ok && n > 0 && n <= math.MaxInt32 {
-			hint = int(n)
+			return int(n)
 		}
 	}
-	return s.c.r.DecodeScratch(st, hint, &s.scratch)
+	return 0
+}
+
+// parseProgram reads a decoded FontFile2 or FontFile3 program: TrueType,
+// CFF, or OpenType, whose CFF table holds the glyphs and hmtx the widths.
+// Both are nil when it cannot be read.
+func parseProgram(data []byte, key pdf.Name) (tt *font.TrueType, cff *font.CFF) {
+	if key == "FontFile2" {
+		tt, _ = font.ParseTrueType(data)
+		return tt, nil
+	}
+	if c, err := font.ParseCFF(data); err == nil {
+		return nil, c
+	}
+	if t, err := font.ParseTrueType(data); err == nil {
+		if c, err := font.ParseCFF(t.Table("CFF ")); err == nil {
+			return t, c
+		}
+	}
+	return nil, nil
 }
 
 // type3Width returns the width wx a d0 or d1 operator at the start of the

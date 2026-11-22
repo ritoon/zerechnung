@@ -155,6 +155,28 @@ func ExampleConvertPDFA() {
 	// page 1 /Contents: the font "Helvetica" (Type1) shows text but its font program is not embedded, which PDF/A requires; embed the font when producing the PDF
 }
 
+// A Checker keeps the font programs it reads: a server that checks the
+// invoices of the same issuers creates one and shares it between its
+// requests. The second check of the PDF finds its three fonts in the
+// cache, and gives the same report.
+func ExampleChecker() {
+	pdf, err := os.ReadFile("testdata/EN16931_Einfach.pdf")
+	if err != nil {
+		log.Fatal(err)
+	}
+	checker := zerechnung.NewChecker(&zerechnung.CheckerOptions{FontCache: 32 << 20})
+	for range 2 {
+		report, att, err := checker.Check(pdf, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(att.Filename, len(report.Errors()), "errors")
+	}
+	// Output:
+	// factur-x.xml 0 errors
+	// factur-x.xml 0 errors
+}
+
 // ExampleSign signs a hybrid invoice in PAdES Baseline B-B and verifies the
 // signature. The self-signed certificate stands in for the qualified
 // certificate of the company and its chain.

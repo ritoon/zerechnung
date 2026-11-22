@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ritoon/zerechnung"
 	"github.com/ritoon/zerechnung/server/internal/auth"
 	"github.com/ritoon/zerechnung/server/internal/config"
 	"github.com/ritoon/zerechnung/server/internal/keys"
@@ -48,14 +49,20 @@ type Server struct {
 	mux      *http.ServeMux
 	stopping atomic.Bool
 	openapi  []byte
+	checker  *zerechnung.Checker // shared by the requests: it keeps the font programs it reads
 }
+
+// fontCache is the size of the cache of font programs of the server, in
+// bytes of decoded programs: a few hundred fonts, those of the software of
+// the issuers it receives invoices from.
+const fontCache = 32 << 20
 
 // New builds the server and its routes.
 func New(d Deps) (*Server, error) {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	s := &Server{Deps: d, mux: http.NewServeMux()}
+	s := &Server{Deps: d, mux: http.NewServeMux(), checker: zerechnung.NewChecker(&zerechnung.CheckerOptions{FontCache: fontCache})}
 	doc, err := openAPI(d.Version)
 	if err != nil {
 		return nil, fmt.Errorf("OpenAPI document: %w", err)

@@ -16,6 +16,22 @@ import (
 // advances 500, 600, 600), and a CFF program of the glyphs .notdef (500), A
 // (650) and A.sc (600).
 func TestCheckContainerGlyphs(t *testing.T) {
+	for _, tc := range glyphCases() {
+		t.Run(tc.name, func(t *testing.T) { checkContainerRules(t, tc.f, tc.rules) })
+	}
+}
+
+// glyphCase is a PDF of TestCheckContainerGlyphs and the rules it breaks.
+type glyphCase struct {
+	name  string
+	f     *fixture
+	rules string
+}
+
+// glyphCases returns the PDFs of TestCheckContainerGlyphs. Those of a kind
+// of font embed the same program, byte for byte, valid or not: the tests
+// of Checker share them.
+func glyphCases() []glyphCase {
 	en := ciiXML(invoice.URNEN16931)
 	// page returns a fixture whose page shows text with the font F1, which
 	// font adds with b.
@@ -71,11 +87,7 @@ func TestCheckContainerGlyphs(t *testing.T) {
 				proc, proc, differences))
 		}
 	}
-	for _, tc := range []struct {
-		name  string
-		f     *fixture
-		rules string
-	}{
+	return []glyphCase{
 		// TrueType: codes looked up by their glyph name in the (3,1) cmap.
 		{"TrueType glyphs", page("(AB) Tj", trueType("[600 600]", "/WinAnsiEncoding")), ""},
 		{"TrueType glyph missing", page("(C) Tj", trueType("[600 600]", "/WinAnsiEncoding")), "PDF-72"},
@@ -113,7 +125,5 @@ func TestCheckContainerGlyphs(t *testing.T) {
 		{"Type 3 glyph missing", page("(b) Tj", type3("[97 /a]", "10 0 d0")), "PDF-72"},
 		{"Type 3 width", page("(a) Tj", type3("[97 /a]", "20 0 d0")), "PDF-72"},
 		{"Type 3 .notdef", page("(a) Tj", type3("[97 /.notdef]", "10 0 d0")), "PDF-72"},
-	} {
-		t.Run(tc.name, func(t *testing.T) { checkContainerRules(t, tc.f, tc.rules) })
 	}
 }

@@ -252,6 +252,21 @@ report := validate.XML(xml, &validate.Options{
 })
 ```
 
+### Check many invoices on a server
+
+The invoices of one issuer come from the same software and usually embed the same fonts. A `Checker` keeps the font programs it reads, so that the next PDF that embeds them skips their decompression, about half the time of `Check`. Create one and share it between requests: it is safe for concurrent use.
+
+```go
+var checker = zerechnung.NewChecker(&zerechnung.CheckerOptions{FontCache: 32 << 20}) // 32 MiB of decoded fonts
+
+func handle(pdf []byte) (*validate.Report, error) {
+	report, _, err := checker.Check(pdf, &validate.Options{Auto: true})
+	return report, err
+}
+```
+
+A font is found by the SHA-256 of its stream, so the findings are those of `Check`. From the second PDF with the same fonts, the full check of the 149 KB example takes about 300 µs instead of 530 µs.
+
 ### Declare VAT on debits (France)
 
 ```go

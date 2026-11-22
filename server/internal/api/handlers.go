@@ -260,7 +260,7 @@ func (s *Server) createInvoice(w http.ResponseWriter, r *http.Request) {
 	// The whole document is checked: PDF/A container and XML.
 	var report *Report
 	if vopts != nil {
-		vr, _, err := zerechnung.Check(pdf, vopts)
+		vr, _, err := s.checker.Check(pdf, vopts)
 		if err != nil {
 			bad("check_failed", "the PDF cannot be checked", err.Error())
 			return
@@ -443,7 +443,7 @@ func (s *Server) validate(w http.ResponseWriter, r *http.Request) {
 	if isPDF(data) {
 		format = "PDF"
 		var att *zerechnung.Attachment
-		if vr, att, err = zerechnung.Check(data, opts); err != nil {
+		if vr, att, err = s.checker.Check(data, opts); err != nil {
 			s.problem(w, r, http.StatusUnprocessableEntity, "unreadable_pdf", "the PDF cannot be read", err.Error())
 			return
 		}
