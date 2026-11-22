@@ -97,8 +97,9 @@ func markdown(all []comparison, never []neverFired, unused []string) string {
 		}
 		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d |\n", ref.Title, n, same, known, unexpected, verdict)
 	}
-	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les XSLT de la NPa, les règles levées en avertissement le sont aussi (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
+	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les XSLT de la NPa, les règles levées en avertissement le sont aussi ; avec le schematron CIUS-PT, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
 	npaSection(&b, all, never)
+	ptSection(&b, all)
 
 	// Negative cases: one line per invoice, one column per reference.
 	type neg struct {
@@ -169,7 +170,7 @@ func markdown(all []comparison, never []neverFired, unused []string) string {
 			unexpectedLines = append(unexpectedLines, fmt.Sprintf("| %s | `%s` | %s |", c.Reference, strings.TrimPrefix(c.Invoice, "corpus/"), strings.Join(ds, " ")))
 		}
 	}
-	const legend = "`+` : règle levée par ZeRechnung seul, ou à un niveau plus élevé ; `-` : par la référence seule, ou à un niveau plus élevé ; entre parenthèses, les niveaux chez ZeRechnung puis chez la référence (— : règle non levée), sauf pour une erreur d'un côté et rien de l'autre.\n\n"
+	const legend = "`+` : règle levée par ZeRechnung seul, ou à un niveau plus élevé ; `-` : par la référence seule, ou à un niveau plus élevé ; entre parenthèses, les niveaux chez ZeRechnung puis chez la référence (— : règle non levée), sauf pour une erreur d'un côté et rien de l'autre. Pour le schematron CIUS-PT, `RÈGLE@ÉLÉMENT` : la règle et l'élément où elle est levée.\n\n"
 	if len(knownLines) > 0 {
 		b.WriteString("\n### Écarts justifiés\n\n" + legend + "| Référence | Facture | Écart | Raison |\n|---|---|---|---|\n")
 		b.WriteString(strings.Join(knownLines, "\n") + "\n")
@@ -227,5 +228,87 @@ func npaSection(b *strings.Builder, all []comparison, never []neverFired) {
 			}
 			fmt.Fprintf(b, "| %s | `%s` | %s | %s | %s |\n", n.where(), n.ID, n.Flag, clip(n.Message), why)
 		}
+	}
+}
+
+// ptGroups are the origins of the files of the CIUS-PT comparison, in the
+// order of the report.
+var ptGroups = []struct{ prefix, title string }{
+	{"pt/espap/", "Exemples d'eSPap (`FX_PT`)"},
+	{"pt/zerechnung/", "Factures du dépôt (`internal/rules/pt/testdata`)"},
+	{"pt/variants/", "Variantes de ces factures (`go test ./internal/rules/pt -run '^TestVariants$' -variants DIR`)"},
+}
+
+// ptSection writes the part of the report on the CIUS-PT schematron: the
+// files by origin, and the transformations stopped on a dynamic error,
+// counted by error code and by assertion.
+func ptSection(b *strings.Builder, all []comparison) {
+	type count struct{ n, same, stopped, known, unexpected int }
+	counts := make([]count, len(ptGroups))
+	stops := map[string]map[string]int{} // error code → assertion → files
+	total := 0
+	for _, c := range all {
+		if c.Reference != "pt" {
+			continue
+		}
+		g := len(ptGroups) - 1
+		for i, pg := range ptGroups {
+			if strings.HasPrefix(c.Invoice, pg.prefix) {
+				g = i
+				break
+			}
+		}
+		k := &counts[g]
+		k.n++
+		total++
+		switch {
+		case len(c.Unexpected) > 0:
+			k.unexpected++
+		case len(c.Known) > 0:
+			k.known++
+		case c.Ref.Stopped != "":
+			k.stopped++
+		default:
+			k.same++
+		}
+		if c.Ref.Stopped != "" {
+			code, _, _ := strings.Cut(c.Ref.Stopped, " ")
+			if stops[code] == nil {
+				stops[code] = map[string]int{}
+			}
+			for rule := range c.Ref.Rules {
+				stops[code][rule]++
+			}
+		}
+	}
+	if total == 0 {
+		return
+	}
+	b.WriteString("\n### CIUS-PT : schematron d'eSPap\n\nSaxon applique à chaque fichier le schematron CIUS-PT 2.1.1 d'eSPap compilé en XSLT par SchXslt 1.10.1. ZeRechnung valide chaque fichier comme une facture CIUS-PT (`validate.Options.Profile`), quel que soit son BT-24, et garde les constats des règles du schematron : jeu EN 16931, que le schematron remplace pour une facture CIUS-PT, et jeu `Portugal` sauf ses propres contrôles (PT-NIF, PT-SYNTAX). Les règles levées en erreur et en avertissement sont comparées, chacune sur l'élément où elle est levée.\n\n")
+	b.WriteString("| Fichiers | Comparés | Mêmes règles, aux mêmes éléments | Arrêts de Saxon, assertion tenue pour échouée par ZeRechnung | Écarts justifiés | Écarts inattendus |\n|---|---|---|---|---|---|\n")
+	for i, pg := range ptGroups {
+		k := counts[i]
+		fmt.Fprintf(b, "| %s | %d | %d | %d | %d | %d |\n", pg.title, k.n, k.same, k.stopped, k.known, k.unexpected)
+	}
+	if len(stops) == 0 {
+		return
+	}
+	b.WriteString("\nArrêts sur une erreur de type XPath dans le test d'une assertion : Saxon arrête la transformation, et son rapport ne contient que l'erreur et sa ligne dans la XSLT. ZeRechnung tient l'assertion pour échouée (voir la documentation de `internal/rules/pt`) : seule cette assertion est comparée, sans son élément, que Saxon ne donne pas.\n\n| Erreur | Fichiers | Assertions (fichiers) |\n|---|---|---|\n")
+	why := map[string]string{
+		"XPTY0004": "plusieurs valeurs là où le test n'en attend qu'une",
+		"FORG0001": "valeur qui ne se convertit pas en nombre",
+	}
+	for _, code := range sortedRules(stops) {
+		n := 0
+		var rules []string
+		for _, rule := range sortedRules(stops[code]) {
+			n += stops[code][rule]
+			rules = append(rules, fmt.Sprintf("`%s` (%d)", rule, stops[code][rule]))
+		}
+		label := "`" + code + "`"
+		if w, ok := why[code]; ok {
+			label += " : " + w
+		}
+		fmt.Fprintf(b, "| %s | %d | %s |\n", label, n, strings.Join(rules, ", "))
 	}
 }

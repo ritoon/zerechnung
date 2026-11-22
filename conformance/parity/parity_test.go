@@ -1,10 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -195,7 +197,7 @@ func TestStage(t *testing.T) {
 	write(corpus, "ZUGFeRDv2/fail/notes.txt", "x")
 	write(corpus, "ZUGFeRDv1/correct/d.pdf", "%PDF")
 	write(kosit, "src/test/business-cases/standard/01.01a-INVOICE_ubl.xml", "<e/>")
-	if err := stage(corpus, kosit, work, nlInputs{}); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -349,7 +351,7 @@ func TestParseSVRL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []svrlFinding{{"BR-NL-7", "fatal", "[BR-NL-7] The type code."}, {"BR-NL-34", "warning", "[BR-NL-34] A note."}, {"BR-NL-99", "", "Reported."}}
+	want := []svrlFinding{{"BR-NL-7", "fatal", "[BR-NL-7] The type code.", "/a"}, {"BR-NL-34", "warning", "[BR-NL-34] A note.", "/b"}, {"BR-NL-99", "", "Reported.", "/c"}}
 	if !reflect.DeepEqual(rep.findings, want) || rep.errCode != "" {
 		t.Errorf("findings = %q", rep.findings)
 	}
@@ -496,7 +498,7 @@ func TestStageNL(t *testing.T) {
 	write(repo, "internal/rules/nl/testdata/nlcius.xml", cii)
 	write(variants, "ubl-001-x.xml", ubl)
 	nl := nlInputs{npa: npaDir, tests: tests, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nl); err != nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -529,7 +531,7 @@ func TestStageNL(t *testing.T) {
 	}
 
 	write(variants, "bad.xml", "<Order/>")
-	if err := stage(corpus, kosit, work, nl); err == nil {
+	if err := stage(corpus, kosit, work, nl, ptInputs{}); err == nil {
 		t.Error("a variant that is not an invoice: no error")
 	}
 }
@@ -538,5 +540,292 @@ func TestSlices(t *testing.T) {
 	m := map[string]bool{"b": true, "a": false}
 	if got := sortedRules(m); !slices.Equal(got, []string{"a", "b"}) {
 		t.Errorf("sortedRules = %q", got)
+	}
+}
+
+// testSchXslt has the shape of an XSLT that SchXslt 1.10.1 compiles from a
+// schematron: an xsl:if per assertion, around its svrl:failed-assert (or,
+// for a report, its svrl:successful-report).
+const testSchXslt = `<xsl:transform xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:schxslt="https://doi.org/10.5281/zenodo.1495494" version="2.0">
+   <xsl:template match="cbc:PayableAmount" priority="2" mode="d19e21">
+      <schxslt:rule pattern="d19e21">
+         <svrl:fired-rule xmlns:svrl="http://purl.oclc.org/dsdl/svrl">
+            <xsl:if test="exists($documentUri)">
+               <xsl:attribute name="document" select="$documentUri"/>
+            </xsl:if>
+         </svrl:fired-rule>
+         <xsl:if test="not(xs:decimal(.) >= 0)">
+            <svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl"
+                                location="{schxslt:location(.)}"
+                                flag="fatal"
+                                id="BR-CO-25">
+               <svrl:text>[BR-CO-25]-Amount
+                  due.</svrl:text>
+            </svrl:failed-assert>
+         </xsl:if>
+         <xsl:if
+             test="not(count(.) = 1)">
+            <svrl:failed-assert xmlns:svrl="http://purl.oclc.org/dsdl/svrl" location="{schxslt:location(.)}" flag="warning">
+               <svrl:text>[UBL-SR-01]-Once.</svrl:text>
+            </svrl:failed-assert>
+         </xsl:if>
+         <xsl:if test="@x">
+            <svrl:successful-report xmlns:svrl="http://purl.oclc.org/dsdl/svrl" location="{schxslt:location(.)}" id="DT-01">
+               <svrl:text>Reported.</svrl:text>
+            </svrl:successful-report>
+         </xsl:if>
+      </schxslt:rule>
+   </xsl:template>
+</xsl:transform>
+`
+
+func TestIndexSchXslt(t *testing.T) {
+	file := filepath.Join(t.TempDir(), ptXSL)
+	os.WriteFile(file, []byte(testSchXslt), 0o644)
+	idx, err := indexSchXslt(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, a := range idx.asserts {
+		got = append(got, fmt.Sprintf("%s %s %s %d-%d", a.ID, a.Flag, a.Message, a.from, a.to))
+	}
+	want := []string{
+		"BR-CO-25 fatal [BR-CO-25]-Amount due. 9-9",
+		"UBL-SR-01 warning [UBL-SR-01]-Once. 18-19",
+		"DT-01  Reported. 24-24",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("assertions:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	for line, want := range map[int]string{9: "BR-CO-25", 19: "UBL-SR-01", 18: "UBL-SR-01", 24: "DT-01", 8: "", 5: "", 12: "", 2: ""} {
+		a, ok := idx.at(line)
+		if a.ID != want || ok != (want != "") {
+			t.Errorf("at(%d) = %s, %v, want %s", line, a.ID, ok, want)
+		}
+	}
+	empty := filepath.Join(t.TempDir(), "empty.xsl")
+	os.WriteFile(empty, []byte(`<xsl:transform xmlns:xsl="http://www.w3.org/1999/XSL/Transform"/>`), 0o644)
+	if _, err := indexSchXslt(empty); err == nil {
+		t.Error("no assertion: no error")
+	}
+	if _, err := indexSchXslt(filepath.Join(t.TempDir(), "none.xsl")); err == nil {
+		t.Error("missing file: no error")
+	}
+}
+
+func TestPTPaths(t *testing.T) {
+	for loc, want := range map[string]string{
+		"/Q{urn:oasis:names:specification:ubl:schema:xsd:Invoice-2}Invoice[1]":                                                                                           "/Invoice[1]",
+		"/Q{urn:oasis:names:specification:ubl:schema:xsd:Invoice-2}Invoice[1]/Q{urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2}InvoiceLine[2]": "/Invoice[1]/InvoiceLine[2]",
+		"/Q{http://example.com/a/b}Root[1]/Q{}Plain[3]/@Q{}currencyID":                                                                                                   "/Root[1]/Plain[3]/@currencyID",
+		"/": "/",
+	} {
+		if got, err := saxonPath(loc); err != nil || got != want {
+			t.Errorf("saxonPath(%s) = %s, %v, want %s", loc, got, err, want)
+		}
+	}
+	for _, bad := range []string{"Invoice[1]", "/Q{urn:x", "/Invoice[1]//ID[1]"} {
+		if _, err := saxonPath(bad); err == nil {
+			t.Errorf("saxonPath(%s): no error", bad)
+		}
+	}
+	for p, want := range map[string]string{
+		"/Invoice":                            "/Invoice[1]",
+		"/Invoice/cac:InvoiceLine[2]/cbc:ID":  "/Invoice[1]/InvoiceLine[2]/ID[1]",
+		"/CreditNote/cac:TaxTotal/x:Other[3]": "/CreditNote[1]/TaxTotal[1]/Other[3]",
+		"":                                    "/",
+	} {
+		if got := ptPath(p); got != want {
+			t.Errorf("ptPath(%s) = %s, want %s", p, got, want)
+		}
+	}
+	got := unlocated(map[string]string{"BR-61@/Invoice[1]/PaymentMeans[1]": levelWarning, "BR-61@/Invoice[1]/PaymentMeans[2]": levelError, "BR-01@/Invoice[1]": levelError})
+	if want := map[string]string{"BR-61": levelError, "BR-01": levelError}; !reflect.DeepEqual(got, want) {
+		t.Errorf("unlocated = %v", got)
+	}
+}
+
+// TestPTRun compares a run of the test XSLT: reports on elements, a dynamic
+// error in the test of an assertion, and one that locates no assertion.
+func TestPTRun(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, ptXSL), []byte(testSchXslt), 0o644)
+	os.WriteFile(filepath.Join(dir, "pt.list"), []byte(filepath.Join(dir, "in", "0001.xml")+"\n"+filepath.Join(dir, "in", "0002.xml")+"\n"), 0o644)
+	run, err := newPTRun(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const inv = "/Q{urn:oasis:names:specification:ubl:schema:xsd:Invoice-2}Invoice[1]"
+	r, err := run.result(entry{Name: "0001.xml"}, []byte(`<schematron-output xmlns="http://purl.oclc.org/dsdl/svrl">
+<failed-assert id="BR-CO-25" flag="fatal" location="`+inv+`/Q{urn:x}LegalMonetaryTotal[1]/Q{urn:y}PayableAmount[1]"><text>[BR-CO-25]-Amount due.</text></failed-assert>
+<failed-assert id="UBL-SR-01" flag="warning" location="`+inv+`"><text>[UBL-SR-01]-Once.</text></failed-assert>
+<failed-assert id="UBL-SR-01" flag="warning" location="`+inv+`"><text>[UBL-SR-01]-Once.</text></failed-assert>
+</schematron-output>`))
+	want := map[string]string{"BR-CO-25@/Invoice[1]/LegalMonetaryTotal[1]/PayableAmount[1]": levelError, "UBL-SR-01@/Invoice[1]": levelWarning}
+	if err != nil || !reflect.DeepEqual(r.Rules, want) || r.Stopped != "" {
+		t.Errorf("0001: %+v, %v", r, err)
+	}
+	r, err = run.result(entry{Name: "0002.xml"}, []byte(`<error code="FORG0001" line="9">Cannot convert string "X y" to xs:decimal</error>`))
+	if err != nil || !reflect.DeepEqual(r.Rules, map[string]string{"BR-CO-25": levelError}) || !strings.HasPrefix(r.Stopped, "FORG0001 in the test of BR-CO-25") {
+		t.Errorf("0002: %+v, %v", r, err)
+	}
+	r, err = run.result(entry{Name: "0002.xml"}, []byte(`<error code="XTDE0000" line="2">Unknown</error>`))
+	if err != nil || r.Failure == "" || len(r.Rules) != 0 {
+		t.Errorf("unlocated error: %+v, %v", r, err)
+	}
+	if _, err := run.result(entry{Name: "0002.xml"}, []byte(`<schematron-output><failed-assert id="X" location="Invoice"/></schematron-output>`)); err == nil {
+		t.Error("bad location: no error")
+	}
+	if _, err := run.result(entry{Name: "0003.xml"}, nil); err == nil {
+		t.Error("invoice not in pt.list: no error")
+	}
+
+	// A stopped transformation: the assertion only, whatever its element.
+	stopped := result{Rules: map[string]string{"BR-CO-25": levelError}, Stopped: "FORG0001"}
+	mine := map[string]string{"BR-CO-25@/Invoice[1]/LegalMonetaryTotal[1]/PayableAmount[1]": levelError, "BR-CO-13@/Invoice[1]": levelError}
+	if got := diff(unlocated(mine), stopped, true); len(got) != 0 {
+		t.Errorf("stopped, raised: %q", got)
+	}
+	if got := diff(mine, result{Rules: want}, true); !reflect.DeepEqual(got, []string{"+BR-CO-13@/Invoice[1]", "-UBL-SR-01@/Invoice[1]"}) {
+		t.Errorf("located diff: %q", got)
+	}
+
+	// No pt.list: no CIUS-PT comparison, and no XSLT to read.
+	if run, err := newPTRun(t.TempDir()); err != nil || len(run.files) != 0 {
+		t.Errorf("no pt.list: %+v, %v", run, err)
+	}
+	empty := t.TempDir()
+	os.WriteFile(filepath.Join(empty, "pt.list"), []byte(filepath.Join(empty, "0001.xml")+"\n"), 0o644)
+	if _, err := newPTRun(empty); err == nil {
+		t.Error("pt.list without the compiled XSLT: no error")
+	}
+}
+
+// TestOursPT runs the package on the CIUS-PT invoices of the repository,
+// which give no finding, and on variants, including one without BT-24, which
+// the package still checks as a CIUS-PT invoice.
+func TestOursPT(t *testing.T) {
+	for _, f := range []string{"cius-pt.ubl.xml", "cius-pt-nc.ubl.xml", "cius-pt-rich.ubl.xml"} {
+		data, err := os.ReadFile(filepath.Join("../../internal/rules/pt/testdata", f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r := oursPT(f, data); len(r.Rules) != 0 || r.Failure != "" {
+			t.Errorf("%s: %+v", f, r)
+		}
+		if f != "cius-pt.ubl.xml" {
+			continue
+		}
+		noID := strings.Replace(string(data), "<cbc:ID>FT ZR2026/41</cbc:ID>", "", 1)
+		if r := oursPT(f, []byte(noID)); !reflect.DeepEqual(r.Rules, map[string]string{"BR-02@/Invoice[1]": levelError}) {
+			t.Errorf("%s without BT-1: %+v", f, r.Rules)
+		}
+		noBT24 := regexp.MustCompile(`<cbc:CustomizationID>[^<]*</cbc:CustomizationID>`).ReplaceAllString(string(data), "")
+		if r := oursPT(f, []byte(noBT24)); !reflect.DeepEqual(r.Rules, map[string]string{"BR-01@/Invoice[1]": levelError}) {
+			t.Errorf("%s without BT-24: %+v", f, r.Rules)
+		}
+		badNIF := strings.Replace(string(data), "<cbc:CompanyID>PT501234560<", "<cbc:CompanyID>PT501234561<", 1)
+		if r := oursPT(f, []byte(badNIF)); !slices.Contains(r.Other, "PT-NIF-02") || len(r.Rules) != 0 {
+			t.Errorf("%s with a bad NIF: %+v", f, r)
+		}
+	}
+}
+
+func TestStagePT(t *testing.T) {
+	corpus, kosit, work := t.TempDir(), t.TempDir(), t.TempDir()
+	repo, variants := t.TempDir(), t.TempDir()
+	write := func(root, name, content string) {
+		p := filepath.Join(root, name)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(content), 0o644)
+	}
+	for _, d := range corpusDirs {
+		os.MkdirAll(filepath.Join(corpus, d), 0o755)
+	}
+	os.MkdirAll(filepath.Join(kosit, "src/test"), 0o755)
+	ubl := `<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"/>`
+	write(corpus, "XML-Rechnung/UBL/a.ubl.xml", ubl)
+	write(repo, "internal/rules/pt/testdata/cius-pt.ubl.xml", ubl)
+	write(variants, "v00001.xml", ubl)
+	write(variants, "manifest.tsv", "v00001.xml\tx")
+	examples := filepath.Join(t.TempDir(), "examples.zip")
+	f, _ := os.Create(examples)
+	z := zip.NewWriter(f)
+	for name, content := range map[string]string{"I_CIUS-PT_syntax-model - F.xml": ubl, "Casos de Uso.xlsx": "x", "dir/": ""} {
+		w, _ := z.Create(name)
+		w.Write([]byte(content))
+	}
+	z.Close()
+	f.Close()
+	pt := ptInputs{examples: examples, repo: repo, variants: variants}
+	if err := stage(corpus, kosit, work, nlInputs{}, pt); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := readIndex(work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []entry{
+		{"0001.xml", "corpus/XML-Rechnung/UBL/a.ubl.xml"},
+		{"0002.xml", "pt/espap/I_CIUS-PT_syntax-model - F.xml"},
+		{"0003.xml", "pt/variants/v00001.xml"},
+		{"0004.xml", "pt/zerechnung/internal/rules/pt/testdata/cius-pt.ubl.xml"},
+	}
+	if !reflect.DeepEqual(entries, want) {
+		t.Errorf("entries = %q", entries)
+	}
+	if entries[0].pt() || entries[0].national() || !entries[1].pt() || !entries[1].national() {
+		t.Error("pt() or national() is wrong")
+	}
+	list, _ := os.ReadFile(filepath.Join(work, "pt.list"))
+	lines := strings.Split(strings.TrimSpace(string(list)), "\n")
+	if len(lines) != 3 || !strings.HasSuffix(lines[0], "0002.xml") || !strings.HasSuffix(lines[2], "0004.xml") {
+		t.Errorf("pt.list:\n%s", list)
+	}
+	if b, _ := os.ReadFile(filepath.Join(work, "in", "0002.xml")); string(b) != ubl {
+		t.Errorf("staged example = %q", b)
+	}
+	for _, l := range []string{"kosit.list", "mustang.list"} {
+		if b, _ := os.ReadFile(filepath.Join(work, l)); strings.Count(string(b), "\n") != 1 {
+			t.Errorf("%s:\n%s", l, b)
+		}
+	}
+	pt.examples = filepath.Join(t.TempDir(), "none.zip")
+	if err := stage(corpus, kosit, work, nlInputs{}, pt); err == nil {
+		t.Error("missing archive: no error")
+	}
+}
+
+// TestPTSection checks the CIUS-PT part of the report: files by origin and
+// stops by error code.
+func TestPTSection(t *testing.T) {
+	all := []comparison{
+		{Reference: "pt", Invoice: "pt/espap/a.xml"},
+		{Reference: "pt", Invoice: "pt/zerechnung/internal/rules/pt/testdata/b.xml"},
+		{Reference: "pt", Invoice: "pt/variants/v00001.xml", Ref: result{Rules: map[string]string{"BR-27": levelError}, Stopped: "FORG0001 in the test of BR-27: x"}},
+		{Reference: "pt", Invoice: "pt/variants/v00002.xml", Ref: result{Rules: map[string]string{"BR-27": levelError}, Stopped: "FORG0001 in the test of BR-27: y"}},
+		{Reference: "pt", Invoice: "pt/variants/v00003.xml", Ref: result{Rules: map[string]string{"BR-61": levelError}, Stopped: "XPTY0004 in the test of BR-61: z"}},
+		{Reference: "pt", Invoice: "pt/variants/v00004.xml", Unexpected: []string{"+BR-01@/Invoice[1]"}},
+		{Reference: "npa", Invoice: "nl/variants/x.xml"},
+	}
+	var b strings.Builder
+	ptSection(&b, all)
+	md := b.String()
+	for _, want := range []string{
+		"| Exemples d'eSPap (`FX_PT`) | 1 | 1 | 0 | 0 | 0 |",
+		"| Factures du dépôt (`internal/rules/pt/testdata`) | 1 | 1 | 0 | 0 | 0 |",
+		" | 4 | 0 | 3 | 0 | 1 |",
+		"| `FORG0001` : valeur qui ne se convertit pas en nombre | 2 | `BR-27` (2) |",
+		"| `XPTY0004` : plusieurs valeurs là où le test n'en attend qu'une | 1 | `BR-61` (1) |",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("report lacks %q:\n%s", want, md)
+		}
+	}
+	b.Reset()
+	ptSection(&b, all[6:])
+	if b.Len() != 0 {
+		t.Errorf("no CIUS-PT file: %q", b.String())
 	}
 }
