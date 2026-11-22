@@ -106,8 +106,9 @@ type streamScan struct {
 	stack       []gstate
 	flags       map[string]bool // findings already made for the stream
 	transparent bool
-	fontRef     pdf.Ref    // the last font of the text, by reference,
-	font        *glyphFont // and its glyph model (check_pdfa_glyphs.go)
+	fontRef     pdf.Ref      // the last font of the text, by reference,
+	font        *glyphFont   // and its glyph model (check_pdfa_glyphs.go)
+	strs        []pdf.String // the strings of the text operator being read
 }
 
 func (s *pdfaScan) contentState() *contentState {
@@ -302,7 +303,7 @@ func (s *pdfaScan) readContent(data []byte, x contentCtx) bool {
 			sc.once("PDF-49", "limit", "%s", is.Detail)
 		}
 	})
-	_ = pdf.ScanContent(data, sc.op)
+	_ = pdf.ScanOperands(data, sc.op)
 	return sc.transparent
 }
 
@@ -428,10 +429,10 @@ func number(o pdf.Object) (float64, bool) {
 }
 
 // op reads an operator.
-func (sc *streamScan) op(op string, args []pdf.Object) error {
+func (sc *streamScan) op(op string, args []pdf.Operand) error {
 	name := pdf.Name("")
 	if len(args) > 0 {
-		name, _ = args[0].(pdf.Name)
+		name, _ = args[0].AsName()
 	}
 	if !contentOps[op] {
 		if len(op) > 32 {
@@ -472,14 +473,14 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 		if sc.x.noColour || len(args) == 0 {
 			break
 		}
-		if n, ok := args[len(args)-1].(pdf.Name); ok {
+		if n, ok := args[len(args)-1].AsName(); ok {
 			sc.setColour(sc.pattern(n), op == "SCN")
 		}
 	case "gs":
 		sc.extGState(name)
 	case "ri":
 		if !renderingIntents[name] && len(args) > 0 {
-			sc.once("PDF-55", "ri "+string(name), "the ri operator sets the rendering intent %v, which is not one of RelativeColorimetric, AbsoluteColorimetric, Perceptual and Saturation (6.2.6)", args[0])
+			sc.once("PDF-55", "ri "+string(name), "the ri operator sets the rendering intent %v, which is not one of RelativeColorimetric, AbsoluteColorimetric, Perceptual and Saturation (6.2.6)", args[0].Object())
 		}
 	case "S", "s":
 		sc.paint(false, true, true)
@@ -493,15 +494,13 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 	case "Do":
 		sc.xobject(name)
 	case "BI":
-		if len(args) == 1 {
-			if d, ok := args[0].(pdf.Dict); ok {
-				sc.inlineImage(d)
-			}
+		if len(args) == 1 && args[0].Kind == pdf.OperandDict {
+			sc.inlineImage(args[0].Dict)
 		}
 		sc.paint(true, false, false)
 	case "BDC", "DP":
 		if len(args) == 2 {
-			if n, ok := args[1].(pdf.Name); ok {
+			if n, ok := args[1].AsName(); ok {
 				sc.resource("Properties", n)
 			}
 		}
@@ -510,24 +509,26 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 		g.fontName = name
 	case "Tr":
 		if len(args) > 0 {
-			g.tr, _ = pdf.AsInt(args[0])
+			g.tr, _ = args[0].AsInt()
 		}
 	case "Tj", "'", "\"":
 		if len(args) > 0 {
-			s, _ := args[len(args)-1].(pdf.String)
+			s, _ := args[len(args)-1].AsString()
 			// veraPDF reads no glyph from ", whose first operand is a number.
-			sc.text([]pdf.String{s}, op != "\"")
+			sc.strs = append(sc.strs[:0], s)
+			sc.text(sc.strs, op != "\"")
 		}
 	case "TJ":
 		if len(args) > 0 {
-			list, _ := args[0].(pdf.Array)
-			var strs []pdf.String
-			for _, x := range list {
-				if s, ok := x.(pdf.String); ok {
-					strs = append(strs, s)
+			sc.strs = sc.strs[:0]
+			if args[0].Kind == pdf.OperandArray {
+				for i := range args[0].Array {
+					if s, ok := args[0].Array[i].AsString(); ok {
+						sc.strs = append(sc.strs, s)
+					}
 				}
 			}
-			sc.text(strs, true)
+			sc.text(sc.strs, true)
 		}
 	case "d1":
 		if sc.x.glyph {
