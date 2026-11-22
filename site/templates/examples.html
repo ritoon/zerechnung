@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="{{.Lang.Code}}">
+<head>
+{{template "head" .}}
+<script src="{{.Asset "site.js"}}" defer></script>
+</head>
+<body>
+{{template "header" .}}
+<main id="main">
+{{template "intro" (dict "Kicker" .T.nav_examples "Title" .T.examples_title "Lead" .T.examples_lead)}}
+
+  <section class="ex-toc-wrap">
+    <div class="wrap">
+      <p class="fiction">{{.T.examples_fictional}}</p>
+      <ol class="ex-toc">
+        {{range $i, $ex := .Examples}}<li><a href="#{{$ex.Anchor}}"><span class="ex-num">{{inc $i}}</span><span class="ex-toc-title">{{$ex.Title}}</span><span class="tags">{{range $ex.Tags}}<span class="tag">{{.}}</span>{{end}}</span></a></li>
+        {{end}}
+      </ol>
+    </div>
+  </section>
+
+{{range $i, $ex := .Examples}}
+  <section id="{{$ex.Anchor}}" class="example{{if odd $i}} alt{{end}}">
+    <div class="wrap">
+      <header class="ex-head">
+        <p class="kicker">{{$.Fmt "examples_number" (inc $i | print)}}</p>
+        <h2>{{$ex.Title}}</h2>
+        <p class="tags">{{range $ex.Tags}}<span class="tag">{{.}}</span>{{end}}</p>
+        {{range $ex.Intro}}<p class="ex-intro">{{.}}</p>
+        {{end}}
+      </header>
+      <ol class="steps ex-steps">
+        {{range $ex.Steps}}<li>
+          <h3>{{.Title}}</h3>
+          {{range .Text}}<p>{{.}}</p>
+          {{end}}
+          <div class="code"><div class="code-head"><span>Go</span><button class="copy" type="button" data-copy data-done="{{$.P.copied}}" hidden>{{$.T.copy}}</button></div>
+<pre><code>{{.Code}}</code></pre></div>
+        </li>
+        {{end}}
+      </ol>
+      <div class="ex-result">
+        <h3>{{$.T.examples_output}}</h3>
+        <div class="code terminal"><div class="code-head"><span>go run .</span></div>
+<pre><code>{{$ex.Output}}</code></pre></div>
+      </div>
+      <details class="ex-full">
+        <summary>{{$.T.examples_full}}</summary>
+        <div class="code"><div class="code-head"><span>main.go</span><button class="copy" type="button" data-copy data-done="{{$.P.copied}}" hidden>{{$.T.copy}}</button></div>
+<pre><code>{{$ex.Source}}</code></pre></div>
+        <p class="ex-run">{{$.T.examples_run}}</p>
+        <div class="code"><div class="code-head"><span>Shell</span><button class="copy" type="button" data-copy data-done="{{$.P.copied}}" hidden>{{$.T.copy}}</button></div>
+<pre><code>git clone https://github.com/ritoon/zerechnung
+cd zerechnung/site/examples/{{$ex.Name}}
+go run .</code></pre></div>
+        <p><a href="{{$.ExamplesURL}}/{{$ex.Name}}">{{$.T.examples_source}}</a></p>
+      </details>
+    </div>
+  </section>
+{{end}}
+
+  <section class="more">
+    <div class="wrap">
+      <p>{{.T.examples_more}} <a href="{{.Repo}}#readme">{{.T.link_readme}}</a> · <a href="https://pkg.go.dev/github.com/ritoon/zerechnung">{{.T.link_api}}</a></p>
+    </div>
+  </section>
+</main>
+
+{{template "footer" .}}
+</body>
+</html>

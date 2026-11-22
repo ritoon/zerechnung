@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="{{.Lang.Code}}">
+<head>
+{{template "head" .}}
+<script src="{{.Asset "site.js"}}" defer></script>
+</head>
+<body>
+{{template "header" .}}
+<main id="main">
+{{template "intro" (dict "Kicker" .T.nav_compliance "Title" .T.compliance_title "Lead" .T.compliance_lead)}}
+
+  <section class="cp-frame-wrap">
+    <div class="wrap">
+      <div class="cp-frame">
+        <h2>{{.T.cp_frame_title}}</h2>
+        <p>{{.T.cp_frame_text}}</p>
+        <p>{{.T.cp_scope_text}}</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="countries" class="alt">
+    <div class="wrap">
+      <h2>{{.T.cp_overview_title}}</h2>
+      <p class="section-lead">{{.T.cp_overview_lead}}</p>
+      <ul class="legend">
+        <li>{{template "status" (dict "S" "yes" "T" .T)}} {{.T.cp_legend_yes}}</li>
+        <li>{{template "status" (dict "S" "partial" "T" .T)}} {{.T.cp_legend_partial}}</li>
+        <li>{{template "status" (dict "S" "no" "T" .T)}} {{.T.cp_legend_no}}</li>
+      </ul>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="{{.P.cp_overview_title}}">
+        <table class="cp-table">
+          <thead>
+            <tr><th scope="col">{{.T.cp_th_country}}</th><th scope="col">{{.T.cp_th_b2g}}</th><th scope="col">{{.T.cp_th_b2b}}</th><th scope="col">{{.T.cp_th_cover}}</th></tr>
+          </thead>
+          <tbody>
+            <tr class="group"><th colspan="4" scope="colgroup">{{.T.cp_group_eu}}</th></tr>
+            {{range .Countries true}}{{template "country" (dict "C" . "Page" $)}}{{end}}
+            <tr class="group"><th colspan="4" scope="colgroup">{{.T.cp_group_other}}</th></tr>
+            {{range .Countries false}}{{template "country" (dict "C" . "Page" $)}}{{end}}
+          </tbody>
+        </table>
+      </div>
+      <p class="cp-asof">{{.Fmt "cp_asof" (.Date .Comp.AsOf)}} <a href="{{.Repo}}/wiki/Normes-europ%C3%A9ennes-par-pays">{{.T.cp_link_norms}}</a></p>
+    </div>
+  </section>
+
+  <section id="checkpoints">
+    <div class="wrap">
+      <h2>{{.T.cp_details_title}}</h2>
+      <p class="section-lead">{{.T.cp_details_lead}}</p>
+      <div class="cp-cards">
+        {{range .Comp.Details}}<article class="cp-card" id="cp-{{.Code}}">
+          <h3><span class="cc">{{.Code}}</span> {{$.Country .Code}}</h3>
+          <p class="cp-intro">{{index $.T (printf "cp_%s_intro" (lower .Code))}}</p>
+          <ul class="checks">
+            {{range .Checks}}<li class="check-{{.Status}}">
+              {{template "status" (dict "S" .Status "T" $.T)}}
+              <p>{{index $.T .Text}}{{if .Rules}} <span class="rules">{{range .Rules}}<code>{{.}}</code>{{end}}</span>{{end}}</p>
+            </li>
+            {{end}}
+          </ul>
+          {{with .Guide}}<p class="cp-guide"><a href="{{$.Repo}}/wiki/{{.}}">{{$.T.cp_guide}}</a></p>{{end}}
+        </article>
+        {{end}}
+      </div>
+    </div>
+  </section>
+
+  <section id="rules" class="alt">
+    <div class="wrap">
+      <h2>{{.T.cp_rules_title}}</h2>
+      <p class="section-lead">{{.T.cp_rules_lead}}</p>
+      <div class="code"><div class="code-head"><span>Go</span><button class="copy" type="button" data-copy data-done="{{.P.copied}}" hidden>{{.T.copy}}</button></div>
+<pre><code>report, err := validate.XML(xml, &amp;validate.Options{
+	Rules: validate.Default | validate.France | validate.ChorusPro,
+	Auto:  <span class="k">true</span>, <span class="cm">// {{.P.cp_rules_auto}}</span>
+})</code></pre></div>
+      <div class="links">
+        <a class="btn" href="{{.Repo}}/wiki/Ce-que-valide-ZeRechnung">{{.T.cp_link_rules}}</a>
+        <a class="btn" href="{{.Repo}}/wiki/Coverage-and-accuracy">{{.T.accuracy_link}}</a>
+        <a class="btn" href="{{.Link "examples"}}">{{.T.cp_link_examples}}</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+{{template "footer" .}}
+</body>
+</html>
+
+{{define "country"}}{{$p := .Page}}{{with .C}}<tr>
+  <th scope="row"><span class="cc">{{.Code}}</span> {{$p.Country .Code}}</th>
+  <td>{{$p.Status .B2G}}</td>
+  <td>{{$p.Status .B2B}}</td>
+  <td class="cover">{{range .Cover}}<span class="fmt-chip st-{{index . 1}}">{{if eq (index . 1) "yes"}}{{template "icon-check"}}{{else if eq (index . 1) "partial"}}{{template "icon-half"}}{{else}}{{template "icon-cross"}}{{end}}{{index . 0}}<span class="sr"> ({{if eq (index . 1) "yes"}}{{$p.T.cp_yes}}{{else if eq (index . 1) "partial"}}{{$p.T.cp_partial}}{{else}}{{$p.T.cp_no}}{{end}})</span></span>{{end}}</td>
+</tr>
+{{end}}{{end}}

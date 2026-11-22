@@ -1,0 +1,178 @@
+{
+  "date": "2026-11-17",
+  "version": "v0.1.0",
+  "go": [
+    {
+      "op": "bm_op_extract",
+      "input": "bm_in_pdf149",
+      "rows": [
+        {"lib": "ZeRechnung", "us": 30.2},
+        {"lib": "speedata", "us": 75.2},
+        {"lib": "litho", "us": 106},
+        {"lib": "papierleicht", "us": 113},
+        {"lib": "DCNWS", "us": 209},
+        {"lib": "pdfcpu", "us": 317},
+        {"lib": "fX", "us": 332},
+        {"lib": "dotwave", "us": 343},
+        {"lib": "angelo", "us": 356},
+        {"lib": "kanjo", "us": 386},
+        {"lib": "gopdfattach", "us": 396},
+        {"lib": "andee", "us": 516},
+        {"lib": "taha", "fail": "bm_fail_regexp"}
+      ]
+    },
+    {
+      "op": "bm_op_parse",
+      "input": "bm_in_xml13",
+      "floor": 100,
+      "rows": [
+        {"lib": "ZeRechnung", "us": 16.9},
+        {"lib": "fX", "us": 124, "note": "bm_note_vat"},
+        {"lib": "angelo", "us": 131},
+        {"lib": "dotwave", "us": 144},
+        {"lib": "taha", "us": 147, "note": "bm_note_cents"},
+        {"lib": "DCNWS", "us": 165},
+        {"lib": "andee", "us": 182},
+        {"lib": "speedata", "us": 225},
+        {"lib": "kanjo", "us": 253},
+        {"lib": "gobl.de", "us": 564}
+      ]
+    },
+    {
+      "op": "bm_op_validate",
+      "input": "bm_in_xml13",
+      "rows": [
+        {"lib": "ZeRechnung", "us": 24.3, "flagged": 6},
+        {"lib": "fX", "us": 123, "flagged": 26},
+        {"lib": "pdf0", "us": 126, "flagged": 6},
+        {"lib": "taha", "us": 147, "flagged": 15},
+        {"lib": "angelo", "us": 172, "flagged": 4},
+        {"lib": "andee", "us": 208, "flagged": 22},
+        {"lib": "kanjo", "us": 293, "flagged": 9},
+        {"lib": "DCNWS", "us": 754, "flagged": 2},
+        {"lib": "speedata", "us": 1280, "flagged": 0},
+        {"lib": "gobl.de", "us": 1770, "flagged": 20},
+        {"lib": "papierleicht", "us": 14650, "flagged": 6}
+      ]
+    },
+    {
+      "op": "bm_op_write",
+      "input": "bm_in_xml13",
+      "rows": [
+        {"lib": "ZeRechnung", "us": 3.0},
+        {"lib": "fX", "us": 20.2},
+        {"lib": "dotwave", "us": 22.1},
+        {"lib": "speedata", "us": 30.5},
+        {"lib": "DCNWS", "us": 36.2},
+        {"lib": "kanjo", "us": 98.3},
+        {"lib": "andee", "us": 311},
+        {"lib": "taha", "us": 652}
+      ]
+    },
+    {
+      "op": "bm_op_inject",
+      "input": "bm_in_host_stream",
+      "rows": [
+        {"lib": "ZeRechnung", "us": 89.2},
+        {"lib": "pdf0", "us": 522},
+        {"lib": "pdfcpu", "us": 546, "note": "bm_note_recipe"},
+        {"lib": "gopdfattach", "us": 1120},
+        {"lib": "dotwave", "us": 1240},
+        {"lib": "DCNWS", "us": 1660},
+        {"lib": "litho", "us": 36160, "note": "bm_note_rewrite"},
+        {"lib": "kanjo", "fail": "bm_fail_broken"},
+        {"lib": "andee", "fail": "bm_fail_broken"}
+      ]
+    },
+    {
+      "op": "bm_op_check",
+      "input": "bm_in_pdf149",
+      "rows": [
+        {"lib": "ZeRechnung", "us": 74.2},
+        {"lib": "DCNWS", "us": 1140},
+        {"lib": "pdf0", "us": 2200},
+        {"lib": "papierleicht", "us": 15780},
+        {"lib": "litho", "us": 19870}
+      ]
+    }
+  ],
+  "poly": [
+    {
+      "op": "bm_op_extract",
+      "input": "bm_in_pdf149",
+      "rows": [
+        {"lib": "ZeRechnung", "lang": "Go", "us": 29.3},
+        {"lib": "einvoice-validator", "lang": "Rust", "us": 32.5},
+        {"lib": "speedata", "lang": "Go", "us": 75.2},
+        {"lib": "zugferd-pdf", "lang": "Python", "us": 78.5},
+        {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 184}
+      ]
+    },
+    {
+      "op": "bm_op_parse",
+      "input": "bm_in_xml13",
+      "rows": [
+        {"lib": "ZeRechnung", "lang": "Go", "us": 16.3},
+        {"lib": "zugferd-rs", "lang": "Rust", "us": 24.0},
+        {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "us": 69.6},
+        {"lib": "fX", "lang": "Go", "us": 124},
+        {"lib": "pycheval", "lang": "Python", "us": 221, "note": "bm_note_7of26"}
+      ]
+    },
+    {
+      "op": "bm_op_parse",
+      "input": "bm_in_xml1300",
+      "rows": [
+        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 702, "note": "bm_note_lxml"},
+        {"lib": "ZeRechnung", "lang": "Go", "us": 1110},
+        {"lib": "pdf-invoice", "lang": "Rust", "us": 1630},
+        {"lib": "@conformo/toolkit", "lang": "TypeScript", "us": 1740},
+        {"lib": "dotwave", "lang": "Go", "us": 6760}
+      ]
+    },
+    {
+      "op": "bm_op_validate_full",
+      "input": "bm_in_xml13",
+      "rows": [
+        {"lib": "ZeRechnung", "lang": "Go", "us": 23.1},
+        {"lib": "pdf0", "lang": "Go", "us": 126},
+        {"lib": "einvoice-validator", "lang": "Rust", "us": 473},
+        {"lib": "@sweberdev/summand", "lang": "TypeScript", "us": 802},
+        {"lib": "saxonche", "lang": "Python", "us": 903, "note": "bm_note_xslt"}
+      ]
+    },
+    {
+      "op": "bm_op_write",
+      "input": "bm_in_xml13",
+      "rows": [
+        {"lib": "ZeRechnung", "lang": "Go", "us": 3.1},
+        {"lib": "zugferd-rs", "lang": "Rust", "us": 6.7},
+        {"lib": "@ekwo-ai/factur-x", "lang": "TypeScript", "us": 10.9, "note": "bm_note_handmade"},
+        {"lib": "fX", "lang": "Go", "us": 20.2},
+        {"lib": "pycheval", "lang": "Python", "us": 76.6}
+      ]
+    },
+    {
+      "op": "bm_op_inject",
+      "input": "bm_in_host_stream",
+      "rows": [
+        {"lib": "ZeRechnung", "lang": "Go", "us": 87.8},
+        {"lib": "pdf-invoice", "lang": "Rust", "us": 178},
+        {"lib": "pdf0", "lang": "Go", "us": 522},
+        {"lib": "mcp-einvoicing-de", "lang": "Python", "us": 662},
+        {"lib": "@stackforge-eu/factur-x", "lang": "TypeScript", "us": 1140}
+      ]
+    },
+    {
+      "op": "bm_op_check",
+      "input": "bm_in_pdf149",
+      "rows": [
+        {"lib": "ZeRechnung", "lang": "Go", "us": 75.0},
+        {"lib": "zugferd-pdf", "lang": "Python", "us": 212, "note": "bm_note_container"},
+        {"lib": "@attestwire/en16931", "lang": "TypeScript", "us": 359},
+        {"lib": "en16931", "lang": "Rust", "us": 479},
+        {"lib": "DCNWS", "lang": "Go", "us": 1140}
+      ]
+    }
+  ]
+}

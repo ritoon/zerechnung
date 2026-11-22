@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="{{.Lang.Code}}">
+<head>
+{{template "head" .}}
+<script src="{{.Asset "site.js"}}" defer></script>
+</head>
+<body>
+{{template "header" .}}
+<main id="main">
+{{template "intro" (dict "Kicker" .T.nav_benchmarks "Title" .T.benchmarks_title "Lead" .T.benchmarks_lead)}}
+
+  <section class="bm-kpis">
+    <div class="wrap">
+      <h2 class="sr">{{.T.bm_kpi_title}}</h2>
+      <div class="kpis">
+        {{range .Bench.Go}}{{if .Gain}}<div class="kpi">
+          <p class="kpi-op">{{index $.T .Op}}</p>
+          <p class="kpi-num">{{$.Dur (index .Rows 0).US}}</p>
+          <p class="kpi-gain">{{$.Fmt "bm_gain" ($.Times .Gain)}}</p>
+        </div>
+        {{end}}{{end}}
+      </div>
+      <p class="bm-when">{{$.Fmt "bm_when" ($.Date .Bench.Date) .Bench.Version}}</p>
+    </div>
+  </section>
+
+  <section id="go" class="alt">
+    <div class="wrap">
+      <h2>{{.T.bm_go_title}}</h2>
+      <p class="section-lead">{{.T.bm_go_lead}}</p>
+      <p class="bm-scale">{{.T.bm_scale}}</p>
+      <div class="charts">
+        {{range .Bench.Go}}{{template "chart" (dict "C" . "Page" $ "Poly" false)}}{{end}}
+      </div>
+    </div>
+  </section>
+
+  <section id="languages">
+    <div class="wrap">
+      <h2>{{.T.bm_poly_title}}</h2>
+      <p class="section-lead">{{.T.bm_poly_lead}}</p>
+      <div class="charts">
+        {{range .Bench.Poly}}{{template "chart" (dict "C" . "Page" $ "Poly" true)}}{{end}}
+      </div>
+    </div>
+  </section>
+
+  <section id="accuracy" class="alt">
+    <div class="wrap">
+      <h2>{{.T.bm_correct_title}}</h2>
+      <div class="prose">
+        <p>{{.T.bm_correct_text}}</p>
+        <p>{{.T.bm_correct_poly}}</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="method">
+    <div class="wrap">
+      <h2>{{.T.bm_method_title}}</h2>
+      <div class="prose">
+        <p>{{.T.bm_method_text}}</p>
+      </div>
+      <div class="table-wrap env" tabindex="0" role="region" aria-label="{{.P.bm_method_title}}">
+        <table>
+          <tbody>
+            <tr><th scope="row">{{.T.bm_env_machine}}</th><td>Apple M4 Pro · 24 GB · macOS 26.6</td></tr>
+            <tr><th scope="row">Go</th><td>1.26.4 · <code>go test -bench . -benchmem -count 3 -benchtime 1s</code></td></tr>
+            <tr><th scope="row">TypeScript</th><td>Node 22.15.0</td></tr>
+            <tr><th scope="row">Python</th><td>CPython 3.13.18</td></tr>
+            <tr><th scope="row">Rust</th><td>rustc 1.93.1, release</td></tr>
+            <tr><th scope="row">{{.T.bm_env_value}}</th><td>{{.T.bm_env_median}}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="links">
+        <a class="btn" href="{{.Repo}}/wiki/Benchmarks">{{.T.bm_link_go}}</a>
+        <a class="btn" href="{{.Repo}}/wiki/Benchmarks-autres-langages">{{.T.bm_link_poly}}</a>
+        <a class="btn" href="{{.Repo}}/tree/main/bench">{{.T.bm_link_harness}}</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+{{template "footer" .}}
+</body>
+</html>
+
+{{define "chart"}}{{$p := .Page}}{{$c := .C}}<figure class="chart" style="--n: {{len $c.Ticks | dec}}">
+  <figcaption><h3>{{index $p.T $c.Op}}</h3><span>{{index $p.T $c.Input}}</span></figcaption>
+  <table class="bars{{if $c.Floor}} has-floor{{end}}{{if gt (len $c.Ticks) 4}} dense{{end}}"{{if $c.Floor}} style="--floor: {{$c.FloorAt}}%"{{end}}>
+    <thead class="sr"><tr><th scope="col">{{$p.T.bm_th_lib}}</th><th scope="col">{{$p.T.bm_th_bar}}</th><th scope="col">{{$p.T.bm_th_time}}</th>{{if $c.Flagged}}<th scope="col">{{$p.T.bm_th_flagged}}</th>{{end}}</tr></thead>
+    <tbody>
+      {{range $c.Rows}}<tr{{if .Ours}} class="ours"{{end}}>
+        <th scope="row"><span class="lib">{{.Lib}}</span>{{if .Lang}}<span class="lang-tag">{{.Lang}}</span>{{end}}{{with .Note}}<span class="note">{{index $p.T .}}</span>{{end}}</th>
+        {{if .Fail}}<td class="track fail" colspan="2">{{index $p.T .Fail}}</td>{{else}}<td class="track"><span class="bar" style="--w: {{.Width}}%"></span></td>
+        <td class="val">{{$p.Dur .US}}{{if not .Best}} <span class="x">{{$p.Times .Factor}}</span>{{end}}</td>{{end}}
+        {{if $c.Flagged}}<td class="flag">{{with .Flagged}}{{.}}<span class="of">/26</span>{{end}}</td>{{end}}
+      </tr>
+      {{end}}
+    </tbody>
+    <tfoot aria-hidden="true"><tr><td></td><td class="axis">{{range $c.Ticks}}<span style="--at: {{.At}}%">{{$p.Tick .US}}</span>{{end}}</td><td></td>{{if $c.Flagged}}<td></td>{{end}}</tr></tfoot>
+  </table>
+  {{if $c.Floor}}<p class="chart-note"><span class="floor-key" aria-hidden="true"></span>{{$p.Fmt "bm_floor" ($p.Dur $c.Floor)}}</p>{{end}}
+  {{if $c.Flagged}}<p class="chart-note">{{$p.T.bm_flagged_note}}</p>{{end}}
+</figure>
+{{end}}
