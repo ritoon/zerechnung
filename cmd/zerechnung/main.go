@@ -2,7 +2,8 @@
 // XRechnung invoices. validate and json also accept a CII or UBL 2.1 XML
 // invoice, a FatturaPA document (Italy) and a Facturae document (Spain),
 // whose syntax is detected from the root element; validate checks a
-// FatturaPA or Facturae document against its XML schema, and json also
+// FatturaPA or Facturae document against its XML schema, and a FatturaPA
+// document against the checks of the SDI on its content too, and json also
 // opens a FatturaPA file signed in CAdES (.xml.p7m).
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
@@ -40,8 +41,9 @@ import (
 const usage = `zerechnung reads, validates and creates Factur-X / ZUGFeRD / XRechnung invoices.
 validate and json also accept an XML invoice in CII or UBL 2.1 syntax, a
 FatturaPA document and a Facturae document: validate checks them against
-their XML schema, json gives an array when one holds several invoices and
-also opens a FatturaPA file signed in CAdES (.xml.p7m).
+their XML schema, and FatturaPA against the checks of the SDI on its content
+too, json gives an array when one holds several invoices and also opens a
+FatturaPA file signed in CAdES (.xml.p7m).
 
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf

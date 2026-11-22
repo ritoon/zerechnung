@@ -47,11 +47,13 @@
 //
 // A FatturaPA document, the national format of the Italian SDI, is checked
 // against the FatturaPA 1.2 schema (the Schema rule set, with the same XSD-*
-// rules), which accepts the FPA12 and FPR12 documents. The other rule sets
-// are written for EN 16931 invoices and do not apply; the controls of the
-// SDI are not made. To apply the CIUS-IT rules to the data of a FatturaPA
-// invoice, read it with package fatturapa and validate the CII that
-// cii.Marshal writes.
+// rules), which accepts the FPA12 and FPR12 documents, and against the
+// controls of the SDI on its content that need none of its data, whatever
+// the rule sets: rules named after their error code (00400, 00423…), listed
+// in the Italy rule set. The other rule sets are written for EN 16931
+// invoices and do not apply. To apply the CIUS-IT rules to the data of a
+// FatturaPA invoice, read it with package fatturapa and validate the UBL
+// that ubl.Marshal writes.
 //
 // Validation never stops at the first problem: every finding is collected in
 // a Report. A document that is not well-formed XML, or neither a CII, a
@@ -60,6 +62,8 @@
 package validate
 
 import (
+	"time"
+
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/internal/rules"
@@ -176,6 +180,10 @@ type Options struct {
 	// PublicBuyer gives the settings of the public buyer in the Chorus Pro
 	// directory, used by the ChorusPro rules.
 	PublicBuyer PublicBuyer
+
+	// ReceivedAt is the time the SdI receives a FatturaPA document: the date
+	// of the invoice must not be later (00403). The current time when zero.
+	ReceivedAt time.Time
 }
 
 // PublicBuyer holds the settings of a public structure in the Chorus Pro
@@ -227,6 +235,10 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 		if set := opts.Rules; set == 0 || set&Schema != 0 {
 			schema.CheckFatturaPA(&rules.Checker{Report: r, Source: SourceSyntax}, root)
 		}
+		// A FatturaPA document is Italian: the controls of the SdI apply
+		// whatever the rule sets, as the Italian rules apply to a CIUS-IT
+		// invoice.
+		it.CheckSDI(&rules.Checker{Report: r, Source: SourceSDI}, root, opts.ReceivedAt)
 		return r
 	case facturae.IsFacturae(root):
 		checkFacturae(root, opts, r)
@@ -360,6 +372,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(Netherlands, nl.Catalog)
 	add(Netherlands, newRules(nl.UBLCatalog, nl.Catalog))
 	add(Italy, it.Catalog)
+	add(Italy, it.SDICatalog)
 	return out
 }
 

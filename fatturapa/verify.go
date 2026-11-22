@@ -47,6 +47,7 @@ type VerifyOptions struct {
 // are specific to this package.
 const (
 	RuleFileName          = "00001"     // file name not valid
+	RuleFileSize          = "00003"     // file larger than MaxSDIFileSize
 	RuleCertExpired       = "00100"     // signing certificate expired
 	RuleCertRevoked       = "00101"     // signing certificate revoked
 	RuleSignatureInvalid  = "00102"     // signature not valid
@@ -63,9 +64,14 @@ const (
 	RuleNotFatturaPA      = "IT-SIG-07" // the signed document is not a FatturaPA document
 )
 
+// MaxSDIFileSize is the size of the largest file the SdI admits, 5 MB
+// (technical specifications 1.10, §1.3.1), counted here as 5 MiB.
+const MaxSDIFileSize = 5 << 20
+
 // SignatureRules lists the rules of VerifySignature.
 var SignatureRules = []rules.RuleInfo{
 	{ID: RuleFileName, Severity: rules.Error, Description: "The file name does not follow the naming rules of the SdI (country code, identifier of the transmitter, \"_\", progressive of 1 to 5 alphanumeric characters, .xml or .xml.p7m), or its extension does not match the format of the signature (.xml for XAdES, .xml.p7m for CAdES)."},
+	{ID: RuleFileSize, Severity: rules.Error, Description: "The file is larger than the 5 MB the SdI admits for a single file (MaxSDIFileSize)."},
 	{ID: RuleCertExpired, Severity: rules.Error, Description: "The signing certificate has expired at the reception of the file."},
 	{ID: RuleCertRevoked, Severity: rules.Error, Description: "The signing certificate is revoked or suspended, according to the CRLs and OCSP responses given."},
 	{ID: RuleSignatureInvalid, Severity: rules.Error, Description: "The signature is not valid: the file does not match what was signed, or the signature cannot be read or uses an algorithm that is not admitted."},
@@ -84,7 +90,7 @@ var SignatureRules = []rules.RuleInfo{
 
 // VerifySignature checks a signed FatturaPA file as the SdI does on
 // reception (technical specifications 1.8.4, §5.1.1), and reports each
-// problem under the SdI error code: the file name (00001), the integrity of
+// problem under the SdI error code: the file name (00001), its size (00003), the integrity of
 // the document (00102), the signing certificate (expired 00100, revoked
 // 00101, untrusted authority 00104, not valid 00107) and the riferimento
 // temporale (missing 00103, after the reception 00105). What the SdI checks
@@ -107,6 +113,9 @@ func VerifySignature(file []byte, opts *VerifyOptions) *Report {
 		r.Add(rules.Finding{Rule: rule, Severity: sev, Source: rules.SourceSDI, Message: fmt.Sprintf(format, args...)})
 	}
 
+	if len(file) > MaxSDIFileSize {
+		add(RuleFileSize, rules.Error, "the file is %d bytes, more than the %d the SdI admits", len(file), MaxSDIFileSize)
+	}
 	doc, sig, err := Unwrap(file)
 	if opts.Name != "" {
 		format := Format(0)

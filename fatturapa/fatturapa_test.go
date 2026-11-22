@@ -52,10 +52,12 @@ func parse(t *testing.T, name string) *invoice.Invoice {
 
 // checkSchema checks that a document written by Marshal is valid against
 // the FatturaPA schema.
-func checkSchema(t *testing.T, name string, out []byte) {
+func checkSchema(t *testing.T, name string, out []byte, allowed ...string) {
 	t.Helper()
-	if r := validate.XML(out, nil); len(r.Findings) > 0 {
-		t.Errorf("%s: the document written is not valid against the FatturaPA schema:\n%s\n%s", name, r, out)
+	r := validate.XML(out, nil)
+	r.Findings = slices.DeleteFunc(r.Findings, func(f validate.Finding) bool { return slices.Contains(allowed, f.Rule) })
+	if len(r.Findings) > 0 {
+		t.Errorf("%s: the document written is not valid against the FatturaPA schema and the SDI controls:\n%s\n%s", name, r, out)
 	}
 }
 
@@ -380,7 +382,9 @@ func TestMarshalEN(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkSchema(t, germanInvoice, out)
+	// The buyer of the source has no tax identifier, which the SdI asks
+	// for (00417), even of a buyer abroad (00313).
+	checkSchema(t, germanInvoice, out, "00313", "00417")
 	for _, s := range []string{
 		`versione="FPR12"`,
 		"<IdPaese>DE</IdPaese>\n          <IdCodice>123456789</IdCodice>",
@@ -407,6 +411,41 @@ func TestMarshalEN(t *testing.T) {
 	want := []string{"BT-29", "BT-32", "BT-46", "BT-21", "BT-20"}
 	if !errors.As(err, &le) || !reflect.DeepEqual(le.Terms, want) {
 		t.Errorf("strict Marshal: %v, want the loss of %q", err, want)
+	}
+}
+
+// TestMarshalPrices checks the unit price written from the gross price, its
+// discount and the net price: the gross price with the discount as a
+// ScontoMaggiorazione only when they give the net price of a unit, so that
+// PrezzoTotale is the price times the quantity (SdI control 00423).
+func TestMarshalPrices(t *testing.T) {
+	for _, tc := range []struct {
+		name                       string
+		gross, discount, net, base string
+		want                       string
+	}{
+		{"discount", "10.90", "1.00", "9.90", "", "<PrezzoUnitario>10.90</PrezzoUnitario><ScontoMaggiorazione><Tipo>SC</Tipo><Importo>1.00</Importo></ScontoMaggiorazione>"},
+		{"base quantity 1", "10.90", "1.00", "9.90", "1", "<PrezzoUnitario>10.90</PrezzoUnitario><ScontoMaggiorazione><Tipo>SC</Tipo><Importo>1.00</Importo></ScontoMaggiorazione>"},
+		{"charge beside the discount", "9.90", "1.00", "9.90", "", "<PrezzoUnitario>9.90</PrezzoUnitario><PrezzoTotale>"},
+		{"base quantity 10", "109.00", "10.00", "99.00", "10", "<PrezzoUnitario>9.90</PrezzoUnitario><PrezzoTotale>"},
+	} {
+		src, err := cii.Parse(read(t, germanInvoice))
+		if err != nil {
+			t.Fatal(err)
+		}
+		l := &src.Lines[0]
+		l.GrossPrice, l.PriceDiscount, l.NetPrice = invoice.MustDecimal(tc.gross), invoice.MustDecimal(tc.discount), invoice.MustDecimal(tc.net)
+		l.PriceBaseQuantity = invoice.Decimal{}
+		if tc.base != "" {
+			l.PriceBaseQuantity = invoice.MustDecimal(tc.base)
+		}
+		out, err := Marshal(src, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(out), tc.want) {
+			t.Errorf("%s: %s not found in\n%s", tc.name, tc.want, out)
+		}
 	}
 }
 
@@ -495,6 +534,12 @@ var officialExamples = map[string]string{
 	"IT01234567890_FPR03.xml": "3a9001230c6a7a0d76004a7eacecb025589ee3a3369d6d995b06eda165b6f358",
 }
 
+// examplePlaceholders are the SDI controls the official examples fail: their
+// identifiers are placeholders (01234567890 is neither a partita IVA nor a
+// codice fiscale), and in FPR02 and FPR03 the taxable amount of the summary
+// (27.00) is not the sum of the lines (25.00).
+var examplePlaceholders = []string{"00300", "00301", "00306", "00422"}
+
 // TestOfficialExamples reads the official examples: no issue, no
 // extension, and each invoice written back reads as the same invoice.
 func TestOfficialExamples(t *testing.T) {
@@ -520,7 +565,7 @@ func TestOfficialExamples(t *testing.T) {
 				t.Errorf("%s #%d: %v", name, i, err)
 				continue
 			}
-			checkSchema(t, fmt.Sprintf("%s #%d", name, i), out)
+			checkSchema(t, fmt.Sprintf("%s #%d", name, i), out, examplePlaceholders...)
 			back, err := Parse(out)
 			if err != nil {
 				t.Errorf("%s #%d: %v", name, i, err)
