@@ -69,7 +69,7 @@ func main() {
 		VATBreakdown: []invoice.VATBreakdown{{
 			CategoryCode:        invoice.VATIntraCommunity,
 			Rate:                d("0"),
-			ExemptionReasonCode: "VATEX-EU-IC",
+			ExemptionReasonCode: invoice.VATEXIntraCommunity,
 			ExemptionReason:     "Intra-Community supply, Article 138 of the VAT Directive",
 		}},
 		PaymentMeans: []invoice.PaymentMeans{{

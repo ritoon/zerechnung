@@ -94,7 +94,7 @@ func main() {
 			CategoryCode:        invoice.VATIntraCommunity,
 			Rate:                d("0"),
 			ExemptionReason:     "Entrega intracomunitaria exenta, art. 25 Ley 37/1992.",
-			ExemptionReasonCode: "VATEX-EU-IC",
+			ExemptionReasonCode: invoice.VATEXIntraCommunity,
 		}},
 		PaymentMeans: []invoice.PaymentMeans{{
 			TypeCode:  invoice.PaymentSEPACreditTransfer,

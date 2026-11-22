@@ -34,17 +34,17 @@ func main() {
 	// fattura nel formato FPA12.
 	bottega := invoice.Party{
 		Name:              "Fornaci del Tevere S.r.l.",
-		LegalRegistration: invoice.Identifier{ID: "03918460548", Scheme: "0210"},
+		LegalRegistration: invoice.Identifier{ID: "03918460548", Scheme: invoice.SchemeCodiceFiscale},
 		VATID:             "IT03918460548",
 		Address: invoice.Address{Line1: "Via Tiberina Nord", Line2: "112", PostCode: "06053",
 			City: "Deruta", CountrySubdivision: "PG", CountryCode: "IT"},
 	}
 	comune := invoice.Party{
 		Name:              "Comune di Torre dei Colli",
-		LegalRegistration: invoice.Identifier{ID: "80002460543", Scheme: "0210"},
+		LegalRegistration: invoice.Identifier{ID: "80002460543", Scheme: invoice.SchemeCodiceFiscale},
 		Address: invoice.Address{Line1: "Piazza del Municipio", Line2: "1", PostCode: "06050",
 			City: "Torre dei Colli", CountrySubdivision: "PG", CountryCode: "IT"},
-		ElectronicAddress: invoice.Identifier{ID: "UF4TQZ", Scheme: "0201"},
+		ElectronicAddress: invoice.Identifier{ID: "UF4TQZ", Scheme: invoice.SchemeIPA},
 	}
 
 	// ## Riportare contratto, CIG e CUP
@@ -117,12 +117,14 @@ func main() {
 	// diventa l'esigibilità IVA S nel riepilogo; la frase delle condizioni di
 	// pagamento non serve in FatturaPA, e Marshal la toglie. Con Strict,
 	// Marshal si ferma se un dato non trova posto in FatturaPA. Lo schema
-	// XSD 1.2.4 controlla poi il documento prima che parta per lo SdI.
+	// XSD 1.2.4 e i controlli dello SdI verificano poi il documento prima
+	// che parta; ReceivedAt fissa la ricezione al giorno dell'emissione,
+	// perché lo SdI scarta una fattura datata dopo (codice 00403).
 	fpa, err := fatturapa.Marshal(inv, &fatturapa.MarshalOptions{Indent: true, Strict: true})
 	if err != nil {
 		log.Fatal(err)
 	}
-	if r := validate.XML(fpa, nil); !r.Valid() {
+	if r := validate.XML(fpa, &validate.Options{ReceivedAt: inv.IssueDate.Time(nil)}); !r.Valid() {
 		log.Fatal(r)
 	}
 

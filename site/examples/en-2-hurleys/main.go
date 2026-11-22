@@ -34,14 +34,14 @@ func main() {
 		VATID: "IE7046192G",
 		Address: invoice.Address{Line1: "Unit 4, Bennettsbridge Road", City: "Kilkenny",
 			PostCode: "R95 FX62", CountryCode: "IE"},
-		ElectronicAddress: invoice.Identifier{ID: "IE7046192G", Scheme: "9935"},
+		ElectronicAddress: invoice.Identifier{ID: "IE7046192G", Scheme: invoice.SchemeIEVAT},
 	}
 	board := invoice.Party{
 		Name:  "Nore and Barrow Education and Training Board",
 		VATID: "IE4180736U",
 		Address: invoice.Address{Line1: "Barrow House, Ormonde Road", City: "Kilkenny",
 			PostCode: "R95 A39T", CountryCode: "IE"},
-		ElectronicAddress: invoice.Identifier{ID: "IE4180736U", Scheme: "9935"},
+		ElectronicAddress: invoice.Identifier{ID: "IE4180736U", Scheme: invoice.SchemeIEVAT},
 	}
 
 	// ## Add the Peppol references
@@ -52,7 +52,7 @@ func main() {
 	d := invoice.MustDecimal
 	inv := &invoice.Invoice{
 		Profile:                invoice.ProfilePeppol,
-		BusinessProcess:        "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0",
+		BusinessProcess:        invoice.ProcessPeppolBilling,
 		Number:                 "NVH-2026-0214",
 		TypeCode:               invoice.TypeCommercialInvoice,
 		IssueDate:              invoice.NewDate(2026, time.November, 16),

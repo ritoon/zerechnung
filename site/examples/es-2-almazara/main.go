@@ -41,17 +41,17 @@ func main() {
 		Contact: &invoice.Contact{
 			PersonName: "Antonio Expósito", Email: "ventas@cerrodellobo.example",
 		},
-		ElectronicAddress: invoice.Identifier{ID: "ESF23619471", Scheme: "9920"},
+		ElectronicAddress: invoice.Identifier{ID: "ESF23619471", Scheme: invoice.SchemeESVAT},
 	}
 	mayorista := invoice.Party{
 		Name:              "Groothandel Bakker & El Amrani B.V.",
 		VATID:             "NL853164721B01",
-		LegalRegistration: invoice.Identifier{ID: "24381567", Scheme: "0106"},
+		LegalRegistration: invoice.Identifier{ID: "24381567", Scheme: invoice.SchemeKvK},
 		Address: invoice.Address{
 			Line1: "Maashaven Oostzijde 12", PostCode: "3072 HE", City: "Rotterdam",
 			CountryCode: "NL",
 		},
-		ElectronicAddress: invoice.Identifier{ID: "24381567", Scheme: "0106"},
+		ElectronicAddress: invoice.Identifier{ID: "24381567", Scheme: invoice.SchemeKvK},
 	}
 
 	// ## Preparar la cabecera Peppol
@@ -63,7 +63,7 @@ func main() {
 	d := invoice.MustDecimal
 	inv := &invoice.Invoice{
 		Profile:                invoice.ProfilePeppol,
-		BusinessProcess:        "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0",
+		BusinessProcess:        invoice.ProcessPeppolBilling,
 		Number:                 "CL-2026-0871",
 		TypeCode:               invoice.TypeCommercialInvoice,
 		IssueDate:              invoice.NewDate(2026, time.November, 19),
@@ -87,7 +87,7 @@ func main() {
 			CategoryCode:        invoice.VATIntraCommunity,
 			Rate:                d("0"),
 			ExemptionReason:     "Entrega intracomunitaria exenta, art. 25 Ley 37/1992.",
-			ExemptionReasonCode: "VATEX-EU-IC",
+			ExemptionReasonCode: invoice.VATEXIntraCommunity,
 		}},
 		PaymentMeans: []invoice.PaymentMeans{{
 			TypeCode:         invoice.PaymentSEPACreditTransfer,

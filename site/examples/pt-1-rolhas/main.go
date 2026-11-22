@@ -98,7 +98,7 @@ func main() {
 			CategoryCode:        invoice.VATIntraCommunity,
 			Rate:                d("0"),
 			ExemptionReason:     "Isento nos termos do artigo 14.º do RITI.",
-			ExemptionReasonCode: "VATEX-EU-IC",
+			ExemptionReasonCode: invoice.VATEXIntraCommunity,
 		}},
 		PaymentMeans: []invoice.PaymentMeans{{
 			TypeCode:  invoice.PaymentSEPACreditTransfer,
