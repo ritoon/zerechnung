@@ -124,6 +124,11 @@ func Create(pdf []byte, inv *invoice.Invoice, opts *CreateOptions) ([]byte, erro
 // The XML is validated with opts.Hybrid set: an EN 16931 invoice in a
 // Factur-X PDF is checked against the Factur-X schematron of the EN 16931
 // profile, like BASIC and EXTENDED invoices (see validate.Options.Hybrid).
+//
+// opts.PDFA selects the PDF/A checks of the container. The default,
+// validate.PDFAFull, reads the content streams of the pages and the font
+// programs they use, which takes most of the time and memory of a check;
+// validate.PDFABasic skips them (see validate.PDFALevel).
 func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, error) {
 	o := validate.Options{}
 	if opts != nil {
@@ -144,7 +149,7 @@ func Check(pdf []byte, opts *validate.Options) (*validate.Report, *Attachment, e
 			return 0
 		}
 		return countriesOf(validate.RulesFor(rules.NewDoc(t, opts.Profile), opts))
-	})
+	}, opts.PDFA)
 	if err != nil && att == nil && len(findings) == 0 {
 		return nil, nil, err
 	}

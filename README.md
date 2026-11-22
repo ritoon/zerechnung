@@ -307,7 +307,7 @@ warning [PDF] PDF-06: the catalog has no PDF/A output intent (/S /GTS_PDFA1) (ca
 |---|---|
 | `zerechnung info invoice.pdf` | Summarises the PDF and the invoice |
 | `zerechnung extract [-o out.xml] invoice.pdf` | Extracts the XML |
-| `zerechnung validate [-fr] [-de] [-auto] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae), and exits with code 1 on errors |
+| `zerechnung validate [-fr] [-de] [-auto] [-pdfa basic] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae), and exits with code 1 on errors; `-pdfa basic` skips the PDF/A checks that read the pages and the fonts |
 | `zerechnung embed -xml invoice.xml [-attach file]... [-convert-pdfa] input.pdf` | Embeds an XML invoice in a PDF, converting it to PDF/A-3 first with `-convert-pdfa` |
 | `zerechnung pdfa [-o out.pdf] input.pdf` | Converts a PDF to PDF/A-3, or prints why it cannot, one reason per line |
 | `zerechnung json file` | Prints the parsed invoice as JSON (CII, UBL, FatturaPA, signed `.xml.p7m` included, or Facturae; an array for a FatturaPA or Facturae batch) |
@@ -356,7 +356,7 @@ Measured on an Apple M4 Pro with Go 1.27.4 (commit `3a3b11a`, November 22, 2026)
 | Embed the XML in a PDF | 99 µs | 529 µs |
 | Check a 149 KB hybrid PDF | 832 µs | 1.11 ms |
 
-`Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included. These checks are always on, since they catch what veraPDF would reject; v0.1.0 checked the same PDF in 74 µs without them.
+`Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included, to catch what veraPDF would reject; v0.1.0 checked the same PDF in 74 µs without them. Most of the time goes to decompressing its three font programs. Since the measurements below, the buffers of the font programs and content streams are reused from one call to the next: the full check of the same PDF allocates about 256 KB instead of 701 KB. When the PDF/A conformance is checked elsewhere, or only the invoice and its attachment matter, `validate.Options{PDFA: validate.PDFABasic}` (`-pdfa basic` on the command line) skips the checks that read the pages, the fonts and the file structure (PDF-41 to PDF-69, PDF-71, PDF-72): the same check then takes about 80 µs and allocates 87 KB.
 
 What one call allocates, as `go test -benchmem` counts it, against the other Go package that allocates the least:
 

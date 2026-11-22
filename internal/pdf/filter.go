@@ -17,13 +17,19 @@ func (e *UnsupportedFilterError) Error() string {
 
 // Decode returns the decoded data of a stream. Unfiltered data aliases the
 // input and must not be modified.
-func (r *Reader) Decode(s *Stream) ([]byte, error) { return r.decode(s, 0) }
+func (r *Reader) Decode(s *Stream) ([]byte, error) { return r.decode(s, 0, nil) }
 
 // DecodeSize is Decode with a hint of the decoded size, used to size the
 // output buffer.
-func (r *Reader) DecodeSize(s *Stream, hint int) ([]byte, error) { return r.decode(s, hint) }
+func (r *Reader) DecodeSize(s *Stream, hint int) ([]byte, error) { return r.decode(s, hint, nil) }
 
-func (r *Reader) decode(s *Stream, hint int) ([]byte, error) {
+// DecodeScratch is DecodeSize with the buffers of FlateDecode lent by sc:
+// the data it returns is valid until sc.Release.
+func (r *Reader) DecodeScratch(s *Stream, hint int, sc *Scratch) ([]byte, error) {
+	return r.decode(s, hint, sc)
+}
+
+func (r *Reader) decode(s *Stream, hint int, sc *Scratch) ([]byte, error) {
 	f := r.Resolve(s.Dict.Get("Filter"))
 	if f == nil {
 		return s.Raw, nil
@@ -63,7 +69,7 @@ func (r *Reader) decode(s *Stream, hint int) ([]byte, error) {
 		parm, _ := parms[i].(Dict)
 		switch name {
 		case "FlateDecode", "Fl":
-			data, err = inflate(data, h)
+			data, err = inflateIn(data, h, sc)
 			if err != nil {
 				return data, fmt.Errorf("pdf: FlateDecode: %w", err)
 			}

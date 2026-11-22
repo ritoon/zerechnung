@@ -9,6 +9,7 @@ import (
 
 	"github.com/ritoon/zerechnung/internal/pdf"
 	"github.com/ritoon/zerechnung/internal/xmp"
+	"github.com/ritoon/zerechnung/validate"
 )
 
 // Limits of the PDF/A scan.
@@ -74,16 +75,21 @@ type pdfaScan struct {
 	xmp   xmp.Declared               // properties described by the extension schemas of the document metadata
 
 	content *contentState // the content streams read (check_pdfa_content.go)
+	scratch pdf.Scratch   // lends the buffers of the font programs and content streams, given back when the scan ends
 }
 
 // pdfa runs the PDF/A scan. invoice is the file specification of the
 // invoice attachment, checked by CheckContainer itself; it may be nil. info
 // is the XMP metadata, or nil: the requirements of ISO 19005-2 and 19005-3
-// (PDF-41 to PDF-69, PDF-71 and PDF-72) apply unless it declares PDF/A-4.
+// (PDF-41 to PDF-69, PDF-71 and PDF-72) apply unless it declares PDF/A-4
+// or k.level is validate.PDFABasic.
 func (k *containerCheck) pdfa(c *container, invoice *fileSpec, info *xmp.Info) {
 	// fonts, afRefs and counts, rarely needed, are made on first use.
 	s := &pdfaScan{c: c, k: k, seen: map[pdf.Ref]uint16{}}
-	s.iso = info == nil || strings.TrimSpace(info.PDFAPart) != "4"
+	// The font programs, the glyphs read from them and the content streams
+	// are not used once the scan ends: their buffers go back to the pool.
+	defer s.scratch.Release()
+	s.iso = k.level == validate.PDFAFull && (info == nil || strings.TrimSpace(info.PDFAPart) != "4")
 	r := c.r
 	cat := c.catalog
 	if s.iso {
