@@ -516,8 +516,10 @@ func (sc *streamScan) op(op string, args []pdf.Operand) error {
 	case "Do":
 		sc.xobject(name)
 	case "BI":
-		if len(args) == 1 && args[0].Kind == pdf.OperandDict {
-			sc.inlineImage(args[0].Dict)
+		if len(args) == 1 {
+			if d, ok := args[0].AsDict(); ok {
+				sc.inlineImage(d)
+			}
 		}
 		sc.paint(true, false, false)
 	case "BDC", "DP":
@@ -543,11 +545,10 @@ func (sc *streamScan) op(op string, args []pdf.Operand) error {
 	case "TJ":
 		if len(args) > 0 {
 			sc.strs = sc.strs[:0]
-			if args[0].Kind == pdf.OperandArray {
-				for i := range args[0].Array {
-					if s, ok := args[0].Array[i].AsString(); ok {
-						sc.strs = append(sc.strs, s)
-					}
+			elems, _ := args[0].AsArray()
+			for i := range elems {
+				if s, ok := elems[i].AsString(); ok {
+					sc.strs = append(sc.strs, s)
 				}
 			}
 			sc.text(sc.strs, true)
