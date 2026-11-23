@@ -106,8 +106,10 @@ type xslAssertion struct {
 	Message string // whitespace normalized
 	from    int    // lines of the test (xsl:when or xsl:if) in the XSLT
 	to      int
-	end     int // line of the end of the svrl:failed-assert (svrl:successful-report)
-	tmpl    int // index of the xsl:template of the rule, in templates
+	end     int    // line of the end of the svrl:failed-assert (svrl:successful-report)
+	tmpl    int    // index of the xsl:template of the rule, in templates
+	test    string // the test, in an XSLT compiled by SchXslt
+	scope   int    // index of the xsl:template that holds it, in scopes (SchXslt)
 }
 
 // template is the start tag of the xsl:template of a schematron rule, and
@@ -116,10 +118,25 @@ type template struct {
 	from, to, asserts int
 }
 
+// scope is an xsl:template of an XSLT compiled by SchXslt: the lines of its
+// start tag, and its variables, those of the rules it holds.
+type scope struct {
+	from, to int
+	vars     []xslVariable
+}
+
+// xslVariable is a variable of a schematron rule, as SchXslt compiles it.
+type xslVariable struct {
+	name     string
+	src      string // the xsl:variable element, as written
+	from, to int    // its lines
+}
+
 // xslIndex holds the assertions of an XSLT and the templates of its rules.
 type xslIndex struct {
 	asserts   []xslAssertion
 	templates []template
+	scopes    []scope // SchXslt
 }
 
 // key identifies an assertion in a syntax: a pattern may hold several

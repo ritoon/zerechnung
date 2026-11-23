@@ -79,6 +79,122 @@ func TestHRRun(t *testing.T) {
 	}
 }
 
+// testHRVariables is an XSLT compiled by SchXslt whose rule declares
+// variables, as the rule of HR-BR-4 in the CIUS-HR schematron: the lines
+// count, as Saxon reports the dynamic errors at the line of a variable or at
+// the start tag of the template of the rule.
+const testHRVariables = `<xsl:transform xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:svrl="http://purl.oclc.org/dsdl/svrl" xmlns:schxslt="https://doi.org/10.5281/zenodo.1495494" version="3.0">
+   <xsl:template match="/" mode="#all" priority="-10">
+      <xsl:variable name="unused" select="1"/>
+      <xsl:apply-templates select="node()" mode="#current"/>
+   </xsl:template>
+   <xsl:template match="Invoice"
+                 mode="d13e94">
+      <xsl:variable name="issueDate" select="xs:date(IssueDate)"/>
+      <xsl:variable name="payableAmount"
+                    select="PayableAmount * -1"/>
+      <xsl:variable name="positive"><xsl:sequence select="$payableAmount &gt; 0"/></xsl:variable>
+      <xsl:variable name="spare" select="1"/>
+      <schxslt:rule pattern="d1">
+         <xsl:if test="not($payableAmountX)">
+            <svrl:failed-assert flag="fatal" id="HR-BR-1"><svrl:text>[HR-BR-1] One.</svrl:text></svrl:failed-assert>
+         </xsl:if>
+         <xsl:if test="not($issueDate &gt; xs:date('2026-01-01'))">
+            <svrl:failed-assert flag="fatal" id="HR-BR-40"><svrl:text>[HR-BR-40] Date (<xsl:value-of select="$issueDate"/>).</svrl:text></svrl:failed-assert>
+         </xsl:if>
+         <xsl:if test="not($positive)">
+            <svrl:failed-assert flag="warning" id="HR-BR-3"><svrl:text>[HR-BR-3] Positive.</svrl:text></svrl:failed-assert>
+         </xsl:if>
+         <xsl:if test="not($payableAmount &lt;= 0)">
+            <svrl:failed-assert flag="fatal" id="HR-BR-4"><svrl:text>[HR-BR-4] Due.</svrl:text></svrl:failed-assert>
+         </xsl:if>
+      </schxslt:rule>
+   </xsl:template>
+</xsl:transform>
+`
+
+// TestHRVariables checks the dynamic errors that Saxon reports in the
+// variables of a rule, outside any assertion: an error at the line of a
+// variable comes from the first assertion whose test uses it, directly or
+// through another variable ($positive); an error at the start tag of the
+// template may come from any variable, and the comparison settles it against
+// the package.
+func TestHRVariables(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, hrXSL), []byte(testHRVariables), 0o644)
+	os.WriteFile(filepath.Join(dir, "hr.list"), []byte(filepath.Join(dir, "in", "0001.xml")+"\n"), 0o644)
+	run, err := newSchRun(dir, "hr.list", hrXSL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for line, want := range map[int][]string{
+		8:  {"HR-BR-40"},
+		9:  {"HR-BR-3"},
+		10: {"HR-BR-3"},
+		11: {"HR-BR-3"},
+		6:  {"HR-BR-40", "HR-BR-3"},
+		7:  {"HR-BR-40", "HR-BR-3"},
+		12: nil, // no test uses $spare
+		2:  nil, // no assertion in the template
+		3:  nil,
+		14: nil,
+	} {
+		var got []string
+		for _, a := range run.index.byVariable(line) {
+			got = append(got, a.ID)
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("byVariable(%d) = %q, want %q", line, got, want)
+		}
+	}
+	e := entry{Name: "0001.xml"}
+	r, err := run.result(e, []byte(`<error code="XPTY0004" line="10" stack="4">A sequence of more than one item is not allowed as the first operand of '*' (&lt;PayableAmount&gt;, &lt;PayableAmount&gt;)</error>`))
+	if err != nil || !reflect.DeepEqual(r.Rules, map[string]string{"HR-BR-3": levelWarning}) || r.alt != nil || !strings.HasPrefix(r.Stopped, "XPTY0004 in the test of HR-BR-3:") {
+		t.Errorf("error in $payableAmount: %+v, %v", r, err)
+	}
+	stop := []byte(`<error code="FORG0001" line="7" stack="4">Cannot convert string "" to double</error>`)
+	r, err = run.result(e, stop)
+	if err != nil || len(r.Rules) != 0 || len(r.alt) != 2 || !strings.HasPrefix(r.Stopped, "FORG0001 in the test of HR-BR-40 or HR-BR-3:") {
+		t.Errorf("error at the template: %+v, %v", r, err)
+	}
+	mine := map[string]string{"HR-BR-3": levelWarning}
+	r.resolve(mine)
+	if !reflect.DeepEqual(r.Rules, mine) || r.alt != nil {
+		t.Errorf("error at the template, HR-BR-3 raised by the package: %+v", r)
+	}
+	if got := diff(mine, r, true); len(got) != 0 {
+		t.Errorf("error at the template, HR-BR-3 raised by the package: %q", got)
+	}
+	r, _ = run.result(e, stop)
+	r.resolve(map[string]string{"HR-BR-1": levelError})
+	if got := diff(map[string]string{"HR-BR-1": levelError}, r, true); !slices.Equal(got, []string{"-HR-BR-40"}) {
+		t.Errorf("error at the template, neither raised by the package: %q", got)
+	}
+	r, err = run.result(e, []byte(`<error code="FORG0001" line="12" stack="4">x</error>`))
+	if err != nil || len(r.Rules) != 0 || !strings.HasPrefix(r.Failure, "FORG0001, line 12 of cius-hr.xsl") {
+		t.Errorf("error in $spare: %+v, %v", r, err)
+	}
+	for _, c := range []struct {
+		expr, name string
+		want       bool
+	}{
+		{"$a > 0", "a", true},
+		{"f($a)", "a", true},
+		{"$a", "a", true},
+		{"$ab", "a", false},
+		{"$a-b", "a", false},
+		{"$a.b", "a", false},
+		{"$a:b", "a", false},
+		{"$aé", "a", false},
+		{"$ab + $a", "a", true},
+		{"a", "a", false},
+	} {
+		if got := usesVariable(c.expr, c.name); got != c.want {
+			t.Errorf("usesVariable(%q, %q) = %v", c.expr, c.name, got)
+		}
+	}
+}
+
 // TestOursHR runs the package on the CIUS-HR invoices of the repository,
 // which give no finding, and on variants: one without BT-24, which the
 // package still checks as a CIUS-HR invoice, one without the operator label,
