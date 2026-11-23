@@ -23,5 +23,9 @@
 // (invoice.GAccountExtension), and the Italian extension of the domestic
 // invoice (invoice.ItalianExtension, EXT-IT), whose UBL extensions and
 // elements carry FatturaPA data into the national blocks of the model
-// (invoice.Italy).
+// (invoice.Italy). The Croatian CIUS and its extension (CIUS-HR and EXT-HR,
+// invoice.URNCIUSHR) are read and written too: the UBL extension
+// HRFISK20Data and the elements outside the binding that the Croatian
+// specification uses go to the national blocks invoice.Croatia,
+// DocumentReference.Croatia, AllowanceCharge.Croatia and Line.Croatia.
 package ubl

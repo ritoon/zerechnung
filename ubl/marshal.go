@@ -36,10 +36,11 @@ type LossError struct {
 	// extension (see invoice.Extension) is reported as "EXT " followed by its
 	// entry in Invoice.Unmodeled. The data of the national blocks that UBL
 	// does not carry (the FatturaPA data of invoice.Italy, the Facturae data
-	// of invoice.Spain) follows, as listed by invoice.Invoice.NationalData:
-	// "EXT Italy.Withholdings". A domestic Italian invoice carries part of
-	// the FatturaPA data (see Marshal); a field carried in part only is
-	// reported.
+	// of invoice.Spain, the Croatian data of invoice.Croatia when the
+	// identifier written is not the one of the CIUS-HR) follows, as listed
+	// by invoice.Invoice.NationalData: "EXT Italy.Withholdings". A domestic
+	// Italian invoice carries part of the FatturaPA data (see Marshal); a
+	// field carried in part only is reported.
 	Terms []string
 }
 
@@ -102,6 +103,15 @@ func IsCreditNote(typeCode string) bool {
 // purchase orders and transport documents of each line. The rest of the
 // national blocks has no place in UBL.
 //
+// When the specification identifier written is the one of the Croatian
+// CIUS (see invoice.URNCIUSHR), the Croatian data is written too, as Parse
+// reads it: the UBL extension hrextac:HRFISK20Data, the copy indicator when
+// true, the issue time, the operator of the seller, the description of each
+// preceding invoice, the HR VAT category label and the exemption reason of
+// the document level allowances and charges and of the items, and the
+// purchase order, despatch advice and receiving advice of each line, with
+// the line identifier NA when the referenced line is not given.
+//
 // Mandatory elements of the binding are always written, empty when the
 // invoice has no value for them, so that a validator reports the missing
 // value. Amounts are written with the number of decimals they hold.
@@ -132,6 +142,7 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 	}
 	w.gaccount = strings.Contains(spec, invoice.GAccountExtension)
 	w.italy = strings.Contains(spec, invoice.ItalianExtension)
+	w.croatia = invoice.ProfileFromURN(spec) == invoice.ProfileCIUSHR
 	w.document(inv, spec)
 	if o.Indent {
 		w.b = append(w.b, '\n')
@@ -156,12 +167,12 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 func customizationID(inv *invoice.Invoice) string {
 	if inv.SpecificationID != "" {
 		switch invoice.DetectProfile(inv.SpecificationID) {
-		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
+		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileCIUSHR, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
 			return strings.TrimSpace(inv.SpecificationID)
 		}
 	}
 	switch inv.Profile {
-	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileExtendedCTCFR:
+	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileCIUSHR, invoice.ProfileExtendedCTCFR:
 		return inv.Profile.URNFor(inv.Seller.Address.CountryCode)
 	}
 	return invoice.URNEN16931
@@ -177,19 +188,29 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 		w.prepareItaly(inv)
 		ext = w.hasItalianExtensions(inv)
 	}
+	hrExt := w.croatia && hasCroatianExtension(inv.Croatia)
 	w.newline()
 	w.b = append(w.b, `<`+root+` xmlns="`+ns+`" xmlns:cac="`+NamespaceCAC+`" xmlns:cbc="`+NamespaceCBC+`"`...)
-	if ext {
+	if ext || hrExt {
 		w.b = append(w.b, ` xmlns:ext="`+NamespaceEXT+`"`...)
+	}
+	if hrExt {
+		w.b = append(w.b, ` xmlns:hrextac="`+NamespaceHR+`"`...)
 	}
 	w.b = append(w.b, '>')
 	w.depth++
 	if ext {
 		w.italianExtensions(inv)
 	}
+	if hrExt {
+		w.croatianExtension(inv.Croatia)
+		for _, f := range []string{"CashAccounting", "TaxTotal", "VATBreakdown", "TaxBasisTotal", "OutOfScopeAmount"} {
+			w.carry("Croatia." + f)
+		}
+	}
 
 	w.loseIf(inv.TestIndicator, "EXT TestIndicator")
-	w.loseIf(inv.CopyIndicator, "EXT CopyIndicator")
+	w.loseIf(inv.CopyIndicator && !w.croatia, "EXT CopyIndicator")
 	w.loseText(inv.Language, "EXT Language")
 
 	var terms *invoice.PaymentTerms
@@ -204,10 +225,17 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 	}
 	w.leaf("cbc:ProfileID", process)
 	w.leafReq("cbc:ID", inv.Number)
+	if w.croatia && inv.CopyIndicator {
+		w.leafReq("cbc:CopyIndicator", "true")
+	}
 	if inv.IssueDate.IsZero() {
 		w.leafReq("cbc:IssueDate", "")
 	} else {
 		w.date("cbc:IssueDate", inv.IssueDate)
+	}
+	if w.croatia && inv.Croatia != nil {
+		w.leaf("cbc:IssueTime", inv.Croatia.IssueTime)
+		w.carry("Croatia.IssueTime")
 	}
 	if !w.credit && terms != nil {
 		w.date("cbc:DueDate", terms.DueDate)
@@ -259,6 +287,10 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 		w.start("cac:InvoiceDocumentReference")
 		w.leafReq("cbc:ID", d.ID)
 		w.date("cbc:IssueDate", d.IssueDate)
+		if w.croatia && d.Croatia != nil {
+			w.leaf("cbc:DocumentDescription", d.Croatia.Description)
+			w.carryAll("PrecedingInvoices["+strconv.Itoa(i)+"].Croatia", d.Croatia)
+		}
 		w.end("cac:InvoiceDocumentReference")
 		if i == 0 && w.italy && w.it != nil && w.it.MainInvoice != nil {
 			w.mainInvoice()
@@ -308,6 +340,11 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 
 	w.start("cac:AccountingSupplierParty")
 	w.party("cac:Party", &inv.Seller, roleSeller, inv.CreditorReferenceID)
+	if w.croatia {
+		w.sellerContact(inv.Croatia)
+		w.carry("Croatia.OperatorOIB")
+		w.carry("Croatia.OperatorName")
+	}
 	w.end("cac:AccountingSupplierParty")
 	w.start("cac:AccountingCustomerParty")
 	w.party("cac:Party", &inv.Buyer, roleBuyer, "")
@@ -347,7 +384,11 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 	w.paymentMeans(inv, terms)
 	w.paymentTerms(inv, terms)
 	for i := range inv.AllowancesCharges {
-		w.allowanceCharge(&inv.AllowancesCharges[i], true)
+		ac := &inv.AllowancesCharges[i]
+		w.allowanceCharge(ac, true)
+		if w.croatia && ac.Croatia != nil {
+			w.carryAll("AllowancesCharges["+strconv.Itoa(i)+"].Croatia", ac.Croatia)
+		}
 	}
 	for i := range inv.LogisticsCharges {
 		c := &inv.LogisticsCharges[i]
@@ -366,7 +407,11 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 		w.lose("BG-25")
 	}
 	for i := range inv.Lines {
-		w.line(lineName, &inv.Lines[i])
+		l := &inv.Lines[i]
+		w.line(lineName, l)
+		if w.croatia && l.Croatia != nil {
+			w.carryAll("Lines["+strconv.Itoa(i)+"].Croatia", l.Croatia)
+		}
 	}
 	w.depth--
 	w.newline()
@@ -821,8 +866,12 @@ func (w *writer) allowanceCharge(ac *invoice.AllowanceCharge, vat bool) {
 	w.amountReq("cbc:Amount", ac.Amount, w.cur)
 	w.amount("cbc:BaseAmount", ac.BaseAmount)
 	if vat {
-		if ac.VATCategoryCode != "" || ac.VATRate.IsSet() {
-			w.taxCategory("cac:TaxCategory", ac.VATCategoryCode, ac.VATRate, nil)
+		var hr *invoice.CroatiaTax
+		if w.croatia {
+			hr = ac.Croatia
+		}
+		if ac.VATCategoryCode != "" || ac.VATRate.IsSet() || hr != nil {
+			w.taxCategory("cac:TaxCategory", ac.VATCategoryCode, ac.VATRate, nil, hr)
 		}
 	} else if ac.VATCategoryCode != "" || ac.VATRate.IsSet() {
 		w.lose("EXT Line.AllowanceCharge.VAT")
@@ -832,13 +881,20 @@ func (w *writer) allowanceCharge(ac *invoice.AllowanceCharge, vat bool) {
 
 // taxCategory writes a cac:TaxCategory or cac:ClassifiedTaxCategory in the
 // VAT scheme, with the exemption reason of vb when vb is not nil.
-func (w *writer) taxCategory(name, code string, rate invoice.Decimal, vb *invoice.VATBreakdown) {
+func (w *writer) taxCategory(name, code string, rate invoice.Decimal, vb *invoice.VATBreakdown, hr *invoice.CroatiaTax) {
 	w.start(name)
 	w.leafReq("cbc:ID", code)
+	if hr != nil {
+		w.leaf("cbc:Name", hr.Category)
+	}
 	w.dec("cbc:Percent", rate)
-	if vb != nil {
+	switch {
+	case vb != nil:
 		w.leaf("cbc:TaxExemptionReasonCode", vb.ExemptionReasonCode)
 		w.leaf("cbc:TaxExemptionReason", vb.ExemptionReason)
+	case hr != nil:
+		w.leaf("cbc:TaxExemptionReasonCode", hr.ExemptionReasonCode)
+		w.leaf("cbc:TaxExemptionReason", hr.ExemptionReason)
 	}
 	w.start("cac:TaxScheme")
 	w.leafReq("cbc:ID", "VAT")
@@ -868,7 +924,7 @@ func (w *writer) taxTotals(inv *invoice.Invoice) {
 			w.start("cac:TaxSubtotal")
 			w.amountReq("cbc:TaxableAmount", vb.TaxableAmount, w.cur)
 			w.amountReq("cbc:TaxAmount", vb.TaxAmount, w.cur)
-			w.taxCategory("cac:TaxCategory", vb.CategoryCode, vb.Rate, vb)
+			w.taxCategory("cac:TaxCategory", vb.CategoryCode, vb.Rate, vb, nil)
 			w.end("cac:TaxSubtotal")
 		}
 		w.end("cac:TaxTotal")
@@ -912,7 +968,11 @@ func (w *writer) line(name string, l *invoice.Line) {
 		w.end("cac:InvoicePeriod")
 	}
 	w.loseText(l.Period.Description, "EXT Line.Period.Description")
-	w.lineReferences(l)
+	if w.croatia {
+		w.lineReferencesHR(l)
+	} else {
+		w.lineReferences(l)
+	}
 	if !l.ObjectIdentifier.IsZero() {
 		w.start("cac:DocumentReference")
 		w.leafAttr("cbc:ID", "schemeID", l.ObjectIdentifier.Scheme, l.ObjectIdentifier.ID)
@@ -933,7 +993,9 @@ func (w *writer) line(name string, l *invoice.Line) {
 	w.loseText(l.StatusCode, "EXT Line.StatusCode")
 	w.loseText(l.StatusReasonCode, "EXT Line.StatusReasonCode")
 	w.loseIf(l.DeliveryTerms != nil, "EXT Line.DeliveryTerms")
-	w.loseText(l.OrderReference, "EXT Line.OrderReference")
+	if !w.croatia {
+		w.loseText(l.OrderReference, "EXT Line.OrderReference")
+	}
 	w.loseIf(len(l.UltimateCustomerOrders) > 0, "EXT Line.UltimateCustomerOrders")
 	w.loseIf(!l.ShipTo.IsZero(), "EXT Line.ShipTo")
 	w.loseIf(!l.UltimateShipTo.IsZero(), "EXT Line.UltimateShipTo")
@@ -984,7 +1046,11 @@ func (w *writer) item(l *invoice.Line) {
 		w.end("cac:CommodityClassification")
 		w.loseText(c.Name, "EXT Item.Classifications.Name")
 	}
-	w.taxCategory("cac:ClassifiedTaxCategory", l.VATCategoryCode, l.VATRate, nil)
+	var hr *invoice.CroatiaTax
+	if c := l.Croatia; w.croatia && c != nil && (c.Category != "" || c.ExemptionReason != "" || c.ExemptionReasonCode != "") {
+		hr = &invoice.CroatiaTax{Category: c.Category, ExemptionReason: c.ExemptionReason, ExemptionReasonCode: c.ExemptionReasonCode}
+	}
+	w.taxCategory("cac:ClassifiedTaxCategory", l.VATCategoryCode, l.VATRate, nil, hr)
 	for i := range it.Attributes {
 		a := &it.Attributes[i]
 		w.start("cac:AdditionalItemProperty")
