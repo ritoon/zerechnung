@@ -30,9 +30,16 @@
 //     artefacts, and it allows a single ram:InvoiceReferencedDocument,
 //     where the Factur-X schema allows several.
 //   - ubl_tables_gen.go holds the UBL 2.1 schemas of Invoice and CreditNote
-//     (the runtime schemas of the OASIS package). The content of the UBL
-//     extensions (ext:ExtensionContent, a lax wildcard) is not checked: only
-//     the namespace and the number of its elements are.
+//     (the runtime schemas of the OASIS package), and the schema of the
+//     Croatian extension HRFISK20Data (CIUS-HR and EXT-HR 2025) of the
+//     package "UBL2.1 eRačun" of the Croatian tax administration. The UBL
+//     extensions (ext:ExtensionContent, a lax wildcard) are validated as
+//     lax: an element in the namespace of the Croatian extension against
+//     its schema, where an element that the schema does not declare is not
+//     allowed, as in the package of the tax administration, whose
+//     ExtensionContent holds only HRFISK20Data or the UBL signature; the
+//     content of the elements of the other namespaces is not checked, only
+//     their namespace and number are.
 //   - fatturapa_tables_gen.go holds the FatturaPA 1.2.4 schema of the
 //     Agenzia delle Entrate, which accepts the FPA12 and FPR12 documents. It
 //     differs from the schema 1.2.3, in force until 10/01/2027, only by the
@@ -90,7 +97,7 @@ const (
 var Catalog = []rules.RuleInfo{
 	{ID: RuleProfile, Severity: rules.Warning, Description: "The profile (BT-24) is unknown: the structure is checked against the EXTENDED schema, the most permissive."},
 	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), p:FatturaElettronica (FatturaPA), or Facturae in the namespace of Facturae 3.2, 3.2.1 or 3.2.2."},
-	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL; none below the root in FatturaPA and Facturae)."},
+	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII; cac, cbc or ext in UBL, hrextac in the Croatian extension; none below the root in FatturaPA and Facturae)."},
 	{ID: RuleUnexpected, Severity: rules.Error, Description: "Each element shall be allowed in its parent by the schema (for CII, the schema of the profile; the CII D16B schema for XRECHNUNG, and for EN 16931 outside a Factur-X PDF)."},
 	{ID: RuleOrder, Severity: rules.Error, Description: "Child elements shall appear in the order defined by the schema."},
 	{ID: RuleMissing, Severity: rules.Error, Description: "Elements required by the schema (minOccurs > 0) shall be present."},
@@ -209,6 +216,10 @@ type tables struct {
 	profiles   bool                               // types carry the profiles using them (Factur-X)
 	// alternatives of the choices nested in sequences (FatturaPA).
 	alts []alternative
+	// extensions are the global elements of the extension schemas, which a
+	// wildcard admits with their content checked (UBL: the Croatian
+	// extension).
+	extensions []particle
 }
 
 func newTables(ns []string, ts []ctype, ps []particle, as []attribute, fs []facets, profiles bool) *tables {
@@ -242,7 +253,9 @@ var (
 		return newTables(d16bNamespaces[:], d16bTypes[:], d16bParticles[:], d16bAttributes[:], d16bFacetTable[:], false)
 	})
 	ublTables = sync.OnceValue(func() *tables {
-		return newTables(ublNamespaces[:], ublTypes[:], ublParticles[:], ublAttributes[:], ublFacetTable[:], false)
+		t := newTables(ublNamespaces[:], ublTypes[:], ublParticles[:], ublAttributes[:], ublFacetTable[:], false)
+		t.extensions = ublExtensions[:]
+		return t
 	})
 	fpaTables = sync.OnceValue(func() *tables {
 		t := newTables(fpaNamespaces[:], fpaTypes[:], fpaParticles[:], fpaAttributes[:], fpaFacetTable[:], false)
@@ -267,7 +280,7 @@ func profileIndex(p invoice.Profile) int {
 		return pBasicWL
 	case invoice.ProfileBasic:
 		return pBasic
-	case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO:
+	case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileCIUSHR:
 		return pEN16931
 	}
 	return pExtended
@@ -463,7 +476,8 @@ func (v *validator) element(n *xmltree.Node, t *ctype) {
 
 // wildcard validates the children of n against the wildcard of t
 // (xs:any namespace="##other"): elements in a namespace, other than the one
-// t excludes, whose content is not checked.
+// t excludes, whose content is checked only when the tables hold the
+// schema of their namespace (see extension).
 func (v *validator) wildcard(n *xmltree.Node, t *ctype) {
 	other := v.t.namespaces[t.other]
 	matched := 0
@@ -480,9 +494,33 @@ func (v *validator) wildcard(n *xmltree.Node, t *ctype) {
 				v.fail(RuleCount, ch, "%s: %s holds at most %d elements", display(ch), display(n), t.max)
 			}
 		}
+		v.extension(n, ch)
 	}
 	if matched < int(t.min) && matched == len(n.Children) {
 		v.fail(RuleMissing, n, "an element in a namespace other than %q is missing in %s", other, display(n))
+	}
+}
+
+// extension validates ch, an element that the wildcard of n admits,
+// against the declaration of the extension schema of its namespace, when
+// the tables hold one (lax validation). An element of that namespace that
+// the schema does not declare is not allowed. The content of an element of
+// another namespace is not checked.
+func (v *validator) extension(n, ch *xmltree.Node) {
+	var names []string
+	for i := range v.t.extensions {
+		p := &v.t.extensions[i]
+		if v.t.namespaces[p.ns] != ch.Space {
+			continue
+		}
+		if p.name == ch.Name {
+			v.element(ch, &v.t.types[p.typ])
+			return
+		}
+		names = append(names, v.t.display(p))
+	}
+	if names != nil {
+		v.fail(RuleUnexpected, ch, "%s is not allowed in %s; expected here: %s", display(ch), display(n), strings.Join(names, ", "))
 	}
 }
 
@@ -773,6 +811,8 @@ func nsPrefix(ns string) string {
 		return "cbc"
 	case nsExt:
 		return "ext"
+	case nsHR:
+		return "hrextac"
 	case nsFatturaPA:
 		return "p"
 	}
@@ -786,6 +826,7 @@ const (
 	nsCac = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
 	nsCbc = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
 	nsExt = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+	nsHR  = "urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1" // Croatian extension (CIUS-HR)
 )
 
 // nsFatturaPA is the namespace of the root element of FatturaPA; the other

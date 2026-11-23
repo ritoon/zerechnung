@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"archive/zip"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -41,6 +43,17 @@ const (
 	ublForeign  = `<x:Signature xmlns:x="urn:example:x"><x:Any attr="1">anything <x:Deep/></x:Any></x:Signature>`
 	ublFirst    = `<cbc:CustomizationID>`
 	ublSubLEA   = `<cbc:LineExtensionAmount currencyID="EUR">1</cbc:LineExtensionAmount>`
+	// ublHR is the Croatian extension HRFISK20Data (CIUS-HR), with every
+	// element of its schema.
+	ublHR = `<hrextac:HRFISK20Data xmlns:hrextac="urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1">` +
+		`<hrextac:HRObracunPDVPoNaplati>Obračun PDV-a po naplaćenoj naknadi</hrextac:HRObracunPDVPoNaplati>` +
+		`<hrextac:HRTaxTotal><cbc:TaxAmount currencyID="EUR">25.00</cbc:TaxAmount>` +
+		`<hrextac:HRTaxSubtotal><cbc:TaxableAmount currencyID="EUR">100.00</cbc:TaxableAmount><cbc:TaxAmount currencyID="EUR">25.00</cbc:TaxAmount>` +
+		`<hrextac:HRTaxCategory><cbc:ID>S</cbc:ID><cbc:Name>HR:PDV25</cbc:Name><cbc:Percent>25</cbc:Percent>` +
+		`<cbc:TaxExemptionReasonCode>VATEX-EU-O</cbc:TaxExemptionReasonCode><cbc:TaxExemptionReason>a</cbc:TaxExemptionReason><cbc:TaxExemptionReason>b</cbc:TaxExemptionReason>` +
+		`<hrextac:HRTaxScheme><cbc:ID>VAT</cbc:ID></hrextac:HRTaxScheme></hrextac:HRTaxCategory></hrextac:HRTaxSubtotal></hrextac:HRTaxTotal>` +
+		`<hrextac:HRLegalMonetaryTotal><cbc:TaxExclusiveAmount currencyID="EUR">100.00</cbc:TaxExclusiveAmount>` +
+		`<hrextac:OutOfScopeOfVATAmount currencyID="EUR">0.00</hrextac:OutOfScopeOfVATAmount></hrextac:HRLegalMonetaryTotal></hrextac:HRFISK20Data>`
 )
 
 // subLine returns a cac:SubInvoiceLine holding amount (its
@@ -287,6 +300,66 @@ var ublMutations = []mutation{
 		rules: []string{RuleOrder},
 		msg:   `^ext:UBLExtensions is not allowed at this position in Invoice: it must come before cbc:CustomizationID`,
 	},
+	// The Croatian extension: validated against its schema (lax
+	// validation of ext:ExtensionContent).
+	{
+		name: "ubl Croatian extension", base: "ubl",
+		old: ublFirst,
+		new: ublExtStart + ublHR + ublExtEnd + ublFirst,
+	},
+	{
+		name: "ubl Croatian extension without tax scheme", base: "ubl",
+		old:   ublFirst,
+		new:   ublExtStart + ublHR + ublExtEnd + ublFirst,
+		more:  []string{`<hrextac:HRTaxScheme><cbc:ID>VAT</cbc:ID></hrextac:HRTaxScheme>`, ""},
+		rules: []string{RuleMissing},
+		msg:   `^hrextac:HRTaxScheme is missing in hrextac:HRTaxCategory$`,
+	},
+	{
+		name: "ubl Croatian extension unknown element", base: "ubl",
+		old:   ublFirst,
+		new:   ublExtStart + ublHR + ublExtEnd + ublFirst,
+		more:  []string{`</hrextac:HRLegalMonetaryTotal>`, `</hrextac:HRLegalMonetaryTotal><hrextac:HRNapomena>x</hrextac:HRNapomena>`},
+		rules: []string{RuleUnexpected},
+		msg:   `^hrextac:HRNapomena is not allowed in hrextac:HRFISK20Data`,
+	},
+	{
+		name: "ubl Croatian extension amount", base: "ubl",
+		old:   ublFirst,
+		new:   ublExtStart + ublHR + ublExtEnd + ublFirst,
+		more:  []string{`currencyID="EUR">0.00</hrextac:OutOfScopeOfVATAmount>`, `currencyID="EUR">nula</hrextac:OutOfScopeOfVATAmount>`},
+		rules: []string{RuleType},
+		msg:   `^hrextac:OutOfScopeOfVATAmount: value "nula" is not a valid xs:decimal$`,
+	},
+	{
+		name: "ubl Croatian extension currency", base: "ubl",
+		old:   ublFirst,
+		new:   ublExtStart + ublHR + ublExtEnd + ublFirst,
+		more:  []string{`<cbc:TaxExclusiveAmount currencyID="EUR">`, `<cbc:TaxExclusiveAmount>`},
+		rules: []string{RuleAttributeMissing},
+	},
+	{
+		name: "ubl Croatian extension order", base: "ubl",
+		old:   ublFirst,
+		new:   ublExtStart + ublHR + ublExtEnd + ublFirst,
+		more:  []string{`<cbc:Name>HR:PDV25</cbc:Name><cbc:Percent>25</cbc:Percent>`, `<cbc:Percent>25</cbc:Percent><cbc:Name>HR:PDV25</cbc:Name>`},
+		rules: []string{RuleOrder},
+	},
+	{
+		name: "ubl Croatian extension namespace", base: "ubl",
+		old:   ublFirst,
+		new:   ublExtStart + ublHR + ublExtEnd + ublFirst,
+		more:  []string{`<hrextac:HRTaxTotal><cbc:TaxAmount currencyID="EUR">25.00</cbc:TaxAmount>`, `<hrextac:HRTaxTotal><hrextac:TaxAmount currencyID="EUR">25.00</hrextac:TaxAmount>`},
+		rules: []string{RuleNamespace},
+		msg:   `^hrextac:TaxAmount is in namespace "urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1", expected ".*CommonBasicComponents-2" \(cbc:TaxAmount\)$`,
+	},
+	{
+		name: "ubl Croatian extension unknown root", base: "ubl",
+		old:   ublFirst,
+		new:   ublExtStart + `<hrextac:HRFISK21Data xmlns:hrextac="urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1"/>` + ublExtEnd + ublFirst,
+		rules: []string{RuleUnexpected},
+		msg:   `^hrextac:HRFISK21Data is not allowed in ext:ExtensionContent; expected here: hrextac:HRFISK20Data$`,
+	},
 	// Credit note.
 	{
 		name: "ubl invoice line in a credit note", base: "ubl-cn",
@@ -415,6 +488,56 @@ func TestUBLTables(t *testing.T) {
 	line := &ublTypes[find(inv, "InvoiceLine").typ]
 	if find(line, "SubInvoiceLine").typ != find(inv, "InvoiceLine").typ {
 		t.Error("cac:SubInvoiceLine does not have the type of cac:InvoiceLine")
+	}
+}
+
+// TestUBLCroatia checks the CIUS-HR invoices of internal/rules/hr, which
+// carry the Croatian extension, and the examples of the Croatian tax
+// administration when FX_HR names them (the archive "Primjeri eRacuna.zip"
+// of conformance/fetch.sh).
+func TestUBLCroatia(t *testing.T) {
+	files, _ := filepath.Glob(filepath.Join("..", "rules", "hr", "testdata", "*.xml"))
+	if len(files) < 3 {
+		t.Fatalf("CIUS-HR invoices: %q", files)
+	}
+	ext := 0
+	for _, f := range files {
+		data := readFile(t, f)
+		if strings.Contains(string(data), "<hrextac:HRFISK20Data>") {
+			ext++
+		}
+		if r := checkUBLData(t, data); len(r.Findings) > 0 {
+			t.Errorf("%s:\n%s", f, r)
+		}
+	}
+	if ext < 2 {
+		t.Errorf("%d CIUS-HR invoices with the Croatian extension, want 2", ext)
+	}
+	name := os.Getenv("FX_HR")
+	if name == "" {
+		return
+	}
+	zr, err := zip.OpenReader(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zr.Close()
+	n := 0
+	for _, f := range zr.File {
+		if !strings.HasSuffix(f.Name, ".xml") {
+			continue
+		}
+		data, err := fs.ReadFile(zr, f.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n++
+		if r := checkUBLData(t, data); len(r.Findings) > 0 {
+			t.Errorf("%s:\n%s", f.Name, r)
+		}
+	}
+	if n != 20 {
+		t.Errorf("%d examples, want 20", n)
 	}
 }
 
