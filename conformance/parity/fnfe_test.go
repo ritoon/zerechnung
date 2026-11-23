@@ -67,7 +67,7 @@ func TestStageFNFE(t *testing.T) {
 	write(variants, "ubl/ubl-001-x.xml", ubl)
 	write(variants, "ubl/expected.tsv", "ubl-001-x.xml\tBR-FREXT-01\n")
 	fr := fnfeInputs{rfe: rfe, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hrInputs{}, fr, ""); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hrInputs{}, fr, cdvInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -102,7 +102,7 @@ func TestStageFNFE(t *testing.T) {
 	}
 
 	write(variants, "ubl/bad.xml", "<Order/>")
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hrInputs{}, fr, ""); err == nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hrInputs{}, fr, cdvInputs{}, ""); err == nil {
 		t.Error("a variant that is not an invoice: no error")
 	}
 }

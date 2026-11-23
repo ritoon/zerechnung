@@ -103,7 +103,7 @@ var ciiTestFiles = []struct{ name, data string }{
 func ciiTestSet(t *testing.T, edits ...string) (ciiSet, string) {
 	t.Helper()
 	dir := t.TempDir()
-	set := ciiSet{prefix: "test", origin: "test schemas", dir: "https://example.com/cii/"}
+	set := ciiSet{prefix: "test", ns: nsRSM, root: ciiRoot, title: "UN/CEFACT CII TEST", origin: "test schemas", dir: "https://example.com/cii/"}
 	for _, f := range ciiTestFiles {
 		data := f.data
 		for i := 0; i+2 < len(edits); i += 3 {
@@ -262,5 +262,41 @@ func TestUpToDateCII(t *testing.T) {
 				t.Errorf("%s is out of date: run go generate -run -cii in internal/schema", tc.file)
 			}
 		})
+	}
+}
+
+// TestUpToDateCDAR checks that cdar_tables_gen.go matches the CDAR schema
+// of the checkout of github.com/fnfempe/France_RFE named by FX_FNFE.
+func TestUpToDateCDAR(t *testing.T) {
+	src := os.Getenv("FX_FNFE")
+	if src == "" {
+		t.Skip("FX_FNFE not set")
+	}
+	got, err := generateCDAR(filepath.Join(src, "FNFE_RFE_INVOICE", "CDAR", "1xsd-CDAR_D22B_uncoupled"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur, err := os.ReadFile(filepath.Join("..", "cdar_tables_gen.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, cur) {
+		t.Error("cdar_tables_gen.go is out of date: run go generate -run -cdar in internal/schema")
+	}
+}
+
+// TestGenerateCDARErrors checks that the CDAR schema files are checked.
+func TestGenerateCDARErrors(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := generateCDAR(dir); err == nil || !strings.Contains(err.Error(), "CrossDomainAcknowledgementAndResponse_100pD22B.xsd") {
+		t.Errorf("missing file: error = %v", err)
+	}
+	for _, f := range cdarSet.files {
+		if err := os.WriteFile(filepath.Join(dir, f.name), []byte("<x/>"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := generateCDAR(dir); err == nil || !strings.Contains(err.Error(), "SHA-256") {
+		t.Errorf("altered file: error = %v", err)
 	}
 }

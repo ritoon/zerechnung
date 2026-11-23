@@ -15,7 +15,7 @@
 
 ZeRechnung is a Go package for e-invoices in the Factur-X, ZUGFeRD and XRechnung formats.
 
-Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL), signs hybrid PDFs in PAdES and verifies their signatures. It reads, writes, validates, signs and verifies FatturaPA, the national format of the Italian SDI, and Facturae, the Spanish format of FACe and of the B2B reform.
+Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL), signs hybrid PDFs in PAdES and verifies their signatures. It reads, writes, validates, signs and verifies FatturaPA, the national format of the Italian SDI, and Facturae, the Spanish format of FACe and of the B2B reform. For the French reform, it also reads, writes and validates the statuses of the life cycle of an invoice (CDAR).
 
 - Pure Go, standard library only. No CGO, no Java, no external binary, no network calls.
 - All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS, CIUS-IT and CIUS-RO (Romania, RO e-Factura), in CII and UBL 2.1, CIUS-PT and CIUS-HR (Croatia, Fiskalizacija 2.0) in UBL 2.1, and the Slovak eFaktúra (Peppol BIS with the requirements of the Finančná správa).
@@ -183,6 +183,7 @@ To pick the rules yourself:
 | The Slovak eFaktúra, beyond Peppol BIS (SK-*) | `validate.Slovakia`, or `Auto` for a seller in Slovakia |
 | CIUS-HR, the Croatian CIUS of EN 16931 and its extension (HR-BR) | `validate.Croatia` |
 | An XML file instead of a PDF | `validate.XML(xml, opts)` |
+| A French status of the life cycle (CDAR, BR-FR-CDV) | `validate.XML(xml, nil)`: the rules apply whatever the options |
 
 XRechnung, Peppol, NLCIUS, CIUS-IT, CIUS-PT, CIUS-RO and CIUS-HR invoices declare themselves, so their rules apply without any option. A Slovak invoice declares Peppol BIS like any other: the Peppol rules apply to it, and `Auto` adds the Slovak requirements for a seller in Slovakia. All the options and rule sets are described in [Validating invoices](https://github.com/ritoon/zerechnung/wiki/Validating-invoices).
 
@@ -300,6 +301,24 @@ A font is found by the SHA-256 of its stream, so the findings are those of `Chec
 inv.TaxPointDateCode = invoice.TaxPointDebits
 ```
 
+### Report the status of an invoice (France)
+
+In the French reform, the platforms exchange the statuses of the life cycle of each invoice (Déposée, Rejetée, Refusée, Encaissée…) as CDAR messages, and send them to the PPF. The `cdar` package reads, writes and builds them; `validate.XML` checks them against the CDAR D22B schema and the BR-FR-CDV rules:
+
+```go
+// The status 200 Déposée of an invoice the platform accepted, for the seller and the PPF.
+status, err := cdar.Deposited(inv, &cdar.BuildOptions{Platform: cdar.Party{IDs: []invoice.Identifier{{ID: "0003", Scheme: cdar.SchemePlatform}}, Name: "PA-E Vendeur"}})
+
+// Or the status 213 Rejetée, one reason REJ_SEMAN per error of the validation report.
+status, err = cdar.Rejected(inv, report, nil)
+
+xml, err := cdar.Marshal(status, &cdar.MarshalOptions{Indent: true})
+fmt.Println(validate.XML(xml, nil).Valid()) // true
+
+// On reception: the referenced invoice, its status and the reasons.
+msg, err := cdar.Parse(xml)
+```
+
 ### Sign a hybrid PDF in PAdES
 
 `Sign` adds a PAdES signature (ETSI EN 319 142-1) to a PDF, as an incremental update that keeps PDF/A conformance. Sign once the invoice is embedded, so that the signature covers it, or set `EmbedOptions.Sign` to do both in one call. The key only signs a digest, and nothing is fetched: the time-stamp tokens come from the `Timestamper` you give, which sends the RFC 3161 request to your time-stamping authority.
@@ -387,11 +406,11 @@ warning [PDF] PDF-06: the catalog has no PDF/A output intent (/S /GTS_PDFA1) (ca
 |---|---|
 | `zerechnung info invoice.pdf` | Summarises the PDF and the invoice |
 | `zerechnung extract [-o out.xml] invoice.pdf` | Extracts the XML |
-| `zerechnung validate [-fr] [-de] [-auto] [-face] [-pdfa basic] [-roots roots.pem] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae, whose signature it describes), and exits with code 1 on errors; `-face` requires the signature of a Facturae invoice and checks it, `-pdfa basic` skips the PDF/A checks that read the pages and the fonts, `-roots` checks the signatures of a PDF, and with `-face` that of a Facturae invoice, against trusted roots |
+| `zerechnung validate [-fr] [-de] [-auto] [-face] [-pdfa basic] [-roots roots.pem] [-json] ... file` | Validates a PDF or an XML file (CII, UBL, FatturaPA or Facturae, whose signature it describes, or a French CDAR status), and exits with code 1 on errors; `-face` requires the signature of a Facturae invoice and checks it, `-pdfa basic` skips the PDF/A checks that read the pages and the fonts, `-roots` checks the signatures of a PDF, and with `-face` that of a Facturae invoice, against trusted roots |
 | `zerechnung embed -xml invoice.xml [-attach file]... [-convert-pdfa] input.pdf` | Embeds an XML invoice in a PDF, converting it to PDF/A-3 first with `-convert-pdfa` |
 | `zerechnung pdfa [-o out.pdf] input.pdf` | Converts a PDF to PDF/A-3, or prints why it cannot, one reason per line |
 | `zerechnung sign -key key.pem -cert cert.pem [-certify 1\|2\|3] [-o out.pdf] input.pdf` | Signs a PDF in PAdES Baseline B-B with a PEM key and its certificate chain, or certifies it |
-| `zerechnung json file` | Prints the parsed invoice as JSON (CII, UBL, FatturaPA, signed `.xml.p7m` included, or Facturae; an array for a FatturaPA or Facturae batch) |
+| `zerechnung json file` | Prints the parsed invoice as JSON (CII, UBL, FatturaPA, signed `.xml.p7m` included, or Facturae; an array for a FatturaPA or Facturae batch), or the parsed CDAR status |
 | `zerechnung rules [-fr] [-de] ...` | Lists the rules that are implemented |
 
 Since `validate` exits with code 1 when it finds errors, you can drop it into a CI pipeline as is. Run `zerechnung help` for every flag.
@@ -433,8 +452,9 @@ The [server's README](server/README.md) documents the endpoints, the settings an
 | Facturae 3.2, 3.2.1 and 3.2.2, Spain | yes | yes (3.2.2) | XSD of its version; EN 16931 rules through CII or UBL |
 | Facturae signatures, XAdES-EPES | yes | yes, under the policy of Facturae v3.1 | the policy, the role of the signer and the certificate (FACe rule set) |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
+| CDAR D22B statuses of the life cycle of an invoice, France (CDV) | yes | yes, and builds the statuses 200 Déposée and 213 Rejetée | XSD D22B and the BR-FR-CDV rules |
 
-Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the EXTENDED-CTC-FR rules of the FNFE-MPE (France_RFE 1.4.0.04, CII and UBL), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Portuguese CIUS-PT rules (schematron 2.1.1 of eSPap), the Romanian CIUS-RO rules (schematron 1.0.9 of ANAF, also transposed to CII), the Slovak requirements of the eFaktúra (transposition 1.13 of the Finančná správa), the Croatian CIUS-HR rules and those of its extension (schematron of the Porezna uprava of 13 March 2026), the Chorus Pro checks, the FACe checks of the Facturae signature, 72 checks of the PDF container and 14 checks of its signatures. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
+Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the EXTENDED-CTC-FR rules of the FNFE-MPE (France_RFE 1.4.0.04, CII and UBL), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Portuguese CIUS-PT rules (schematron 2.1.1 of eSPap), the Romanian CIUS-RO rules (schematron 1.0.9 of ANAF, also transposed to CII), the Slovak requirements of the eFaktúra (transposition 1.13 of the Finančná správa), the Croatian CIUS-HR rules and those of its extension (schematron of the Porezna uprava of 13 March 2026), the BR-FR-CDV rules of the French statuses of the life cycle (France_RFE 1.4.0.04), the Chorus Pro checks, the FACe checks of the Facturae signature, 72 checks of the PDF container and 14 checks of its signatures. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
 
 ## How accurate is it?
 
@@ -444,6 +464,7 @@ Every pull request runs the reference validators on the official test corpora an
 - Mustang: the same errors on 239 of 282 invoices. Each of the 43 differences comes from the references themselves and is explained in [known.txt](conformance/parity/known.txt).
 - Dutch NPa validators (NLCIUS): the same rules on 283 of 290 files, with the 7 differences justified.
 - FNFE-MPE XSLT (EXTENDED-CTC-FR, CII and UBL), run by Saxon: the same rules, at the same levels, on 226 of 227 files (the 10 official examples, the 4 test invoices and 213 variants), with the 1 difference justified.
+- FNFE-MPE XSLT of the statuses of the life cycle (BR-FR-CDV), run by Saxon: the same rules, at the same levels, on all 2,149 CDAR statuses (the 59 official examples and 2,090 variants).
 - eSPap schematron (CIUS-PT), compiled by SchXslt and run by Saxon: the same rules, at the same levels and on the same elements, on the 15 official examples, the 3 test invoices and the 5,462 of their 5,765 variants that Saxon completes. On the other 303, Saxon stops on an XPath type error in the test of an assertion, which the package holds failed: it raises that assertion every time.
 - ANAF schematron (CIUS-RO, the pattern of its Romanian rules), compiled by SchXslt and run by Saxon: the same rules, at the same levels and on the same elements, on the 13 official UBL examples, the 2 UBL test invoices and the 2,703 of their 2,892 variants that Saxon completes. On the other 189, Saxon stops on an XPath type error: in the test of a Romanian rule, which the package holds failed and raises every time, or in that of BR-27, a rule of EN 16931 left out of the comparison.
 - Porezna uprava schematron (CIUS-HR and its extension), compiled by SchXslt and run by Saxon: the same rules, at the same levels and on the same elements, on the 20 official examples, the 3 test invoices and the 5,128 of their 5,662 variants that Saxon completes. On the other 534, Saxon stops on an XPath type error in the test of an assertion, which the package holds failed: it raises that assertion every time.
@@ -500,6 +521,7 @@ The benchmarks have their own repository, [ritoon/invoice-bench](https://github.
 - CIUS-RO invoices are checked against the 121 Romanian rules of the schematron 1.0.9 of ANAF, on top of EN 16931, as RO e-Factura does. The schematron binds them to UBL only: the package transposes them to CII, which the Romanian order admits, under the same identifiers. The schematron is applied as published, with its slips: seven assertions can never fail (listed in [rule-coverage.txt](testdata/rule-coverage.txt)), and the rules on the tax representative, the delivery address and the document level allowances and charges do not apply to a credit note, as their context names a root that does not exist. The check digit of a Romanian tax identifier (CUI/CIF) in BT-31, BT-32, BT-48 and BT-63 is only a warning (`RO-CIF-01`, `RO-CIF-02`), as the official examples carry invented ones. The SPV of ANAF (upload, signature of the ministry, conversion to PDF), RO e-Transport and SAF-T (D406) are out of scope.
 - Slovak eFaktúra invoices are Peppol BIS Billing 3.0 invoices, and Slovakia publishes no schematron: the Slovakia rule set (`SK-01` to `SK-15`) checks what the transposition of Peppol BIS to the Slovak legislation (version 1.13 of the Finančná správa) and its FAQ require beyond Peppol BIS, with identifiers of its own. A requirement that holds "if assigned" (IČ DPH, IČO, register entry) is an error only when the invoice tells that it holds (a VAT category that only a VAT payer invoices, reverse charge, the legal form of a company in the seller's name), a warning otherwise. Only the format of the DIČ, IČ DPH and IČO is checked: no official check digit is published. The tax data document (TDD SK) that the access points report, its rules, Peppol transmission and Peppol Self-Billing are out of scope.
 - CIUS-HR invoices are checked against the 62 rules of the schematron of the Croatian tax administration (Porezna uprava, version of 13 March 2026, for the specification 1.8 of the CIUS-HR and its extension EXT-HR), on top of EN 16931: the issue time and the operator required by the law on fiscalisation, the business process (P1 to P12, or P99: and a label), the code of the Croatian classification of products KPD, the Croatian VAT categories of table HR-TB-2 and the Croatian VAT breakdown of the extension HRFISK20Data, the OIB of the operator and of the parties in Croatia. The Schema rule set checks the extension against its schema, from the package "UBL2.1 eRačun" of the tax administration. The elements that the CIUS-HR adds to the syntax binding raise the warnings UBL-CR of EN 16931. The CIUS-HR has no CII binding, so a CII invoice that declares it gets `HR-SYNTAX-01`. The OIB of an electronic address of scheme 9934 is only a warning (`HR-OIB-01`), as the official examples carry invented ones. `ubl.Parse` and `ubl.Marshal` read and write the Croatian data in the national blocks of the model (`invoice.Croatia`); strict mode reports them when the invoice is written under another specification identifier, or in CII. The fiscalisation and the reports to the tax administration (eIzvještavanje), the access points (AMS, MPS), the signature, MIKROeRAČUN and the invoices to consumers are out of scope.
+- The statuses of the life cycle of French invoices are read, written and validated in CDAR D22B, the syntax of France_RFE 1.4.0.04, against the 43 assertions of its schematron BR-FR-CDV, applied as published: six of them can never fail (listed in [rule-coverage.txt](testdata/rule-coverage.txt)). `cdar.Deposited` and `cdar.Rejected` build the statuses 200 Déposée and 213 Rejetée that the platform of the seller emits, for the seller and the PPF or for the PPF alone; the other statuses are written by filling the model. The exchange of the statuses between the platforms and with the PPF, the platform mode and the e-reporting are out of scope.
 - PAdES signatures are qualified only if your certificate and signing device are: the package reads what the certificate declares (QCStatements), and checks trust against the roots you pass, as no EU trusted list is embedded. Nothing is fetched: time-stamp tokens come from your `Timestamper`, revocation data from you. Signature fields are invisible, without an appearance. `VerifySignatures` classifies the changes after a signature by the objects they touch, without rendering the pages. Encrypted PDFs are refused, and veraPDF checks the signed PDF/A-3 files only, not PDF/A-4.
 - Only EN 16931-1:2017 is supported. An invoice whose specification identifier (BT-24) names EN 16931-1:2026, such as `urn:cen.eu:en16931:2026`, gets the error `EN16931-EDITION-01` and no other rule, since the 2026 validation artefacts are not published yet. Force a profile (`Options.Profile`, `-profile`) to apply the 2017 rules anyway. `Create` and `embed` do not write this edition.
 - The rules are rewritten in Go from the official artefacts, so a new version of an artefact needs a code update.
@@ -516,7 +538,8 @@ The full list is on [Coverage and accuracy](https://github.com/ritoon/zerechnung
 | `ubl` | Read and write UBL 2.1 XML (Invoice, CreditNote) |
 | `fatturapa` | Read, write, sign and verify FatturaPA 1.2 files (Italy) |
 | `facturae` | Read Facturae 3.2, 3.2.1 and 3.2.2 XML, write Facturae 3.2.2, sign and verify it in XAdES-EPES (Spain) |
-| `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-DE, Peppol, BR-NL, BR-IT, CIUS-PT, BR-RO, SK, Chorus Pro, FACe |
+| `cdar` | Read, write and build the statuses of the life cycle of French invoices (CDAR D22B) |
+| `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-FR-CDV, BR-DE, Peppol, BR-NL, BR-IT, CIUS-PT, BR-RO, SK, HR-BR, Chorus Pro, FACe |
 | `cmd/zerechnung` | The command-line tool |
 | `server` | The HTTP server and its Docker image (a module of its own) |
 

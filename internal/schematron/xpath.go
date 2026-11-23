@@ -295,13 +295,23 @@ func (p *parser) and() expr {
 	return e
 }
 
+// valueOps maps the value comparison operators to the general ones whose
+// comparison of two single values they make.
+var valueOps = map[string]string{"eq": "=", "ne": "!=", "lt": "<", "le": "<=", "gt": ">", "ge": ">="}
+
 func (p *parser) comparison() expr {
 	e := p.additive()
-	if t := p.peek(); t.kind == tSym {
+	switch t := p.peek(); t.kind {
+	case tSym:
 		switch t.val {
 		case "=", "!=", "<", "<=", ">", ">=":
 			p.pos++
 			return &cmpExpr{op: t.val, a: e, b: p.additive()}
+		}
+	case tName:
+		if op, ok := valueOps[t.val]; ok {
+			p.pos++
+			return &cmpExpr{op: op, value: true, a: e, b: p.additive()}
 		}
 	}
 	return e
@@ -545,7 +555,7 @@ func (p *parser) primary() expr {
 			p.fail("%s: %d arguments", c.name, len(c.args))
 		}
 		c.fn = f.fn
-		if c.name == "matches" {
+		if c.name == "matches" || c.name == "tokenize" {
 			pat, ok1 := c.args[1].(*literal)
 			flags, ok2 := &literal{item{k: kString}}, true
 			if len(c.args) == 3 {
@@ -553,6 +563,9 @@ func (p *parser) primary() expr {
 			}
 			if ok1 && ok2 {
 				m, err := compileRegex(pat.v.s, flags.v.s)
+				if err == nil && c.name == "tokenize" {
+					err = splitter(m, pat.v.s)
+				}
 				if err != nil {
 					p.fail("%s", err)
 				}

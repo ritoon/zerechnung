@@ -123,7 +123,7 @@ func openAPI(version string) ([]byte, error) {
 			}},
 			"/v1/validate": obj{"post": obj{
 				"operationId": "validate",
-				"summary":     "Validate a hybrid PDF or an XML invoice (CII, UBL, FatturaPA, Facturae)",
+				"summary":     "Validate a hybrid PDF, an XML invoice (CII, UBL, FatturaPA, Facturae) or a French CDAR status",
 				"parameters":  validationParams,
 				"requestBody": document,
 				"responses":   merge(obj{"200": obj{"description": "The report, whether the invoice is valid or not", "content": obj{"application/json": obj{"schema": ref("Report")}}}}, errs("422")),

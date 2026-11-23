@@ -256,6 +256,52 @@ func TestXPathHR(t *testing.T) {
 	}
 }
 
+// TestXPathCDV checks the parts of XPath 2.0 that the schematron BR-FR-CDV
+// uses beyond the others, as Saxon-HE 12 evaluates them: tokenize() and the
+// value comparisons.
+func TestXPathCDV(t *testing.T) {
+	root := parse(t, `<r><n>7</n><c>380</c><a>x</a><a>y</a></r>`)
+	d := newDoc(root)
+	eval := func(src string) (seq, error) {
+		e, err := compile(src, testNS)
+		if err != nil {
+			return nil, err
+		}
+		return e.eval(&ctx{d: d, it: item{k: kNode, n: root}, pos: 1, size: 1})
+	}
+	for _, src := range []string{
+		// tokenize() splits at each match; a leading match gives an empty
+		// first token, an empty input none.
+		"count(tokenize('380 389  393', '\\s+')) = 3", "c = tokenize('380 389', '\\s+')",
+		"not('38' = tokenize('380 389', '\\s+'))", "tokenize(' a b', '\\s+')[1] = ''",
+		"empty(tokenize('', '\\s+'))", "count(tokenize('a,B', 'b', 'i')) = 2",
+		"tokenize(concat('a', ' b'), string(' '))[2] = 'b'",
+		// A value comparison compares single values, an untyped value as a
+		// string; an empty operand gives an empty sequence.
+		"count(a) ge 2", "count(a) lt 3", "not(count(a) gt 2)", "1 le 1", "'a' ne 'b'", "n eq '7'",
+		"empty(missing eq 1)", "not(missing eq 1)", "c ge '38'",
+	} {
+		v, err := eval(src)
+		ok, err2 := ebv(v)
+		if err != nil || err2 != nil || !ok {
+			t.Errorf("%s: %v, %v %v", src, v, err, err2)
+		}
+	}
+	// A pattern that matches the empty string, a sequence of several items
+	// in a value comparison, or an untyped value compared with a number
+	// raise an error.
+	for _, src := range []string{
+		"tokenize('abc', 'x*')", "tokenize('abc', concat('x', '*'))", "a eq 'x'", "n eq 7", "tokenize(a, ' ')",
+	} {
+		v, err := eval(src)
+		if err == nil {
+			if _, err = ebv(v); err == nil {
+				t.Errorf("%s: no error", src)
+			}
+		}
+	}
+}
+
 // ctrlOIB is the function u:ctrlOIB of the schematron of the Croatian CIUS
 // (HR-CIUS-EXT-EN16931-UBL.sch of 13/03/2026): the check digit of an OIB
 // (ISO 7064, MOD 11,10), with or without the prefix HR.

@@ -71,6 +71,7 @@ const (
 	SourceEN16931   = "EN 16931"   // CEN business rules, code lists and CII syntax rules
 	SourceFacturX   = "Factur-X"   // profile rules of Factur-X / ZUGFeRD
 	SourceFR        = "BR-FR"      // French rules (FNFE-MPE schematrons)
+	SourceCDV       = "BR-FR-CDV"  // French rules on the statuses of the life cycle of an invoice (CDAR, FNFE-MPE schematron BR-FR-CDV)
 	SourceDE        = "BR-DE"      // German rules (XRechnung)
 	SourcePDF       = "PDF"        // PDF container (PDF/A-3, attachment, XMP)
 	SourceChorusPro = "Chorus Pro" // French B2G checks for Chorus Pro
@@ -206,6 +207,18 @@ const (
 	NSUdt = "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"
 	NSQdt = "urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
 )
+
+// NSCDAR is the namespace of the root element of a UN/CEFACT Cross Domain
+// Acknowledgement and Response (CDAR) message, the syntax of the statuses of
+// the life cycle of the French invoices; its aggregates and data types are
+// in the namespaces NSRam, NSUdt and NSQdt of CII.
+const NSCDAR = "urn:un:unece:uncefact:data:standard:CrossDomainAcknowledgementAndResponse:100"
+
+// IsCDAR reports whether root is the root element of a CDAR message:
+// rsm:CrossDomainAcknowledgementAndResponse in namespace NSCDAR.
+func IsCDAR(root *xmltree.Node) bool {
+	return root != nil && root.Name == "CrossDomainAcknowledgementAndResponse" && root.Space == NSCDAR
+}
 
 // Doc is a parsed CII invoice, with shortcuts to its main parts. Any of the
 // shortcuts may be nil when the element is missing.

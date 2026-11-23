@@ -155,7 +155,7 @@ func TestStageRO(t *testing.T) {
 	archive("exemple_Invoice_CreditNote.zip", map[string]string{"exemple_Invoice_CreditNote/eInvoice_ex.xml": ubl})
 	archive("eFactura_CII_exempleXML.zip", map[string]string{"CII_example0.xml": cii})
 	ro := roInputs{examples: examples, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, ro, hrInputs{}, fnfeInputs{}, ""); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, ro, hrInputs{}, fnfeInputs{}, cdvInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -185,7 +185,7 @@ func TestStageRO(t *testing.T) {
 		}
 	}
 	os.Remove(filepath.Join(examples, "exemple_Invoice_CreditNote.zip"))
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, ro, hrInputs{}, fnfeInputs{}, ""); err == nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, ro, hrInputs{}, fnfeInputs{}, cdvInputs{}, ""); err == nil {
 		t.Error("missing archive: no error")
 	}
 }
