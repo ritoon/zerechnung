@@ -8,6 +8,9 @@ Usage:
   build_widget.py compare OLD [--data FILE]             list what changed since OLD
   build_widget.py table   [--data FILE]                 print the matrix as a Markdown table
 
+The optional "loc" key holds the lines of code per country that count_loc.py
+writes; the widget draws its pie charts from it.
+
 FILE defaults to data/matrix.json next to this script's folder. build writes to
 stdout when --out is omitted; the summary always goes to stderr so that stdout
 stays the bare widget code.
@@ -88,7 +91,56 @@ def validate(data):
             for ref in re.findall(r"(?<!PR )#(\d+)", x.get("note", "")):
                 if x.get("status") in ("n", "p") and int(ref) not in issues:
                     warnings.append(f"{where}: {x.get('label')!r} cites #{ref}, which is not in its issues")
+    loc = data.get("loc")
+    if loc is not None:
+        e, w = validate_loc(loc, seen, asof.get("commit"))
+        errors += e
+        warnings += w
     return errors, warnings
+
+
+def validate_loc(loc, codes, commit):
+    """Check the "loc" key written by count_loc.py."""
+    errors, warnings = [], []
+    if not re.fullmatch(r"[0-9a-f]{7,40}", str(loc.get("commit", ""))):
+        errors.append('"loc.commit" must be a commit hash')
+    elif commit and loc["commit"] != commit:
+        warnings.append(f"loc: lines counted at {loc['commit']}, the matrix is at {commit}; run count_loc.py again")
+    groups = loc.get("groups") or {}
+    for k, g in groups.items():
+        cs = g.get("countries")
+        if not g.get("label"):
+            errors.append(f"loc group {k}: missing label")
+        if cs is not None and (not cs or not set(cs) <= codes):
+            errors.append(f"loc group {k}: countries must be countries of the matrix")
+        if "base" in g and g["base"] is not True:
+            errors.append(f"loc group {k}: base must be true or absent")
+        parts = g.get("parts", {})
+        if not (isinstance(parts, dict) and all(isinstance(a, str) and isinstance(b, str) and b for a, b in parts.items())):
+            errors.append(f"loc group {k}: parts must map folders to names")
+        if "short" in g and not (isinstance(g["short"], str) and g["short"]):
+            errors.append(f"loc group {k}: short must be a non-empty name")
+    for u in loc.get("units", []):
+        t = u.get("target", "")
+        if u.get("type") not in ("norm", "feat"):
+            errors.append(f"loc unit {u.get('dir')!r}: type must be norm or feat")
+        if not (t in codes or (t.startswith("g:") and t[2:] in groups)):
+            errors.append(f"loc unit {u.get('dir')!r}: unknown target {t!r}")
+        if not all(isinstance(u.get(k), int) and u[k] >= 0 for k in ("code", "gen")):
+            errors.append(f"loc unit {u.get('dir')!r}: code and gen must be line counts")
+    return errors, warnings
+
+
+def loc_totals(loc):
+    """Lines per type, and those of the groups never split among countries."""
+    tot = {"norm": 0, "feat": 0, "apart": 0}
+    for u in loc.get("units", []):
+        n = u["code"] + u["gen"]
+        tot[u["type"]] += n
+        g = loc["groups"].get(u["target"][2:]) if u["target"].startswith("g:") else None
+        if g and (g.get("base") or g["countries"] is None):
+            tot["apart"] += n
+    return tot
 
 
 def summary(data):
@@ -108,6 +160,10 @@ def summary(data):
             lines.append(f"  {label} : {len(fs)} pays, " + ", ".join(
                 f"{sum(1 for f in fs if f['status'] == s)} {STATUSES[s]}" for s in STATUSES if any(f["status"] == s for f in fs)))
     lines.append(f"  issues liées : {len(issues)}")
+    if data.get("loc"):
+        t = loc_totals(data["loc"])
+        lines.append(f"  lignes de code au commit {data['loc']['commit']} : {t['norm']} pour les normes "
+                     f"(dont {t['apart']} de socle EN 16931), {t['feat']} pour les fonctionnalités")
     return "\n".join(lines)
 
 
@@ -128,7 +184,16 @@ def canonical(data):
             out.append("   ]}" + ("," if i < len(cs) - 1 else ""))
         else:
             out.append('   "features": []}' + ("," if i < len(cs) - 1 else ""))
-    out += [" ]", "}", ""]
+    loc = data.get("loc")
+    if loc is None:
+        out += [" ]", "}", ""]
+        return "\n".join(out)
+    out += [" ],", f' "loc": {{"commit": {d(loc["commit"])}, "groups": {{']
+    gs = list(loc["groups"].items())
+    out.append(",\n".join(f"   {d(k)}: {d(g)}" for k, g in gs))
+    out.append('  }, "units": [')
+    out.append(",\n".join(f"   {d(u)}" for u in loc["units"]))
+    out += ["  ]}", "}", ""]
     return "\n".join(out)
 
 
@@ -181,6 +246,16 @@ def compare(old, new):
             changes.append("issues " + " ".join([f"+#{i}" for i in sorted(ib - ia)] + [f"-#{i}" for i in sorted(ia - ib)]))
         if changes:
             lines.append(f"{name} : " + " ; ".join(changes))
+    lo, ln = old.get("loc"), new.get("loc")
+    if lo != ln:
+        if not ln:
+            lines.append("Lignes de code : retirées")
+        else:
+            b = loc_totals(ln)
+            a = loc_totals(lo) if lo else None
+            part = lambda k: f"{a[k]} → {b[k]}" if a else str(b[k])
+            lines.append(f"Lignes de code ({lo['commit'] + ' → ' if lo else ''}{ln['commit']}) : normes {part('norm')}, "
+                         f"fonctionnalités {part('feat')}")
     return "\n".join(lines) or "Aucun changement."
 
 
