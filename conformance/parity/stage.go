@@ -56,14 +56,18 @@ func (e entry) pt() bool { return strings.HasPrefix(e.Source, "pt/") }
 // the CIUS-RO schematron receives.
 func (e entry) ro() bool { return strings.HasPrefix(e.Source, "ro/") }
 
+// hr reports whether the invoice is one of the CIUS-HR comparison, which only
+// the CIUS-HR schematron receives.
+func (e entry) hr() bool { return strings.HasPrefix(e.Source, "hr/") }
+
 // fr reports whether the invoice is one of the EXTENDED-CTC-FR comparison,
 // which only the XSLT of the FNFE-MPE receive.
 func (e entry) fr() bool { return strings.HasPrefix(e.Source, "fr/") }
 
 // national reports whether the invoice is one of the NLCIUS, CIUS-PT,
-// CIUS-RO or EXTENDED-CTC-FR comparisons, which KoSIT and Mustang do not
-// receive.
-func (e entry) national() bool { return e.nl() || e.pt() || e.ro() || e.fr() }
+// CIUS-RO, CIUS-HR or EXTENDED-CTC-FR comparisons, which KoSIT and Mustang
+// do not receive.
+func (e entry) national() bool { return e.nl() || e.pt() || e.ro() || e.hr() || e.fr() }
 
 // nlTestDirs are the directories of the SimplerInvoicing test files (FX_NL_TESTS)
 // for the versions of the NPa artefacts: SI-UBL 2.0.3, NLCIUS-CII 1.0.3 and
@@ -102,13 +106,22 @@ type roInputs struct {
 	variants string // documents of the mutation cases of internal/rules/ro (go test -variants)
 }
 
+// hrInputs are the inputs of the CIUS-HR comparison. The invoices are staged
+// under the origins hr/porezna/<file>, hr/zerechnung/<path> and
+// hr/variants/<file>.
+type hrInputs struct {
+	examples string // FX_HR: archive of the examples of the Porezna uprava (Primjeri eRacuna.zip), all UBL
+	repo     string // root of this repository, whose internal/rules/hr/testdata holds the CIUS-HR invoices
+	variants string // documents of the mutation cases of internal/rules/hr (go test -variants)
+}
+
 // stage stages the invoices. variants, when not empty, holds one directory
 // per rule package (de, en16931, ubl) with the documents of its mutation
 // cases (go test -variants), staged under the origin variants/<package>/<file>
 // for the KoSIT validator. The rules that each mutation case expects, read
 // from the expected.tsv of its directory (package internal/variants), are
 // written to DIR/expected.tsv by origin.
-func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, fr fnfeInputs, variants string) error {
+func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, hr hrInputs, fr fnfeInputs, variants string) error {
 	var sources []string                        // origin
 	read := map[string]func() ([]byte, error){} // origin → contents
 	var expected strings.Builder
@@ -265,6 +278,17 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, fr
 			return err
 		}
 	}
+	if hr.examples != "" {
+		if err := addZip(hr.examples, "hr/porezna"); err != nil {
+			return err
+		}
+		if err := add(hr.repo, "hr/zerechnung", "internal/rules/hr/testdata", ".xml"); err != nil {
+			return err
+		}
+		if err := add(hr.variants, "hr/variants", ".", ".xml"); err != nil {
+			return err
+		}
+	}
 	if fr.rfe != "" {
 		for _, d := range fnfeExampleDirs {
 			if err := add(fr.rfe, "fr/fnfe", d, ".xml"); err != nil {
@@ -303,8 +327,8 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, fr
 	if err := os.MkdirAll(in, 0o755); err != nil {
 		return err
 	}
-	var index, kositList, mustangList, npaList, ptList, roList, fnfeList strings.Builder
-	nlFiles, ptFiles, roFiles, frFiles, variantFiles := 0, 0, 0, 0, 0
+	var index, kositList, mustangList, npaList, ptList, roList, hrList, fnfeList strings.Builder
+	nlFiles, ptFiles, roFiles, hrFiles, frFiles, variantFiles := 0, 0, 0, 0, 0, 0
 	for i, src := range sources {
 		ext := strings.ToLower(filepath.Ext(src))
 		e := entry{Name: fmt.Sprintf("%04d%s", i+1, ext), Source: src}
@@ -335,6 +359,9 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, fr
 		case e.ro():
 			fmt.Fprintln(&roList, abs)
 			roFiles++
+		case e.hr():
+			fmt.Fprintln(&hrList, abs)
+			hrFiles++
 		case e.fr():
 			line, err := fnfeListLine(fr.rfe, src, abs, data)
 			if err != nil {
@@ -352,12 +379,12 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, fr
 			fmt.Fprintln(&mustangList, abs)
 		}
 	}
-	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "ro.list": roList.String(), "fnfe.list": fnfeList.String(), "expected.tsv": expected.String()} {
+	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "ro.list": roList.String(), "hr.list": hrList.String(), "fnfe.list": fnfeList.String(), "expected.tsv": expected.String()} {
 		if err := os.WriteFile(filepath.Join(work, name), []byte(s), 0o644); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d for the CIUS-RO schematron, %d for the EXTENDED-CTC-FR XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, roFiles, frFiles, variantFiles)
+	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d for the CIUS-RO schematron, %d for the CIUS-HR schematron, %d for the EXTENDED-CTC-FR XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, roFiles, hrFiles, frFiles, variantFiles)
 	return nil
 }
 

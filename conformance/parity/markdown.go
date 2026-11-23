@@ -112,12 +112,13 @@ func markdown(all []comparison, never []neverFired, unused []string, coverage []
 		}
 		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d |\n", ref.title, n, same, known, unexpected, verdict)
 	}
-	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les variants, les XSLT de la NPa et celles de la FNFE-MPE, les règles levées en avertissement le sont aussi ; avec les schematrons CIUS-PT et CIUS-RO, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
+	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les variants, les XSLT de la NPa et celles de la FNFE-MPE, les règles levées en avertissement le sont aussi ; avec les schematrons CIUS-PT, CIUS-RO et CIUS-HR, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
 	variantSection(&b, all, coverage)
 	npaSection(&b, all, never)
 	fnfeSection(&b, all)
 	ptSection(&b, all)
 	roSection(&b, all)
+	hrSection(&b, all)
 
 	// Negative cases: one line per invoice, one column per reference.
 	type neg struct {
@@ -188,7 +189,7 @@ func markdown(all []comparison, never []neverFired, unused []string, coverage []
 			unexpectedLines = append(unexpectedLines, fmt.Sprintf("| %s | `%s` | %s |", c.Reference, strings.TrimPrefix(c.Invoice, "corpus/"), strings.Join(ds, " ")))
 		}
 	}
-	const legend = "`+` : règle levée par ZeRechnung seul, ou à un niveau plus élevé ; `-` : par la référence seule, ou à un niveau plus élevé ; entre parenthèses, les niveaux chez ZeRechnung puis chez la référence (— : règle non levée), sauf pour une erreur d'un côté et rien de l'autre. Pour les schematrons CIUS-PT et CIUS-RO, `RÈGLE@ÉLÉMENT` : la règle et l'élément où elle est levée.\n\n"
+	const legend = "`+` : règle levée par ZeRechnung seul, ou à un niveau plus élevé ; `-` : par la référence seule, ou à un niveau plus élevé ; entre parenthèses, les niveaux chez ZeRechnung puis chez la référence (— : règle non levée), sauf pour une erreur d'un côté et rien de l'autre. Pour les schematrons CIUS-PT, CIUS-RO et CIUS-HR, `RÈGLE@ÉLÉMENT` : la règle et l'élément où elle est levée.\n\n"
 	if len(knownLines) > 0 {
 		b.WriteString("\n### Écarts justifiés\n\n" + legend + "| Référence | Facture | Écart | Raison |\n|---|---|---|---|\n")
 		b.WriteString(strings.Join(knownLines, "\n") + "\n")
@@ -371,6 +372,14 @@ var roGroups = []schGroup{
 	{"ro/variants/", "Variantes de ces factures (`go test ./internal/rules/ro -run '^TestVariants$' -variants DIR`)"},
 }
 
+// hrGroups are the origins of the files of the CIUS-HR comparison, in the
+// order of the report.
+var hrGroups = []schGroup{
+	{"hr/porezna/", "Exemples de la Porezna uprava (`FX_HR`)"},
+	{"hr/zerechnung/", "Factures du dépôt (`internal/rules/hr/testdata`)"},
+	{"hr/variants/", "Variantes de ces factures (`go test ./internal/rules/hr -run '^TestVariants$' -variants DIR`)"},
+}
+
 // schSection is the part of the report on a schematron compiled by SchXslt.
 type schSection struct {
 	key     string // reference
@@ -402,6 +411,18 @@ func roSection(b *strings.Builder, all []comparison) {
 		intro:   "Saxon applique à chaque fichier UBL la phase ROmodel du schematron CIUS-RO 1.0.9 de l'ANAF, celle des règles roumaines, compilée en XSLT par SchXslt 1.10.1. ZeRechnung valide chaque fichier comme une facture CIUS-RO (`validate.Options.Profile`), quel que soit son BT-24, et garde les constats du jeu `Romania` sauf ses propres contrôles du CIF (RO-CIF). Les règles BR-RO et BR-DEC-RO levées en erreur et en avertissement sont comparées, chacune sur l'élément où elle est levée ; BR-27, règle d'EN 16931 que la phase reprend, est laissée au jeu EN 16931. Le schematron ne lie les règles qu'à UBL : leur transposition en CII n'a pas de référence.",
 		stopped: "Arrêts de Saxon",
 		stops:   "Arrêts sur une erreur de type XPath dans le test d'une assertion : Saxon arrête la transformation, et son rapport ne contient que l'erreur et sa ligne dans la XSLT. Pour une règle du CIUS-RO, ZeRechnung tient l'assertion pour échouée (voir la documentation de `internal/schematron`) : seule cette assertion est comparée, sans son élément, que Saxon ne donne pas. Pour BR-27, hors de la comparaison, rien n'est comparé.",
+	}.write(b, all)
+}
+
+// hrSection writes the part of the report on the CIUS-HR schematron.
+func hrSection(b *strings.Builder, all []comparison) {
+	schSection{
+		key:     "hr",
+		groups:  hrGroups,
+		title:   "CIUS-HR : schematron de la Porezna uprava",
+		intro:   "Saxon applique à chaque fichier le schematron CIUS-HR et EXT-HR 2025 de la Porezna uprava (Fiskalizacija 2.0, version du 13.03.2026), compilé en XSLT par SchXslt 1.10.1. ZeRechnung valide chaque fichier comme une facture CIUS-HR (`validate.Options.Profile`), quel que soit son BT-24, et garde les constats du jeu `Croatia` sauf ses propres contrôles (HR-OIB-01, l'OIB d'une adresse électronique du schéma 9934, et HR-SYNTAX-01, une facture CII). Les règles HR-BR levées en erreur et en avertissement sont comparées, chacune sur l'élément où elle est levée. Le CIUS-HR n'est lié qu'à UBL.",
+		stopped: "Arrêts de Saxon, assertion tenue pour échouée par ZeRechnung",
+		stops:   "Arrêts sur une erreur de type XPath dans le test d'une assertion : Saxon arrête la transformation, et son rapport ne contient que l'erreur et sa ligne dans la XSLT. ZeRechnung tient l'assertion pour échouée (voir la documentation de `internal/schematron`) : seule cette assertion est comparée, sans son élément, que Saxon ne donne pas.",
 	}.write(b, all)
 }
 

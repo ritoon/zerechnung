@@ -183,6 +183,23 @@ exemple_Invoice_CreditNote.zip       3c1ddcfc8be8ca3ee7f70d9996f24ede401b3ae4e11
 eFactura_CII_exempleXML.zip          b74f662264397f9a9afab68553866a51a7bb9163333e50113e67cf1982381727
 EOF
 
+# CIUS-HR and EXT-HR 2025 of the Porezna uprava (Fiskalizacija 2.0, page
+# eRačun of porezna.gov.hr): the schematron archive of 13.03.2026
+# (FX_HR_SCH, HRUBLSchematron_13032026-2.zip) that internal/rules/hr/gen
+# reads, the package of the UBL 2.1 schemas with the Croatian extension
+# HRExtensionAggregateComponents-1 of 15/04/2026 (FX_HR_XSD, "UBL2.1
+# eRačun.zip") that internal/schema/gen reads with FX_UBL_ZIP, both checking
+# the same sums, and the examples of invoices and credit notes (FX_HR,
+# Primjeri eRacuna.zip: 20 UBL files at its root), not copied into the
+# repository as their terms of use are not stated.
+POREZNA=https://porezna.gov.hr/fiskalizacija/api/dokumenti
+fetch_file "$DEST/cius-hr/primjeri-eracuna.zip" "$POREZNA/158" \
+	4ee27e233b8f803e900029c8617d5a2d78f47d262c4e25a9980e424be2b28695
+fetch_file "$DEST/cius-hr/hr-ubl-schematron.zip" "$POREZNA/197" \
+	d6250b00b1cd385c835e3dd4c3abc71a683e9b890f04f41c0ae1e04f3c3e790c
+fetch_file "$DEST/cius-hr/ubl21-eracun.zip" "$POREZNA/198" \
+	549ced211d2b463db0e5821ed9e604580140aa1870ee8636d207206d872c8388
+
 # Reference XML of the valid PDFs of the corpus (FX_CORPUS_XML), extracted by
 # pdfdetach: the attachment named factur-x.xml, xrechnung.xml or
 # zugferd-invoice.xml (any case), else the only XML attachment. Each file has
@@ -228,5 +245,8 @@ vars=(
 	"FX_PT_SCH=$DEST/cius-pt/urn_feap.gov.pt_cius-pt_schematron.zip"
 	"FX_RO=$DEST/cius-ro"
 	"FX_RO_SCH=$DEST/cius-ro/ro16931-ubl-1.0.9.zip"
+	"FX_HR=$DEST/cius-hr/primjeri-eracuna.zip"
+	"FX_HR_SCH=$DEST/cius-hr/hr-ubl-schematron.zip"
+	"FX_HR_XSD=$DEST/cius-hr/ubl21-eracun.zip"
 )
 export_vars "${vars[@]}"
