@@ -288,11 +288,12 @@ func compare(work, kositConfig, knownFile, mdFile, jsonFile string) (bool, error
 				m = ref.ours(e.Name, data)
 				mine[ref.Key] = m
 			}
-			c := comparison{Reference: ref.Key, Invoice: e.Source, Negative: e.negative(), Ours: m, Ref: r, Expected: expected[e.Source]}
 			rules := m.Rules
 			if ref.located && r.Stopped != "" {
 				rules = unlocated(rules) // Saxon does not say on which element it stopped
 			}
+			r.resolve(rules)
+			c := comparison{Reference: ref.Key, Invoice: e.Source, Negative: e.negative(), Ours: m, Ref: r, Expected: expected[e.Source]}
 			// The warnings and informations of the variants are compared too:
 			// many of the rules they break are warnings.
 			diffs := diff(rules, r, ref.levels || e.variant())

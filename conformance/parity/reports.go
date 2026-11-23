@@ -37,9 +37,34 @@ type result struct {
 	Other   []string          `json:"other,omitempty"`   // findings outside the comparison
 	Failure string            `json:"failure,omitempty"` // the validator failed on the invoice
 	Stopped string            `json:"stopped,omitempty"` // the validator stopped on a dynamic error: Rules holds the assertion that raised it only
+
+	// alt holds the rules that may have raised the dynamic error of Stopped
+	// when the report does not tell which one (see resolve).
+	alt []alternative
 }
 
+// alternative is a rule that may have raised a dynamic error, at its level.
+type alternative struct{ rule, level string }
+
 func newResult() result { return result{Covered: true, Rules: map[string]string{}} }
+
+// resolve settles the rule that raised the dynamic error of r among its
+// alternatives: the first one that mine (the rules of this package, without
+// element) raises, else the first one, which then makes a difference.
+func (r *result) resolve(mine map[string]string) {
+	if len(r.alt) == 0 {
+		return
+	}
+	pick := r.alt[0]
+	for _, a := range r.alt {
+		if rank(mine[a.rule]) > 0 {
+			pick = a
+			break
+		}
+	}
+	r.add(pick.rule, pick.level)
+	r.alt = nil
+}
 
 // add records a rule at a level, keeping the highest level.
 func (r *result) add(rule, level string) {
@@ -315,8 +340,9 @@ func kositFailures(file string) (map[string]string, error) {
 // reports.
 const kositFailure = "erreur dynamique (kosit.log) : "
 
-// stagedName is the name of a staged invoice at the end of a path.
-var stagedName = regexp.MustCompile(`(\d{4}\.xml)$`)
+// stagedName is the name of a staged invoice at the end of a path: four
+// digits at least (0042.xml, 15332.xml), as stage numbers the invoices.
+var stagedName = regexp.MustCompile(`(\d{4,}\.xml)$`)
 
 func attr(t xml.StartElement, name string) string {
 	for _, a := range t.Attr {

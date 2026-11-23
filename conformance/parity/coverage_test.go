@@ -138,7 +138,7 @@ func TestParseKoSITStopped(t *testing.T) {
 
 // kositLog is the end of a log of the KoSIT validator, as it prints it for
 // long paths: the second document could not be assessed, the description of
-// the third holds a line break.
+// the third holds a line break, and its name has five digits.
 const kositLog = `Processing of 3 objects completed in 2,580ms
 Results:
 --------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -149,7 +149,7 @@ Results:
 |acts/parity/in/0002.xml                                     |       |          |          |EN16931 (CII). Error is A sequence of more than one item is |
 |                                                            |       |          |          |not allowed                                                 |
 |/home/runner/work/zerechnung/zerechnung/conformance/.arti...|   Y   |    N     |UNDEFINED |Error processing schematron validation Schematron rules for |
-|acts/parity/in/0003.xml                                     |       |          |          |than one item { ("
+|ts/parity/in/15332.xml                                      |       |          |          |than one item { ("
 ", "
 ") } is not allowed as the first ...|
 |/home/runner/work/zerechnung/zerechnung/conformance/.arti...|   N   |    Y     |  REJECT  |cvc-complex-type.2.4.a: Invalid content was found starting w|
@@ -171,8 +171,8 @@ func TestKositFailures(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"0002.xml": "Error processing schematron validation Schematron rules for EN16931 (CII). Error is A sequence of more than one item is not allowed",
-		"0003.xml": `Error processing schematron validation Schematron rules for than one item { ("`,
+		"0002.xml":  "Error processing schematron validation Schematron rules for EN16931 (CII). Error is A sequence of more than one item is not allowed",
+		"15332.xml": `Error processing schematron validation Schematron rules for than one item { ("`,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("failures = %q", got)
