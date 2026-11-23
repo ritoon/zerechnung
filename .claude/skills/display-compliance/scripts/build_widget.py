@@ -2,17 +2,17 @@
 """Validate the compliance matrix and build the widget that displays it.
 
 Usage:
-  build_widget.py check   [--data FILE]                 validate and print the summary
-  build_widget.py build   [--data FILE] [--out FILE]    validate, then write the widget HTML
-  build_widget.py fmt     [--data FILE]                 rewrite the data file in its canonical layout
-  build_widget.py compare OLD [--data FILE]             list what changed since OLD
-  build_widget.py table   [--data FILE]                 print the matrix as a Markdown table
+  build_widget.py check   --data FILE                 validate and print the summary
+  build_widget.py build   --data FILE [--out FILE]    validate, then write the widget HTML
+  build_widget.py fmt     --data FILE                 rewrite the data file in its canonical layout
+  build_widget.py compare OLD --data FILE             list what changed between two matrices
+  build_widget.py table   --data FILE                 print the matrix as a Markdown table
 
 The optional "loc" key holds the lines of code per country that count_loc.py
 writes; the widget draws its pie charts from it.
 
-FILE defaults to data/matrix.json next to this script's folder. build writes to
-stdout when --out is omitted; the summary always goes to stderr so that stdout
+FILE is the matrix built for this invocation, in the scratchpad: the skill
+keeps no matrix of its own. build writes to stdout when --out is omitted; the summary always goes to stderr so that stdout
 stays the bare widget code.
 """
 import argparse
@@ -22,7 +22,6 @@ import sys
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
-DEFAULT_DATA = SKILL / "data" / "matrix.json"
 TEMPLATE = SKILL / "assets" / "widget.html"
 PLACEHOLDER = "__MATRIX_DATA__"
 
@@ -263,7 +262,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["check", "build", "fmt", "compare", "table"])
     ap.add_argument("old", nargs="?", help="previous data file, for compare")
-    ap.add_argument("--data", default=str(DEFAULT_DATA))
+    ap.add_argument("--data", required=True)
     ap.add_argument("--out")
     args = ap.parse_args()
 

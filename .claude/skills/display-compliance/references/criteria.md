@@ -1,8 +1,34 @@
 # Critères de la matrice
 
-Ce fichier fixe comment on décide d'un statut, pour que deux mises à jour faites à
-des semaines d'écart donnent le même résultat. En cas de doute, préférer le statut
-le plus prudent et écrire pourquoi dans la note.
+Ce fichier fixe comment on passe des sources à la matrice, pour que deux calculs, à
+une minute ou à des semaines d'écart, donnent le même résultat sur les mêmes sources.
+Il ne note aucun état : tout ce que la matrice affiche vient des sources du jour. En
+cas de doute, préférer le statut le plus prudent et écrire pourquoi dans la note.
+
+## Les sources
+
+`scripts/gather_state.py` les rassemble. Du plus fiable au moins fiable :
+
+1. le code de `origin/main` : paquets publics, jeux de règles de `validate`, API
+   `Sign*` et `Verify*`, utilisateurs de l'encodeur `internal/qr`, `doc.go` de chaque
+   paquet (section *Limits*), à lire quand le rapport ne suffit pas ;
+2. les PR fusionnées et les issues (`gh pr view`, `gh issue view`) ;
+3. le wiki : `Normes-européennes-par-pays.md` (les pays, leurs normes et leurs dates ;
+   sa section 11 place chaque format face aux jeux de règles), et au besoin
+   `Ce-que-valide-ZeRechnung.md` et `Grille-de-la-norme.md` ;
+4. le README (tableau « What's supported ») et `site/data/compliance.json`, souvent en
+   retard d'une PR.
+
+Le wiki dit quelles normes existent ; le code dit ce que ZeRechnung en fait. Quand
+deux sources se contredisent sur ce que fait le package, le code l'emporte, et l'écart
+est un point à signaler à l'utilisateur, avec la page à corriger.
+
+## Les pays
+
+Un pays par section « ### Nom (XX) » du wiki, dans l'ordre de la page, avec la région
+que donne le rapport : `ue` pour les 27 (tableau « Union européenne » de la section 3),
+`aele` pour l'EEE hors UE, la Suisse et le Royaume-Uni, `autre` pour le reste. `name`
+est le nom français du wiki.
 
 ## Ce qui compte comme une norme
 
@@ -11,15 +37,23 @@ produire, ou qu'un destinataire doit savoir lire, pour facturer dans le pays :
 
 - les syntaxes et profils en vigueur ou dont l'obligation est datée : Factur-X,
   ZUGFeRD, XRechnung, Peppol BIS, FatturaPA, Facturae, KSeF FA(3), ISDOC… ;
-- les CIUS et extensions nationales (CIUS-PT, CIUS-RO, EXTENDED-CTC-FR, BT-ES…) ;
+- les CIUS et extensions nationales ;
 - les jeux de règles nationaux publiés séparément quand on peut les appliquer à part
-  (règles BR-FR, BR-DE…).
+  (règles BR-FR, BR-DE…) ;
+- un pays sans format national qui admet EN 16931 en UBL ou en CII : une norme
+  « EN 16931 » (ou « Peppol BIS 3.0 » quand c'est par Peppol).
 
-Une ancienne version reste tant que l'administration l'admet encore (ZUGFeRD 2.0.1
-à 2.5 en Allemagne). Restent dehors : les versions qu'elle n'admet plus (ZUGFeRD 1.0,
-que le package lit pourtant encore, XRechnung 2.x), les formats d'échange privés sans
-base légale, les protocoles de transport. Une norme annoncée mais pas encore en vigueur porte `"future": true` ; le
-widget la dessine en pointillés. Elle compte dans les totaux, comme le reste.
+Le libellé reprend le nom du wiki, version comprise (« Facturae 3.2.2 »,
+« Peppol BIS 3.0 »). Une ancienne version reste tant que l'administration l'admet
+encore ; restent dehors les versions qu'elle n'admet plus, même si le package les lit
+encore, les formats d'échange privés sans base légale et les protocoles de transport.
+Une norme annoncée mais pas encore en vigueur, ou dont la version finale n'est pas
+publiée, porte `"future": true` ; le widget la dessine en pointillés. Elle compte dans
+les totaux, comme le reste.
+
+Les lignes du wiki qui ne sont ni un format ni une obligation autour du document (la
+réforme elle-même, son calendrier, une plateforme abandonnée) ne deviennent pas des
+lignes : elles servent aux notes et aux échéances.
 
 Une fonctionnalité (`features`) est ce que la norme impose autour du document :
 
@@ -27,12 +61,9 @@ Une fonctionnalité (`features`) est ce que la norme impose autour du document :
 |---|---|---|
 | `pdf` | PDF hybride (XML embarqué dans un PDF/A) | Factur-X, ZUGFeRD |
 | `sig` | Signature ou cachet électronique | PAdES, XAdES de Facturae, CAdES et XAdES de FatturaPA |
-| `qr` | QR code imposé sur la facture | ATCUD (PT), QR-facture (CH), KSeF |
+| `qr` | QR code imposé sur la facture | ATCUD, QR-facture suisse, codes KSeF |
 | `net` | Plateforme, réseau ou mode d'échange | Chorus Pro, SDI, Peppol, FACe, KSeF |
-| `rep` | Reporting fiscal autour de la facture | e-reporting FR, SII, myDATA, SAF-T, statuts CDAR |
-
-Régions : `ue` pour les 27, `aele` pour l'EEE hors UE, la Suisse et le Royaume-Uni,
-`autre` pour le reste (Balkans, Turquie, Ukraine, Moldavie…).
+| `rep` | Reporting fiscal autour de la facture | e-reporting, statuts du cycle de vie, SII, myDATA, SAF-T |
 
 ## Les statuts
 
@@ -42,69 +73,51 @@ mesurent ce que le package fait avec le document, hors ligne.
 - `y` **couvert** : dans `origin/main`, avec une API publique ou un jeu de règles de
   `validate`, testé (tests unitaires, conformité, ou parité avec l'outil de référence
   quand il en existe un). Lire, écrire et valider pour un format ; produire et
-  vérifier pour une signature.
+  vérifier pour une signature, facultative ou non.
 - `p` **partiel** : une partie seulement est faite, et la note dit laquelle manque.
   Cas typiques : la syntaxe est lue et les règles EN 16931 appliquées, mais pas les
-  règles nationales de la CIUS ; l'encodeur QR existe (`internal/qr`) mais aucune API
-  publique ne produit le contenu national.
+  règles nationales de la CIUS ; le document est lu, écrit et validé contre son XSD,
+  mais pas contre son schematron ; l'encodeur QR existe (`internal/qr`) mais aucune
+  API publique ne produit le contenu national.
 - `n` **à faire** : rien dans `origin/main`, ou seulement du travail en revue. Un
   élément `n` ou `p` doit être suivi par une issue listée dans `issues` du pays
   (`check` prévient sinon).
 - `x` **hors périmètre** : transmission et plateformes (envoi à Chorus Pro, SDI, FACe,
   KSeF, Peppol, déclarations en temps réel aux administrations), parce qu'elles
-  demandent du réseau, un compte ou un certificat d'accès. Une norme n'est jamais `x`.
+  demandent du réseau, un compte ou un certificat d'accès ; et ce que produit
+  l'intermédiaire (point d'accès, plateforme), pas l'émetteur. Une norme n'est jamais
+  `x`.
 
 Frontière entre `n` et `x` : un document que le package peut traiter hors ligne reste
-dans le périmètre, même s'il sert à une plateforme. Les statuts de cycle de vie CDAR
-et le flux d'e-reporting français sont des fichiers à lire, écrire et valider : les
-statuts CDAR sont `y` depuis la PR qui a fermé #109, le flux d'e-reporting `p` depuis
-la PR #163 (son schematron reste à appliquer, #164), alors que leur envoi aux
-plateformes agréées est `x`. Avant de classer un reporting en `x`, se demander s'il
-existe un fichier que le package pourrait produire.
+dans le périmètre, même s'il sert à une plateforme. Les statuts du cycle de vie et les
+rapports d'e-reporting d'une réforme sont des fichiers à lire, écrire et valider ; une
+option de validation propre aux plateformes est une option du package : tous sont dans
+le périmètre, alors que leur envoi est `x`. Avant de classer un reporting en `x`, se
+demander s'il existe un fichier que le package pourrait produire.
 
-## Ce qui fait changer un statut
+Une PR en revue ne change pas la matrice : le statut reste `n` ou `p` jusqu'à sa
+fusion dans `origin/main` (la note peut dire « en revue dans la PR #NN »).
 
-- **Une PR fusionnée** qui apporte le format, le jeu de règles ou l'API : passer à `y`
-  (ou `p` si la PR laisse une partie de côté, à écrire dans la note), citer
-  « PR #NN » dans la note.
-- **Une issue liée fermée** : retrouver la PR qui l'a fermée et vérifier qu'elle est
-  dans `origin/main`. Si oui, passer l'élément à `y` et retirer l'issue de la liste du
-  pays. Une issue fermée sans PR (abandon, doublon) ne change pas le statut : chercher
-  ou proposer une autre issue.
-- **Une PR en revue** ne change pas la matrice de `main` : le statut reste `n` ou `p`
-  jusqu'à la fusion (la note peut dire « en revue dans la PR #NN »). La PR peut porter
-  la mise à jour de sa propre ligne de `data/matrix.json`, qui prend effet à la fusion.
-- **Une nouvelle norme nationale** (loi, décret, calendrier publié) : l'ajouter en `n`,
-  avec `future` si elle n'est pas en vigueur, et proposer une issue.
-- **Une norme abandonnée ou remplacée** : la retirer, en le disant dans la réponse.
+## Les issues
 
-## Où regarder
-
-Dans l'ordre, du plus fiable au moins fiable :
-
-1. le code de `origin/main` : paquets publics, `validate/validate.go` (jeux de
-   règles), API `Sign*` et `Verify*`, `doc.go` de chaque paquet (section *Limits*) ;
-2. les PR fusionnées et les issues (`gh pr view`, `gh issue view`) ;
-3. le wiki : `Normes-européennes-par-pays.md` (la matrice rédigée, section 11 pour
-   les formats face aux jeux de règles), `Ce-que-valide-ZeRechnung.md`,
-   `Grille-de-la-norme.md` ;
-4. le README (tableau « What's supported ») et `site/data/compliance.json`, souvent
-   en retard d'une PR.
-
-Quand deux sources se contredisent, le code l'emporte ; l'écart est un point à
-signaler à l'utilisateur, avec la page à corriger.
+`issues` d'un pays liste les issues ouvertes qui suivent un de ses manques, d'après
+la section « Issues ouvertes » du rapport, rangées par le pays de leur titre. Une
+issue fermée n'y figure jamais. Une issue générale (veille, points ouverts) ne va à
+aucun pays. Un manque sans issue est un nouveau manque, à proposer à l'utilisateur.
 
 ## Notes
 
 Une note est courte et dit ce qu'il faut savoir en survolant la pastille : ce qui
-manque pour un `p`, l'API ou la PR pour un `y`, l'échéance pour un `n` (« B2B au
-06/10/2027 »). Les dates en JJ/MM/AAAA. Une information qu'on n'a pas pu confirmer
-(contenu exact d'un QR code, forme d'un cachet) est écrite « à vérifier ».
+manque pour un `p`, l'API ou la PR pour un `y` (« PR #NN », d'après les PR fusionnées
+du rapport ou `git log`), l'échéance pour un `n` (« B2B au 06/10/2027 »), l'issue qui
+suit un manque (« (#NN) »). Les dates en JJ/MM/AAAA. Une information qu'on n'a pas pu
+confirmer (contenu exact d'un QR code, forme d'un cachet) est écrite « à vérifier ».
 
 ## Lignes de code
 
-Les camemberts mesurent l'effort déjà fourni par pays, pas la couverture : un pays
-couvert à 100 % par Peppol pèse peu, un pays à format national pèse lourd.
+Le widget mesure l'effort déjà fourni par pays, pas la couverture : un pays couvert à
+100 % par Peppol pèse peu, un pays à format national pèse lourd. `count_loc.py` compte,
+`data/loc_map.json` décrit la méthode de rattachement.
 
 - **Ce qu'on compte** : les lignes non vides hors commentaires des fichiers `.go` hors
   tests de `origin/main`. Restent dehors les outils et ce qui ne sert pas les normes :
@@ -115,72 +128,36 @@ couvert à 100 % par Peppol pèse peu, un pays à format national pèse lourd.
 - **Normes ou fonctionnalités** : un format et ses règles (lecture, écriture, schéma,
   jeu de règles) vont aux normes ; ce que la norme impose autour du document (PDF
   hybride, signature, QR code) va aux fonctionnalités. Un même paquet peut se
-  partager : `facturae/sign.go` et `verify.go` sont la signature de l'Espagne, le
-  reste de `facturae` sa norme. Les documents de reporting suivent la matrice, qui
-  les range dans les fonctionnalités (`rep`) : les paquets `cdar` et `ereporting`,
-  leurs règles (`rules/cdv`), leurs schémas et leurs fichiers de `validate` vont aux
-  fonctionnalités de la France.
+  partager : la signature d'un format national va aux fonctionnalités, le reste du
+  paquet à ses normes. Les documents de reporting suivent la matrice, qui les range
+  dans les fonctionnalités (`rep`) : leur paquet, leurs règles, leurs schémas et leurs
+  fichiers de `validate` vont aux fonctionnalités de leur pays.
 - **Un pays ou un groupe** : un code propre à un pays lui revient en entier, même si
-  un voisin s'en sert (les règles XRechnung de `rules/de` vont à l'Allemagne, pas au
-  Luxembourg). Un code commun à plusieurs pays forme un groupe (Factur-X/ZUGFeRD,
-  Peppol, interpréteur schematron, PDF/A-3 hybride, PAdES, socle de signature,
-  encodeur QR) : le widget le répartit à parts égales entre ses pays, ou le montre en
-  tranche grise. Les pays d'un groupe se déduisent de la matrice quand c'est possible
-  (une norme ou une fonctionnalité couverte ou partielle), pour suivre les statuts.
+  un voisin s'en sert. Un code commun à plusieurs pays forme un groupe (Factur-X /
+  ZUGFeRD, Peppol, interpréteur schematron, PDF/A-3 hybride, PAdES, socle de
+  signature, encodeur QR) : le widget le répartit à parts égales entre ses pays, ou le
+  montre en tranche grise. Les pays d'un groupe ne s'écrivent jamais : ils se déduisent
+  de la matrice (`norm` ou `feature` : une norme ou une fonctionnalité couverte ou
+  partielle) ou du code (`imports` : les pays dont un fichier importe le paquet).
 - **Le socle EN 16931** (CII, UBL, modèle `invoice`, règles et listes de codes CEN,
   schémas, `validate`, lecture XML) est la base commune européenne, marquée `base`
   dans `data/loc_map.json`. Il n'est pas réparti entre les pays : le widget le dessine
   en disque central, et chaque pays en dépasse d'une barre dont la surface est à
   l'échelle de celle du disque : un pays qui ajoute 20 % du socle a une barre de 20 %
   de la surface du disque (rayon extérieur R0·√(1 + 2πp/θ) pour une part d'angle θ).
-  La barre empile les dossiers du pays, dans sa couleur, puis sa part des
-  groupes partagés, en gris ; montrés à part, les groupes ont leur propre barre. Les
-  pays autour du cercle sont ceux du socle (motif `norm` du groupe : une norme couverte
-  ou partielle qui repose sur EN 16931 ; la Suisse, dont la seule norme est la
-  QR-facture, n'en est pas). Les pays qui ajoutent au moins 1 % du socle ont une part
-  trois fois plus large, pour que leurs barres restent lisibles ; à surface égale,
-  une part étroite sort plus loin, et les graduations ne valent que pour les parts
-  larges. Les composants du socle (`parts`) s'affichent au survol du cercle.
-- **Un nouveau paquet** : le rattacher au pays dont il implémente la norme, ou à un
-  groupe s'il en sert plusieurs ; à défaut, au socle. Dans les dossiers qui mêlent
-  socle et pays (racine, `cii`, `ubl`, `invoice`, `validate`, `internal/rules`,
+  La barre empile les dossiers du pays, dans sa couleur, puis sa part des groupes
+  partagés, en gris ; montrés à part, les groupes ont leur propre barre. Les pays
+  autour du cercle sont ceux du socle (motif `norm` du groupe : une norme couverte ou
+  partielle qui repose sur EN 16931). Les pays qui ajoutent au moins 1 % du socle ont
+  une part trois fois plus large, pour que leurs barres restent lisibles ; à surface
+  égale, une part étroite sort plus loin, et les graduations ne valent que pour les
+  parts larges. Les composants du socle (`parts`) s'affichent au survol du cercle.
+- **Un fichier qu'aucune règle ne rattache** arrête le comptage. Le rattacher, dans
+  `<scratchpad>/loc_extra.json` passé par `--extra`, au pays dont il implémente la
+  norme (un motif peut porter `{cc}`, le code du pays en minuscules), ou à un groupe
+  s'il en sert plusieurs ; à défaut, au socle. Dans les dossiers qui mêlent socle et
+  pays (racine, `cii`, `ubl`, `invoice`, `validate`, `internal/rules`,
   `internal/codes`, `internal/schema`), le socle et le PDF hybride nomment leurs
-  fichiers un à un, sans joker : c'est ce qui fait échouer `count_loc.py` sur
-  `internal/rules/sk` (PR #155) ou `ubl/croatia.go` (PR #157) au lieu de les ranger
-  dans le socle. Une QR-facture suisse irait ainsi à la Suisse, l'encodeur
-  `internal/qr` restant au groupe QR.
-
-## Décisions passées
-
-- **EXTENDED-CTC-FR (France)** : `p` tant que seules les règles EN 16931 étaient
-  appliquées, `y` après la PR #116 (schématron FNFE en CII et UBL, parité Saxon sur
-  223 fichiers sur 224, un écart justifié).
-- **PAdES (France, Allemagne et tout PDF hybride)** : `zerechnung.Sign`, PAdES B-B,
-  dans le cœur du package depuis la PR #122 ; noté `y` là où la signature est
-  facultative.
-- **XAdES-EPES de Facturae (Espagne)** : `n` avec l'issue #121, puis `y` après la
-  PR #123 (fusion 9b9f489) ; #121 fermée et retirée de la liste.
-- **CDAR et e-reporting (France)** : passés de `x` à `n` quand les issues #109 et
-  #110 ont posé qu'il s'agit de documents à traiter hors ligne.
-- **Statuts du cycle de vie CDAR (France)** : `n` avec l'issue #109, puis `y` après la
-  PR qui ajoute le paquet `cdar` (lecture, écriture, statuts 200 et 213) et valide le
-  CDAR D22B (XSD et règles BR-FR-CDV de France_RFE 1.4.0.04, parité Saxon sur 2 149
-  statuts) ; #109 fermée et retirée de la liste. Leur envoi reste `x`.
-- **E-reporting (France)** : `n` avec l'issue #110, puis `p` après la PR #163 :
-  modèle, lecture, écriture et schémas XSD du flux 10 (paquet `ereporting`, règles
-  XSD-* et ER-01) ; le schematron Flux10 du PPF reste à appliquer. #110 fermée et
-  retirée de la liste, remplacée par #164 qui suit le schematron.
-- **Mode plateforme agréée (France)** : `n` avec #111, c'est une option de `validate`,
-  pas une transmission.
-- **ATCUD + QR code (Portugal)**, **Swiss QR Code (Suisse)** : `p`, l'encodeur
-  `internal/qr` existe mais aucune API publique ne produit le contenu.
-- **CIUS-RO (Roumanie)** : `p` avec l'issue #101, puis `y` après la PR qui applique
-  les règles du schematron 1.0.9 de l'ANAF (jeu `validate.Romania`) ; #101 fermée et
-  retirée de la liste.
-- **Peppol BIS SK (Slovaquie)** : `p` avec l'issue #102, puis `y` après la PR qui
-  applique les exigences de la transposition 1.13 de la Finančná správa au-delà de
-  Peppol BIS (jeu `validate.Slovakia`, SK-01 à SK-15) ; #102 fermée et retirée de la
-  liste. Le TDD SK reste `x` : les points d'accès le produisent.
-- **CIUS-HR + extension (Croatie)** : `p` avec l'issue #103, puis `y` après la PR qui
-  applique les règles du schematron de la Porezna uprava (jeu `validate.Croatia`) et lit
-  et écrit l'extension en UBL ; #103 fermée et retirée de la liste.
+  fichiers un à un, sans joker : c'est ce qui fait arrêter le comptage sur un nouveau
+  fichier national au lieu de le ranger dans le socle. Un code national à côté d'un
+  encodeur commun va au pays, l'encodeur restant au groupe.

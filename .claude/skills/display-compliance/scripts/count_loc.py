@@ -2,18 +2,25 @@
 """Count the lines of Go code of ZeRechnung per country, for the pie charts of the widget.
 
 Usage:
-  count_loc.py [--repo PATH] [--data FILE] [--map FILE] [--ref REF]
+  count_loc.py --data FILE [--repo PATH] [--map FILE] [--extra FILE] [--ref REF]
 
---repo  a checkout or worktree of ritoon/zerechnung (default: the git top level of the current directory)
---data  the matrix (default: data/matrix.json of the skill); its "loc" key is rewritten
---map   the rules that tie files to countries (default: data/loc_map.json of the skill)
---ref   the commit to count (default: origin/main; fetch it first)
+--data   the matrix built for this invocation, in the scratchpad; its "loc" key is rewritten
+--repo   a checkout or worktree of ritoon/zerechnung (default: the git top level of the current directory)
+--map    the rules that tie files to countries (default: data/loc_map.json of the skill)
+--extra  more rules, in the same format, tried before those of --map: for files the map
+         does not know yet, written in the scratchpad at invocation
+--ref    the commit to count (default: origin/main; fetch it first)
 
 A line of code is a non-blank line that is not a comment, in a .go file that is
 not a test. Generated code is the *_gen.go files (the gen/main.go generators are
-written by hand). Each file goes to the first rule of the map that matches it;
-a file that no rule matches stops the count, so that a new package is never
-left out silently: add a rule to the map and run again.
+written by hand). Each file goes to the first rule that matches it; a file
+that no rule matches stops the count, so that a new package is never left out
+silently: give it a rule with --extra and run again.
+
+Nothing here is a fixed list of countries: a pattern can hold {cc}, any country
+code of the matrix in lower case (internal/rules/{cc}/*), and the countries of
+a group come from the matrix (a norm or a feature it covers) or from the code
+(the countries whose files import a package).
 
 The script writes the "loc" key of the data file, in the canonical layout of
 build_widget.py, and prints the totals on stderr. It reads the repository, it
@@ -46,6 +53,21 @@ def match(path, pat):
     return fnmatch.fnmatch(path, pat)
 
 
+def find_rule(path, rules, codes):
+    """The first rule that matches path, as (type, target, pattern), {cc} resolved."""
+    for typ, target, pats in rules:
+        for pat in pats:
+            if "{cc}" not in pat:
+                if match(path, pat):
+                    return typ, target, pat
+                continue
+            for cc in codes:
+                p = pat.replace("{cc}", cc.lower())
+                if match(path, p):
+                    return typ, cc if target == "{cc}" else target, p
+    return None
+
+
 def sloc(text):
     n, block = 0, False
     for line in text.splitlines():
@@ -63,11 +85,11 @@ def sloc(text):
     return n
 
 
-def group_countries(spec, countries):
+def group_countries(spec, countries, importers):
     if spec.get("split") is False:
         return None
-    if "countries" in spec:
-        return list(spec["countries"])
+    if "imports" in spec:
+        return sorted(importers.get(spec["imports"], set()))
     out = []
     for c in countries:
         if "norm" in spec:
@@ -97,35 +119,31 @@ def label_of(path, pat, target):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo")
-    ap.add_argument("--data", default=str(SKILL / "data" / "matrix.json"))
+    ap.add_argument("--data", required=True)
     ap.add_argument("--map", default=str(SKILL / "data" / "loc_map.json"))
+    ap.add_argument("--extra")
     ap.add_argument("--ref", default="origin/main")
     args = ap.parse_args()
 
     repo = args.repo or subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() or "."
     data = json.loads(Path(args.data).read_text(encoding="utf-8"))
     cmap = json.loads(Path(args.map).read_text(encoding="utf-8"))
+    extra = json.loads(Path(args.extra).read_text(encoding="utf-8")) if args.extra else []
+    if isinstance(extra, dict):
+        extra = extra.get("rules", [])
     if data["repo"] not in git(repo, "remote", "-v"):
         print(f"error: {repo} is not a checkout of {data['repo']}", file=sys.stderr)
         return 1
 
-    codes = {c["code"] for c in data["countries"]}
-    groups = {k: {"label": g["label"], "countries": group_countries(g, data["countries"]), **({"base": True} if g.get("base") else {}),
-                  **({"parts": g["parts"]} if g.get("parts") else {}),
-                  **({"short": g["short"]} if g.get("short") else {})}
-              for k, g in cmap["groups"].items()}
+    codes = sorted(c["code"] for c in data["countries"])
+    rules = extra + cmap["rules"]
     problems = []
-    for typ, target, _ in cmap["rules"]:
-        if typ == "skip":
+    for typ, target, _ in rules:
+        if typ == "skip" or target == "{cc}":
             continue
         if target.startswith("g:"):
-            g = groups.get(target[2:])
-            if g is None:
+            if target[2:] not in cmap["groups"]:
                 problems.append(f"rule target {target}: no such group")
-            elif g["countries"] == []:
-                problems.append(f"group {target[2:]}: no country of the matrix uses it")
-            elif g["countries"] and not set(g["countries"]) <= codes:
-                problems.append(f"group {target[2:]}: unknown countries {sorted(set(g['countries']) - codes)}")
         elif target not in codes:
             problems.append(f"rule target {target}: not a country of the matrix")
     if problems:
@@ -134,31 +152,49 @@ def main():
         return 1
 
     commit = git(repo, "rev-parse", "--short", args.ref).strip()
+    module = re.search(r"^module\s+(\S+)", git(repo, "show", f"{args.ref}:go.mod"), re.M).group(1)
+    watched = {g["imports"] for g in cmap["groups"].values() if "imports" in g}
     files = [f for f in git(repo, "ls-tree", "-r", "--name-only", args.ref).split()
              if f.endswith(".go") and not f.endswith("_test.go")]
-    units, unmatched = {}, []
+    units, unmatched, importers = {}, [], {}
     for f in files:
-        rule = next(((t, g, p) for t, g, pats in cmap["rules"] for p in pats if match(f, p)), None)
+        rule = find_rule(f, rules, codes)
         if rule is None:
             unmatched.append(f)
             continue
         typ, target, pat = rule
         if typ == "skip":
             continue
+        text = git(repo, "show", f"{args.ref}:{f}")
         u = units.setdefault((typ, target, label_of(f, pat, target)), {"code": 0, "gen": 0})
-        u["gen" if f.endswith("_gen.go") else "code"] += sloc(git(repo, "show", f"{args.ref}:{f}"))
-    unnamed = sorted({f"{t[2:]}: {d}" for (_, t, d) in units
-                      if t.startswith("g:") and "parts" in groups[t[2:]] and d not in groups[t[2:]]["parts"]})
-    if unnamed:
-        print("error: these folders have no name in the parts of their group in data/loc_map.json:", file=sys.stderr)
-        for x in unnamed:
-            print(f"  {x}", file=sys.stderr)
-        return 1
+        u["gen" if f.endswith("_gen.go") else "code"] += sloc(text)
+        if not target.startswith("g:"):
+            for w in watched:
+                if f'"{module}/{w}"' in text:
+                    importers.setdefault(w, set()).add(target)
     if unmatched:
-        print("error: no rule of the map matches these files; add one to data/loc_map.json:", file=sys.stderr)
+        print("error: no rule matches these files; give them one in an --extra file (see the Lignes de code section "
+              "of references/criteria.md) and run again:", file=sys.stderr)
         for f in unmatched:
             print(f"  {f}", file=sys.stderr)
         return 1
+
+    groups = {k: {"label": g["label"], "countries": group_countries(g, data["countries"], importers),
+                  **({"base": True} if g.get("base") else {}),
+                  **({"parts": g["parts"]} if g.get("parts") else {}),
+                  **({"short": g["short"]} if g.get("short") else {})}
+              for k, g in cmap["groups"].items()}
+    used = {t[2:] for (_, t, _) in units if t.startswith("g:")}
+    empty = sorted(k for k in used if groups[k]["countries"] == [])
+    if empty:
+        print("error: no country of the matrix uses these groups, though code goes to them: " + ", ".join(empty), file=sys.stderr)
+        return 1
+    unnamed = sorted({f"{t[2:]}: {d}" for (_, t, d) in units
+                      if t.startswith("g:") and "parts" in groups[t[2:]] and d not in groups[t[2:]]["parts"]})
+    if unnamed:
+        print("warning: these folders have no name in the parts of their group; the widget shows their path:", file=sys.stderr)
+        for x in unnamed:
+            print(f"  {x}", file=sys.stderr)
 
     data["loc"] = {
         "commit": commit,
