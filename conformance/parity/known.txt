@@ -3,27 +3,30 @@
 # Une ligne par écart : référence, facture, écart, raison.
 #   référence : kosit, mustang, npa (XSLT de la NPa), fnfe (XSLT
 #               EXTENDED-CTC-FR de la FNFE-MPE), pt (schematron CIUS-PT
-#               d'eSPap) ou * (toutes)
+#               d'eSPap), ro (schematron CIUS-RO de l'ANAF), hr (schematron
+#               CIUS-HR de la Porezna uprava) ou * (toutes)
 #   facture   : origine de la facture (corpus/…, kosit/…, variants/…, nl/…,
-#               fr/… ou pt/…) ; * vaut pour n'importe quelle suite de
-#               caractères, / compris
+#               fr/…, pt/…, ro/… ou hr/…) ; * vaut pour n'importe quelle
+#               suite de caractères, / compris
 #   écart     : +RÈGLE en erreur chez ZeRechnung seul, -RÈGLE en erreur chez la
-#               référence seule (avec les variants, npa, fnfe et pt, à tout
-#               niveau : + ou - pour le côté qui la lève au niveau le plus
-#               élevé) ; ?RÈGLE attendue par le test de mutation d'un variant
-#               et que la référence ne lève pas ; une * finale vaut pour toutes
-#               les règles de ce préfixe ; SCHEMA désigne les erreurs de schéma
-#               XSD. Avec pt, la règle est suivie de l'élément où elle est
-#               levée, +RÈGLE@/Invoice[1]/InvoiceLine[2], sauf pour
-#               l'assertion d'un arrêt de Saxon (-RÈGLE)
+#               référence seule (avec les variants, npa, fnfe, pt, ro et hr,
+#               à tout niveau : + ou - pour le côté qui la lève au niveau le
+#               plus élevé) ; ?RÈGLE attendue par le test de mutation d'un
+#               variant et que la référence ne lève pas ; une * finale vaut
+#               pour toutes les règles de ce préfixe ; SCHEMA désigne les
+#               erreurs de schéma XSD. Avec pt, ro et hr, la règle est suivie
+#               de l'élément où elle est levée,
+#               +RÈGLE@/Invoice[1]/InvoiceLine[2], sauf pour l'assertion d'un
+#               arrêt de Saxon (-RÈGLE)
 #   raison    : le reste de la ligne, obligatoire
 #
 # Un écart absent de ce fichier fait échouer le job de parité ; une ligne qui
 # ne correspond plus à aucun écart est signalée dans le rapport.
 #
-# Schematron CIUS-PT : aucun écart connu. Un arrêt de Saxon sur une erreur de
-# type XPath dans le test d'une assertion n'est pas un écart quand ZeRechnung
-# lève cette assertion, qu'il tient pour échouée (voir le README).
+# Schematrons CIUS-PT, CIUS-RO et CIUS-HR : aucun écart connu. Un arrêt de
+# Saxon sur une erreur de type XPath dans le test d'une assertion n'est pas un
+# écart quand ZeRechnung lève cette assertion, qu'il tient pour échouée (voir
+# le README).
 
 # Mustang : niveaux et schéma de la configuration KoSIT
 

@@ -286,6 +286,7 @@ type svrlReport struct {
 	findings []svrlFinding
 	errCode  string
 	errLine  int
+	errStack []int // lines of the calls that led to the error, innermost first (CiusPtBatch)
 	errMsg   string
 }
 
@@ -314,6 +315,13 @@ func parseSVRL(data []byte) (svrlReport, error) {
 				if root == "error" {
 					rep.errCode = attr(t, "code")
 					rep.errLine, _ = strconv.Atoi(attr(t, "line"))
+					for _, f := range strings.Fields(attr(t, "stack")) {
+						n, err := strconv.Atoi(f)
+						if err != nil {
+							return rep, fmt.Errorf("bad stack %q", attr(t, "stack"))
+						}
+						rep.errStack = append(rep.errStack, n)
+					}
 					in = true
 					text.Reset()
 				}

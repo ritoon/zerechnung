@@ -1,7 +1,8 @@
 // CiusPtBatch applies the XSLT that SchXslt compiles from a schematron, the
-// CIUS-PT one of eSPap or the ROmodel phase of the CIUS-RO one of ANAF, to
-// XML files with Saxon, in a single JVM, on one thread per processor: the
-// stylesheet is compiled once. Used by conformance/parity.sh:
+// CIUS-PT one of eSPap, the ROmodel phase of the CIUS-RO one of ANAF or the
+// CIUS-HR one of the Porezna uprava, to XML files with Saxon, in a single
+// JVM, on one thread per processor: the stylesheet is compiled once. Used by
+// conformance/parity.sh:
 //
 //	java -Xss8m -cp Saxon-HE-12.10.jar:xmlresolver-5.3.3.jar:xmlresolver-5.3.3-data.jar CiusPtBatch.java <xslt> <out dir> <list>
 //
@@ -13,7 +14,10 @@
 // error (several values where the test expects one, a value that does not
 // cast to xs:decimal), the report is an <error> element instead, with the
 // error code and the line of the stylesheet that raised it, as NPaBatch
-// writes it, which parity reads.
+// writes it, which parity reads; its stack attribute gives the lines of the
+// calls that led there, innermost first: for an error in an xsl:function
+// (u:ctrlOIB of the CIUS-HR schematron), the first is the line of the call
+// in the test of an assertion.
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,6 +44,9 @@ import net.sf.saxon.s9api.XdmItem;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XsltExecutable;
 import net.sf.saxon.s9api.XsltTransformer;
+import net.sf.saxon.trace.ContextStackFrame;
+import net.sf.saxon.trace.ContextStackIterator;
+import net.sf.saxon.trans.XPathException;
 
 public class CiusPtBatch {
 	private static final String SVRL = "http://purl.oclc.org/dsdl/svrl";
@@ -105,15 +113,37 @@ public class CiusPtBatch {
 			xml = b.append("</schematron-output>\n").toString();
 		} catch (SaxonApiException e) {
 			String code = e.getErrorCode() == null ? "" : e.getErrorCode().getLocalName();
-			xml = error(code, e.getLineNumber(), e.getMessage());
+			xml = error(code, e.getLineNumber(), stack(e), e.getMessage());
 		} catch (Exception e) {
-			xml = error("", -1, e.toString());
+			xml = error("", -1, "", e.toString());
 		}
 		Files.writeString(report, xml, StandardCharsets.UTF_8);
 	}
 
-	private static String error(String code, int line, String msg) {
-		return "<error code=\"" + escape(code) + "\" line=\"" + line + "\">" + escape(String.valueOf(msg)) + "</error>\n";
+	// stack returns the lines of the stylesheet of the frames of the call
+	// stack of a dynamic error, innermost first, separated by spaces.
+	private static String stack(SaxonApiException e) {
+		if (!(e.getCause() instanceof XPathException x) || x.getXPathContext() == null) {
+			return "";
+		}
+		StringBuilder b = new StringBuilder();
+		Iterator<ContextStackFrame> it = new ContextStackIterator(x.getXPathContext());
+		while (it.hasNext()) {
+			ContextStackFrame f = it.next();
+			if (f == null || f instanceof ContextStackFrame.CallingApplication) {
+				break;
+			}
+			if (b.length() > 0) {
+				b.append(' ');
+			}
+			b.append(f.getLineNumber());
+		}
+		return b.toString();
+	}
+
+	private static String error(String code, int line, String stack, String msg) {
+		String s = stack.isEmpty() ? "" : " stack=\"" + stack + "\"";
+		return "<error code=\"" + escape(code) + "\" line=\"" + line + "\"" + s + ">" + escape(String.valueOf(msg)) + "</error>\n";
 	}
 
 	private static String escape(String s) {

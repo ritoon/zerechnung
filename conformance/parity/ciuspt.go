@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/ritoon/zerechnung/invoice"
@@ -105,8 +107,33 @@ func indexSchXslt(file string) (xslIndex, error) {
 	return idx, nil
 }
 
-// schRun is the run of a schematron compiled by SchXslt, the CIUS-PT one or
-// the CIUS-RO one: the staged invoices given to Saxon (list), and the
+// messageLine matches the lines of the stylesheet that Saxon names in the
+// message of a dynamic error, such as the use of a variable evaluated lazily
+// ("Found while atomizing the first operand of '<=' in {$payableAmount} on
+// line 556").
+var messageLine = regexp.MustCompile(` on line ([0-9]+)`)
+
+// atError returns the assertion whose test raised the dynamic error of rep:
+// the one at the line of the error, else at a line that its message names
+// (the use of a variable evaluated lazily, whose declaration raised the
+// error), else at a line of its call stack (the call of an xsl:function that
+// raised it, as u:ctrlOIB in the CIUS-HR schematron), in this order.
+func (idx xslIndex) atError(rep svrlReport) (xslAssertion, bool) {
+	lines := []int{rep.errLine}
+	for _, m := range messageLine.FindAllStringSubmatch(rep.errMsg, -1) {
+		n, _ := strconv.Atoi(m[1])
+		lines = append(lines, n)
+	}
+	for _, n := range append(lines, rep.errStack...) {
+		if a, ok := idx.at(n); ok {
+			return a, true
+		}
+	}
+	return xslAssertion{}, false
+}
+
+// schRun is the run of a schematron compiled by SchXslt, the CIUS-PT, CIUS-RO
+// or CIUS-HR one: the staged invoices given to Saxon (list), and the
 // assertions of the compiled XSLT (xsl).
 type schRun struct {
 	list, xsl string
@@ -162,7 +189,7 @@ func (run *schRun) result(e entry, data []byte) (result, error) {
 		return res, err
 	}
 	if rep.errCode != "" || rep.errMsg != "" {
-		a, ok := run.index.at(rep.errLine)
+		a, ok := run.index.atError(rep)
 		if !ok {
 			res.Failure = fmt.Sprintf("%s, line %d of %s: %s", rep.errCode, rep.errLine, run.xsl, rep.errMsg)
 			return res, nil

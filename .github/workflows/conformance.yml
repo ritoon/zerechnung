@@ -95,9 +95,10 @@ jobs:
     # NLCIUS, by the XSLT of the NPa schematrons run by Saxon-HE 12.10; for
     # the CIUS-PT, by the schematron of eSPap compiled by SchXslt 1.10.1 and
     # run by Saxon-HE 12.10, on the same elements; for the CIUS-RO, by the
-    # ROmodel phase of the schematron of ANAF, likewise; invoice by invoice.
+    # ROmodel phase of the schematron of ANAF, likewise; for the CIUS-HR, by
+    # the schematron of the Porezna uprava, likewise; invoice by invoice.
     # Java runs in the CI only: the package is pure Go.
-    name: Parité avec KoSIT, Mustang, la NPa, eSPap et l'ANAF
+    name: Parité avec KoSIT, Mustang, la NPa, eSPap, l'ANAF et la Porezna uprava
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -116,7 +117,7 @@ jobs:
           key: parity-${{ hashFiles('conformance/fetch.sh', 'conformance/fetch-nl.sh', 'conformance/lib.sh', 'conformance/parity.sh') }}
       - name: Test the comparison tool
         run: cd conformance/parity && go vet ./... && go test ./...
-      - name: Compare with KoSIT, Mustang, the NPa XSLT and the CIUS-PT and CIUS-RO schematrons
+      - name: Compare with KoSIT, Mustang, the NPa XSLT and the CIUS-PT, CIUS-RO and CIUS-HR schematrons
         run: conformance/parity.sh
       - uses: actions/upload-artifact@v5
         if: always()
@@ -136,6 +137,9 @@ jobs:
             conformance/.artifacts/parity/ro/
             conformance/.artifacts/parity/cius-ro.xsl
             conformance/.artifacts/parity/ro-variants/manifest.tsv
+            conformance/.artifacts/parity/hr/
+            conformance/.artifacts/parity/cius-hr.xsl
+            conformance/.artifacts/parity/hr-variants/manifest.tsv
           retention-days: 30
 
   parity-badge:

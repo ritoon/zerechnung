@@ -6,8 +6,9 @@
 # run by Saxon-HE 12.10; for the CIUS-PT, the schematron of eSPap compiled
 # into an XSLT by SchXslt 1.10.1 and run by Saxon-HE 12.10; for the CIUS-RO,
 # the ROmodel phase of the schematron of ANAF, compiled and run likewise; for
-# EXTENDED-CTC-FR, the XSLT of the FNFE-MPE (France_RFE 1.4.0.04), run by
-# Saxon-HE 12.10. See README.md.
+# the CIUS-HR, the schematron of the Porezna uprava, compiled and run
+# likewise; for EXTENDED-CTC-FR, the XSLT of the FNFE-MPE (France_RFE
+# 1.4.0.04), run by Saxon-HE 12.10. See README.md.
 #
 #   conformance/parity.sh [dir]
 #
@@ -16,10 +17,10 @@
 # report is written to dir/parity/report.md and report.json, and appended to
 # $GITHUB_STEP_SUMMARY under GitHub Actions. The script exits with status 1
 # when a difference, or an NLCIUS assertion that no invoice makes fail, is
-# not listed in parity/known.txt. A CIUS-PT or CIUS-RO invoice on which Saxon
-# stops (an XPath error in the test of an assertion) is no difference when the
-# package holds that assertion failed, or for the CIUS-RO when the assertion
-# is BR-27, a rule of EN 16931 left out of the comparison.
+# not listed in parity/known.txt. A CIUS-PT, CIUS-RO or CIUS-HR invoice on
+# which Saxon stops (an XPath error in the test of an assertion) is no
+# difference when the package holds that assertion failed, or for the CIUS-RO
+# when the assertion is BR-27, a rule of EN 16931 left out of the comparison.
 #
 # Java 17 or later runs the reference validators; the package itself stays
 # pure Go. Besides java, it needs what fetch.sh needs, and unzip.
@@ -61,8 +62,8 @@ fetch_file "$RESOLVER_JAR" \
 fetch_file "$RESOLVER_DATA_JAR" \
 	https://repo1.maven.org/maven2/org/xmlresolver/xmlresolver/5.3.3/xmlresolver-5.3.3-data.jar \
 	b0c487ad2f3e558be8d829c916d2458d10aca6a5bafa7a4d0524b70845e48a5c
-# SchXslt 1.10.1, from Maven Central: its XSLT compile the CIUS-PT and CIUS-RO
-# schematrons into the XSLT that Saxon runs.
+# SchXslt 1.10.1, from Maven Central: its XSLT compile the CIUS-PT, CIUS-RO
+# and CIUS-HR schematrons into the XSLT that Saxon runs.
 fetch_file "$SCHXSLT_JAR" \
 	https://repo1.maven.org/maven2/name/dmaus/schxslt/schxslt/1.10.1/schxslt-1.10.1.jar \
 	4f4f21edab7b37f96ad59ae12a344d3510f1092ac46b6d81a4efa0120b73cb58
@@ -79,6 +80,9 @@ unzip -q "$FX_PT_SCH" -d "$PT_SCH" # fetched and checked by fetch.sh
 RO_SCH=$TOOLS/cius-ro-schematron
 rm -rf "$RO_SCH"
 unzip -q "$FX_RO_SCH" -d "$RO_SCH" # fetched and checked by fetch.sh
+HR_SCH=$TOOLS/cius-hr-schematron
+rm -rf "$HR_SCH"
+unzip -q "$FX_HR_SCH" -d "$HR_SCH" # fetched and checked by fetch.sh
 
 WORK=$DEST/parity
 # The documents of the mutation cases of the EN 16931 and XRechnung rules,
@@ -103,6 +107,13 @@ mkdir -p "$WORK/pt-variants"
 rm -rf "$WORK/ro-variants"
 mkdir -p "$WORK/ro-variants"
 (cd "$here/.." && go test -count=1 -run '^TestVariants$' ./internal/rules/ro -variants "$WORK/ro-variants" >/dev/null)
+# Likewise for the CIUS-HR: the candidate mutations of the invoice, the credit
+# note and the invoice of a seller outside the VAT system of
+# internal/rules/hr/testdata, compared with the CIUS-HR schematron along with
+# the examples of the Porezna uprava and those invoices.
+rm -rf "$WORK/hr-variants"
+mkdir -p "$WORK/hr-variants"
+(cd "$here/.." && go test -count=1 -run '^TestVariants$' ./internal/rules/hr -variants "$WORK/hr-variants" >/dev/null)
 # Likewise for EXTENDED-CTC-FR: the documents of the mutation cases of the
 # CII and UBL rules, one directory per package, compared with the XSLT of the
 # FNFE-MPE along with the EXTENDED-CTC-FR examples of France_RFE and the
@@ -116,9 +127,10 @@ done
 	-nl "$FX_NL" -nl-tests "$FX_NL_TESTS" -nl-variants "$WORK/nl-variants" \
 	-pt "$FX_PT" -pt-variants "$WORK/pt-variants" \
 	-ro "$FX_RO" -ro-variants "$WORK/ro-variants" \
+	-hr "$FX_HR" -hr-variants "$WORK/hr-variants" \
 	-fnfe "$FX_FNFE" -fnfe-variants "$WORK/fr-variants")
-rm -rf "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/fnfe"
-mkdir -p "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/fnfe"
+rm -rf "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/hr" "$WORK/fnfe"
+mkdir -p "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/hr" "$WORK/fnfe"
 
 # One JVM per validator. The KoSIT validator returns the number of rejected
 # invoices, or a negative status (255, 254) when it cannot run.
@@ -182,13 +194,27 @@ if ! java -Xss8m -cp "$SAXON_CP" "$here/parity/CiusPtBatch.java" "$WORK/cius-ro.
 	tail -20 "$WORK/ro.log" >&2
 	die "the CIUS-RO XSLT failed, see $WORK/ro.log"
 fi
+# The CIUS-HR schematron of 13.03.2026, compiled and run likewise, whole: it
+# holds the Croatian rules only (HR-BR-*), in the two patterns of its main
+# file and the pattern HRCodesmodel of the file it includes.
+log "CIUS-HR schematron of 13.03.2026, SchXslt 1.10.1"
+if ! java -Xss8m -cp "$SAXON_CP" net.sf.saxon.Transform -xsl:"$SCHXSLT/xslt/2.0/pipeline-for-svrl.xsl" \
+	-s:"$HR_SCH/HRUBLSchematron_13032026-2/HRUBLSchematron/HR-CIUS-EXT-EN16931-UBL.sch" -o:"$WORK/cius-hr.xsl" >"$WORK/schxslt-hr.log" 2>&1; then
+	tail -20 "$WORK/schxslt-hr.log" >&2
+	die "SchXslt failed on the CIUS-HR schematron, see $WORK/schxslt-hr.log"
+fi
+log "CIUS-HR XSLT, Saxon-HE 12.10 ($(wc -l <"$WORK/hr.list" | tr -d ' ') XML files)"
+if ! java -Xss8m -cp "$SAXON_CP" "$here/parity/CiusPtBatch.java" "$WORK/cius-hr.xsl" "$WORK/hr" "$WORK/hr.list" >"$WORK/hr.log" 2>&1; then
+	tail -20 "$WORK/hr.log" >&2
+	die "the CIUS-HR XSLT failed, see $WORK/hr.log"
+fi
 
 log "comparison"
 status=0
 (cd "$here/parity" && go run . compare -work "$WORK" -kosit-config "$CONFIG" -known "$here/parity/known.txt" -md "$WORK/report.md" -json "$WORK/report.json") || status=$?
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f "$WORK/report.md" ]; then
 	{
-		echo "## Parité avec KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE, et les schematrons CIUS-PT et CIUS-RO"
+		echo "## Parité avec KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE, et les schematrons CIUS-PT, CIUS-RO et CIUS-HR"
 		echo
 		cat "$WORK/report.md"
 	} >>"$GITHUB_STEP_SUMMARY"
