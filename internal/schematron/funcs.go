@@ -57,7 +57,54 @@ func newFuncs() map[string]function {
 		"round":            {1, 1, fnRound},
 		"sum":              {1, 1, fnSum},
 		"xs:decimal":       {1, 1, fnDecimal},
+		"xs:date":          {1, 1, fnDate},
+		"number":           {0, 1, fnNumber},
 	}
+}
+
+// fnDate implements the constructor xs:date(): the empty sequence for an
+// empty argument, a string or untyped value cast to xs:date.
+func fnDate(_ *ctx, c *call, a []seq) (seq, error) {
+	i, ok, err := oneAtomic(a[0], c.name)
+	if err != nil || !ok {
+		return nil, err
+	}
+	switch i.k {
+	case kDate:
+		return seq{i}, nil
+	case kString, kUntyped:
+		d, err := toDate(i)
+		return seq{d}, err
+	}
+	return nil, dynErr("cannot cast %s to xs:date", typeName(i))
+}
+
+// fnNumber implements number(): the xs:double value of its argument (the
+// context item by default), NaN for the empty sequence or a value that is
+// not a number.
+func fnNumber(c *ctx, f *call, a []seq) (seq, error) {
+	if len(a) == 0 && c.absent {
+		return nil, dynErr("number(): the context item is absent")
+	}
+	i, ok, err := oneAtomic(ctxOrArg(c, a), f.name)
+	nan := seq{{k: kDouble, f: math.NaN()}}
+	switch {
+	case err != nil:
+		return nil, err
+	case !ok:
+		return nan, nil
+	case i.numeric():
+		return seq{{k: kDouble, f: toFloat(i)}}, nil
+	case i.k == kBool:
+		return seq{{k: kDouble, f: float64(boolInt(i.b))}}, nil
+	case i.k == kString, i.k == kUntyped:
+		d, err := toDouble(i)
+		if err != nil {
+			return nan, nil
+		}
+		return seq{d}, nil
+	}
+	return nan, nil
 }
 
 func intItem(i int64) item { return item{k: kInteger, r: new(big.Rat).SetInt64(i)} }
@@ -99,7 +146,7 @@ func itemString(i item) string {
 	switch i.k {
 	case kNode:
 		return stringValue(i)
-	case kString, kUntyped:
+	case kString, kUntyped, kDate:
 		return i.s
 	case kBool:
 		return strconv.FormatBool(i.b)

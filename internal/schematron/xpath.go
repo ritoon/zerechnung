@@ -156,15 +156,20 @@ type parser struct {
 	toks []token
 	pos  int
 	ns   map[string]string
+	user map[string]*userFunc // functions of the schematron, by name
 }
 
 // compile parses an XPath expression whose prefixes are those of ns.
-func compile(src string, ns map[string]string) (e expr, err error) {
+func compile(src string, ns map[string]string) (expr, error) { return compileWith(src, ns, nil) }
+
+// compileWith parses an XPath expression whose prefixes are those of ns,
+// which may call the functions of user.
+func compileWith(src string, ns map[string]string, user map[string]*userFunc) (e expr, err error) {
 	toks, err := lex(src)
 	if err != nil {
 		return nil, err
 	}
-	p := &parser{toks: toks, ns: ns}
+	p := &parser{toks: toks, ns: ns, user: user}
 	defer func() {
 		if r := recover(); r != nil {
 			pe, ok := r.(parseError)
@@ -224,8 +229,25 @@ func (p *parser) expr() expr {
 	return s
 }
 
-// single parses ExprSingle: a quantified expression or OrExpr.
+// single parses ExprSingle: a quantified expression, an if expression or
+// OrExpr.
 func (p *parser) single() expr {
+	if t := p.peek(); t.kind == tName && t.val == "if" && p.peekAt(1).kind == tSym && p.peekAt(1).val == "(" {
+		p.pos += 2
+		e := &ifExpr{cond: p.expr()}
+		p.expect(")")
+		if !p.isOp("then") {
+			p.fail("expected then")
+		}
+		p.pos++
+		e.a = p.single()
+		if !p.isOp("else") {
+			p.fail("expected else")
+		}
+		p.pos++
+		e.b = p.single()
+		return e
+	}
 	if t := p.peek(); t.kind == tName && (t.val == "some" || t.val == "every") && p.peekAt(1).kind == tVar {
 		p.pos++
 		q := &quantExpr{every: t.val == "every"}
@@ -296,7 +318,7 @@ func (p *parser) additive() expr {
 
 func (p *parser) multiplicative() expr {
 	e := p.union()
-	for p.isSym("*") || p.isOp("div") {
+	for p.isSym("*") || p.isOp("div") || p.isOp("mod") {
 		op := p.next().val
 		e = &arithExpr{op: op, a: e, b: p.union()}
 	}
@@ -491,6 +513,21 @@ func (p *parser) primary() expr {
 			break
 		}
 		p.pos++
+		if f, ok := p.user[t.val]; ok {
+			u := &userCall{f: f}
+			if !p.isSym(")") {
+				u.args = append(u.args, p.single())
+				for p.isSym(",") {
+					p.pos++
+					u.args = append(u.args, p.single())
+				}
+			}
+			p.expect(")")
+			if len(u.args) != len(f.params) {
+				p.fail("%s: %d arguments", t.val, len(u.args))
+			}
+			return u
+		}
 		c := &call{name: t.val}
 		if !p.isSym(")") {
 			c.args = append(c.args, p.single())
