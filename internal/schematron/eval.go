@@ -22,6 +22,7 @@ const (
 	kDecimal             // xs:decimal
 	kDouble              // xs:double
 	kBool                // xs:boolean
+	kDate                // xs:date
 )
 
 // item is an item of an XPath sequence. A node is an element n, the
@@ -35,6 +36,7 @@ type item struct {
 	r *big.Rat // kInteger, kDecimal
 	f float64  // kDouble
 	b bool     // kBool
+	t int64    // kDate: the starting instant, in minutes (see dateItem)
 }
 
 type seq []item
@@ -128,6 +130,9 @@ type ctx struct {
 	it        item
 	pos, size int
 	vars      *binding
+	// absent is set in the body of a function (xsl:function), where there
+	// is no context item.
+	absent bool
 }
 
 type binding struct {
@@ -139,7 +144,7 @@ type binding struct {
 
 func (c *ctx) with(it item, pos, size int) *ctx {
 	n := *c
-	n.it, n.pos, n.size = it, pos, size
+	n.it, n.pos, n.size, n.absent = it, pos, size, false
 	return &n
 }
 
@@ -182,6 +187,13 @@ type (
 	}
 	// castableExpr is e castable as xs:date.
 	castableExpr struct{ e expr }
+	// ifExpr is if (cond) then a else b.
+	ifExpr struct{ cond, a, b expr }
+	// userCall is a call of a function of the schematron (xsl:function).
+	userCall struct {
+		f    *userFunc
+		args []expr
+	}
 )
 
 type axis uint8
@@ -293,6 +305,8 @@ func ebv(s seq) (bool, error) {
 		return i.s != "", nil
 	case kInteger, kDecimal:
 		return i.r.Sign() != 0, nil
+	case kDate:
+		return false, dynErr("effective boolean value of an xs:date")
 	default:
 		return i.f != 0 && !math.IsNaN(i.f), nil
 	}
@@ -347,7 +361,12 @@ func (e *varRef) eval(c *ctx) (seq, error) {
 	return nil, dynErr("unbound variable $%s", e.name)
 }
 
-func (ctxItem) eval(c *ctx) (seq, error) { return seq{c.it}, nil }
+func (ctxItem) eval(c *ctx) (seq, error) {
+	if c.absent {
+		return nil, dynErr("the context item is absent")
+	}
+	return seq{c.it}, nil
+}
 
 func (e *quantExpr) eval(c *ctx) (seq, error) {
 	var walk func(i int, vars *binding) (bool, error)
@@ -460,6 +479,18 @@ func general(op string, a, b seq) (bool, error) {
 					return false, err
 				}
 				y, cast = d, true
+			case x.k == kUntyped && y.k == kDate:
+				d, err := toDate(x)
+				if err != nil {
+					return false, err
+				}
+				x = d
+			case y.k == kUntyped && x.k == kDate:
+				d, err := toDate(y)
+				if err != nil {
+					return false, err
+				}
+				y = d
 			case x.k == kUntyped && y.k == kBool:
 				b, err := toBoolean(x)
 				if err != nil {
@@ -514,6 +545,8 @@ func compareValues(op string, x, y item, signedZero bool) (bool, error) {
 		c = strings.Compare(x.s, y.s)
 	case x.k == kBool && y.k == kBool:
 		c = boolInt(x.b) - boolInt(y.b)
+	case x.k == kDate && y.k == kDate:
+		c = cmpInt(x.t, y.t)
 	default:
 		return false, dynErr("cannot compare %s with %s", typeName(x), typeName(y))
 	}
@@ -539,6 +572,16 @@ func boolInt(b bool) int {
 	return 0
 }
 
+func cmpInt(a, b int64) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	}
+	return 0
+}
+
 func cmpFloat(a, b float64) int {
 	switch {
 	case a < b:
@@ -550,7 +593,7 @@ func cmpFloat(a, b float64) int {
 }
 
 func typeName(i item) string {
-	return [...]string{"node", "xs:string", "xs:untypedAtomic", "xs:integer", "xs:decimal", "xs:double", "xs:boolean"}[i.k]
+	return [...]string{"node", "xs:string", "xs:untypedAtomic", "xs:integer", "xs:decimal", "xs:double", "xs:boolean", "xs:date"}[i.k]
 }
 
 func toFloat(i item) float64 {
@@ -653,6 +696,8 @@ func arith(op string, a, b seq) (seq, error) {
 			f = fx - fy
 		case "*":
 			f = fx * fy
+		case "mod":
+			f = math.Mod(fx, fy)
 		default:
 			f = fx / fy
 		}
@@ -670,6 +715,15 @@ func arith(op string, a, b seq) (seq, error) {
 		r.Sub(x.r, y.r)
 	case "*":
 		r.Mul(x.r, y.r)
+	case "mod":
+		// The sign of the dividend: x - y × (x idiv y), the quotient
+		// truncated towards zero.
+		if y.r.Sign() == 0 {
+			return nil, dynErr("modulus by zero")
+		}
+		q := r.Quo(x.r, y.r)
+		t := new(big.Int).Quo(q.Num(), q.Denom())
+		r = new(big.Rat).Sub(x.r, new(big.Rat).Mul(y.r, new(big.Rat).SetInt(t)))
 	default:
 		if y.r.Sign() == 0 {
 			return nil, dynErr("decimal division by zero")
@@ -699,9 +753,12 @@ func roundHalfDown(r *big.Rat, scale int) *big.Rat {
 
 func (e *pathExpr) eval(c *ctx) (seq, error) {
 	var cur seq
-	if e.absolute {
+	switch {
+	case c.absent && (e.absolute || e.steps[0].prim == nil):
+		return nil, dynErr("the context item is absent")
+	case e.absolute:
 		cur = seq{{k: kNode}}
-	} else {
+	default:
 		cur = seq{c.it}
 	}
 	for i, s := range e.steps {
@@ -1055,4 +1112,178 @@ func daysIn(year int64, month int) int {
 		return 30
 	}
 	return 31
+}
+
+func (e *ifExpr) eval(c *ctx) (seq, error) {
+	ok, err := ebvOf(e.cond, c)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		return e.a.eval(c)
+	}
+	return e.b.eval(c)
+}
+
+// dateItem returns the xs:date of the lexical form s (see isDate). Its
+// starting instant t is the first minute of the day in its time zone, a
+// date without one being in UTC: the implicit time zone of Saxon run by
+// the parity job, under GitHub Actions. Its string value is s, with the
+// time zone +00:00 or -00:00 written Z, as Saxon writes it.
+func dateItem(s string) (item, bool) {
+	if !isDate(s) {
+		return item{}, false
+	}
+	neg := strings.HasPrefix(s, "-")
+	body := strings.TrimPrefix(s, "-")
+	i := strings.IndexByte(body, '-')
+	year, _ := strconv.ParseInt(body[:i], 10, 64)
+	if neg {
+		year = -year
+	}
+	month, _ := twoDigits(body[i+1 : i+3])
+	day, _ := twoDigits(body[i+4 : i+6])
+	tz := body[i+6:]
+	offset := int64(0)
+	if len(tz) == 6 {
+		h, _ := twoDigits(tz[1:3])
+		m, _ := twoDigits(tz[4:6])
+		offset = int64(h*60 + m)
+		if tz[0] == '-' {
+			offset = -offset
+		}
+		if offset == 0 {
+			s = s[:len(s)-6] + "Z"
+		}
+	}
+	return item{k: kDate, s: s, t: daysFromCivil(year, month, day)*1440 - offset}, true
+}
+
+// daysFromCivil returns the number of days from 1970-01-01 to the given day
+// of the proleptic Gregorian calendar, which has a year 0.
+func daysFromCivil(y int64, m, d int) int64 {
+	if m <= 2 {
+		y--
+	}
+	era := y / 400
+	if y < 0 && y%400 != 0 {
+		era--
+	}
+	yoe := y - era*400
+	mp := int64((m + 9) % 12)
+	doy := (153*mp+2)/5 + int64(d) - 1
+	doe := yoe*365 + yoe/4 - yoe/100 + doy
+	return era*146097 + doe - 719468
+}
+
+// toDate casts a string or untyped value to xs:date, white space
+// collapsed.
+func toDate(i item) (item, error) {
+	if d, ok := dateItem(strings.Trim(i.s, " \t\n\r")); ok {
+		return d, nil
+	}
+	return item{}, dynErr("cannot cast %q to xs:date", i.s)
+}
+
+// userFunc is a compiled function of the schematron (xsl:function).
+type userFunc struct {
+	name   string
+	as     seqType // declared type of the result
+	params []userParam
+	lets   []cLet
+	result expr
+}
+
+type userParam struct {
+	name string
+	as   seqType
+}
+
+// seqType is a sequence type of XSLT (the as attribute): an item type and
+// an occurrence indicator.
+type seqType struct {
+	item string // "" (any sequence), xs:anyAtomicType, xs:string, xs:boolean, item() or node()
+	occ  byte   // 0 (exactly one), '?', '*' or '+'
+}
+
+// parseSeqType parses the as attribute of a parameter or a function.
+func parseSeqType(s string) (seqType, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return seqType{}, nil
+	}
+	var t seqType
+	if n := len(s); s[n-1] == '?' || s[n-1] == '*' || s[n-1] == '+' {
+		t.occ, s = s[n-1], strings.TrimSpace(s[:n-1])
+	}
+	switch s {
+	case "xs:anyAtomicType", "xs:string", "xs:boolean", "item()", "node()":
+		t.item = s
+		return t, nil
+	}
+	return seqType{}, fmt.Errorf("unsupported sequence type %q", s)
+}
+
+// convert applies the function conversion rules of XSLT to s, the value of
+// a parameter or the result of a function of type t: atomization for an
+// atomic type, an untyped value cast to it, then the check of the
+// occurrence indicator. A value that does not match raises a type error.
+func (t seqType) convert(s seq) (seq, error) {
+	if t.item == "" {
+		return s, nil
+	}
+	switch t.item {
+	case "node()":
+		for _, i := range s {
+			if i.k != kNode {
+				return nil, dynErr("%s is not a node", typeName(i))
+			}
+		}
+	case "xs:anyAtomicType", "xs:string", "xs:boolean":
+		s = atomize(s)
+		for k, i := range s {
+			switch {
+			case t.item == "xs:string" && (i.k == kUntyped || i.k == kString):
+				s[k] = item{k: kString, s: i.s}
+			case t.item == "xs:boolean" && i.k == kUntyped:
+				b, err := toBoolean(i)
+				if err != nil {
+					return nil, err
+				}
+				s[k] = b
+			case t.item == "xs:boolean" && i.k != kBool, t.item == "xs:string" && i.k != kString:
+				return nil, dynErr("%s does not match %s", typeName(i), t.item)
+			}
+		}
+	}
+	n := len(s)
+	if t.occ == 0 && n != 1 || t.occ == '?' && n > 1 || t.occ == '+' && n == 0 {
+		return nil, dynErr("a sequence of %d items does not match the occurrence %q", n, string(t.occ))
+	}
+	return s, nil
+}
+
+// eval calls the function: its parameters are bound to the converted
+// arguments, its variables evaluated in order, without the variables of
+// the caller nor a context item, and its result converted.
+func (e *userCall) eval(c *ctx) (seq, error) {
+	f := e.f
+	var vars *binding
+	for i, a := range e.args {
+		s, err := a.eval(c)
+		if err != nil {
+			return nil, err
+		}
+		if s, err = f.params[i].as.convert(s); err != nil {
+			return nil, fmt.Errorf("%s: parameter $%s: %w", f.name, f.params[i].name, err)
+		}
+		vars = &binding{name: f.params[i].name, val: s, next: vars}
+	}
+	fc := &ctx{d: c.d, absent: true, vars: vars}
+	fc.vars = bindLets(fc, f.lets)
+	r, err := f.result.eval(fc)
+	if err != nil {
+		return nil, err
+	}
+	return f.as.convert(r)
 }

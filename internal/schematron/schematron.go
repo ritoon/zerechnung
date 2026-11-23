@@ -52,6 +52,22 @@ type Rule struct {
 	Asserts []Assertion
 }
 
+// Function is a function that the schematron declares (xsl:function, as an
+// XSLT 2.0 query binding allows): its name, a prefixed QName, the types of
+// its result and parameters (the as attributes), its variables
+// (xsl:variable) and the expression of its result (xsl:sequence). Its body
+// has no context item and sees its parameters and variables only.
+type Function struct {
+	Name   string
+	As     string
+	Params []Param
+	Lets   []Let
+	Result string
+}
+
+// Param is a parameter of a function (xsl:param).
+type Param struct{ Name, As string }
+
 // Pattern is a pattern of the schematron, abstract patterns being
 // instantiated.
 type Pattern struct {
@@ -88,10 +104,17 @@ type Schema struct {
 	pats []cPattern
 }
 
-// Compile compiles patterns whose prefixes are those of ns. It returns the
-// first expression that does not compile, outside the subset of XPath 2.0
-// that the package implements.
-func Compile(ns map[string]string, patterns []Pattern) (*Schema, error) {
+// Compile compiles patterns whose prefixes are those of ns, and whose
+// expressions may call the functions fns. It returns the first expression
+// that does not compile, outside the subset of XPath 2.0 that the package
+// implements.
+func Compile(ns map[string]string, patterns []Pattern, fns ...Function) (*Schema, error) {
+	user, err := compileFunctions(ns, fns)
+	if err != nil {
+		return nil, err
+	}
+	compile := func(src string, ns map[string]string) (expr, error) { return compileWith(src, ns, user) }
+	compileLets := func(lets []Let, ns map[string]string) ([]cLet, error) { return compileLetsWith(lets, ns, user) }
 	s := &Schema{pats: make([]cPattern, len(patterns))}
 	for i := range patterns {
 		p := &patterns[i]
@@ -102,7 +125,7 @@ func Compile(ns map[string]string, patterns []Pattern) (*Schema, error) {
 		}
 		for j := range p.Rules {
 			r := &p.Rules[j]
-			ctx, err := compileContext(r.Context, ns)
+			ctx, err := compileContext(r.Context, ns, user)
 			if err != nil {
 				return nil, fmt.Errorf("pattern %s, context %s: %w", p.ID, r.Context, err)
 			}
@@ -136,10 +159,48 @@ func Compile(ns map[string]string, patterns []Pattern) (*Schema, error) {
 	return s, nil
 }
 
-func compileLets(lets []Let, ns map[string]string) ([]cLet, error) {
+// compileFunctions compiles the functions, each of which may call itself
+// and the others.
+func compileFunctions(ns map[string]string, fns []Function) (map[string]*userFunc, error) {
+	if len(fns) == 0 {
+		return nil, nil
+	}
+	user := map[string]*userFunc{}
+	for _, f := range fns {
+		if _, dup := user[f.Name]; dup {
+			return nil, fmt.Errorf("function %s declared twice", f.Name)
+		}
+		as, err := parseSeqType(f.As)
+		if err != nil {
+			return nil, fmt.Errorf("function %s: %w", f.Name, err)
+		}
+		u := &userFunc{name: f.Name, as: as}
+		for _, p := range f.Params {
+			t, err := parseSeqType(p.As)
+			if err != nil {
+				return nil, fmt.Errorf("function %s, parameter $%s: %w", f.Name, p.Name, err)
+			}
+			u.params = append(u.params, userParam{p.Name, t})
+		}
+		user[f.Name] = u
+	}
+	for _, f := range fns {
+		u := user[f.Name]
+		var err error
+		if u.lets, err = compileLetsWith(f.Lets, ns, user); err != nil {
+			return nil, fmt.Errorf("function %s: %w", f.Name, err)
+		}
+		if u.result, err = compileWith(f.Result, ns, user); err != nil {
+			return nil, fmt.Errorf("function %s: %s: %w", f.Name, f.Result, err)
+		}
+	}
+	return user, nil
+}
+
+func compileLetsWith(lets []Let, ns map[string]string, user map[string]*userFunc) ([]cLet, error) {
 	var out []cLet
 	for _, l := range lets {
-		e, err := compile(l.Value, ns)
+		e, err := compileWith(l.Value, ns, user)
 		if err != nil {
 			return nil, fmt.Errorf("variable %s: %w", l.Name, err)
 		}
@@ -153,8 +214,8 @@ func compileLets(lets []Let, ns map[string]string) ([]cLet, error) {
 // each relative path of the union is searched at any depth, as
 // cac:InvoiceLine matches every cac:InvoiceLine element, and its steps are
 // lenient: a node whose predicate raises an error does not match.
-func compileContext(src string, ns map[string]string) (expr, error) {
-	e, err := compile(src, ns)
+func compileContext(src string, ns map[string]string, user map[string]*userFunc) (expr, error) {
+	e, err := compileWith(src, ns, user)
 	if err != nil {
 		return nil, err
 	}
