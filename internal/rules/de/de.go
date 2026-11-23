@@ -39,6 +39,23 @@
 // matching any Unicode decimal digit, and the code lists of common.sch
 // searched with contains().
 //
+// # Version
+//
+// The package implements XRechnung 3.0.2, in force since 1 February 2024
+// and, as the summer of 2026 brought no normative release, until 31 July
+// 2027 at least; the artefacts come from the KoSIT validator configuration
+// of 31 August 2026 (xeinkauf.de, versions and bundles).
+//
+// XRechnung 4.0, which follows EN 16931-1:2026 and its 2026 syntax
+// bindings, is not implemented: only its specification document is
+// published, as a pre-version of 15 September 2026 that is not meant for
+// productive use, and its technical components (schematrons, XSD, KoSIT
+// validator configuration) wait for the CEN validation artefacts; the final
+// version is expected in the spring of 2027. An invoice whose specification
+// identifier (BT-24) names EN 16931-1:2026, as a 4.0 invoice will, gets
+// EN16931-EDITION-01 from package validate and none of these rules,
+// which hold for 3.0.2 (validate.Options.Profile applies them anyway).
+//
 // # UBL
 //
 // For a UBL invoice (rules.Doc.UBL set), Check runs the UBL schematron on the

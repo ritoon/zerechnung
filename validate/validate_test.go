@@ -23,8 +23,9 @@ const (
 	peppolInvoice = "../internal/rules/peppol/testdata/peppol.xml" // Peppol BIS Billing 3.0, seller in the United Kingdom
 	bt24EN16931   = "<ram:ID>urn:cen.eu:en16931:2017</ram:ID>"
 
-	xrechnungInvoice = "../testdata/XRECHNUNG_Einfach.cii.xml"            // XRECHNUNG, seller in Germany
-	peppolUBLInvoice = "../internal/rules/peppol/testdata/peppol.ubl.xml" // peppolInvoice in UBL 2.1
+	xrechnungInvoice    = "../testdata/XRECHNUNG_Einfach.cii.xml"            // XRECHNUNG, seller in Germany
+	xrechnungUBLInvoice = "../testdata/XRECHNUNG_Einfach.ubl.xml"            // xrechnungInvoice in UBL 2.1
+	peppolUBLInvoice    = "../internal/rules/peppol/testdata/peppol.ubl.xml" // peppolInvoice in UBL 2.1
 )
 
 func readXML(t *testing.T, name string) string {
