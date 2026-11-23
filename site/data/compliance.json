@@ -4,7 +4,7 @@
     {"code": "AT", "eu": true, "b2g": "since 2014", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"], ["ebInterface", "no"]]},
     {"code": "BE", "eu": true, "b2g": "since 2022", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"]]},
     {"code": "BG", "eu": true, "b2g": "reception 2019", "b2b": "planned 2028", "cover": [["EN 16931", "yes"]]},
-    {"code": "HR", "eu": true, "b2g": "since 2019", "b2b": "since 2026", "cover": [["CIUS-HR", "partial"]]},
+    {"code": "HR", "eu": true, "b2g": "since 2019", "b2b": "since 2026", "cover": [["CIUS-HR", "yes"]]},
     {"code": "CY", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"], ["Peppol BIS 3.0", "yes"]]},
     {"code": "CZ", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"], ["ISDOC", "no"]]},
     {"code": "DK", "eu": true, "b2g": "since 2005", "b2b": "voluntary", "cover": [["Peppol BIS 3.0", "yes"], ["OIOUBL 2.1", "no"]]},
@@ -129,6 +129,16 @@
         {"text": "cp_sk_ids", "status": "yes", "rules": ["Slovakia"]},
         {"text": "cp_sk_tdd", "status": "no"},
         {"text": "cp_sk_send", "status": "no"}
+      ]
+    },
+    {
+      "code": "HR",
+      "checks": [
+        {"text": "cp_hr_cius", "status": "yes", "rules": ["Croatia"]},
+        {"text": "cp_hr_ext", "status": "yes", "rules": ["ubl"]},
+        {"text": "cp_hr_oib", "status": "yes", "rules": ["Croatia"]},
+        {"text": "cp_hr_fisk", "status": "no"},
+        {"text": "cp_hr_send", "status": "no"}
       ]
     },
     {
