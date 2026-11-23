@@ -9,7 +9,7 @@ It is a separate Go module, so the package itself stays untouched. Its only depe
 | `i18n/` | One JSON file per language: its code, its name in that language, its flag, the texts and the translated page paths (`*_slug`) |
 | `templates/` | One template per page (`home`, `examples`, `benchmarks`, `compliance`), the shared parts, the language chooser at the root and the 404 page (`html/template`) |
 | `examples/` | The worked examples: one Go program per directory, `<lang>-<n>-<name>` |
-| `data/` | `benchmarks.json` (the Go results published in the wiki, and those of [`polyglot`](https://github.com/ritoon/invoice-bench/tree/main/polyglot) in invoice-bench for the other languages, CPU and memory included) and `compliance.json` (the standards by country) |
+| `data/` | `benchmarks.json` (the results of [invoice-bench](https://github.com/ritoon/invoice-bench): its Go campaign, published in the wiki, and its runs in the other languages, CPU and memory included) and `compliance.json` (the standards by country) |
 | `static/` | Style sheet, script, images, copied as is |
 | `flags.go` | The flags of the countries and languages, as inline SVG |
 | `main.go`, `examples.go`, `data.go` | The generator |
@@ -65,7 +65,7 @@ func main() {
 
 ## Benchmarks and compliance
 
-The two pages read their figures from `data/`. Update `benchmarks.json` when the wiki publishes new results: each chart lists its rows from the fastest, with the time in microseconds or the reason of a failure, and the scale is computed from them. `compliance.json` lists, per country, the B2G and B2B obligations and the formats ZeRechnung covers, and for the countries with a guide the checkpoints and the rules that verify them. The texts they refer to are keys of the i18n files, and `go test` checks that they exist, and that each country has a flag in `flags.go`.
+The two pages read their figures from `data/`. Update `benchmarks.json` when invoice-bench publishes new results: each chart lists its rows from the fastest, with the time in microseconds or the reason of a failure, and the scale is computed from them. `compliance.json` lists, per country, the B2G and B2B obligations and the formats ZeRechnung covers, and for the countries with a guide the checkpoints and the rules that verify them. The texts they refer to are keys of the i18n files, and `go test` checks that they exist, and that each country has a flag in `flags.go`.
 
 ## Translate
 
