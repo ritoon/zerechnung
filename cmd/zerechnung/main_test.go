@@ -570,6 +570,51 @@ func TestEReporting(t *testing.T) {
 	}
 }
 
+// TestCDAR reads a CDAR status with json, and checks it with validate: the
+// Format line gives its syntax and its status, a reason outside the lists
+// of the schematron BR-FR-CDV fails, with or without -fr.
+func TestCDAR(t *testing.T) {
+	const name = "../../cdar/testdata/UC3_F202500005_04-CDV-210_Refusee.xml"
+	var out bytes.Buffer
+	if err := jsonCmd([]string{name}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var m struct {
+		ID               string
+		Acknowledgements []struct {
+			Invoices []struct {
+				InvoiceID, Code, Label string
+				Details                []struct{ ReasonCode string }
+			}
+		}
+	}
+	if err := json.Unmarshal(out.Bytes(), &m); err != nil || len(m.Acknowledgements) != 1 || len(m.Acknowledgements[0].Invoices) != 1 {
+		t.Fatalf("json %s: %+v, %v\n%s", name, m, err, out.String())
+	}
+	if st := m.Acknowledgements[0].Invoices[0]; st.InvoiceID != "F202500005" || st.Code != "210" || st.Label != "Refusée" ||
+		len(st.Details) != 1 || st.Details[0].ReasonCode != "TX_TVA_ERR" {
+		t.Errorf("json %s: %+v", name, st)
+	}
+
+	out.Reset()
+	if code, err := validateCmd([]string{name}, &out); err != nil || code != 0 ||
+		out.String() != "Format: CDAR D22B, status 210 Refusée\n0 error(s), 0 warning(s)\n" {
+		t.Errorf("validate %s: code %d, %v\n%s", name, code, err, out.String())
+	}
+	out.Reset()
+	var report struct{ Format string }
+	if code, err := validateCmd([]string{"-json", name}, &out); err != nil || code != 0 ||
+		json.Unmarshal(out.Bytes(), &report) != nil || report.Format != "CDAR D22B, status 210 Refusée" {
+		t.Errorf("validate -json %s: code %d, %v\n%s", name, code, err, out.String())
+	}
+	bad := mutated(t, name, "<ram:ReasonCode>TX_TVA_ERR</ram:ReasonCode>", "<ram:ReasonCode>XXX</ram:ReasonCode>")
+	for _, args := range [][]string{{bad}, {"-fr", bad}} {
+		if code, got := runValidate(t, args...); code != 1 || len(got) != 2 || !got["BR-FR-CDV-CL-09_MDT-113"] || !got["BR-FR-CDV-CL-09_MDT-113_210"] {
+			t.Errorf("validate %v: code %d, findings %v", args, code, got)
+		}
+	}
+}
+
 // TestSignCmd signs a hybrid invoice with keys and certificates in PEM
 // files and checks the signature with validate -roots: trusted, it adds no
 // error; against other roots, SIG-07 or SIG-09 makes validate fail.

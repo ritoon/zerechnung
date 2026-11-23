@@ -111,6 +111,15 @@
 // FatturaPA invoice, read it with package fatturapa and validate the UBL
 // that ubl.Marshal writes.
 //
+// A status of the life cycle of a French invoice (CDV), a CDAR D22B message
+// (see package cdar), is checked against the CDAR D22B schema of the
+// France_RFE package of the FNFE-MPE (the Schema rule set, with the same
+// XSD-* rules), and against the rules BR-FR-CDV of its schematron
+// (BR-FR-CDV-Schematron-CDAR 1.4.0.04) whatever the rule sets, as the
+// controls of the SDI on a FatturaPA document: rules listed in the France
+// rule set, source SourceCDV. The rules of the invoices do not apply. See
+// package internal/rules/cdv.
+//
 // A report of the French e-reporting (flux 10, see package ereporting) is
 // checked against the schemas of the flux 10 of France_RFE (the Schema rule
 // set, with the same XSD-* rules), and for the values that cannot be read
@@ -120,8 +129,8 @@
 //
 // Validation never stops at the first problem: every finding is collected in
 // a Report. A document that is not well-formed XML, or neither a CII, a
-// ZUGFeRD 1.0, a UBL, a FatturaPA nor a Facturae invoice nor an e-reporting
-// report, gives a report with a single syntax error.
+// ZUGFeRD 1.0, a UBL, a FatturaPA nor a Facturae invoice, a CDAR status nor
+// an e-reporting report, gives a report with a single syntax error.
 package validate
 
 import (
@@ -134,6 +143,7 @@ import (
 	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/fatturapa"
 	"github.com/ritoon/zerechnung/internal/rules"
+	"github.com/ritoon/zerechnung/internal/rules/cdv"
 	"github.com/ritoon/zerechnung/internal/rules/choruspro"
 	"github.com/ritoon/zerechnung/internal/rules/de"
 	"github.com/ritoon/zerechnung/internal/rules/en16931"
@@ -177,6 +187,7 @@ const (
 	SourceEN16931 = rules.SourceEN16931
 	SourceFacturX = rules.SourceFacturX
 	SourceFR      = rules.SourceFR
+	SourceCDV     = rules.SourceCDV
 	SourceDE      = rules.SourceDE
 	SourcePDF     = rules.SourcePDF
 
@@ -198,10 +209,10 @@ type RuleSet uint
 
 // Rule sets.
 const (
-	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4, Facturae of its version, flux 10 of France_RFE (e-reporting report); minimal structural check of ZUGFeRD 1.0
+	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4, Facturae of its version, CDAR D22B (status), flux 10 of France_RFE (e-reporting report); minimal structural check of ZUGFeRD 1.0
 	EN16931                            // CEN business rules and code lists, and the UBL syntax rules for UBL
 	FacturX                            // Factur-X / ZUGFeRD profile rules (CII only)
-	France                             // French rules BR-FR (2026 reform) and the profiles the reform admits (FR-PROFILE-*)
+	France                             // French rules BR-FR (2026 reform) and the profiles the reform admits (FR-PROFILE-*); lists the rules BR-FR-CDV of the statuses, which apply to a CDAR status whatever the rule sets
 	Germany                            // German rules BR-DE (XRechnung) and the format of the Leitweg-ID and of the GEBA (DE-LEITWEG-*, DE-GEBA-*)
 	GermanyProfile                     // profiles the BMF accepts as e-invoices (DE-PROFILE-01: not MINIMUM nor BASIC WL)
 	ChorusPro                          // French B2G checks for Chorus Pro (CPRO-*), see Options.PublicBuyer
@@ -355,7 +366,8 @@ type PublicBuyer struct {
 }
 
 // XML validates a CII or UBL invoice, a ZUGFeRD 1.0 invoice, a FatturaPA
-// document, a Facturae document or a report of the French e-reporting.
+// document, a Facturae document, a CDAR status or a report of the French
+// e-reporting.
 func XML(data []byte, opts *Options) *Report {
 	root, err := xmltree.Parse(data)
 	return xmlReport(data, root, err, opts)
@@ -380,8 +392,8 @@ func xmlReport(data []byte, root *xmltree.Node, err error, opts *Options) *Repor
 }
 
 // Tree validates an already parsed CII or UBL invoice, a ZUGFeRD 1.0
-// invoice, a FatturaPA document, a Facturae document or a report of the
-// French e-reporting. A tree does not
+// invoice, a FatturaPA document, a Facturae document, a CDAR status or a
+// report of the French e-reporting. A tree does not
 // keep what the signature of a Facturae document covers: under the FACe
 // rule set, Tree only reports a missing signature, XML checks it.
 func Tree(root *xmltree.Node, opts *Options) *Report {
@@ -411,13 +423,16 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	case facturae.IsFacturae(root):
 		checkFacturae(root, opts, r)
 		return r
+	case rules.IsCDAR(root):
+		checkCDAR(root, opts, r)
+		return r
 	case ereporting.IsReport(root):
 		checkEReporting(root, opts, r)
 		return r
 	default:
 		r.Add(Finding{Rule: "CII", Severity: Error, Source: SourceSyntax, Path: "/" + root.Name, Line: root.Line,
 			Message: "the root element is neither rsm:CrossIndustryInvoice in namespace " + rules.NSRsm +
-				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, a UBL 2.1 Invoice or CreditNote, a FatturaPA FatturaElettronica, a Facturae 3.2, 3.2.1 or 3.2.2 document nor a French e-reporting Report"})
+				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, a UBL 2.1 Invoice or CreditNote, a FatturaPA FatturaElettronica, a Facturae 3.2, 3.2.1 or 3.2.2 document, a CDAR status rsm:CrossDomainAcknowledgementAndResponse nor a French e-reporting Report"})
 		return r
 	}
 	r.Profile = doc.Profile
@@ -554,6 +569,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(France, fr.Catalog)
 	add(France, newRules(fr.UBLCatalog, fr.Catalog))
 	add(France, fr.ProfileCatalog)
+	add(France, cdv.Catalog())
 	add(Germany, de.Catalog)
 	add(Germany, newRules(de.UBLCatalog, de.Catalog))
 	add(Germany, de.IdentifierCatalog)

@@ -379,12 +379,12 @@ func parseSVRL(data []byte) (svrlReport, error) {
 }
 
 // xslRun is the run of XSLT compiled by the ISO skeleton, by NPaBatch: the
-// NPa XSLT (npa.list) or the EXTENDED-CTC-FR XSLT of the FNFE-MPE
-// (fnfe.list). It holds the stylesheet given to each staged invoice, the
+// NPa XSLT (npa.list), the EXTENDED-CTC-FR XSLT of the FNFE-MPE (fnfe.list)
+// or its XSLT BR-FR-CDV of the statuses (cdv.list). It holds the stylesheet given to each staged invoice, the
 // assertions of each stylesheet, and the NLCIUS assertions that failed on
 // at least one invoice.
 type xslRun struct {
-	list    string              // npa.list, fnfe.list
+	list    string              // npa.list, fnfe.list, cdv.list
 	xsl     map[string]string   // staged name → XSLT
 	indexes map[string]xslIndex // XSLT → assertions
 	fired   map[string]bool     // key of an assertion of an NLCIUS pattern → it failed

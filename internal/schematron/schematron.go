@@ -1,17 +1,19 @@
 // Package schematron runs ISO Schematron patterns whose contexts, variables
 // and tests use a subset of XPath 2.0, the way an XSLT 2.0 processor runs
-// the stylesheet a schematron compiles into. The rule sets of the national
-// CIUS whose schematron is reproduced as published (packages
-// internal/rules/pt and internal/rules/ro) generate their patterns and run
+// the stylesheet a schematron compiles into. The rule sets whose schematron
+// is reproduced as published (packages internal/rules/pt, internal/rules/ro
+// and internal/rules/hr for national CIUS, internal/rules/cdv for the French
+// statuses of the life cycle of an invoice) generate their patterns and run
 // them with this package.
 //
 // # Evaluation
 //
 // The expressions are evaluated by an interpreter of the subset of XPath 2.0
 // they use (xpath.go, eval.go, funcs.go), with the semantics of an XSLT 2.0
-// processor: comparison of untyped values as strings or as xs:double, exact
-// xs:decimal arithmetic (a division keeps 18 decimals, rounded half down, as
-// Saxon does), round() halves towards positive infinity, regular
+// processor: general comparisons of untyped values as strings or as
+// xs:double, value comparisons (eq, ne, lt…) of untyped values as strings,
+// exact xs:decimal arithmetic (a division keeps 18 decimals, rounded half
+// down, as Saxon does), round() halves towards positive infinity, regular
 // expressions of XPath. In each pattern, an element is checked by the first
 // rule whose context it matches, and by no other. A test that raises an
 // XPath error, which stops a validator built on an XSLT processor, counts as

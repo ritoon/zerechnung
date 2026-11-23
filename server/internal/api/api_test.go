@@ -415,6 +415,19 @@ func TestValidate(t *testing.T) {
 	if err := json.Unmarshal(out, &r); err != nil || resp.StatusCode != 200 || r.Format != "CII" {
 		t.Errorf("multipart: status %d: %s", resp.StatusCode, out)
 	}
+	status, err := os.ReadFile("../../../cdar/testdata/UC3_F202500005_04-CDV-210_Refusee.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, body = e.do("POST", "/v1/validate", "application/xml", status)
+	if err := json.Unmarshal(body, &r); err != nil || resp.StatusCode != 200 || r.Format != "CDAR D22B" || !r.Valid || len(r.Findings) != 0 {
+		t.Errorf("CDAR: status %d: %s", resp.StatusCode, body)
+	}
+	status = bytes.Replace(status, []byte("<ram:ReasonCode>TX_TVA_ERR<"), []byte("<ram:ReasonCode>XXX<"), 1)
+	resp, body = e.do("POST", "/v1/validate", "application/xml", status)
+	if err := json.Unmarshal(body, &r); err != nil || resp.StatusCode != 200 || r.Valid || r.Errors != 2 || r.Findings[0].Rule != "BR-FR-CDV-CL-09_MDT-113" {
+		t.Errorf("invalid CDAR: status %d: %s", resp.StatusCode, body)
+	}
 }
 
 // TestValidateSlovakia checks the Slovak rule set: ?rules=sk applies it,

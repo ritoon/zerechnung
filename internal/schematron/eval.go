@@ -161,9 +161,13 @@ type (
 	literal   struct{ v item }
 	varRef    struct{ name string }
 	ctxItem   struct{}
-	cmpExpr   struct {
-		op   string
-		a, b expr
+	// cmpExpr is a general comparison (=, !=, <, <=, >, >=), or a value
+	// comparison (eq, ne, lt, le, gt, ge) when value is set, op being then
+	// the general operator of the same comparison.
+	cmpExpr struct {
+		op    string
+		value bool
+		a, b  expr
 	}
 	arithExpr struct {
 		op   string
@@ -454,7 +458,31 @@ func (e *cmpExpr) eval(c *ctx) (seq, error) {
 	if err != nil {
 		return nil, err
 	}
+	if e.value {
+		return valueCompare(e.op, atomize(a), atomize(b))
+	}
 	ok, err := general(e.op, atomize(a), atomize(b))
+	return boolSeq(ok), err
+}
+
+// valueCompare implements the value comparisons: the empty sequence when
+// a or b is empty, an error when either holds several values, else the
+// comparison of the two values, an untyped one compared as a string.
+func valueCompare(op string, a, b seq) (seq, error) {
+	if len(a) == 0 || len(b) == 0 {
+		return seq{}, nil
+	}
+	if len(a) > 1 || len(b) > 1 {
+		return nil, dynErr("a value comparison takes single values, not sequences of %d and %d", len(a), len(b))
+	}
+	x, y := a[0], b[0]
+	if x.k == kUntyped {
+		x.k = kString
+	}
+	if y.k == kUntyped {
+		y.k = kString
+	}
+	ok, err := compareValues(op, x, y, false)
 	return boolSeq(ok), err
 }
 

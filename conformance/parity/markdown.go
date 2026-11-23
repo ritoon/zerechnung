@@ -112,10 +112,11 @@ func markdown(all []comparison, never []neverFired, unused []string, coverage []
 		}
 		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %d |\n", ref.title, n, same, known, unexpected, verdict)
 	}
-	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les variants, les XSLT de la NPa et celles de la FNFE-MPE, les règles levées en avertissement le sont aussi ; avec les schematrons CIUS-PT, CIUS-RO et CIUS-HR, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
+	b.WriteString("\nPour chaque facture, les règles levées en erreur de part et d'autre sont comparées : celles des schematrons officiels (EN 16931, Factur-X, XRechnung, Peppol), sous leur identifiant ou, pour les listes de codes des schematrons Factur-X, sous celui de la règle CEN équivalente, et la présence d'erreurs de schéma XSD (`SCHEMA`). Avec les variants, les XSLT de la NPa et celles de la FNFE-MPE (EXTENDED-CTC-FR et statuts BR-FR-CDV), les règles levées en avertissement le sont aussi ; avec les schematrons CIUS-PT, CIUS-RO et CIUS-HR, les règles levées en avertissement aussi, et sur le même élément (voir plus bas). Le verdict est valide quand aucune de ces règles n'est en erreur.\n")
 	variantSection(&b, all, coverage)
 	npaSection(&b, all, never)
 	fnfeSection(&b, all)
+	cdvSection(&b, all)
 	ptSection(&b, all)
 	roSection(&b, all)
 	hrSection(&b, all)

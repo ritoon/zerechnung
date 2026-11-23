@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ritoon/zerechnung"
+	"github.com/ritoon/zerechnung/cdar"
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/fatturapa"
@@ -463,12 +464,14 @@ func (s *Server) validate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, report)
 }
 
-// xmlFormat names the syntax of an XML invoice.
+// xmlFormat names the syntax of an XML invoice, or of a CDAR status.
 func xmlFormat(data []byte) string {
 	root, err := xmltree.Parse(data)
 	switch {
 	case err != nil:
 		return ""
+	case cdar.IsCDAR(root):
+		return "CDAR " + cdar.Version
 	case fatturapa.IsFatturaPA(root):
 		return strings.TrimSpace("FatturaPA " + root.Attr("versione"))
 	case facturae.IsFacturae(root):

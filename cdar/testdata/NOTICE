@@ -1,0 +1,20 @@
+Les fichiers de ce répertoire sont des exemples de statuts du cycle de vie
+(CDAR D22B) du paquet France_RFE de la FNFE-MPE, version 1.4.0.04
+(https://github.com/fnfempe/France_RFE, tag v1.4.0.04, commit
+97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d), répertoire
+FNFE_RFE_INVOICE/Z.example/TEST/CDAR, distribué sous licence Apache 2.0
+(https://www.apache.org/licenses/LICENSE-2.0). Ils sont reproduits sans
+modification ; les factures qu'ils citent et leurs parties sont fictives.
+
+  UC1_F202500003_01-CDV-200_Deposee.xml           statut 200 Déposée
+  UC1_F202500003_01-CDV-200_Deposee_POUR_PPF.xml  le même, pour le PPF
+  UC1_F202500003_07-CDV-212_Encaissee.xml         statut 212 Encaissée
+  UC1_F202500003_07-CDV-212_Encaissee_POUR_PPF.xml
+  UC2_F202500004_02-CDV-213_Rejetee.xml           statut 213 Rejetée
+  UC2_F202500004_02-CDV-213_Rejetee_POUR_PPF.xml
+  UC3_F202500005_04-CDV-210_Refusee.xml           statut 210 Refusée
+  UC3_F202500005_04-CDV-210_Refusee_POUR_PPF.xml
+  UC4_F202500006_04-CDV-207_En_litige.xml         statut 207 En litige
+  UC4b_F202500006_05-CDV-220_Annulee.xml          statut 220 Annulée
+  UC5_F202500007_02-CDV-202_Recue.xml             statut 202 Reçue
+  UC5b_F202500007_05-CDV-205_Approuvee.xml        statut 205 Approuvée

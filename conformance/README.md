@@ -7,7 +7,7 @@ Ce dossier mesure l'exactitude du package sur les artefacts officiels, à chaque
 | [`fetch.sh`](fetch.sh) | Récupère les artefacts officiels à des versions figées et les vérifie, puis affiche les variables `FX_*` qui activent les tests optionnels |
 | [`fetch-nl.sh`](fetch-nl.sh) | Récupère les seuls artefacts des règles néerlandaises (`FX_NL`, `FX_NL_TESTS`) ; `fetch.sh` l'appelle, et le job *Tests NLCIUS sur les artefacts officiels* du workflow [CI](../.github/workflows/ci.yml) l'exécute seul, en quelques secondes |
 | [`verapdf.sh`](verapdf.sh) | Convertit en PDF/A-3 les fichiers PDF/A-2b et PDF/A-3b du corpus veraPDF et les PDF non conformes des tests, signe en PAdES une facture hybride PDF/A-3, puis vérifie ces fichiers avec veraPDF |
-| [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, KoSIT sur les variants des tests de mutation EN 16931 et XRechnung, les XSLT de la NPa sur les factures NLCIUS, les XSLT EXTENDED-CTC-FR de la FNFE-MPE sur les factures EXTENDED-CTC-FR, le schematron CIUS-PT d'eSPap, compilé par SchXslt, sur les factures CIUS-PT, la phase ROmodel du schematron CIUS-RO de l'ANAF, compilée de même, sur les factures CIUS-RO en UBL et le schematron CIUS-HR de la Porezna uprava, compilé de même, sur les factures CIUS-HR, puis compare leurs règles à celles du package |
+| [`parity.sh`](parity.sh) | Exécute KoSIT et Mustang sur les factures du corpus et de la suite KoSIT, KoSIT sur les variants des tests de mutation EN 16931 et XRechnung, les XSLT de la NPa sur les factures NLCIUS, les XSLT EXTENDED-CTC-FR de la FNFE-MPE sur les factures EXTENDED-CTC-FR, sa XSLT BR-FR-CDV sur les statuts du cycle de vie (CDAR), le schematron CIUS-PT d'eSPap, compilé par SchXslt, sur les factures CIUS-PT, la phase ROmodel du schematron CIUS-RO de l'ANAF, compilée de même, sur les factures CIUS-RO en UBL et le schematron CIUS-HR de la Porezna uprava, compilé de même, sur les factures CIUS-HR, puis compare leurs règles à celles du package |
 | [`parity/`](parity) | Outil Go de comparaison (module séparé) et lanceurs Java de Mustang, des XSLT de la NPa et de la FNFE-MPE, et des schematrons CIUS-PT, CIUS-RO et CIUS-HR |
 | [`parity/known.txt`](parity/known.txt) | Écarts connus et justifiés, règles attendues par un variant que la référence ne lève pas, et assertions NLCIUS qu'aucune facture ne déclenche ; tout autre écart fait échouer le job |
 | [`qr/`](qr) | Tests Go (module séparé) qui font lire les QR codes du package `internal/qr` par gozxing, portage de ZXing, et par le décodeur de piglig/go-qr, dont l'encodeur est issu ; job *Lecture des QR codes par deux décodeurs* |
@@ -47,7 +47,7 @@ Le site du ministère des Finances roumain (mfinante.gov.ro) refuse les téléch
 
 FeRD et FNFE-MPE ne distribuent leurs paquets qu'au travers d'un formulaire : les 20 XSD et les 6 fichiers de schematron viennent de deux copies publiques de ces paquets sous Apache-2.0 ([LandrixSoftware/validator-configuration-zugferd](https://github.com/LandrixSoftware/validator-configuration-zugferd), [backoffice-plus/e-invoice-validator](https://github.com/backoffice-plus/e-invoice-validator)), à des commits figés. Chaque XSD est vérifié par le SHA-256 du fichier officiel, celui-là même dont `internal/schema/tables_gen.go` a été généré. Les schematrons et leurs listes de codes sont ceux que Mustang 2.26.0 embarque (`schematron/ZF_250`) et que contient le paquet officiel, aux fins de ligne près (CRLF dans le paquet et dans Mustang, LF dans la copie git) : leur SHA-256, sur le texte en LF, est vérifié par `fetch.sh` et par le générateur `internal/rules/facturx/gen`, dont `codedb_gen.go` est la sortie.
 
-Les validateurs de référence, téléchargés par `parity.sh` depuis leurs publications GitHub, et Saxon et SchXslt depuis Maven Central, sont vérifiés de la même façon ; KoSIT s'exécute avec la configuration XRechnung 3.0.2 du 2026-08-31 récupérée par `fetch.sh`, Saxon avec les XSLT du dépôt de la NPa (`FX_NL`), avec les XSLT EXTENDED-CTC-FR du paquet France_RFE (`FX_FNFE`) et avec celles que SchXslt compile des schematrons CIUS-PT (`FX_PT_SCH`), CIUS-RO (`FX_RO_SCH`) et CIUS-HR (`FX_HR_SCH`) :
+Les validateurs de référence, téléchargés par `parity.sh` depuis leurs publications GitHub, et Saxon et SchXslt depuis Maven Central, sont vérifiés de la même façon ; KoSIT s'exécute avec la configuration XRechnung 3.0.2 du 2026-08-31 récupérée par `fetch.sh`, Saxon avec les XSLT du dépôt de la NPa (`FX_NL`), avec les XSLT EXTENDED-CTC-FR et BR-FR-CDV du paquet France_RFE (`FX_FNFE`) et avec celles que SchXslt compile des schematrons CIUS-PT (`FX_PT_SCH`), CIUS-RO (`FX_RO_SCH`) et CIUS-HR (`FX_HR_SCH`) :
 
 | Validateur | Fichier | SHA-256 |
 |---|---|---|
@@ -65,7 +65,7 @@ Le job *Tests sur les artefacts officiels* lance `go test ./...` avec toutes les
 
 Le job compile aussi la suite avec l'étiquette `ruletrace` : chaque binaire de test écrit alors dans `rules.txt` les règles des findings qu'il rapporte (`ZERECHNUNG_RULE_TRACE`, voir [`internal/rules/trace_ruletrace.go`](../internal/rules/trace_ruletrace.go)), et `TestRuleCoverage` ([`rulecoverage_test.go`](../rulecoverage_test.go)) vérifie ensuite que chaque règle des catalogues (`validate.Catalog` de tous les jeux de règles, `ContainerCatalog` et `SignatureCatalog`), plus `XML`, `CII` et les règles de `fatturapa.VerifySignature`, est levée par au moins un test. C'est la version dynamique des tests `TestCatalogComplete`, qui lisent les sources : une règle écrite qu'aucun test ne fait échouer peut être inatteignable, ou fausse sans qu'aucun test ne le voie.
 
-La suite lève 3 074 des 3 419 règles. Les 345 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de ses signatures (SIG-01 à SIG-14), de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT, SK, HR-BR) sont toutes levées. Les manques sont dans :
+La suite lève 3 111 des 3 462 règles. Les 351 autres sont listées, par famille, dans [`testdata/rule-coverage.txt`](../testdata/rule-coverage.txt). Le test échoue sur une règle qu'aucun test ne lève et que la liste ne cite pas, comme sur une règle de la liste qu'un test lève : la liste ne peut que raccourcir. Les règles du schéma XSD, du conteneur PDF et de ses signatures (SIG-01 à SIG-14), de syntaxe CII et UBL du CEN (CII-SR, CII-DT, UBL-CR, UBL-SR et UBL-DT, voir les tests `TestSyntaxTables` de [`internal/rules/en16931`](../internal/rules/en16931/syntax_test.go) et de [`internal/rules/ubl`](../internal/rules/ubl/syntax_test.go)) et de tous les jeux nationaux (BR-FR, BR-DE, Chorus Pro, Peppol, BR-NL, BR-IT, SK, HR-BR) sont toutes levées. Les manques sont dans :
 
 | Jeu de règles | Non levées | Familles |
 |---|---|---|
@@ -73,6 +73,7 @@ La suite lève 3 074 des 3 419 règles. Les 345 autres sont listées, par famill
 | Factur-X | 304 sur 385 | listes de codes du schematron Factur-X 1.09.2 (FX-SCH-A) |
 | CIUS-PT | 29 sur 369 | formats DT-CIUS-PT (26), BR-AA, UBL-SR-38 |
 | CIUS-RO | 7 sur 123 | assertions du schematron 1.0.9 qui ne peuvent pas échouer : BR-DEC-RO-13, BR-DEC-RO-15, BR-DEC-RO-23, BR-RO-A051, BR-RO-A052, BR-RO-A500, BR-RO-L1019 |
+| Statuts CDAR (BR-FR-CDV) | 6 sur 43 | assertions du schematron qui ne peuvent pas échouer : cinq testent l'élément de contexte lui-même (BR-FR-CDV-01_MDG-3, BR-FR-CDV-04_MDG-4, BR-FR-CDV-05_MDG-9, BR-FR-CDV-06_MDT-21, BR-FR-CDV-10_MDT-87), BR-FR-CDV-07_MDT-38_no contient `count(…) ge 0` |
 | FatturaPA (signature) | 1 | IT-SIG-06, que seul le job d'interopérabilité des signatures lève |
 
 ```bash
@@ -243,6 +244,23 @@ Chaque fichier reçoit la XSLT de sa syntaxe, que [`parity/NPaBatch.java`](parit
 
 Le seul écart justifié est un arrêt de la XSLT CII sur une erreur de type XPath dans le test de BR-FREXT-CO-10, sur une variante qui répète `ram:LineTotalAmount` : le package lit la première valeur et lève CII-SR-477, la règle que la variante teste.
 
+## Parité des statuts CDAR avec la XSLT BR-FR-CDV de la FNFE-MPE
+
+Le même job exécute la XSLT que la FNFE-MPE compile de son schematron des statuts du cycle de vie, `FNFE_RFE_INVOICE/CDAR/2xslt/BR-FR-CDV-Schematron-CDAR.xslt` du paquet France_RFE 1.4.0.04 (`FX_FNFE`), que le package reproduit dans `internal/rules/cdv`, sur 2 149 statuts CDAR :
+
+- les 59 exemples du paquet (`Z.example/TEST/CDAR`), des cas d'usage UC1 à UC5 ; les statuts de `cdar/testdata` en sont des copies ;
+- 2 090 variantes : les documents des tests de mutation de `internal/rules/cdv`, que son test `TestVariants` écrit avec `-variants DIR` à partir de six statuts d'exemple (déposé pour le PPF, encaissé, rejeté, refusé, refusé B2G, en litige), en changeant un à un les codes, les rôles, les identifiants, les formats et les éléments que les règles contrôlent.
+
+[`parity/NPaBatch.java`](parity/NPaBatch.java) exécute la XSLT avec Saxon-HE 12.10, comme celles de la NPa. Pour chaque statut, l'outil compare les règles levées **en erreur et en avertissement**, sous leur identifiant : côté FNFE-MPE, chaque assertion échouée du rapport SVRL, au niveau de son `flag` ; côté package, les constats BR-FR-CDV de `validate.XML` avec les jeux par défaut ; ses constats du schéma CDAR D22B, que la XSLT n'a pas, restent hors de la comparaison. Un arrêt de la transformation sur une erreur dynamique serait traité comme pour la NPa ; aucun statut n'en provoque.
+
+### Résultats des statuts CDAR
+
+| Référence | Fichiers comparés | Mêmes règles | Écarts justifiés |
+|---|---|---|---|
+| XSLT BR-FR-CDV des statuts CDAR de la FNFE-MPE, France_RFE 1.4.0.04 (Saxon-HE 12.10) | 2 149 | 2 149 | 0 |
+
+Les variantes lèvent 37 des 43 assertions de la XSLT ; les 6 autres ne peuvent pas échouer (voir [Règles levées par la suite](#règles-levées-par-la-suite)).
+
 ## Parité CIUS-PT avec le schematron d'eSPap
 
 Le validateur de l'administration publique portugaise applique aux factures CIUS-PT le schematron d'eSPap (`FX_PT_SCH`), que le package reproduit dans `internal/rules/pt` avec un interpréteur du sous-ensemble de XPath 2.0 qu'il emploie. Le même job compile ce schematron (`urn_feap.gov.pt_CIUS-PT_2.1.1.sch` et les motifs qu'il inclut) en XSLT avec SchXslt 1.10.1, dont Saxon exécute le pipeline `xslt/2.0/pipeline-for-svrl.xsl`, puis [`parity/CiusPtBatch.java`](parity/CiusPtBatch.java) exécute cette XSLT avec Saxon-HE 12.10, dans une seule JVM et sur un fil par processeur, sur 5 783 fichiers :
@@ -364,4 +382,4 @@ conformance/parity.sh
 conformance/signature.sh
 ```
 
-`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE et les schematrons CIUS-PT, CIUS-RO et CIUS-HR ; `signature.sh` demande Go, OpenSSL 3, xmlsec1, pdfsig (poppler-utils), Java 21 et Maven. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.
+`fetch.sh` demande git, curl et `pdfdetach` (poppler-utils) ; `parity.sh` demande en plus Java 17 ou suivant et unzip, et exécute KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE (EXTENDED-CTC-FR et BR-FR-CDV) et les schematrons CIUS-PT, CIUS-RO et CIUS-HR ; `signature.sh` demande Go, OpenSSL 3, xmlsec1, pdfsig (poppler-utils), Java 21 et Maven. Les artefacts vont dans `conformance/.artifacts`, ignoré par git.

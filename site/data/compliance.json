@@ -45,6 +45,7 @@
         {"text": "cp_fr_chorus", "status": "yes", "rules": ["ChorusPro"]},
         {"text": "cp_fr_pdf", "status": "yes", "rules": ["Check"]},
         {"text": "cp_fr_sign", "status": "yes", "rules": ["Sign", "VerifySignatures"]},
+        {"text": "cp_fr_cdv", "status": "yes", "rules": ["cdar", "France"]},
         {"text": "cp_fr_ereporting", "status": "partial", "rules": ["Schema"]},
         {"text": "cp_fr_send", "status": "no"}
       ]

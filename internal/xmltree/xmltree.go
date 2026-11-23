@@ -217,10 +217,11 @@ func (n *Node) Path() string {
 	return b.String()
 }
 
-// Conventional prefixes of the CII, UBL and FatturaPA namespaces. The roots
-// of UBL documents (Invoice, CreditNote) get no prefix.
+// Conventional prefixes of the CII, CDAR, UBL and FatturaPA namespaces. The
+// roots of UBL documents (Invoice, CreditNote) get no prefix.
 var prefixes = map[string]string{
 	"urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100":                       "rsm",
+	"urn:un:unece:uncefact:data:standard:CrossDomainAcknowledgementAndResponse:100":      "rsm",
 	"urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100": "ram",
 	"urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100":                        "udt",
 	"urn:un:unece:uncefact:data:standard:QualifiedDataType:100":                          "qdt",

@@ -64,10 +64,14 @@ func (e entry) hr() bool { return strings.HasPrefix(e.Source, "hr/") }
 // which only the XSLT of the FNFE-MPE receive.
 func (e entry) fr() bool { return strings.HasPrefix(e.Source, "fr/") }
 
+// cdv reports whether the document is a CDAR status of the comparison of the
+// statuses, which only the XSLT BR-FR-CDV of the FNFE-MPE receives.
+func (e entry) cdv() bool { return strings.HasPrefix(e.Source, "cdv/") }
+
 // national reports whether the invoice is one of the NLCIUS, CIUS-PT,
-// CIUS-RO, CIUS-HR or EXTENDED-CTC-FR comparisons, which KoSIT and Mustang
-// do not receive.
-func (e entry) national() bool { return e.nl() || e.pt() || e.ro() || e.hr() || e.fr() }
+// CIUS-RO, CIUS-HR or EXTENDED-CTC-FR comparisons, or a status of the
+// comparison of the statuses, which KoSIT and Mustang do not receive.
+func (e entry) national() bool { return e.nl() || e.pt() || e.ro() || e.hr() || e.fr() || e.cdv() }
 
 // nlTestDirs are the directories of the SimplerInvoicing test files (FX_NL_TESTS)
 // for the versions of the NPa artefacts: SI-UBL 2.0.3, NLCIUS-CII 1.0.3 and
@@ -121,7 +125,7 @@ type hrInputs struct {
 // for the KoSIT validator. The rules that each mutation case expects, read
 // from the expected.tsv of its directory (package internal/variants), are
 // written to DIR/expected.tsv by origin.
-func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, hr hrInputs, fr fnfeInputs, variants string) error {
+func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, hr hrInputs, fr fnfeInputs, cdv cdvInputs, variants string) error {
 	var sources []string                        // origin
 	read := map[string]func() ([]byte, error){} // origin → contents
 	var expected strings.Builder
@@ -318,6 +322,14 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, hr
 			return err
 		}
 	}
+	if cdv.rfe != "" {
+		if err := add(cdv.rfe, "cdv/fnfe", cdvExampleDir, ".xml"); err != nil {
+			return err
+		}
+		if err := add(cdv.variants, "cdv/variants", ".", ".xml"); err != nil {
+			return err
+		}
+	}
 	sort.Strings(sources)
 
 	in := filepath.Join(work, "in")
@@ -327,8 +339,8 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, hr
 	if err := os.MkdirAll(in, 0o755); err != nil {
 		return err
 	}
-	var index, kositList, mustangList, npaList, ptList, roList, hrList, fnfeList strings.Builder
-	nlFiles, ptFiles, roFiles, hrFiles, frFiles, variantFiles := 0, 0, 0, 0, 0, 0
+	var index, kositList, mustangList, npaList, ptList, roList, hrList, fnfeList, cdvList strings.Builder
+	nlFiles, ptFiles, roFiles, hrFiles, frFiles, cdvFiles, variantFiles := 0, 0, 0, 0, 0, 0, 0
 	for i, src := range sources {
 		ext := strings.ToLower(filepath.Ext(src))
 		e := entry{Name: fmt.Sprintf("%04d%s", i+1, ext), Source: src}
@@ -369,6 +381,13 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, hr
 			}
 			fnfeList.WriteString(line)
 			frFiles++
+		case e.cdv():
+			line, err := cdvListLine(cdv.rfe, src, abs, data)
+			if err != nil {
+				return err
+			}
+			cdvList.WriteString(line)
+			cdvFiles++
 		case e.variant():
 			fmt.Fprintln(&kositList, abs)
 			variantFiles++
@@ -379,12 +398,12 @@ func stage(corpus, kosit, work string, nl nlInputs, pt ptInputs, ro roInputs, hr
 			fmt.Fprintln(&mustangList, abs)
 		}
 	}
-	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "ro.list": roList.String(), "hr.list": hrList.String(), "fnfe.list": fnfeList.String(), "expected.tsv": expected.String()} {
+	for name, s := range map[string]string{"index.tsv": index.String(), "kosit.list": kositList.String(), "mustang.list": mustangList.String(), "npa.list": npaList.String(), "pt.list": ptList.String(), "ro.list": roList.String(), "hr.list": hrList.String(), "fnfe.list": fnfeList.String(), "cdv.list": cdvList.String(), "expected.tsv": expected.String()} {
 		if err := os.WriteFile(filepath.Join(work, name), []byte(s), 0o644); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d for the CIUS-RO schematron, %d for the CIUS-HR schematron, %d for the EXTENDED-CTC-FR XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, roFiles, hrFiles, frFiles, variantFiles)
+	fmt.Printf("%d invoices staged in %s, %d of them for the NPa XSLT, %d for the CIUS-PT schematron, %d for the CIUS-RO schematron, %d for the CIUS-HR schematron, %d for the EXTENDED-CTC-FR XSLT, %d statuses for the BR-FR-CDV XSLT, %d variants for the KoSIT validator\n", len(sources), in, nlFiles, ptFiles, roFiles, hrFiles, frFiles, cdvFiles, variantFiles)
 	return nil
 }
 

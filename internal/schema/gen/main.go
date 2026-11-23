@@ -4,8 +4,9 @@
 // the French EXTENDED-CTC-FR profile (D22B), the OASIS UBL 2.1 schemas of
 // the Invoice and CreditNote documents, the FatturaPA 1.2 schema of the
 // Agenzia delle Entrate, the Facturae 3.2, 3.2.1 and 3.2.2 schemas of
-// facturae.gob.es and the schemas of the French e-reporting reports (flux 10
-// of France_RFE).
+// facturae.gob.es, the UN/CEFACT CDAR D22B schema of the statuses of the
+// life cycle of the French invoices and the schemas of the French
+// e-reporting reports (flux 10 of France_RFE).
 //
 // Usage:
 //
@@ -14,6 +15,7 @@
 //	go run ./gen -ubl [-zip UBL-2.1.zip] [-hr "UBL2.1 eRačun.zip"] [-o ubl_tables_gen.go]
 //	go run ./gen -fatturapa [-src Schema_VFPA12_v1.2.4.xsd] [-o fatturapa_tables_gen.go]
 //	go run ./gen -facturae [-src dir] [-o facturae_tables_gen.go]
+//	go run ./gen -cdar [-src dir] [-o cdar_tables_gen.go]
 //	go run ./gen -ereporting [-src dir] [-o ereporting_tables_gen.go]
 //
 // In the first form, dir is searched recursively for the main schema of each
@@ -101,6 +103,15 @@
 // xs:any processContents="strict" in the Extensions elements, compiled as
 // skip: the schemas that would define their content are those of the
 // sender.
+//
+// With -cdar, gen compiles the UN/CEFACT Cross Domain Acknowledgement and
+// Response D22B schema of the FNFE-MPE France_RFE package 1.4.0.04
+// (FNFE_RFE_INVOICE/CDAR/1xsd-CDAR_D22B_uncoupled), the syntax of the
+// statuses of the life cycle of the French invoices (CDV), like a complete
+// CII schema: uncoupled, it imports none of the code list schemas of its
+// directory. The files are downloaded from the France_RFE repository at the
+// commit of the release tag, or read from the directory -src, and checked
+// against their SHA-256 (cdarSet).
 //
 // With -ereporting, gen reads the schemas of the flux 10 of the FNFE-MPE
 // France_RFE package 1.4.0.04 (FNFE_RFE_INVOICE/Flux10/xsd), from a local
@@ -245,10 +256,14 @@ var ublExtensionDocs = []rootDoc{
 	{"xsdrt/common/HRExtensionAggregateComponents-1.xsd", nsHR, "HRFISK20Data"},
 }
 
-// ciiSet describes a complete UN/CEFACT CII schema compiled with -cii.
+// ciiSet describes a complete UN/CEFACT schema compiled with -cii (a Cross
+// Industry Invoice) or -cdar (a Cross Domain Acknowledgement and Response).
 type ciiSet struct {
 	prefix string // prefix of the generated identifiers
 	origin string // publisher and release, for the generated comments
+	// ns and root are the namespace and the local name of the root element;
+	// title names the schema in the generated comments.
+	ns, root, title string
 	// The files are in the zip archive at archive (SHA-256 archiveSum),
 	// under dir; or, when archive is empty, at the URL dir + name.
 	archive, archiveSum string
@@ -263,6 +278,9 @@ type pinnedFile struct{ name, sum string }
 var ciiSets = map[string]ciiSet{
 	"D16B": {
 		prefix:     "d16b",
+		ns:         nsRSM,
+		root:       ciiRoot,
+		title:      "UN/CEFACT CII D16B",
 		origin:     "KoSIT validator configuration for XRechnung 3.0.2, release 2026-08-31",
 		archive:    "https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v2026-08-31/xrechnung-3.0.2-validator-configuration-2026-08-31.zip",
 		archiveSum: "2530cd107c414511c5d0462ec10f886910395abfca820db82e83d70bf01221a8",
@@ -276,6 +294,9 @@ var ciiSets = map[string]ciiSet{
 	},
 	"D22B": {
 		prefix: "d22b",
+		ns:     nsRSM,
+		root:   ciiRoot,
+		title:  "UN/CEFACT CII D22B",
 		origin: "FNFE-MPE France_RFE 1.4.0.04 (tag v1.4.0.04, commit 97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d)",
 		dir:    "https://raw.githubusercontent.com/fnfempe/France_RFE/97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d/FNFE_RFE_INVOICE/CII/1xsd-CII_D22B_uncoupled/",
 		files: []pinnedFile{
@@ -287,10 +308,32 @@ var ciiSets = map[string]ciiSet{
 	},
 }
 
-// Namespace and root element of a CII invoice.
+// cdarSet is the schema compiled with -cdar: the UN/CEFACT Cross Domain
+// Acknowledgement and Response D22B of the FNFE-MPE France_RFE package
+// 1.4.0.04 (FNFE_RFE_INVOICE/CDAR/1xsd-CDAR_D22B_uncoupled), the syntax of
+// the statuses of the life cycle of the French invoices (CDV). Uncoupled,
+// it imports none of the code list schemas of its directory.
+var cdarSet = ciiSet{
+	prefix: "cdar",
+	ns:     nsCDAR,
+	root:   cdarRoot,
+	title:  "UN/CEFACT CDAR D22B",
+	origin: "FNFE-MPE France_RFE 1.4.0.04 (tag v1.4.0.04, commit 97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d)",
+	dir:    "https://raw.githubusercontent.com/fnfempe/France_RFE/97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d/FNFE_RFE_INVOICE/CDAR/1xsd-CDAR_D22B_uncoupled/",
+	files: []pinnedFile{
+		{"CrossDomainAcknowledgementAndResponse_100pD22B.xsd", "cacdfe3cfe0e105f9f53d8392ccc36d0a322dd2eed270a569b725f23b16b85a1"},
+		{"CrossDomainAcknowledgementAndResponse_100pD22B_urn_un_unece_uncefact_data_standard_QualifiedDataType_100.xsd", "35fb52e4ce999bebe065291a000456bd1e916994639e8ddddfda20790e3ba3c1"},
+		{"CrossDomainAcknowledgementAndResponse_100pD22B_urn_un_unece_uncefact_data_standard_ReusableAggregateBusinessInformationEntity_100.xsd", "055355fac00e61a9475a154c8f1361bee517049aaff6adecdcc966d0baaf33f4"},
+		{"CrossDomainAcknowledgementAndResponse_100pD22B_urn_un_unece_uncefact_data_standard_UnqualifiedDataType_100.xsd", "1953681991569751c95fbc34a39c8aea5a5a0e9c82234185ad30df902958b4c9"},
+	},
+}
+
+// Namespace and root element of a CII invoice and of a CDAR message.
 const (
-	nsRSM   = "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
-	ciiRoot = "CrossIndustryInvoice"
+	nsRSM    = "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+	ciiRoot  = "CrossIndustryInvoice"
+	nsCDAR   = "urn:un:unece:uncefact:data:standard:CrossDomainAcknowledgementAndResponse:100"
+	cdarRoot = "CrossDomainAcknowledgementAndResponse"
 )
 
 // Conventional prefixes of the namespaces, used in display names.
@@ -309,7 +352,8 @@ var prefixes = map[string]string{
 	"urn:oasis:names:specification:ubl:schema:xsd:QualifiedDataTypes-2":        "qdt",
 	"urn:un:unece:uncefact:data:specification:CoreComponentTypeSchemaModule:2": "ccts-cct",
 
-	nsHR: "hrextac",
+	nsCDAR: "rsm",
+	nsHR:   "hrextac",
 
 	nsFPA: "p",
 	nsDS:  "ds",
@@ -333,6 +377,7 @@ func main() {
 	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files; with -fatturapa: the schema file; with -facturae and -ereporting: a directory holding the schema files (downloaded when empty)")
 	fpa := flag.Bool("fatturapa", false, "compile the FatturaPA "+fpaVersion+" schema")
 	facturae := flag.Bool("facturae", false, "compile the Facturae 3.2, 3.2.1 and 3.2.2 schemas")
+	cdar := flag.Bool("cdar", false, "compile the UN/CEFACT CDAR D22B schema of the French life cycle statuses")
 	ereporting := flag.Bool("ereporting", false, "compile the schemas of the French e-reporting (flux 10)")
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "usage: gen [-o tables_gen.go] <directory of the Factur-X XSD files>")
@@ -340,6 +385,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "       gen -ubl [-zip "+ublArchive+"] [-hr \""+hrArchive+"\"] [-o ubl_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -fatturapa [-src "+fpaFile+"] [-o fatturapa_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -facturae [-src dir] [-o facturae_tables_gen.go]")
+		fmt.Fprintln(os.Stderr, "       gen -cdar [-src dir] [-o cdar_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -ereporting [-src dir] [-o ereporting_tables_gen.go]")
 		flag.PrintDefaults()
 	}
@@ -348,9 +394,14 @@ func main() {
 		src []byte
 		err error
 	)
-	others := *ereporting
+	others := *ereporting || *cdar // a schema set compiled on its own
 	switch {
-	case *ereporting && !*facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
+	case *cdar && !*ereporting && !*facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
+		if *out == "" {
+			*out = "cdar_tables_gen.go"
+		}
+		src, err = generateCDAR(*srcPath)
+	case *ereporting && !*cdar && !*facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "ereporting_tables_gen.go"
 		}
@@ -497,11 +548,22 @@ func generateCII(v, src string) ([]byte, error) {
 	return compileCII(v, set, fsys)
 }
 
-// compileCII compiles the CII schema set whose files are in fsys.
+// generateCDAR compiles the CDAR D22B schema, read from src (see
+// ciiFiles), and returns the Go source.
+func generateCDAR(src string) ([]byte, error) {
+	fsys, err := ciiFiles(cdarSet, src)
+	if err != nil {
+		return nil, fmt.Errorf("CDAR: %w", err)
+	}
+	return compileCII("D22B", cdarSet, fsys)
+}
+
+// compileCII compiles the schema set whose files are in fsys: a complete
+// CII schema, or the CDAR schema.
 func compileCII(v string, set ciiSet, fsys fs.FS) ([]byte, error) {
 	c := newCompiler(true)
-	if err := c.compileSingle(fsys, []rootDoc{{set.files[0].name, nsRSM, ciiRoot}}, nil); err != nil {
-		return nil, fmt.Errorf("CII %s: %w", v, err)
+	if err := c.compileSingle(fsys, []rootDoc{{set.files[0].name, set.ns, set.root}}, nil); err != nil {
+		return nil, fmt.Errorf("%s: %w", set.title, err)
 	}
 	source := "Source: " + set.origin + ","
 	if set.archive != "" {
@@ -509,13 +571,18 @@ func compileCII(v string, set ciiSet, fsys fs.FS) ([]byte, error) {
 	} else {
 		source += "\n// " + set.dir
 	}
-	return c.emit(v, &setInfo{
+	info := &setInfo{
 		prefix:  set.prefix,
-		title:   "UN/CEFACT CII " + v,
+		title:   set.title,
 		source:  source + " (SHA-256 of each file):",
 		schemas: "CII schema",
 		roots:   "the root element of the CII invoice",
-	})
+	}
+	if set.root == cdarRoot {
+		info.schemas = "CDAR schema"
+		info.roots = "the root element of the CDAR message"
+	}
+	return c.emit(v, info)
 }
 
 // ciiFiles returns the schema files of set, each checked against its
