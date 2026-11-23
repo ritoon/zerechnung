@@ -60,6 +60,7 @@
     "fmt_xsd": "esquema XSD, firma XAdES; EN 16931 a través de UBL o CII",
     "fmt_as_facturx": "como Factur-X",
     "fmt_minimal": "comprobaciones mínimas",
+    "fmt_ereporting_xsd": "esquema XSD; no las reglas del PPF",
 
     "accuracy_title": "¿Qué fiabilidad tiene?",
     "accuracy_lead": "Cada pull request ejecuta los validadores de referencia sobre los corpus de prueba oficiales y compara sus resultados con los de ZeRechnung, factura por factura.",
@@ -241,7 +242,8 @@
     "cp_fr_chorus": "Chorus Pro: SIRET del comprador público, código de servicio y número de compromiso cuando este los exige",
     "cp_fr_pdf": "Contenedor PDF/A-3: XML adjunto, metadatos XMP, AFRelationship",
     "cp_fr_sign": "Firma PAdES de las facturas Factur-X, uno de los tres medios de autenticidad e integridad (art. 289 VII del CGI), y verificación de las firmas recibidas",
-    "cp_fr_send": "Envío a través de una plataforma autorizada y e-reporting a la administración tributaria",
+    "cp_fr_ereporting": "E-reporting (flujo 10): informes de transacciones y de pagos leídos, escritos y comprobados con sus esquemas XSD; las reglas del PPF sobre su contenido (schematron Flux10) no se aplican, y los informes no se envían",
+    "cp_fr_send": "Envío de las facturas a través de una plataforma autorizada",
     "cp_de_intro": "XRechnung para los compradores públicos desde 2020. Toda empresa debe poder recibir facturas electrónicas desde 2025. Emitirlas pasa a ser obligatorio en 2027 por encima de 800.000 € de volumen de negocio, y para todas las empresas en 2028. Se admiten XRechnung y ZUGFeRD a partir de la versión 2.0.1.",
     "cp_de_xrechnung": "XRechnung 3.0.2 en CII y UBL, con las reglas y los niveles de gravedad de KoSIT",
     "cp_de_ids": "Identificadores Leitweg-ID y GEBA de los compradores públicos, con sus dígitos de control",

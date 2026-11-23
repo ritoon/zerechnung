@@ -3,8 +3,9 @@
 // CII schemas used by the reference validators of XRechnung (D16B) and of
 // the French EXTENDED-CTC-FR profile (D22B), the OASIS UBL 2.1 schemas of
 // the Invoice and CreditNote documents, the FatturaPA 1.2 schema of the
-// Agenzia delle Entrate and the Facturae 3.2, 3.2.1 and 3.2.2 schemas of
-// facturae.gob.es.
+// Agenzia delle Entrate, the Facturae 3.2, 3.2.1 and 3.2.2 schemas of
+// facturae.gob.es and the schemas of the French e-reporting reports (flux 10
+// of France_RFE).
 //
 // Usage:
 //
@@ -13,6 +14,7 @@
 //	go run ./gen -ubl [-zip UBL-2.1.zip] [-hr "UBL2.1 eRačun.zip"] [-o ubl_tables_gen.go]
 //	go run ./gen -fatturapa [-src Schema_VFPA12_v1.2.4.xsd] [-o fatturapa_tables_gen.go]
 //	go run ./gen -facturae [-src dir] [-o facturae_tables_gen.go]
+//	go run ./gen -ereporting [-src dir] [-o ereporting_tables_gen.go]
 //
 // In the first form, dir is searched recursively for the main schema of each
 // Factur-X profile: a file whose name ends in _MINIMUM.xsd, _BASICWL.xsd (or
@@ -99,6 +101,15 @@
 // xs:any processContents="strict" in the Extensions elements, compiled as
 // skip: the schemas that would define their content are those of the
 // sender.
+//
+// With -ereporting, gen reads the schemas of the flux 10 of the FNFE-MPE
+// France_RFE package 1.4.0.04 (FNFE_RFE_INVOICE/Flux10/xsd), from a local
+// directory (-src) or downloaded from the France_RFE repository at the
+// commit of the release tag, checks their SHA-256 and compiles them with the
+// root Report. The main schema has no target namespace and the four schemas
+// it imports define their types in their own target namespace, without
+// qualifying their local elements: every element of a report is in no
+// namespace.
 //
 // Only the subset of XML Schema used by these schemas is supported: named
 // and anonymous complex types holding one sequence or one choice of element
@@ -196,6 +207,26 @@ const (
 	facturaeRoot = "Facturae"
 )
 
+// The XML schemas of the French e-reporting (flux 10) compiled with
+// -ereporting, from the FNFE-MPE France_RFE package 1.4.0.04: the files of
+// the repository at the commit of the release tag, the main schema first.
+// The root element, Report, is in no namespace, and so are the elements of
+// the other schemas, whose types alone are in their target namespace.
+const (
+	ereportingOrigin  = "FNFE-MPE France_RFE 1.4.0.04 (tag v1.4.0.04, commit 97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d)"
+	ereportingDir     = "https://raw.githubusercontent.com/fnfempe/France_RFE/97ba0f3d4ef2abed5780e9490d5c3a2be832ab1d/FNFE_RFE_INVOICE/Flux10/xsd/"
+	ereportingVersion = "1.4.0.04"
+	ereportingRoot    = "Report"
+)
+
+var ereportingFiles = []pinnedFile{
+	{"ereporting.xsd", "b6e355094f08e9d90dd6bfaed42319ef490f4dc1a11b1b6b7473b9c35b27d546"},
+	{"report.xsd", "059cea2615bca67b07df167d3e5b65d8658477f8a12a8723d3fc227f35cb8403"},
+	{"transaction.xsd", "ab5139608ec5754227c37b471cdec3b7434dcb21340d9b8c8d98bfc60e6ec841"},
+	{"payment.xsd", "bf41d73aad46efdf8a26699f6dc7777f54051d8795f85faf1272cd2095b9a048"},
+	{"parametre.xsd", "5971f3f2080e7057a4034121703ebdf403dda0d8f0e41e33987dc432c8671bad"},
+}
+
 // rootDoc is a document of a single schema set: its main schema and its
 // root element.
 type rootDoc struct{ file, ns, root string }
@@ -286,6 +317,11 @@ var prefixes = map[string]string{
 	"http://www.facturae.es/Facturae/2009/v3.2/Facturae":              "fe32",
 	"http://www.facturae.es/Facturae/2014/v3.2.1/Facturae":            "fe321",
 	"http://www.facturae.gob.es/formato/Versiones/Facturaev3_2_2.xml": "fe322",
+
+	"report":      "rep",
+	"transaction": "trs",
+	"payment":     "pay",
+	"parametre":   "param",
 }
 
 func main() {
@@ -294,15 +330,17 @@ func main() {
 	zipPath := flag.String("zip", "", "with -ubl: path of "+ublArchive+" (downloaded from "+ublURL+" when empty)")
 	hrPath := flag.String("hr", "", "with -ubl: path of the Croatian package "+hrArchive+" (downloaded from "+hrURL+" when empty)")
 	cii := flag.String("cii", "", "compile the complete UN/CEFACT CII schema of this version (D16B or D22B)")
-	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files; with -fatturapa: the schema file; with -facturae: a directory holding the schema files (downloaded when empty)")
+	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files; with -fatturapa: the schema file; with -facturae and -ereporting: a directory holding the schema files (downloaded when empty)")
 	fpa := flag.Bool("fatturapa", false, "compile the FatturaPA "+fpaVersion+" schema")
 	facturae := flag.Bool("facturae", false, "compile the Facturae 3.2, 3.2.1 and 3.2.2 schemas")
+	ereporting := flag.Bool("ereporting", false, "compile the schemas of the French e-reporting (flux 10)")
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "usage: gen [-o tables_gen.go] <directory of the Factur-X XSD files>")
 		fmt.Fprintln(os.Stderr, "       gen -cii D16B|D22B [-src path] [-o cii_d16b_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -ubl [-zip "+ublArchive+"] [-hr \""+hrArchive+"\"] [-o ubl_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -fatturapa [-src "+fpaFile+"] [-o fatturapa_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -facturae [-src dir] [-o facturae_tables_gen.go]")
+		fmt.Fprintln(os.Stderr, "       gen -ereporting [-src dir] [-o ereporting_tables_gen.go]")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -310,28 +348,34 @@ func main() {
 		src []byte
 		err error
 	)
+	others := *ereporting
 	switch {
-	case *facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
+	case *ereporting && !*facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
+		if *out == "" {
+			*out = "ereporting_tables_gen.go"
+		}
+		src, err = generateEReporting(*srcPath)
+	case !others && *facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "facturae_tables_gen.go"
 		}
 		src, err = generateFacturae(*srcPath)
-	case *fpa && !*facturae && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
+	case !others && *fpa && !*facturae && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "fatturapa_tables_gen.go"
 		}
 		src, err = generateFatturaPA(*srcPath)
-	case *cii != "" && !*ubl && !*fpa && !*facturae && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
+	case !others && *cii != "" && !*ubl && !*fpa && !*facturae && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "cii_" + strings.ToLower(*cii) + "_tables_gen.go"
 		}
 		src, err = generateCII(*cii, *srcPath)
-	case *ubl && *cii == "" && !*fpa && !*facturae && *srcPath == "" && flag.NArg() == 0:
+	case !others && *ubl && *cii == "" && !*fpa && !*facturae && *srcPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "ubl_tables_gen.go"
 		}
 		src, err = generateUBLArchive(*zipPath, *hrPath)
-	case !*ubl && !*fpa && !*facturae && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "" && *hrPath == "":
+	case !others && !*ubl && !*fpa && !*facturae && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "" && *hrPath == "":
 		if *out == "" {
 			*out = "tables_gen.go"
 		}
@@ -621,6 +665,35 @@ func compileFacturae(fsys fs.FS) ([]byte, error) {
 			"// Reused under Ley 37/2007 and Real Decreto 1495/2011; the schemas give no date of update.",
 		schemas: "latest Facturae schema",
 		roots:   "the root element of each version: " + strings.Join(versions, ", "),
+	})
+}
+
+// generateEReporting compiles the e-reporting schemas, read from the
+// directory src or downloaded from the France_RFE repository when src is
+// empty; every file must have the SHA-256 recorded in ereportingFiles.
+func generateEReporting(src string) ([]byte, error) {
+	fsys, err := ciiFiles(ciiSet{dir: ereportingDir, files: ereportingFiles}, src)
+	if err != nil {
+		return nil, fmt.Errorf("e-reporting: %w", err)
+	}
+	return compileEReporting(fsys)
+}
+
+// compileEReporting compiles the e-reporting schemas of ereportingFiles,
+// read from fsys, into one schema set whose root is Report. The elements
+// are not qualified: the main schema has no target namespace, and the
+// others no elementFormDefault.
+func compileEReporting(fsys fs.FS) ([]byte, error) {
+	c := newCompiler(true)
+	if err := c.compileSingle(fsys, []rootDoc{{ereportingFiles[0].name, "", ereportingRoot}}, nil); err != nil {
+		return nil, fmt.Errorf("e-reporting: %w", err)
+	}
+	return c.emit(ereportingVersion, &setInfo{
+		prefix:  "ereporting",
+		title:   "French e-reporting (flux 10)",
+		source:  "Source: " + ereportingOrigin + ",\n// " + ereportingDir + " (SHA-256 of each file):",
+		schemas: "France_RFE package whose e-reporting schemas are",
+		roots:   "the root element of an e-reporting report",
 	})
 }
 

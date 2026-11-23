@@ -60,6 +60,7 @@
     "fmt_xsd": "XSD-Schema, XAdES-Signatur; EN 16931 über UBL oder CII",
     "fmt_as_facturx": "als Factur-X",
     "fmt_minimal": "Grundprüfungen",
+    "fmt_ereporting_xsd": "XSD-Schema; nicht die Regeln des PPF",
 
     "accuracy_title": "Wie genau ist es?",
     "accuracy_lead": "Jeder Pull Request lässt die Referenzvalidatoren über die offiziellen Testkorpora laufen und vergleicht ihre Ergebnisse mit denen von ZeRechnung, Rechnung für Rechnung.",
@@ -241,7 +242,8 @@
     "cp_fr_chorus": "Chorus Pro: SIRET des öffentlichen Auftraggebers, Dienststellencode und Auftragsnummer, wenn er sie verlangt",
     "cp_fr_pdf": "PDF/A-3-Container: eingebettetes XML, XMP-Metadaten, AFRelationship",
     "cp_fr_sign": "PAdES-Signatur von Factur-X-Rechnungen, eines der drei Mittel für Echtheit und Unversehrtheit (Art. 289 VII CGI), und Prüfung empfangener Signaturen",
-    "cp_fr_send": "Versand über eine zugelassene Plattform und E-Reporting an die Steuerverwaltung",
+    "cp_fr_ereporting": "E-Reporting (Flux 10): Transaktions- und Zahlungsberichte gelesen, geschrieben und gegen ihre XSD-Schemas geprüft; die Regeln des PPF zu ihrem Inhalt (Schematron Flux10) werden nicht angewendet, und die Berichte werden nicht übermittelt",
+    "cp_fr_send": "Versand der Rechnungen über eine zugelassene Plattform",
     "cp_de_intro": "XRechnung für öffentliche Auftraggeber seit 2020. Seit 2025 muss jedes Unternehmen E-Rechnungen empfangen können. Der Versand wird 2027 ab einem Umsatz von mehr als 800.000 € Pflicht und 2028 für alle Unternehmen. Zulässig sind XRechnung und ZUGFeRD ab Version 2.0.1.",
     "cp_de_xrechnung": "XRechnung 3.0.2 in CII und UBL, mit den Regeln und Schweregraden der KoSIT",
     "cp_de_ids": "Leitweg-ID und GEBA-Kennung öffentlicher Auftraggeber, mit ihren Prüfziffern",

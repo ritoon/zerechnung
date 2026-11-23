@@ -60,6 +60,7 @@
     "fmt_xsd": "schema XSD, firma XAdES; EN 16931 tramite UBL o CII",
     "fmt_as_facturx": "come Factur-X",
     "fmt_minimal": "controlli minimi",
+    "fmt_ereporting_xsd": "schema XSD; non le regole del PPF",
 
     "accuracy_title": "Quanto è affidabile?",
     "accuracy_lead": "Ogni pull request esegue i validatori di riferimento sui corpus di test ufficiali e confronta i loro risultati con quelli di ZeRechnung, fattura per fattura.",
@@ -241,7 +242,8 @@
     "cp_fr_chorus": "Chorus Pro: SIRET dell'amministrazione pubblica, codice servizio e numero di impegno quando li richiede",
     "cp_fr_pdf": "Contenitore PDF/A-3: XML allegato, metadati XMP, AFRelationship",
     "cp_fr_sign": "Firma PAdES delle fatture Factur-X, uno dei tre mezzi di autenticità e integrità (art. 289 VII del CGI), e verifica delle firme ricevute",
-    "cp_fr_send": "Trasmissione tramite una piattaforma accreditata, ed e-reporting all'amministrazione fiscale",
+    "cp_fr_ereporting": "E-reporting (flusso 10): report delle operazioni e dei pagamenti letti, scritti e controllati con i loro schemi XSD; le regole del PPF sul loro contenuto (schematron Flux10) non sono applicate, e i report non sono trasmessi",
+    "cp_fr_send": "Trasmissione delle fatture tramite una piattaforma accreditata",
     "cp_de_intro": "XRechnung per le amministrazioni pubbliche dal 2020. Dal 2025 ogni impresa deve poter ricevere fatture elettroniche. Emetterle diventa obbligatorio nel 2027 oltre 800.000 € di fatturato, e per tutte le imprese nel 2028. Sono ammessi XRechnung e ZUGFeRD dalla versione 2.0.1.",
     "cp_de_xrechnung": "XRechnung 3.0.2 in CII e UBL, con le regole e i livelli di gravità della KoSIT",
     "cp_de_ids": "Identificativi Leitweg-ID e GEBA delle amministrazioni pubbliche, con le relative cifre di controllo",

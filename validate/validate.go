@@ -111,10 +111,17 @@
 // FatturaPA invoice, read it with package fatturapa and validate the UBL
 // that ubl.Marshal writes.
 //
+// A report of the French e-reporting (flux 10, see package ereporting) is
+// checked against the schemas of the flux 10 of France_RFE (the Schema rule
+// set, with the same XSD-* rules), and for the values that cannot be read
+// (ER-01), such as a date that is not AAAAMMJJ. A report is not an invoice:
+// the other rule sets do not apply, nor are the rules of the PPF on its
+// content checked, which the warning ER-02 says whatever the rule sets.
+//
 // Validation never stops at the first problem: every finding is collected in
 // a Report. A document that is not well-formed XML, or neither a CII, a
-// ZUGFeRD 1.0, a UBL, a FatturaPA nor a Facturae invoice, gives a report
-// with a single syntax error.
+// ZUGFeRD 1.0, a UBL, a FatturaPA nor a Facturae invoice nor an e-reporting
+// report, gives a report with a single syntax error.
 package validate
 
 import (
@@ -123,6 +130,7 @@ import (
 	"time"
 
 	"github.com/ritoon/zerechnung/cii"
+	"github.com/ritoon/zerechnung/ereporting"
 	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/fatturapa"
 	"github.com/ritoon/zerechnung/internal/rules"
@@ -190,7 +198,7 @@ type RuleSet uint
 
 // Rule sets.
 const (
-	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4, Facturae of its version; minimal structural check of ZUGFeRD 1.0
+	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4, Facturae of its version, flux 10 of France_RFE (e-reporting report); minimal structural check of ZUGFeRD 1.0
 	EN16931                            // CEN business rules and code lists, and the UBL syntax rules for UBL
 	FacturX                            // Factur-X / ZUGFeRD profile rules (CII only)
 	France                             // French rules BR-FR (2026 reform) and the profiles the reform admits (FR-PROFILE-*)
@@ -347,7 +355,7 @@ type PublicBuyer struct {
 }
 
 // XML validates a CII or UBL invoice, a ZUGFeRD 1.0 invoice, a FatturaPA
-// document or a Facturae document.
+// document, a Facturae document or a report of the French e-reporting.
 func XML(data []byte, opts *Options) *Report {
 	root, err := xmltree.Parse(data)
 	return xmlReport(data, root, err, opts)
@@ -372,7 +380,8 @@ func xmlReport(data []byte, root *xmltree.Node, err error, opts *Options) *Repor
 }
 
 // Tree validates an already parsed CII or UBL invoice, a ZUGFeRD 1.0
-// invoice, a FatturaPA document or a Facturae document. A tree does not
+// invoice, a FatturaPA document, a Facturae document or a report of the
+// French e-reporting. A tree does not
 // keep what the signature of a Facturae document covers: under the FACe
 // rule set, Tree only reports a missing signature, XML checks it.
 func Tree(root *xmltree.Node, opts *Options) *Report {
@@ -402,10 +411,13 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	case facturae.IsFacturae(root):
 		checkFacturae(root, opts, r)
 		return r
+	case ereporting.IsReport(root):
+		checkEReporting(root, opts, r)
+		return r
 	default:
 		r.Add(Finding{Rule: "CII", Severity: Error, Source: SourceSyntax, Path: "/" + root.Name, Line: root.Line,
 			Message: "the root element is neither rsm:CrossIndustryInvoice in namespace " + rules.NSRsm +
-				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, a UBL 2.1 Invoice or CreditNote, a FatturaPA FatturaElettronica nor a Facturae 3.2, 3.2.1 or 3.2.2 document"})
+				", a ZUGFeRD 1.0 rsm:CrossIndustryDocument, a UBL 2.1 Invoice or CreditNote, a FatturaPA FatturaElettronica, a Facturae 3.2, 3.2.1 or 3.2.2 document nor a French e-reporting Report"})
 		return r
 	}
 	r.Profile = doc.Profile
@@ -532,6 +544,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(Schema, schema.Catalog)
 	add(Schema, zugferd1Catalog)
 	add(Schema, facturaeCatalog)
+	add(Schema, ereportingCatalog)
 	add(EN16931, editionCatalog)
 	add(EN16931, en16931.Catalog)
 	add(EN16931, newRules(en16931.CTCFRCatalog, en16931.Catalog))

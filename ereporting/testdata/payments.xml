@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report>
+  <ReportDocument>
+    <Id>PA-2026-09-0001</Id>
+    <IssueDateTime>
+      <DateTimeString>20261011094500</DateTimeString>
+    </IssueDateTime>
+    <TypeCode>IN</TypeCode>
+    <Sender>
+      <Id schemeId="0238">0042</Id>
+      <Name>Plateforme Exemple</Name>
+      <RoleCode>WK</RoleCode>
+    </Sender>
+    <Issuer>
+      <Id schemeId="0002">123456782</Id>
+      <Name>Vendeur Exemple SAS</Name>
+      <RoleCode>SE</RoleCode>
+    </Issuer>
+  </ReportDocument>
+  <PaymentsReport>
+    <ReportPeriod>
+      <StartDate>20260901</StartDate>
+      <EndDate>20260930</EndDate>
+    </ReportPeriod>
+    <Invoice>
+      <InvoiceID>F2026-0812</InvoiceID>
+      <IssueDate>20260812</IssueDate>
+      <Payment>
+        <Date>20260910</Date>
+        <SubTotals>
+          <TaxPercent>20</TaxPercent>
+          <CurrencyCode>EUR</CurrencyCode>
+          <Amount>1200.00</Amount>
+        </SubTotals>
+        <SubTotals>
+          <TaxPercent>10</TaxPercent>
+          <Amount>110.00</Amount>
+        </SubTotals>
+      </Payment>
+    </Invoice>
+    <Transactions>
+      <Payment>
+        <Date>20260915</Date>
+        <SubTotals>
+          <TaxPercent>20</TaxPercent>
+          <CurrencyCode>EUR</CurrencyCode>
+          <Amount>360.00</Amount>
+        </SubTotals>
+      </Payment>
+    </Transactions>
+  </PaymentsReport>
+</Report>

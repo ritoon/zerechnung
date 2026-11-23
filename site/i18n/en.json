@@ -60,6 +60,7 @@
     "fmt_xsd": "XSD schema, XAdES signature; EN 16931 through UBL or CII",
     "fmt_as_facturx": "as Factur-X",
     "fmt_minimal": "minimal checks",
+    "fmt_ereporting_xsd": "XSD schema; not the rules of the PPF",
 
     "accuracy_title": "How accurate is it?",
     "accuracy_lead": "Every pull request runs the reference validators on the official test corpora and compares their results with those of ZeRechnung, invoice by invoice.",
@@ -241,7 +242,8 @@
     "cp_fr_chorus": "Chorus Pro: SIRET of the public buyer, service code and commitment number when it requires them",
     "cp_fr_pdf": "PDF/A-3 container: attached XML, XMP metadata, AFRelationship",
     "cp_fr_sign": "PAdES signature of Factur-X invoices, one of the three means of authenticity and integrity (CGI art. 289 VII), and check of received signatures",
-    "cp_fr_send": "Sending through an approved platform, and e-reporting to the tax administration",
+    "cp_fr_ereporting": "E-reporting (flux 10): transactions and payments reports read, written and checked against their XSD schemas; the rules of the PPF on their content (schematron Flux10) are not applied, and the reports are not sent",
+    "cp_fr_send": "Sending invoices through an approved platform",
     "cp_de_intro": "XRechnung for public buyers since 2020. Every company must be able to receive e-invoices since 2025. Sending them becomes mandatory in 2027 above €800,000 of turnover, and for all companies in 2028. XRechnung and ZUGFeRD from version 2.0.1 are accepted.",
     "cp_de_xrechnung": "XRechnung 3.0.2 in CII and UBL, with the rules and severities of KoSIT",
     "cp_de_ids": "Leitweg-ID and GEBA identifiers of public buyers, with their check digits",

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -519,6 +520,53 @@ func TestFacturae(t *testing.T) {
 	bad = mutated(t, name, "<IssueDate>2026-11-02</IssueDate>", "<IssueDate>02/11/2026</IssueDate>")
 	if code, got := runValidate(t, bad); code != 1 || !got["FE-01"] {
 		t.Errorf("validate of an unreadable date: code %d, findings %v", code, got)
+	}
+}
+
+// TestEReporting reads an e-reporting report with json, and checks it with
+// validate: the schema of the flux 10 passes, ER-02 says that the rules of
+// the PPF are not checked, and an unreadable date is reported.
+func TestEReporting(t *testing.T) {
+	const name = "../../ereporting/testdata/transactions.xml"
+	var out bytes.Buffer
+	if err := jsonCmd([]string{name}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var rep struct {
+		Document     struct{ ID, IssueDateTime string }
+		Transactions struct {
+			Invoices []struct{ ID, IssueDate, TaxExclusiveAmount string }
+		}
+		Payments *struct{}
+	}
+	if err := json.Unmarshal(out.Bytes(), &rep); err != nil || rep.Document.ID != "TR-2026-09-0001" ||
+		rep.Document.IssueDateTime != "2026-10-11T09:30:00Z" || len(rep.Transactions.Invoices) != 2 ||
+		rep.Transactions.Invoices[0].IssueDate != "2026-09-15" || rep.Transactions.Invoices[0].TaxExclusiveAmount != "950.00" ||
+		rep.Payments != nil {
+		t.Errorf("json %s: %+v, %v", name, rep, err)
+	}
+
+	code, got := runValidate(t, name)
+	if code != 0 || len(got) != 1 || !got["ER-02"] {
+		t.Errorf("validate %s: code %d, findings %v", name, code, got)
+	}
+	out.Reset()
+	if code, err := validateCmd([]string{name}, &out); err != nil || code != 0 || !strings.HasPrefix(out.String(), "Format: e-reporting (flux 10)\n") {
+		t.Errorf("validate %s: code %d, %v\n%s", name, code, err, out.String())
+	}
+	bad := mutated(t, name, "<DueDate>20261015</DueDate>", "<DueDate>2026-10-15</DueDate>")
+	if code, got := runValidate(t, bad); code != 1 || !got["ER-01"] || !got["ER-02"] {
+		t.Errorf("validate of an unreadable date: code %d, findings %v", code, got)
+	}
+	// json reads the rest of a report whose values cannot all be read, and
+	// warns about them.
+	var warnings bytes.Buffer
+	defer func(w io.Writer) { stderr = w }(stderr)
+	stderr = &warnings
+	out.Reset()
+	if err := jsonCmd([]string{bad}, &out); err != nil || !strings.Contains(out.String(), `"TR-2026-09-0001"`) ||
+		!strings.Contains(warnings.String(), `invalid date "2026-10-15"`) {
+		t.Errorf("json of a report with an unreadable date: %v\n%s\n%s", err, out.String(), warnings.String())
 	}
 }
 
