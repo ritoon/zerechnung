@@ -18,8 +18,8 @@ ZeRechnung is a Go package for e-invoices in the Factur-X, ZUGFeRD and XRechnung
 Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML invoice and the metadata the standard requires, and the PDF becomes a compliant e-invoice. It also reads and validates the invoices you receive, whether they come as hybrid PDFs or as plain XML (CII or UBL), signs hybrid PDFs in PAdES and verifies their signatures. It reads, writes, validates, signs and verifies FatturaPA, the national format of the Italian SDI, and Facturae, the Spanish format of FACe and of the B2B reform.
 
 - Pure Go, standard library only. No CGO, no Java, no external binary, no network calls.
-- All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS, CIUS-IT and CIUS-RO (Romania, RO e-Factura), in CII and UBL 2.1, and CIUS-PT in UBL 2.1.
-- Validation compared with the reference validators (KoSIT, Mustang) on every pull request, with the French 2026 reform, German, Dutch, Italian, Portuguese and Peppol rules built in.
+- All Factur-X / ZUGFeRD 2.x profiles, from MINIMUM to EXTENDED, plus XRechnung, Peppol BIS Billing 3.0, NLCIUS, CIUS-IT and CIUS-RO (Romania, RO e-Factura), in CII and UBL 2.1, CIUS-PT in UBL 2.1, and the Slovak eFaktúra (Peppol BIS with the requirements of the Finančná správa).
+- Validation compared with the reference validators (KoSIT, Mustang) on every pull request, with the French 2026 reform, German, Dutch, Italian, Portuguese, Romanian, Slovak and Peppol rules built in.
 - PDF/A-3 conversion of the PDFs that need no PDF engine for it, with the reasons for a refusal otherwise, checked by veraPDF in the CI.
 - Fast and light: reading and validating a typical invoice takes about 25 µs and allocates 23 KB.
 
@@ -165,9 +165,10 @@ To pick the rules yourself:
 | CIUS-IT, the Italian CIUS of EN 16931 (BR-IT) | `validate.Italy` |
 | CIUS-PT, the Portuguese CIUS of EN 16931 (BR-CIUS-PT, DT-CIUS-PT) | `validate.Portugal` |
 | CIUS-RO, the Romanian CIUS of EN 16931 (BR-RO, BR-DEC-RO) | `validate.Romania` |
+| The Slovak eFaktúra, beyond Peppol BIS (SK-*) | `validate.Slovakia`, or `Auto` for a seller in Slovakia |
 | An XML file instead of a PDF | `validate.XML(xml, opts)` |
 
-XRechnung, Peppol, NLCIUS, CIUS-IT, CIUS-PT and CIUS-RO invoices declare themselves, so their rules apply without any option. All the options and rule sets are described in [Validating invoices](https://github.com/ritoon/zerechnung/wiki/Validating-invoices).
+XRechnung, Peppol, NLCIUS, CIUS-IT, CIUS-PT and CIUS-RO invoices declare themselves, so their rules apply without any option. A Slovak invoice declares Peppol BIS like any other: the Peppol rules apply to it, and `Auto` adds the Slovak requirements for a seller in Slovakia. All the options and rule sets are described in [Validating invoices](https://github.com/ritoon/zerechnung/wiki/Validating-invoices).
 
 ### Read and validate at once
 
@@ -407,6 +408,7 @@ The [server's README](server/README.md) documents the endpoints, the settings an
 | CIUS-IT, Italy (CII and UBL), with its extensions EXT-IT in UBL | yes | yes | yes |
 | CIUS-PT, Portugal (UBL) | yes | yes | yes |
 | CIUS-RO, Romania (UBL and CII) | yes | yes | yes |
+| eFaktúra, Slovakia (Peppol BIS in UBL) | yes | yes | yes, with the requirements of the Finančná správa beyond Peppol BIS |
 | UBL 2.1 Invoice and CreditNote (EN 16931) | yes | yes | yes |
 | FatturaPA 1.2, Italy (FPA12 and FPR12) | yes | yes | XSD 1.2.4 and the SDI checks on the content; CIUS-IT and EXT-IT rules through UBL |
 | FatturaPA signatures, CAdES (`.xml.p7m`) and XAdES | yes | yes, Baseline B | the SDI checks (§5.1.1) and the file size |
@@ -415,7 +417,7 @@ The [server's README](server/README.md) documents the endpoints, the settings an
 | Facturae signatures, XAdES-EPES | yes | yes, under the policy of Facturae v3.1 | the policy, the role of the signer and the certificate (FACe rule set) |
 | ZUGFeRD 1.0 | yes | as Factur-X | minimal checks |
 
-Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the EXTENDED-CTC-FR rules of the FNFE-MPE (France_RFE 1.4.0.04, CII and UBL), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Portuguese CIUS-PT rules (schematron 2.1.1 of eSPap), the Romanian CIUS-RO rules (schematron 1.0.9 of ANAF, also transposed to CII), the Chorus Pro checks, the FACe checks of the Facturae signature, 72 checks of the PDF container and 14 checks of its signatures. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
+Validation covers the XSD schemas, the EN 16931 rules (CEN 1.3.17), the Factur-X 1.09.2 profile rules, the French BR-FR rules (2026 reform), the EXTENDED-CTC-FR rules of the FNFE-MPE (France_RFE 1.4.0.04, CII and UBL), the German BR-DE rules (XRechnung 3.0.2), Peppol BIS Billing 3.0, the Dutch BR-NL rules, the Italian CIUS-IT rules and those of its extensions (BR-IT, BR-IT-DE, technical rules 2.7), the Portuguese CIUS-PT rules (schematron 2.1.1 of eSPap), the Romanian CIUS-RO rules (schematron 1.0.9 of ANAF, also transposed to CII), the Slovak requirements of the eFaktúra (transposition 1.13 of the Finančná správa), the Chorus Pro checks, the FACe checks of the Facturae signature, 72 checks of the PDF container and 14 checks of its signatures. The rule counts and the official artefacts behind each set are on [Coverage and accuracy](https://github.com/ritoon/zerechnung/wiki/Coverage-and-accuracy).
 
 ## How accurate is it?
 
@@ -478,6 +480,7 @@ The benchmarks have their own repository, [ritoon/invoice-bench](https://github.
 - Facturae signatures are written in the basic format of the signature policy of Facturae v3.1 (XAdES-EPES), without the timestamp and validation data of its second format (XAdES-X-L). `VerifySignature` fetches nothing, as for FatturaPA: trust against the roots you pass (neither the Spanish trusted list nor @firma is embedded), revocation against the CRLs and OCSP responses you pass. A signature in SHA-1 is refused. Rewriting a signed invoice with `Marshal` drops its signature: sign the new document again.
 - CIUS-PT invoices are checked against the schematron 2.1.1 of eSPap, which replaces the CEN artefacts for them, as on the validator of the Portuguese public administration; the CIUS-PT has no CII binding, so a CII invoice that declares it gets `PT-SYNTAX-01`. The check digit of a Portuguese VAT identifier (NIF) is only a warning (`PT-NIF-02`), as the official examples carry invented NIFs. The CIUS-PT does not put the ATCUD, the QR code or the certificate of the invoicing software in the XML: only the format of the structured notes that carry the number and hash of a certified program is checked. SAF-T (PT), the e-fatura communication and the transmission are out of scope.
 - CIUS-RO invoices are checked against the 121 Romanian rules of the schematron 1.0.9 of ANAF, on top of EN 16931, as RO e-Factura does. The schematron binds them to UBL only: the package transposes them to CII, which the Romanian order admits, under the same identifiers. The schematron is applied as published, with its slips: seven assertions can never fail (listed in [rule-coverage.txt](testdata/rule-coverage.txt)), and the rules on the tax representative, the delivery address and the document level allowances and charges do not apply to a credit note, as their context names a root that does not exist. The check digit of a Romanian tax identifier (CUI/CIF) in BT-31, BT-32, BT-48 and BT-63 is only a warning (`RO-CIF-01`, `RO-CIF-02`), as the official examples carry invented ones. The SPV of ANAF (upload, signature of the ministry, conversion to PDF), RO e-Transport and SAF-T (D406) are out of scope.
+- Slovak eFaktúra invoices are Peppol BIS Billing 3.0 invoices, and Slovakia publishes no schematron: the Slovakia rule set (`SK-01` to `SK-15`) checks what the transposition of Peppol BIS to the Slovak legislation (version 1.13 of the Finančná správa) and its FAQ require beyond Peppol BIS, with identifiers of its own. A requirement that holds "if assigned" (IČ DPH, IČO, register entry) is an error only when the invoice tells that it holds (a VAT category that only a VAT payer invoices, reverse charge, the legal form of a company in the seller's name), a warning otherwise. Only the format of the DIČ, IČ DPH and IČO is checked: no official check digit is published. The tax data document (TDD SK) that the access points report, its rules, Peppol transmission and Peppol Self-Billing are out of scope.
 - PAdES signatures are qualified only if your certificate and signing device are: the package reads what the certificate declares (QCStatements), and checks trust against the roots you pass, as no EU trusted list is embedded. Nothing is fetched: time-stamp tokens come from your `Timestamper`, revocation data from you. Signature fields are invisible, without an appearance. `VerifySignatures` classifies the changes after a signature by the objects they touch, without rendering the pages. Encrypted PDFs are refused, and veraPDF checks the signed PDF/A-3 files only, not PDF/A-4.
 - Only EN 16931-1:2017 is supported. An invoice whose specification identifier (BT-24) names EN 16931-1:2026, such as `urn:cen.eu:en16931:2026`, gets the error `EN16931-EDITION-01` and no other rule, since the 2026 validation artefacts are not published yet. Force a profile (`Options.Profile`, `-profile`) to apply the 2017 rules anyway. `Create` and `embed` do not write this edition.
 - The rules are rewritten in Go from the official artefacts, so a new version of an artefact needs a code update.
@@ -494,7 +497,7 @@ The full list is on [Coverage and accuracy](https://github.com/ritoon/zerechnung
 | `ubl` | Read and write UBL 2.1 XML (Invoice, CreditNote) |
 | `fatturapa` | Read, write, sign and verify FatturaPA 1.2 files (Italy) |
 | `facturae` | Read Facturae 3.2, 3.2.1 and 3.2.2 XML, write Facturae 3.2.2, sign and verify it in XAdES-EPES (Spain) |
-| `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-DE, Peppol, BR-NL, BR-IT, Chorus Pro |
+| `validate` | Validation: schemas, EN 16931, Factur-X, BR-FR, BR-DE, Peppol, BR-NL, BR-IT, CIUS-PT, BR-RO, SK, Chorus Pro, FACe |
 | `cmd/zerechnung` | The command-line tool |
 | `server` | The HTTP server and its Docker image (a module of its own) |
 

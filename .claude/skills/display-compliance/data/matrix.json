@@ -216,13 +216,13 @@
     {"kind": "net", "label": "RO e-Factura", "status": "x"},
     {"kind": "rep", "label": "e-Transport, SAF-T D406", "status": "x"}
    ]},
-  {"code": "SK", "name": "Slovaquie", "region": "ue", "issues": [102],
+  {"code": "SK", "name": "Slovaquie", "region": "ue", "issues": [],
    "norms": [
-    {"label": "Peppol BIS SK 1.13", "status": "p", "note": "transposition SK non appliquée ; échéance 01/01/2027"}
+    {"label": "Peppol BIS SK 1.13", "status": "y", "note": "jeu validate.Slovakia (SK-01 à SK-15), ajouté par Auto ; échéance 01/01/2027"}
    ],
    "features": [
     {"kind": "net", "label": "eFaktúra, Peppol", "status": "x"},
-    {"kind": "rep", "label": "SK Tax Data Document", "status": "x"}
+    {"kind": "rep", "label": "SK Tax Data Document", "status": "x", "note": "produit par les points d'accès"}
    ]},
   {"code": "SI", "name": "Slovénie", "region": "ue", "issues": [135],
    "norms": [

@@ -417,6 +417,35 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+// TestValidateSlovakia checks the Slovak rule set: ?rules=sk applies it,
+// ?auto=true for a seller in Slovakia, and not otherwise.
+func TestValidateSlovakia(t *testing.T) {
+	e := newEnv(t, nil)
+	doc, err := os.ReadFile("../../../internal/rules/sk/testdata/sk.ubl.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const legalForm = "<cbc:CompanyLegalForm>Spoločnosť s ručením obmedzeným zapísaná v Obchodnom registri Mestského súdu Bratislava III, oddiel Sro, vložka č. 12345/B</cbc:CompanyLegalForm>"
+	if !bytes.Contains(doc, []byte(legalForm)) {
+		t.Fatal("no BT-33")
+	}
+	doc = bytes.Replace(doc, []byte(legalForm), nil, 1)
+	for q, want := range map[string]bool{"": false, "?rules=peppol": false, "?rules=sk": true, "?rules=slovakia": true, "?auto=true": true} {
+		resp, body := e.do("POST", "/v1/validate"+q, "application/xml", doc)
+		var r struct{ Findings []struct{ Rule string } }
+		if err := json.Unmarshal(body, &r); err != nil || resp.StatusCode != 200 {
+			t.Fatalf("%s: status %d: %s", q, resp.StatusCode, body)
+		}
+		got := false
+		for _, f := range r.Findings {
+			got = got || f.Rule == "SK-13"
+		}
+		if got != want {
+			t.Errorf("validate%s: SK-13 reported %v, want %v: %s", q, got, want, body)
+		}
+	}
+}
+
 func TestSignAndVerify(t *testing.T) {
 	e := newEnv(t, testSigner(t))
 	resp, signed := e.do("POST", "/v1/sign?reason=Archivage", "application/pdf", testdata(t, "EN16931_Einfach.pdf"))

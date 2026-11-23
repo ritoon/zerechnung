@@ -73,7 +73,7 @@ func openAPI(version string) ([]byte, error) {
 	str := obj{"type": "string"}
 	boolean := obj{"type": "boolean"}
 	validationParams := []obj{
-		q("rules", "Rule sets to add, separated by commas: fr, de, choruspro, peppol, nl, it, pt, ro, face.", str),
+		q("rules", "Rule sets to add, separated by commas: fr, de, choruspro, peppol, nl, it, pt, ro, sk, face.", str),
 		q("auto", "Add the national rules of the seller's country.", boolean),
 		q("profile", "Validate against this profile instead of BT-24.", str),
 		q("reject_basicwl", "Report BASIC WL as an error under the French rules.", boolean),

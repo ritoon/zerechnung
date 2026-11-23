@@ -883,7 +883,7 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 		Languages:    render.Languages(),
 		Formats:      []string{"cii", "ubl", "fatturapa", "facturae"},
 		Profiles:     []string{"minimum", "basicwl", "basic", "en16931", "extended", "xrechnung", "extended-ctc-fr", "peppol", "nlcius", "cius-it", "cius-pt", "cius-ro"},
-		RuleSets:     []string{"fr", "de", "choruspro", "peppol", "nl", "it", "pt", "ro", "face"},
+		RuleSets:     []string{"fr", "de", "choruspro", "peppol", "nl", "it", "pt", "ro", "sk", "face"},
 		MaxBodyBytes: s.MaxBodyBytes,
 	}
 	if ri := reqInfoOf(r); ri != nil && ri.principal != nil {

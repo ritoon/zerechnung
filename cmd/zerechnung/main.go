@@ -214,6 +214,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	ita := fs.Bool("it", false, "apply the Italian rules BR-IT of the CIUS-IT (applied anyway when BT-24 is a CIUS-IT identifier)")
 	por := fs.Bool("pt", false, "apply the Portuguese rules of the CIUS-PT (applied anyway when BT-24 is a CIUS-PT identifier)")
 	rou := fs.Bool("ro", false, "apply the Romanian rules BR-RO of the CIUS-RO and the check of the CIF (applied anyway when BT-24 is a CIUS-RO identifier)")
+	svk := fs.Bool("sk", false, "apply the Slovak requirements of the eFaktura beyond Peppol BIS (SK-*; applied with -auto to a seller in Slovakia)")
 	face := fs.Bool("face", false, "apply the FACe checks of Spanish B2G invoices: a Facturae document must be signed in XAdES-EPES under the signature policy of Facturae, and its signature verify (trust in the certificate and its revocation are not checked)")
 	profile := fs.String("profile", "", "validate against this profile instead of BT-24")
 	hybrid := fs.Bool("hybrid", false, "the XML is the invoice of a Factur-X PDF: check an EN 16931 invoice against the Factur-X schematron (always the case for a PDF)")
@@ -252,7 +253,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 			return 0, fmt.Errorf("unknown profile %q", *profile)
 		}
 	}
-	if *fr || *de || *cpro || *pep || *nl || *ita || *por || *rou || *face {
+	if *fr || *de || *cpro || *pep || *nl || *ita || *por || *rou || *svk || *face {
 		opts.Rules = validate.Default
 		if *fr {
 			opts.Rules |= validate.France
@@ -277,6 +278,9 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 		}
 		if *rou {
 			opts.Rules |= validate.Romania
+		}
+		if *svk {
+			opts.Rules |= validate.Slovakia
 		}
 		if *face {
 			opts.Rules |= validate.FACe
@@ -689,6 +693,7 @@ func rulesCmd(args []string) error {
 	ita := fs.Bool("it", false, "include the Italian rules of the CIUS-IT")
 	por := fs.Bool("pt", false, "include the Portuguese rules of the CIUS-PT")
 	rou := fs.Bool("ro", false, "include the Romanian rules of the CIUS-RO")
+	svk := fs.Bool("sk", false, "include the Slovak requirements of the eFaktura")
 	face := fs.Bool("face", false, "include the FACe checks of the signature of a Facturae document")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -717,6 +722,9 @@ func rulesCmd(args []string) error {
 	}
 	if *rou {
 		set |= validate.Romania
+	}
+	if *svk {
+		set |= validate.Slovakia
 	}
 	if *face {
 		set |= validate.FACe

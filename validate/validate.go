@@ -4,8 +4,9 @@
 // (BR-DE) rules, the profiles that France and Germany admit, the checks of
 // Chorus Pro for French B2G invoices, the Peppol BIS Billing 3.0 rules, the
 // Dutch rules of NLCIUS (BR-NL), the Italian rules of the CIUS-IT (BR-IT),
-// the Portuguese rules of the CIUS-PT and the Romanian rules of the CIUS-RO
-// (BR-RO).
+// the Portuguese rules of the CIUS-PT, the Romanian rules of the CIUS-RO
+// (BR-RO) and the Slovak requirements of the eFaktúra beyond Peppol BIS
+// (SK-*).
 //
 // The syntax is detected from the root element. A UBL 2.1 Invoice or
 // CreditNote is checked against the OASIS UBL 2.1 XML schema of its document
@@ -40,6 +41,17 @@
 // for a CII invoice, which the CIUS-RO admits but for which ANAF publishes
 // no schematron, its transposition to CII. The check of the Romanian fiscal
 // identification code (RO-CIF-*) follows. See package internal/rules/ro.
+//
+// A Slovak invoice of the eFaktúra (mandatory from 1 January 2027) is a
+// Peppol BIS Billing 3.0 invoice, which BT-24 does not tell from another
+// Peppol invoice: the Peppol rules apply to it whatever the rule sets, and
+// the Slovakia rule set, which Options.Auto adds for a seller in Slovakia
+// (BT-40 = SK), checks what the transposition of Peppol BIS to the Slovak
+// legislation of the Finančná správa requires beyond it: the postal
+// addresses, the electronic addresses of scheme 0245 (DIČ) of the Slovak
+// parties, the VAT identifiers (IČ DPH), the IČO and the legal information
+// of a Slovak seller, the date of the taxable supply and the reference of
+// a corrective invoice (SK-01 to SK-15). See package internal/rules/sk.
 //
 // A ZUGFeRD 1.0 invoice (rsm:CrossIndustryDocument, see cii.IsZUGFeRD1)
 // gets a minimal structural check, part of the Schema rule set: a ZUGFeRD
@@ -110,6 +122,7 @@ import (
 	"github.com/ritoon/zerechnung/internal/rules/peppol"
 	"github.com/ritoon/zerechnung/internal/rules/pt"
 	"github.com/ritoon/zerechnung/internal/rules/ro"
+	"github.com/ritoon/zerechnung/internal/rules/sk"
 	"github.com/ritoon/zerechnung/internal/rules/ubl"
 	"github.com/ritoon/zerechnung/internal/schema"
 	"github.com/ritoon/zerechnung/internal/xmltree"
@@ -150,6 +163,7 @@ const (
 	SourceIT        = rules.SourceIT
 	SourcePT        = rules.SourcePT
 	SourceRO        = rules.SourceRO
+	SourceSK        = rules.SourceSK
 	SourceSDI       = rules.SourceSDI
 	SourceSignature = rules.SourceSignature
 	SourceFacturae  = rules.SourceFacturae
@@ -173,6 +187,7 @@ const (
 	Portugal                           // Portuguese rules of the CIUS-PT schematron of eSPap (BR-CIUS-PT, DT-CIUS-PT), the check of the NIF (PT-NIF-*) and of the UBL syntax of a CIUS-PT invoice (PT-SYNTAX-01)
 	FACe                               // Spanish B2G checks for FACe on a Facturae document: its XAdES-EPES signature is required and checked against the signature policy of Facturae (ES-SIG-*, see facturae.VerifySignature)
 	Romania                            // Romanian rules of the CIUS-RO schematron of ANAF (BR-RO, BR-DEC-RO), transposed to CII for a CII invoice, and the check of the CIF (RO-CIF-*)
+	Slovakia                           // Slovak requirements of the eFaktúra beyond Peppol BIS Billing 3.0 (SK-*): addresses, electronic addresses of scheme 0245 (DIČ), IČ DPH, IČO, legal information, date of the taxable supply, corrective invoice
 
 	// Default is the set used when Options.Rules is zero: schema, EN 16931
 	// and profile rules. Whatever the rule sets, the German rules apply to
@@ -200,8 +215,11 @@ type Options struct {
 	Rules RuleSet
 	// Auto adds the national rules of the seller's country (BT-40): the
 	// French rules (France) for a seller in France, the BMF profile check
-	// (GermanyProfile) for a seller in Germany. The German rules BR-DE, the
-	// Peppol rules, the Dutch rules BR-NL, the Italian rules BR-IT, the
+	// (GermanyProfile) for a seller in Germany, the Slovak requirements
+	// (Slovakia) for a seller in Slovakia, whose invoices declare Peppol
+	// BIS Billing 3.0 in BT-24 like any other Peppol invoice. The German
+	// rules BR-DE, the Peppol rules, the Dutch rules BR-NL, the Italian
+	// rules BR-IT, the
 	// Portuguese rules and the Romanian rules BR-RO need no option: they
 	// apply to XRECHNUNG, Peppol, NLCIUS, CIUS-IT, CIUS-PT and CIUS-RO
 	// invoices, which declare themselves in BT-24. Auto never adds the
@@ -430,6 +448,8 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	run(Portugal, SourcePT, pt.Check)
 	// So is the CIUS-RO schematron; a CII invoice gets its transposition.
 	run(Romania, SourceRO, ro.Check)
+	// The Slovak requirements run on the CII view of a UBL invoice.
+	run(Slovakia, SourceSK, sk.Check)
 	return r
 }
 
@@ -438,8 +458,8 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 // Peppol rules for a Peppol invoice, the Dutch rules for an NLCIUS invoice,
 // the Italian rules for a CIUS-IT invoice, the Portuguese rules for a
 // CIUS-PT invoice and the Romanian rules for a CIUS-RO invoice whatever
-// opts.Rules, plus the
-// national rules of the seller's country with opts.Auto. The profile is the
+// opts.Rules, plus the national rules of the seller's country with
+// opts.Auto (France, GermanyProfile, Slovakia). The profile is the
 // one of doc, which Options.Profile overrides.
 func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
 	set := opts.Rules
@@ -466,6 +486,8 @@ func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
 			set |= France
 		case "DE":
 			set |= GermanyProfile
+		case "SK":
+			set |= Slovakia
 		}
 	}
 	return set
@@ -514,6 +536,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(Portugal, newRules(pt.CENCatalog, slices.Concat(en16931.Catalog, ubl.Catalog)))
 	add(FACe, faceCatalog())
 	add(Romania, ro.Catalog())
+	add(Slovakia, sk.Catalog)
 	return out
 }
 

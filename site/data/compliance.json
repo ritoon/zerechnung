@@ -1,5 +1,5 @@
 {
-  "asof": "2026-11-22",
+  "asof": "2026-11-23",
   "countries": [
     {"code": "AT", "eu": true, "b2g": "since 2014", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"], ["ebInterface", "no"]]},
     {"code": "BE", "eu": true, "b2g": "since 2022", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"]]},
@@ -24,7 +24,7 @@
     {"code": "PL", "eu": true, "b2g": "since 2026", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"], ["KSeF FA(3)", "no"]]},
     {"code": "PT", "eu": true, "b2g": "since 2021", "b2b": "none", "cover": [["CIUS-PT", "yes"]]},
     {"code": "RO", "eu": true, "b2g": "since 2022", "b2b": "since 2024", "cover": [["CIUS-RO", "yes"]]},
-    {"code": "SK", "eu": true, "b2g": "from 2027", "b2b": "from 2027", "cover": [["Peppol BIS 3.0", "partial"]]},
+    {"code": "SK", "eu": true, "b2g": "from 2027", "b2b": "from 2027", "cover": [["Peppol BIS 3.0", "yes"]]},
     {"code": "SI", "eu": true, "b2g": "since 2015", "b2b": "from 2028", "cover": [["Peppol BIS 3.0", "yes"], ["e-SLOG 2.0", "no"]]},
     {"code": "ES", "eu": true, "b2g": "since 2015", "b2b": "from 2027", "cover": [["UBL", "yes"], ["CII", "yes"], ["Facturae", "yes"]]},
     {"code": "SE", "eu": true, "b2g": "since 2019", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"]]},
@@ -119,6 +119,16 @@
         {"text": "cp_ro_cif", "status": "yes", "rules": ["Romania"]},
         {"text": "cp_ro_send", "status": "no"},
         {"text": "cp_ro_saft", "status": "no"}
+      ]
+    },
+    {
+      "code": "SK",
+      "checks": [
+        {"text": "cp_sk_peppol", "status": "yes", "rules": ["Peppol"]},
+        {"text": "cp_sk_rules", "status": "yes", "rules": ["Slovakia"]},
+        {"text": "cp_sk_ids", "status": "yes", "rules": ["Slovakia"]},
+        {"text": "cp_sk_tdd", "status": "no"},
+        {"text": "cp_sk_send", "status": "no"}
       ]
     },
     {
