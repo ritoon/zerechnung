@@ -10,7 +10,7 @@
 //
 //	go run ./gen [-o tables_gen.go] <dir>
 //	go run ./gen -cii D16B|D22B [-src path] [-o cii_d16b_tables_gen.go]
-//	go run ./gen -ubl [-zip UBL-2.1.zip] [-o ubl_tables_gen.go]
+//	go run ./gen -ubl [-zip UBL-2.1.zip] [-hr "UBL2.1 eRačun.zip"] [-o ubl_tables_gen.go]
 //	go run ./gen -fatturapa [-src Schema_VFPA12_v1.2.4.xsd] [-o fatturapa_tables_gen.go]
 //	go run ./gen -facturae [-src dir] [-o facturae_tables_gen.go]
 //
@@ -59,6 +59,18 @@
 //     content is not checked. The signature schemas that
 //     UBL-ExtensionContentDataType-2.1.xsd imports for lax validation
 //     (xmldsig, XAdES) are therefore never read.
+//
+// The schemas of the UBL extensions that package schema validates where the
+// wildcard admits them (lax validation) are compiled into the same set, as
+// extension roots: the schema of the Croatian extension HRFISK20Data
+// (CIUS-HR and EXT-HR 2025), HRExtensionAggregateComponents-1.xsd of the
+// package "UBL2.1 eRačun" of the Croatian tax administration, read from a
+// local file (-hr) or downloaded from porezna.gov.hr, with its SHA-256 and
+// that of the schema checked. It refers to the cbc elements and udt types of
+// UBL, which are the OASIS ones: the other files of the package are the
+// OASIS UBL 2.1 schemas, with their annotations, but for
+// ExtensionContentType, a choice of HRFISK20Data and the UBL signature
+// instead of the wildcard.
 //
 // With -fatturapa, gen reads the FatturaPA schema 1.2.4, from a local file
 // (-src) or downloaded from www.fatturapa.gov.it, checks its SHA-256 and
@@ -148,6 +160,18 @@ const (
 	ublVersion = "2.1"
 )
 
+// The schema of the Croatian extension of UBL in the package "UBL2.1
+// eRačun" of the Porezna uprava (15/04/2026), compiled with the UBL schemas
+// at the path of ublExtensionDocs.
+const (
+	hrArchive    = "UBL2.1 eRačun.zip"
+	hrURL        = "https://porezna.gov.hr/fiskalizacija/api/dokumenti/198"
+	hrArchiveSum = "549ced211d2b463db0e5821ed9e604580140aa1870ee8636d207206d872c8388"
+	hrFile       = "UBL2.1 eRačun/XsdUbl/common/HRExtensionAggregateComponents-1.xsd"
+	hrFileSum    = "c5aae7d62509029a987156ddc563972bdc4326658b43c6c424002efecfff275f"
+	nsHR         = "urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1"
+)
+
 // The FatturaPA 1.2.4 schema. Schema_VFPR12_v1.2.4.xsd, published for the
 // invoices between private parties, is the same file.
 const (
@@ -181,6 +205,13 @@ type rootDoc struct{ file, ns, root string }
 var ublDocs = []rootDoc{
 	{"xsdrt/maindoc/UBL-Invoice-2.1.xsd", "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2", "Invoice"},
 	{"xsdrt/maindoc/UBL-CreditNote-2.1.xsd", "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2", "CreditNote"},
+}
+
+// ublExtensionDocs lists the schemas of the UBL extensions compiled, with
+// the global element that ext:ExtensionContent may hold. The Croatian schema
+// is placed beside the common UBL schemas, whose files it imports by name.
+var ublExtensionDocs = []rootDoc{
+	{"xsdrt/common/HRExtensionAggregateComponents-1.xsd", nsHR, "HRFISK20Data"},
 }
 
 // ciiSet describes a complete UN/CEFACT CII schema compiled with -cii.
@@ -247,6 +278,8 @@ var prefixes = map[string]string{
 	"urn:oasis:names:specification:ubl:schema:xsd:QualifiedDataTypes-2":        "qdt",
 	"urn:un:unece:uncefact:data:specification:CoreComponentTypeSchemaModule:2": "ccts-cct",
 
+	nsHR: "hrextac",
+
 	nsFPA: "p",
 	nsDS:  "ds",
 
@@ -259,6 +292,7 @@ func main() {
 	out := flag.String("o", "", "output file (default tables_gen.go, cii_d16b_tables_gen.go with -cii D16B, ubl_tables_gen.go with -ubl)")
 	ubl := flag.Bool("ubl", false, "compile the OASIS UBL 2.1 schemas of Invoice and CreditNote")
 	zipPath := flag.String("zip", "", "with -ubl: path of "+ublArchive+" (downloaded from "+ublURL+" when empty)")
+	hrPath := flag.String("hr", "", "with -ubl: path of the Croatian package "+hrArchive+" (downloaded from "+hrURL+" when empty)")
 	cii := flag.String("cii", "", "compile the complete UN/CEFACT CII schema of this version (D16B or D22B)")
 	srcPath := flag.String("src", "", "with -cii: the KoSIT archive (D16B) or a directory holding the schema files; with -fatturapa: the schema file; with -facturae: a directory holding the schema files (downloaded when empty)")
 	fpa := flag.Bool("fatturapa", false, "compile the FatturaPA "+fpaVersion+" schema")
@@ -266,7 +300,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "usage: gen [-o tables_gen.go] <directory of the Factur-X XSD files>")
 		fmt.Fprintln(os.Stderr, "       gen -cii D16B|D22B [-src path] [-o cii_d16b_tables_gen.go]")
-		fmt.Fprintln(os.Stderr, "       gen -ubl [-zip "+ublArchive+"] [-o ubl_tables_gen.go]")
+		fmt.Fprintln(os.Stderr, "       gen -ubl [-zip "+ublArchive+"] [-hr \""+hrArchive+"\"] [-o ubl_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -fatturapa [-src "+fpaFile+"] [-o fatturapa_tables_gen.go]")
 		fmt.Fprintln(os.Stderr, "       gen -facturae [-src dir] [-o facturae_tables_gen.go]")
 		flag.PrintDefaults()
@@ -277,17 +311,17 @@ func main() {
 		err error
 	)
 	switch {
-	case *facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && flag.NArg() == 0:
+	case *facturae && !*fpa && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "facturae_tables_gen.go"
 		}
 		src, err = generateFacturae(*srcPath)
-	case *fpa && !*facturae && *cii == "" && !*ubl && *zipPath == "" && flag.NArg() == 0:
+	case *fpa && !*facturae && *cii == "" && !*ubl && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "fatturapa_tables_gen.go"
 		}
 		src, err = generateFatturaPA(*srcPath)
-	case *cii != "" && !*ubl && !*fpa && !*facturae && *zipPath == "" && flag.NArg() == 0:
+	case *cii != "" && !*ubl && !*fpa && !*facturae && *zipPath == "" && *hrPath == "" && flag.NArg() == 0:
 		if *out == "" {
 			*out = "cii_" + strings.ToLower(*cii) + "_tables_gen.go"
 		}
@@ -296,8 +330,8 @@ func main() {
 		if *out == "" {
 			*out = "ubl_tables_gen.go"
 		}
-		src, err = generateUBLArchive(*zipPath)
-	case !*ubl && !*fpa && !*facturae && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "":
+		src, err = generateUBLArchive(*zipPath, *hrPath)
+	case !*ubl && !*fpa && !*facturae && *cii == "" && *srcPath == "" && flag.NArg() == 1 && flag.Arg(0) != "" && *zipPath == "" && *hrPath == "":
 		if *out == "" {
 			*out = "tables_gen.go"
 		}
@@ -333,14 +367,41 @@ func generate(dir string) ([]byte, error) {
 	return c.emit(version, nil)
 }
 
-// generateUBLArchive reads the UBL 2.1 package from path, or downloads it
-// when path is empty, checks its SHA-256 and compiles it.
-func generateUBLArchive(path string) ([]byte, error) {
+// generateUBLArchive reads the UBL 2.1 package from path and the Croatian
+// package from hrPath, or downloads them when the path is empty, checks
+// their SHA-256 and compiles the UBL schemas with the schema of the
+// Croatian extension.
+func generateUBLArchive(path, hrPath string) ([]byte, error) {
 	zr, err := openArchive(path, ublURL, ublSum)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", ublArchive, err)
 	}
-	return generateUBL(zr)
+	hr, err := openArchive(hrPath, hrURL, hrArchiveSum)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", hrArchive, err)
+	}
+	data, err := fs.ReadFile(hr, hrFile)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", hrArchive, err)
+	}
+	h := sha256.Sum256(data)
+	if got := hex.EncodeToString(h[:]); got != hrFileSum {
+		return nil, fmt.Errorf("%s: %s: SHA-256 %s, want %s", hrArchive, hrFile, got, hrFileSum)
+	}
+	return generateUBL(overlay{zr, fstest.MapFS{ublExtensionDocs[0].file: &fstest.MapFile{Data: data}}})
+}
+
+// overlay is a file system that adds the files of add to FS.
+type overlay struct {
+	fs.FS
+	add fstest.MapFS
+}
+
+func (o overlay) Open(name string) (fs.File, error) {
+	if _, ok := o.add[name]; ok {
+		return o.add.Open(name)
+	}
+	return o.FS.Open(name)
 }
 
 // openArchive reads the zip archive at path, or downloads it from url when
@@ -395,7 +456,7 @@ func generateCII(v, src string) ([]byte, error) {
 // compileCII compiles the CII schema set whose files are in fsys.
 func compileCII(v string, set ciiSet, fsys fs.FS) ([]byte, error) {
 	c := newCompiler(true)
-	if err := c.compileSingle(fsys, []rootDoc{{set.files[0].name, nsRSM, ciiRoot}}); err != nil {
+	if err := c.compileSingle(fsys, []rootDoc{{set.files[0].name, nsRSM, ciiRoot}}, nil); err != nil {
 		return nil, fmt.Errorf("CII %s: %w", v, err)
 	}
 	source := "Source: " + set.origin + ","
@@ -447,18 +508,21 @@ func ciiFiles(set ciiSet, src string) (fs.FS, error) {
 }
 
 // generateUBL compiles the UBL schemas of fsys, laid out as in the UBL 2.1
-// package, and returns the Go source.
+// package, with the schemas of the extensions of ublExtensionDocs, and
+// returns the Go source.
 func generateUBL(fsys fs.FS) ([]byte, error) {
 	c := newCompiler(true)
-	if err := c.compileSingle(fsys, ublDocs); err != nil {
+	if err := c.compileSingle(fsys, ublDocs, ublExtensionDocs); err != nil {
 		return nil, fmt.Errorf("UBL: %w", err)
 	}
 	return c.emit(ublVersion, &setInfo{
-		prefix:  "ubl",
-		title:   "OASIS UBL " + ublVersion,
-		source:  fmt.Sprintf("Source: %s (SHA-256 %s),\n// the runtime schemas of Invoice and CreditNote (SHA-256 of each file):", ublURL, ublSum),
-		schemas: "UBL schemas",
-		roots:   "the root element of each UBL document",
+		prefix: "ubl",
+		title:  "OASIS UBL " + ublVersion,
+		source: fmt.Sprintf("Source: %s (SHA-256 %s),\n// the runtime schemas of Invoice and CreditNote, and the schema of the Croatian\n// extension of the package %q of the Porezna uprava,\n// %s (SHA-256 %s),\n// placed as %s (SHA-256 of each file):",
+			ublURL, ublSum, "UBL2.1 eRačun", hrURL, hrArchiveSum, ublExtensionDocs[0].file),
+		schemas:    "UBL schemas",
+		roots:      "the root element of each UBL document",
+		extensions: "the global element of each extension schema, which ext:ExtensionContent may hold",
 	})
 }
 
@@ -489,7 +553,7 @@ func generateFatturaPA(path string) ([]byte, error) {
 func compileFatturaPA(fsys fs.FS, name, version string) ([]byte, error) {
 	c := newCompiler(true)
 	c.skip = map[string]bool{nsDS: true}
-	if err := c.compileSingle(fsys, []rootDoc{{name, nsFPA, "FatturaElettronica"}}); err != nil {
+	if err := c.compileSingle(fsys, []rootDoc{{name, nsFPA, "FatturaElettronica"}}, nil); err != nil {
 		return nil, fmt.Errorf("FatturaPA: %w", err)
 	}
 	return c.emit(version, &setInfo{
@@ -546,7 +610,7 @@ func compileFacturae(fsys fs.FS) ([]byte, error) {
 		docs[i] = rootDoc{f.name, f.ns, facturaeRoot}
 		versions[i] = f.version
 	}
-	if err := c.compileSingle(fsys, docs); err != nil {
+	if err := c.compileSingle(fsys, docs, nil); err != nil {
 		return nil, fmt.Errorf("facturae: %w", err)
 	}
 	return c.emit(facturaeFiles[len(facturaeFiles)-1].version, &setInfo{
@@ -961,6 +1025,7 @@ type compiler struct {
 	byKey      map[string]*gType
 	types      []*gType
 	roots      []gPart
+	extensions []gPart        // global elements of the extension schemas (UBL)
 	files      [][]*schemaDoc // per profile
 	namespaces []string
 	inProgress map[string]bool
@@ -998,23 +1063,34 @@ func (c *compiler) compileProfile(fsys fs.FS, p int, name string) error {
 }
 
 // compileSingle compiles the documents docs into one schema set (the UBL
-// documents, or a complete CII schema).
-func (c *compiler) compileSingle(fsys fs.FS, docs []rootDoc) error {
+// documents, or a complete CII schema), with the global elements exts of
+// the extension schemas.
+func (c *compiler) compileSingle(fsys fs.FS, docs, exts []rootDoc) error {
 	ps := newSchemas(fsys, true)
 	pc := &profileCompiler{c: c, ps: ps, memo: map[qname]*gType{}}
-	for _, d := range docs {
+	compile := func(d rootDoc) (gPart, error) {
 		if _, err := ps.load(d.file); err != nil {
-			return err
+			return gPart{}, err
 		}
 		root, ok := ps.elements[qname{d.ns, d.root}]
 		if !ok {
-			return fmt.Errorf("%s: no global element %s", d.file, qname{d.ns, d.root})
+			return gPart{}, fmt.Errorf("%s: no global element %s", d.file, qname{d.ns, d.root})
 		}
-		part, err := pc.element(root.doc, root.node, true)
+		return pc.element(root.doc, root.node, true)
+	}
+	for _, d := range docs {
+		part, err := compile(d)
 		if err != nil {
 			return err
 		}
 		c.roots = append(c.roots, part)
+	}
+	for _, d := range exts {
+		part, err := compile(d)
+		if err != nil {
+			return err
+		}
+		c.extensions = append(c.extensions, part)
 	}
 	c.files = append(c.files, ps.files)
 	return nil
@@ -1954,6 +2030,9 @@ type setInfo struct {
 	source  string // comment lines on the source of the files, without the first "// "
 	schemas string // what the version is the version of ("UBL schemas")
 	roots   string // what the roots are
+	// extensions says what the extension roots are, emitted when there are
+	// some.
+	extensions string
 }
 
 // emit writes the Go source of the tables: the Factur-X tables when info is
@@ -2152,6 +2231,14 @@ func (c *compiler) emit(version string, info *setInfo) ([]byte, error) {
 		}
 	}
 	b.WriteString("}\n")
+	if info != nil && len(c.extensions) > 0 {
+		fmt.Fprintf(&b, "\n// %s holds %s.\n", v("extensions"), info.extensions)
+		fmt.Fprintf(&b, "var %s = [...]particle{\n", v("extensions"))
+		for _, r := range c.extensions {
+			fmt.Fprintf(&b, "{%q, %d, %d, 1, 1},\n", r.name, nsIndex[r.ns], newID[r.typ])
+		}
+		b.WriteString("}\n")
+	}
 	src, err := format.Source(b.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("formatting generated code: %w\n%s", err, b.Bytes())
@@ -2174,6 +2261,9 @@ func (c *compiler) reachable() []*gType {
 		}
 	}
 	for _, r := range c.roots {
+		walk(r.typ)
+	}
+	for _, r := range c.extensions {
 		walk(r.typ)
 	}
 	var out []*gType

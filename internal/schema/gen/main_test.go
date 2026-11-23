@@ -316,6 +316,26 @@ var ublFiles = map[string]string{
 </xsd:schema>`,
 	// Imported for lax validation only, never referenced: never read.
 	"xsdrt/common/sig.xsd": `not a schema`,
+	// The schema of an extension, in the style of the Croatian one: it
+	// refers to cbc elements and extends a udt type with nothing.
+	"xsdrt/common/HRExtensionAggregateComponents-1.xsd": `<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns="urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1"
+    xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+    xmlns:udt="urn:oasis:names:specification:ubl:schema:xsd:UnqualifiedDataTypes-2"
+    targetNamespace="urn:mfin.gov.hr:schema:xsd:HRExtensionAggregateComponents-1"
+    elementFormDefault="qualified" attributeFormDefault="unqualified">
+  <xsd:import namespace="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" schemaLocation="cbc.xsd"/>
+  <xsd:import namespace="urn:oasis:names:specification:ubl:schema:xsd:UnqualifiedDataTypes-2" schemaLocation="udt.xsd"/>
+  <xsd:element name="HRFISK20Data" type="HRFISK20DataType"/>
+  <xsd:complexType name="HRFISK20DataType">
+    <xsd:annotation><xsd:documentation>annotations are allowed</xsd:documentation></xsd:annotation>
+    <xsd:sequence>
+      <xsd:element ref="cbc:Amount" minOccurs="1" maxOccurs="1"/>
+      <xsd:element name="OutOfScopeOfVATAmount" type="OutOfScopeOfVATAmountType" minOccurs="0" maxOccurs="1"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  <xsd:complexType name="OutOfScopeOfVATAmountType"><xsd:simpleContent><xsd:extension base="udt:AmountType"/></xsd:simpleContent></xsd:complexType>
+</xsd:schema>`,
 }
 
 // ublFS returns ublFiles with the replacements edits: file, old, new.
@@ -347,21 +367,28 @@ func TestGenerateUBL(t *testing.T) {
 		`const ublSchemaVersion = "2.1"`,
 		`var ublRoots = [...]particle{`,
 		`{"Invoice", `, `{"CreditNote", `,
-		`{name: "ext:ExtensionContentType", content: contentAny, min: 1, max: 1, other: 3}`,
+		`{name: "ext:ExtensionContentType", content: contentAny, min: 1, max: 1, other: 4}`,
 		`{name: "udt:TimeType", content: contentSimple, simple: kTime, simpleName: "xs:time"}`,
 		`{"currencyID", kString, 0, true}`,                 // required by the restriction
 		`{"currencyCodeListVersionID", kString, 0, false}`, // inherited
 		`{"languageID", kString, 1, false}`,                // xs:language pattern
 		`xsdrt/common/extcontent.xsd`,
+		// The extension root, apart from the document roots.
+		`var ublExtensions = [...]particle{`,
+		`{"HRFISK20Data", 1, `,
+		`{name: "hrextac:HRFISK20DataType", content: contentElements, first: `,
+		`{"OutOfScopeOfVATAmount", 1, `,
+		`xsdrt/common/HRExtensionAggregateComponents-1.xsd`,
 	} {
 		if !bytes.Contains(src, []byte(want)) {
 			t.Errorf("generated source lacks %s\n%s", want, src)
 		}
 	}
 	for _, bad := range []string{
-		"sig.xsd",             // lazy import, never read
-		`name: "cbc:`,         // the cbc types are the udt ones
-		`ccts-cct:AmountType`, // only the base of a restriction
+		"sig.xsd",     // lazy import, never read
+		`name: "cbc:`, // the cbc types are the udt ones
+		`name: "hrextac:OutOfScopeOfVATAmountType"`, // the udt type it extends
+		`ccts-cct:AmountType`,                       // only the base of a restriction
 		"profiles:",
 	} {
 		if bytes.Contains(src, []byte(bad)) {
@@ -441,24 +468,64 @@ func TestUBLLazyImport(t *testing.T) {
 	}
 }
 
+// TestUBLRoots checks that the extension roots are not document roots.
+func TestUBLRoots(t *testing.T) {
+	src, err := generateUBL(ublFS(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, roots, ok := bytes.Cut(src, []byte("var ublRoots = "))
+	roots, _, _ = bytes.Cut(roots, []byte("}\n"))
+	if !ok || bytes.Contains(roots, []byte("HRFISK20Data")) || bytes.Count(roots, []byte("\n")) != 3 {
+		t.Errorf("ublRoots:\n%s", roots)
+	}
+}
+
+// TestUBLMissingExtension checks that the schema of an extension is
+// required: the Croatian one is in the package of the tax administration.
+func TestUBLMissingExtension(t *testing.T) {
+	fsys := ublFS(t)
+	delete(fsys, ublExtensionDocs[0].file)
+	if _, err := generateUBL(fsys); err == nil || !strings.Contains(err.Error(), "HRExtensionAggregateComponents-1.xsd") {
+		t.Errorf("error = %v", err)
+	}
+}
+
+// TestUBLHRArchive checks the Croatian package: its SHA-256, then that of
+// the schema of the extension inside.
+func TestUBLHRArchive(t *testing.T) {
+	ubl := os.Getenv("FX_UBL_ZIP")
+	if ubl == "" {
+		t.Skip("FX_UBL_ZIP not set")
+	}
+	path := filepath.Join(t.TempDir(), "hr.zip")
+	if err := os.WriteFile(path, []byte("not the Croatian package"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := generateUBLArchive(ubl, path); err == nil || !strings.Contains(err.Error(), hrArchive) || !strings.Contains(err.Error(), "SHA-256") {
+		t.Errorf("error = %v", err)
+	}
+}
+
 func TestUBLArchiveChecksum(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ublArchive)
 	if err := os.WriteFile(path, []byte("not the OASIS package"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := generateUBLArchive(path); err == nil || !strings.Contains(err.Error(), "SHA-256") {
+	if _, err := generateUBLArchive(path, path); err == nil || !strings.Contains(err.Error(), "SHA-256") {
 		t.Errorf("error = %v", err)
 	}
 }
 
 // TestUpToDateUBL checks that ubl_tables_gen.go matches the OASIS UBL 2.1
-// package named by FX_UBL_ZIP (UBL-2.1.zip).
+// package named by FX_UBL_ZIP (UBL-2.1.zip) and the Croatian package named
+// by FX_HR_XSD ("UBL2.1 eRačun.zip").
 func TestUpToDateUBL(t *testing.T) {
-	path := os.Getenv("FX_UBL_ZIP")
-	if path == "" {
-		t.Skip("FX_UBL_ZIP not set")
+	path, hr := os.Getenv("FX_UBL_ZIP"), os.Getenv("FX_HR_XSD")
+	if path == "" || hr == "" {
+		t.Skip("FX_UBL_ZIP or FX_HR_XSD not set")
 	}
-	src, err := generateUBLArchive(path)
+	src, err := generateUBLArchive(path, hr)
 	if err != nil {
 		t.Fatal(err)
 	}
