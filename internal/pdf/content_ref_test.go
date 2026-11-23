@@ -6,8 +6,12 @@ package pdf
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -56,6 +60,7 @@ type scanned struct {
 	ops  []string
 	args [][]Object
 	err  error
+	bad  string // how the methods of an Operand disagree with its Object
 }
 
 func scanRef(data []byte) scanned {
@@ -86,12 +91,71 @@ func scanTyped(data []byte) scanned {
 		s.ops = append(s.ops, op)
 		objs := make([]Object, len(args))
 		for i := range args {
+			if m := operandMismatch(&args[i]); m != "" && s.bad == "" {
+				s.bad = fmt.Sprintf("operand %d of operator %d (%s): %s", i, len(s.ops)-1, op, m)
+			}
 			objs[i] = cloneObject(args[i].Object())
 		}
 		s.args = append(s.args, objs)
 		return nil
 	})
 	return s
+}
+
+// operandMismatch returns how Kind and the As methods of o disagree with
+// its Object, or "".
+func operandMismatch(o *Operand) string {
+	obj := o.Object()
+	kind := OperandOther
+	switch obj.(type) {
+	case nil:
+		kind = OperandNull
+	case Bool:
+		kind = OperandBool
+	case Int:
+		kind = OperandInt
+	case Real:
+		kind = OperandReal
+	case String:
+		kind = OperandString
+	case Name:
+		kind = OperandName
+	case Array:
+		kind = OperandArray
+	case Dict:
+		kind = OperandDict
+	}
+	if o.Kind() != kind {
+		return fmt.Sprintf("Kind %d, Object %#v", o.Kind(), obj)
+	}
+	i, iok := o.AsInt()
+	wi, wiok := AsInt(obj)
+	n, nok := o.AsName()
+	wn, wnok := obj.(Name)
+	s, sok := o.AsString()
+	ws, wsok := obj.(String)
+	d, dok := o.AsDict()
+	wd, wdok := obj.(Dict)
+	elems, aok := o.AsArray()
+	_, waok := obj.(Array)
+	switch {
+	case i != wi || iok != wiok:
+		return fmt.Sprintf("AsInt %d %v, Object %#v", i, iok, obj)
+	case n != wn || nok != wnok:
+		return fmt.Sprintf("AsName %q %v, Object %#v", n, nok, obj)
+	case !bytes.Equal(s, ws) || sok != wsok:
+		return fmt.Sprintf("AsString %q %v, Object %#v", s, sok, obj)
+	case !reflect.DeepEqual(d, wd) || dok != wdok:
+		return fmt.Sprintf("AsDict %v %v, Object %#v", d, dok, obj)
+	case aok != waok:
+		return fmt.Sprintf("AsArray %v, Object %#v", aok, obj)
+	}
+	for i := range elems {
+		if m := operandMismatch(&elems[i]); m != "" {
+			return fmt.Sprintf("element %d: %s", i, m)
+		}
+	}
+	return ""
 }
 
 func cloneObject(o Object) Object {
@@ -136,6 +200,9 @@ func compareScans(t *testing.T, name string, data []byte) {
 		how string
 		s   scanned
 	}{{"ScanContent", scanNew(data)}, {"ScanOperands", scanTyped(data)}} {
+		if got.s.bad != "" {
+			t.Fatalf("%s: %s: %s", name, got.how, got.s.bad)
+		}
 		if !errors.Is(got.s.err, want.err) || len(got.s.ops) != len(want.ops) {
 			t.Fatalf("%s: %s: %d operators, error %v; the reference reads %d, error %v", name, got.how, len(got.s.ops), got.s.err, len(want.ops), want.err)
 		}
@@ -172,6 +239,9 @@ var contentSamples = []string{
 	strings.Repeat("[", 300) + "1" + strings.Repeat("]", 300) + " TJ 2 w",
 	strings.Repeat("1 ", 100) + "scn",
 	"{ } ) > ] q Q",
+	// More operands than maxOperands, of every kind held in the arena.
+	strings.Repeat("[(a\\)) 1 [2]] (b\\)) <4142> /N#41 /F1 << /K (v) >> ", 30) + "TJ (c\\)) Tj",
+	strings.Repeat("[1 (x\\)) ", 70) + strings.Repeat("]", 70) + " TJ " + strings.Repeat("[", 300) + " (y\\)) Tj",
 }
 
 func TestScanOperandsDifferential(t *testing.T) {
@@ -207,6 +277,130 @@ func FuzzScanOperands(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		compareScans(t, "fuzz", data)
 	})
+}
+
+// TestScanOperandsNested checks that a scan run by fn, as the PDF/A checks
+// do for forms and patterns, leaves the operands of the outer scan intact.
+func TestScanOperandsNested(t *testing.T) {
+	outer := []byte("/F1 12 Tf [(a\\)b) 1.5 <4142> /X [2]] TJ << /K (v) >> BDC")
+	inner := []byte("/G2 1 Tf [(c\\)d) -2 <4344> /Y [3]] TJ << /L (w) >> BDC (e\\)) Tj")
+	want := scanRef(outer)
+	i := 0
+	err := ScanOperands(outer, func(op string, args []Operand) error {
+		before := fmt.Sprint(objectsOf(args))
+		if err := ScanOperands(inner, func(string, []Operand) error { return nil }); err != nil {
+			return err
+		}
+		if got := fmt.Sprint(objectsOf(args)); got != before || got != fmt.Sprint(want.args[i]) {
+			t.Errorf("operator %d (%s): operands %s after a nested scan, %s before; the reference reads %v", i, op, got, before, want.args[i])
+		}
+		i++
+		return nil
+	})
+	if err != nil || i != len(want.ops) {
+		t.Errorf("%d operators, error %v; the reference reads %d", i, err, len(want.ops))
+	}
+}
+
+func objectsOf(args []Operand) []Object {
+	objs := make([]Object, len(args))
+	for i := range args {
+		objs[i] = args[i].Object()
+	}
+	return objs
+}
+
+// TestScanOperandsCorpus compares the scans on every stream of the PDFs of
+// the corpora, when FX_CORPUS or FX_VERAPDF names their directory.
+func TestScanOperandsCorpus(t *testing.T) {
+	var files []string
+	for _, env := range []string{"FX_CORPUS", "FX_VERAPDF"} {
+		root := os.Getenv(env)
+		if root == "" {
+			continue
+		}
+		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && strings.EqualFold(filepath.Ext(path), ".pdf") {
+				files = append(files, path)
+			}
+			return nil
+		})
+	}
+	if len(files) == 0 {
+		t.Skip("FX_CORPUS and FX_VERAPDF are not set")
+	}
+	streams := 0
+	for _, path := range files {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := Open(data)
+		if err != nil {
+			continue
+		}
+		size, _ := AsInt(r.Trailer().Get("Size"))
+		for num := uint32(1); num < uint32(min(size, 1<<16)); num++ {
+			if st, ok := r.Object(num).(*Stream); ok {
+				if dec, err := r.Decode(st); err == nil && len(dec) <= 8<<20 {
+					streams++
+					compareScans(t, path, dec)
+				}
+			}
+		}
+	}
+	t.Logf("%d files, %d streams", len(files), streams)
+}
+
+// TestScanOperandsMemory bounds the bytes a scan allocates in all per byte
+// of a content stream made to cost much: an array of a million numbers, or
+// operands without an operator, beyond maxOperands. A Page holds up to
+// maxContentBytes (64 MiB) of content.
+func TestScanOperandsMemory(t *testing.T) {
+	if raceEnabled {
+		t.Skip("the race detector allocates")
+	}
+	names := make([]string, 0, 1<<17)
+	for i := range cap(names) {
+		names = append(names, fmt.Sprintf("/N%d", i))
+	}
+	for _, tc := range []struct {
+		name    string
+		data    string
+		perByte float64
+	}{
+		// The previous ScanContent allocated 44 bytes per byte.
+		{"array", "[" + strings.Repeat("1 ", 1<<20) + "] TJ", 64},
+		{"arrays", strings.Repeat("[1] ", 1<<19) + "Q", 1},
+		{"strings", strings.Repeat("(a\\)b) ", 1<<18) + "Q", 8},
+		{"hexadecimal", strings.Repeat("<4142> ", 1<<18) + "Q", 8},
+		{"dictionaries", strings.Repeat("<</A 1>> ", 1<<17) + "Q", 16},
+		// Arrays too deep, after arrays read whole. Each one leaves the
+		// parser a level deeper, as array does: fewer than maxDepth.
+		{"deep arrays", strings.Repeat("["+strings.Repeat("[1 2] ", 512)+strings.Repeat("[", maxDepth)+" ", maxDepth/2) + "Q", 1},
+		// Each name beyond the maxNames the parser remembers is allocated.
+		{"names", strings.Join(names, " ") + " Q", 4},
+	} {
+		data := []byte(tc.data)
+		for _, scan := range []struct {
+			how string
+			run func() error
+		}{
+			{"ScanOperands", func() error { return ScanOperands(data, func(string, []Operand) error { return nil }) }},
+			{"ScanContent", func() error { return ScanContent(data, func(string, []Object) error { return nil }) }},
+		} {
+			runtime.GC()
+			var before, after runtime.MemStats
+			runtime.ReadMemStats(&before)
+			if err := scan.run(); err != nil {
+				t.Fatal(err)
+			}
+			runtime.ReadMemStats(&after)
+			if perByte := float64(after.TotalAlloc-before.TotalAlloc) / float64(len(data)); perByte > tc.perByte {
+				t.Errorf("%s allocates %.1f bytes per byte of %s, want at most %v", scan.how, perByte, tc.name, tc.perByte)
+			}
+		}
+	}
 }
 
 // TestScanOperandsAllocs checks that ScanOperands reads the operators of a

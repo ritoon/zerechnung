@@ -55,9 +55,8 @@ type parser struct {
 	kvs   *[]KV      // scratch space of dict, shared by the parsers of a Reader
 	sel   *selection // when set, dict skips some arrays (see DictSkipArrays)
 
-	// With cacheNames, name allocates each name once (ScanOperands).
-	cacheNames bool
-	names      map[string]Name
+	// With names, name allocates each name once (ScanOperands).
+	names *nameCache
 
 	// The unsigned integer read after an integer by number, looking for
 	// "gen R", ends at aheadEnd. When it is not a generation number, it is
@@ -187,28 +186,47 @@ var keywords = func() map[string]Object {
 // name reads a name after the slash.
 func (p *parser) name() Name {
 	w := p.word()
-	if p.cacheNames {
-		return p.cachedName(w)
+	if p.names != nil {
+		if n := p.names.name(w); n != nil {
+			return *n
+		}
 	}
 	return nameOf(w)
 }
 
-// maxNames bounds the names a parser remembers.
-const maxNames = 256
+// The names a nameCache remembers: maxNames of maxNameBytes at most.
+const (
+	maxNames     = 256
+	maxNameBytes = 64
+)
 
-// cachedName returns nameOf(w), allocated once per parser.
-func (p *parser) cachedName(w []byte) Name {
-	if n, ok := p.names[string(w)]; ok {
+// nameCache remembers names, to allocate each one once.
+type nameCache struct {
+	m    map[string]*Name
+	vals slab[Name] // the names, whose addresses m holds
+}
+
+// name returns nameOf(w), allocated once, or nil when w is too long or the
+// cache is full. The Name pointed to stays until reset.
+func (c *nameCache) name(w []byte) *Name {
+	if n, ok := c.m[string(w)]; ok {
 		return n
 	}
-	n := nameOf(w)
-	if len(p.names) < maxNames {
-		if p.names == nil {
-			p.names = map[string]Name{}
-		}
-		p.names[string(w)] = n
+	if len(c.m) >= maxNames || len(w) > maxNameBytes {
+		return nil
 	}
+	if c.m == nil {
+		c.m = map[string]*Name{}
+	}
+	n := c.vals.put(nameOf(w))
+	c.m[string(w)] = n
 	return n
+}
+
+// reset forgets the names.
+func (c *nameCache) reset() {
+	clear(c.m)
+	c.vals.reset()
 }
 
 // nameOf returns the name whose characters, after the slash, are w.

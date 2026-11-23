@@ -3,6 +3,8 @@ package pdf
 import (
 	"bytes"
 	"errors"
+	"math"
+	"sync"
 )
 
 // ErrInlineImage is returned by ScanContent when the data of an inline image
@@ -60,43 +62,54 @@ const (
 )
 
 // Operand is an operand of a content stream operator, as ScanOperands reads
-// it. Kind tells which field holds its value.
+// it. Kind tells its type, the As methods and Object its value.
+//
+// An Operand takes 32 bytes, twice an Object: a content stream holds arrays
+// of thousands of numbers (TJ), and fewer bytes per element keep the memory
+// a stream costs close to its size. A number is held in n; a string, a
+// name, an array or a dictionary through a pointer into the memory of the
+// scan, which ScanOperands lends until the next operator.
 type Operand struct {
-	Kind  OperandKind
-	Bool  bool      // OperandBool
-	Int   int64     // OperandInt
-	Real  float64   // OperandReal
-	Str   String    // OperandString, decoded
-	Name  Name      // OperandName
-	Array []Operand // OperandArray
-	Dict  Dict      // OperandDict
-	Obj   Object    // OperandOther: a Ref
+	kind OperandKind
+	// OperandBool: 0 or 1; OperandInt: the integer; OperandReal: its IEEE
+	// 754 bits; OperandOther: a Ref, Num<<16 | Gen, when v is nil.
+	n uint64
+	// *String, *Name, *[]Operand or *Dict; for OperandOther, an Object
+	// other than a Ref.
+	v any
 }
+
+// Kind returns the type of the operand.
+func (o *Operand) Kind() OperandKind { return o.kind }
 
 // Object returns the operand as ScanContent gives it: Bool, Int, Real,
 // String, Name, Array, Dict or Ref, nil for null. It allocates.
 func (o *Operand) Object() Object {
-	switch o.Kind {
+	switch o.kind {
 	case OperandBool:
-		return Bool(o.Bool)
+		return Bool(o.n != 0)
 	case OperandInt:
-		return intObject(o.Int)
+		return intObject(int64(o.n))
 	case OperandReal:
-		return Real(o.Real)
+		return Real(math.Float64frombits(o.n))
 	case OperandString:
-		return o.Str
+		return *o.v.(*String)
 	case OperandName:
-		return o.Name
+		return *o.v.(*Name)
 	case OperandArray:
-		arr := make(Array, len(o.Array))
-		for i := range o.Array {
-			arr[i] = o.Array[i].Object()
+		elems := *o.v.(*[]Operand)
+		arr := make(Array, len(elems))
+		for i := range elems {
+			arr[i] = elems[i].Object()
 		}
 		return arr
 	case OperandDict:
-		return o.Dict
+		return *o.v.(*Dict)
 	case OperandOther:
-		return o.Obj
+		if o.v != nil {
+			return o.v
+		}
+		return Ref{Num: uint32(o.n >> 16), Gen: uint16(o.n)}
 	}
 	return nil
 }
@@ -104,22 +117,48 @@ func (o *Operand) Object() Object {
 // AsInt returns the operand as an integer, as AsInt does with an Object: an
 // integer, or a real with an integral value.
 func (o *Operand) AsInt() (int64, bool) {
-	switch o.Kind {
+	switch o.kind {
 	case OperandInt:
-		return o.Int, true
+		return int64(o.n), true
 	case OperandReal:
-		if float64(int64(o.Real)) == o.Real {
-			return int64(o.Real), true
+		if f := math.Float64frombits(o.n); float64(int64(f)) == f {
+			return int64(f), true
 		}
 	}
 	return 0, false
 }
 
 // AsName returns the operand as a name.
-func (o *Operand) AsName() (Name, bool) { return o.Name, o.Kind == OperandName }
+func (o *Operand) AsName() (Name, bool) {
+	if o.kind != OperandName {
+		return "", false
+	}
+	return *o.v.(*Name), true
+}
 
 // AsString returns the operand as a string.
-func (o *Operand) AsString() (String, bool) { return o.Str, o.Kind == OperandString }
+func (o *Operand) AsString() (String, bool) {
+	if o.kind != OperandString {
+		return nil, false
+	}
+	return *o.v.(*String), true
+}
+
+// AsArray returns the elements of the operand when it is an array.
+func (o *Operand) AsArray() ([]Operand, bool) {
+	if o.kind != OperandArray {
+		return nil, false
+	}
+	return *o.v.(*[]Operand), true
+}
+
+// AsDict returns the operand as a dictionary.
+func (o *Operand) AsDict() (Dict, bool) {
+	if o.kind != OperandDict {
+		return nil, false
+	}
+	return *o.v.(*Dict), true
+}
 
 // ScanOperands is ScanContent with operands that are not boxed in Objects.
 // The operands, the elements of their arrays and the bytes of their strings
@@ -133,24 +172,35 @@ func ScanOperands(data []byte, fn func(op string, args []Operand) error) error {
 // scanOperands is ScanOperands; the arena decodes the strings when
 // arenaStrings is set, which lends their bytes until the next operator.
 func scanOperands(data []byte, arenaStrings bool, fn func(op string, args []Operand) error) error {
-	p := &parser{b: data, cacheNames: true}
-	var (
-		args []Operand
-		a    = operandArena{ownStrings: !arenaStrings}
-	)
+	a := operandArenas.Get().(*operandArena)
+	defer a.release()
+	a.ownStrings = !arenaStrings
+	a.p = parser{b: data, kvs: &a.kvs, names: &a.cache}
+	p, args := &a.p, a.args[:0]
+	defer func() { a.args = args }()
 	for {
 		var o Operand
-		kw, isOp, err := p.operand(&o, &a)
-		switch {
-		case errors.Is(err, errEOF):
-			return nil
-		case err != nil:
+		// Nothing of the operands beyond maxOperands stays in the arena,
+		// however many precede the operator.
+		full := len(args) >= maxOperands
+		var m arenaMark
+		if full {
+			m = a.mark()
+		}
+		kw, isOp, err := p.operand(&o, a)
+		if err != nil {
+			if errors.Is(err, errEOF) {
+				return nil
+			}
 			// An operand that cannot be read: skip it, keep the others.
+			// It left nothing in the arena (see operand).
 			continue
 		}
 		if !isOp {
-			if len(args) < maxOperands {
+			if !full {
 				args = append(args, o)
+			} else {
+				a.drop(m)
 			}
 			continue
 		}
@@ -164,7 +214,7 @@ func scanOperands(data []byte, arenaStrings bool, fn func(op string, args []Oper
 			if err != nil {
 				return err
 			}
-			args = append(args[:0], Operand{Kind: OperandDict, Dict: d})
+			args = append(args[:0], Operand{kind: OperandDict, v: a.dicts.put(d)})
 			if err := fn("BI", args); err != nil {
 				return err
 			}
@@ -179,15 +229,54 @@ func scanOperands(data []byte, arenaStrings bool, fn func(op string, args []Oper
 }
 
 // operandArena holds the memory of the operands of an operator: the
-// elements of their arrays and the decoded bytes of their strings. It is
-// reset after each operator; what it lent before stays valid until then,
-// even when it grows.
+// elements of their arrays, the decoded bytes of their strings and what the
+// Operands point to. It is reset after each operator; what it lent before
+// stays valid until then, even when it grows. A scan takes an arena from
+// operandArenas and puts it back at its end: a scan run by fn takes
+// another one.
 type operandArena struct {
-	elems []Operand // elements of the arrays read
-	stack []Operand // elements of the arrays being read, nested ones on top
-	bytes []byte    // decoded strings
+	elems slab[Operand]   // elements of the arrays read
+	stack []Operand       // elements of the arrays being read, nested ones on top
+	bytes []byte          // decoded strings
+	strs  slab[String]    // strings
+	arrs  slab[[]Operand] // arrays
+	dicts slab[Dict]      // dictionaries
+	names slab[Name]      // names the parser does not remember
+
+	p     parser    // the parser of the scan
+	args  []Operand // the operands of the operator
+	kvs   []KV      // the scratch space of p
+	cache nameCache // the names p remembers, from a scan to the next
 
 	ownStrings bool // decode each string in a slice of its own instead of bytes
+}
+
+var operandArenas = sync.Pool{New: func() any { return new(operandArena) }}
+
+// An arena that grew beyond these limits is not put back in operandArenas:
+// it would keep the memory of an exceptional stream.
+const (
+	maxPooledOperands = 1 << 12
+	maxPooledBytes    = 1 << 16
+)
+
+// release puts the arena back in operandArenas, unless it grew too much.
+func (a *operandArena) release() {
+	a.p = parser{} // drop the data
+	if max(cap(a.elems.s), cap(a.stack), cap(a.strs.s), cap(a.arrs.s), cap(a.dicts.s), cap(a.names.s), cap(a.kvs)) > maxPooledOperands ||
+		cap(a.bytes) > maxPooledBytes {
+		return
+	}
+	a.reset()
+	clear(a.args[:cap(a.args)])
+	a.args = a.args[:0]
+	clear(a.kvs[:cap(a.kvs)])
+	a.kvs = a.kvs[:0]
+	if len(a.cache.m) > maxNames/2 {
+		// Room for the names of the next scan.
+		a.cache.reset()
+	}
+	operandArenas.Put(a)
 }
 
 // strings returns where to decode a string: nil for a slice of its own.
@@ -199,9 +288,37 @@ func (a *operandArena) strings() *[]byte {
 }
 
 func (a *operandArena) reset() {
-	clear(a.elems) // drop what the operands referenced
-	a.elems = a.elems[:0]
+	a.elems.reset()
 	a.bytes = a.bytes[:0]
+	a.strs.reset()
+	a.arrs.reset()
+	a.dicts.reset()
+	a.names.reset()
+}
+
+// arenaMark is what the arena holds at a time, to drop what came after.
+type arenaMark struct {
+	bytes                           int
+	elems, strs, arrs, dicts, names slabMark
+}
+
+func (a *operandArena) mark() arenaMark {
+	return arenaMark{
+		bytes: len(a.bytes),
+		elems: a.elems.mark(), strs: a.strs.mark(), arrs: a.arrs.mark(),
+		dicts: a.dicts.mark(), names: a.names.mark(),
+	}
+}
+
+// drop forgets what the arena lent after m: the memory of an operand that
+// will not be passed to fn.
+func (a *operandArena) drop(m arenaMark) {
+	a.bytes = a.bytes[:m.bytes]
+	a.elems.drop(m.elems)
+	a.strs.drop(m.strs)
+	a.arrs.drop(m.arrs)
+	a.dicts.drop(m.dicts)
+	a.names.drop(m.names)
 }
 
 // keep copies the elements of an array into the arena.
@@ -209,13 +326,73 @@ func (a *operandArena) keep(elems []Operand) []Operand {
 	if len(elems) == 0 {
 		return nil
 	}
-	if cap(a.elems)-len(a.elems) < len(elems) {
-		// A new block: the arrays already lent keep the old one.
-		a.elems = make([]Operand, 0, max(2*cap(a.elems), len(elems), 64))
+	return a.elems.putSlice(elems)
+}
+
+// name reads a name after the slash: the copy the parser remembers, or one
+// in the arena.
+func (a *operandArena) name(p *parser) *Name {
+	w := p.word()
+	if n := p.names.name(w); n != nil {
+		return n
 	}
-	n := len(a.elems)
-	a.elems = append(a.elems, elems...)
-	return a.elems[n:len(a.elems):len(a.elems)]
+	return a.names.put(nameOf(w))
+}
+
+// slab lends pointers to the values put in it, valid until reset or drop,
+// even when it grows: a full block is left to what points into it.
+type slab[T any] struct {
+	s      []T
+	blocks int // the blocks made, to tell drop whether s is a new one
+}
+
+// slabMark is the length of a slab at a time, and its block.
+type slabMark struct{ n, block int }
+
+// put copies v into the slab and returns the copy.
+func (b *slab[T]) put(v T) *T {
+	if len(b.s) == cap(b.s) {
+		b.grow(1)
+	}
+	b.s = append(b.s, v)
+	return &b.s[len(b.s)-1]
+}
+
+// putSlice copies vs into the slab and returns the copy.
+func (b *slab[T]) putSlice(vs []T) []T {
+	if cap(b.s)-len(b.s) < len(vs) {
+		b.grow(len(vs))
+	}
+	n := len(b.s)
+	b.s = append(b.s, vs...)
+	return b.s[n:len(b.s):len(b.s)]
+}
+
+// grow starts a new block, with room for n values at least.
+func (b *slab[T]) grow(n int) {
+	b.s = make([]T, 0, max(2*cap(b.s), n, 16))
+	b.blocks++
+}
+
+func (b *slab[T]) mark() slabMark { return slabMark{len(b.s), b.blocks} }
+
+// drop forgets the values put after m. A block made since holds only them.
+func (b *slab[T]) drop(m slabMark) {
+	n := m.n
+	if b.blocks != m.block {
+		n = 0
+	}
+	if len(b.s) > n {
+		clear(b.s[n:]) // drop what they referenced
+		b.s = b.s[:n]
+	}
+}
+
+func (b *slab[T]) reset() {
+	if len(b.s) > 0 {
+		clear(b.s)
+		b.s = b.s[:0]
+	}
 }
 
 // operand reads the next operand into o, or the next operator, returned as
@@ -228,32 +405,45 @@ func (p *parser) operand(o *Operand, a *operandArena) (kw keyword, isOp bool, er
 	switch c := p.b[p.pos]; {
 	case c == '/':
 		p.pos++
-		*o = Operand{Kind: OperandName, Name: p.name()}
+		*o = Operand{kind: OperandName, v: a.name(p)}
 		return "", false, nil
 	case c == '(':
 		s, err := p.literalBytes(a.strings())
-		*o = Operand{Kind: OperandString, Str: s}
+		if err == nil {
+			*o = Operand{kind: OperandString, v: a.strs.put(s)}
+		}
 		return "", false, err
 	case c == '<' && (p.pos+1 >= len(p.b) || p.b[p.pos+1] != '<'):
 		s, err := p.hexBytes(a.strings())
-		*o = Operand{Kind: OperandString, Str: s}
+		if err == nil {
+			*o = Operand{kind: OperandString, v: a.strs.put(s)}
+		}
 		return "", false, err
 	case c == '[':
+		// Only an array can fail after it used the arena: strings do
+		// not fail, dictionaries do not use it.
+		m := a.mark()
 		elems, err := p.operandArray(a)
-		*o = Operand{Kind: OperandArray, Array: elems}
-		return "", false, err
+		if err != nil {
+			a.drop(m) // the arrays it holds, read before the error
+			return "", false, err
+		}
+		*o = Operand{kind: OperandArray, v: a.arrs.put(elems)}
+		return "", false, nil
 	case c == '<':
 		d, err := p.dictValue()
-		*o = Operand{Kind: OperandDict, Dict: d}
+		if err == nil {
+			*o = Operand{kind: OperandDict, v: a.dicts.put(d)}
+		}
 		return "", false, err
 	case isDigit(c) || c == '+' || c == '-' || c == '.':
 		switch kind, n, f, gen := p.scanNumber(); kind {
 		case numReal:
-			*o = Operand{Kind: OperandReal, Real: f}
+			*o = Operand{kind: OperandReal, n: math.Float64bits(f)}
 		case numRef:
-			*o = Operand{Kind: OperandOther, Obj: Ref{Num: uint32(n), Gen: gen}}
+			*o = Operand{kind: OperandOther, n: uint64(n)<<16 | uint64(gen)}
 		default:
-			*o = Operand{Kind: OperandInt, Int: n}
+			*o = Operand{kind: OperandInt, n: uint64(n)}
 		}
 		return "", false, nil
 	}
@@ -267,9 +457,12 @@ func (p *parser) operand(o *Operand, a *operandArena) (kw keyword, isOp bool, er
 	case nil:
 		*o = Operand{}
 	case Bool:
-		*o = Operand{Kind: OperandBool, Bool: bool(v)}
+		*o = Operand{kind: OperandBool}
+		if v {
+			o.n = 1
+		}
 	default:
-		*o = Operand{Kind: OperandOther, Obj: v}
+		*o = Operand{kind: OperandOther, v: v}
 	}
 	return "", false, nil
 }
@@ -313,6 +506,14 @@ func (p *parser) operandArray(a *operandArena) ([]Operand, error) {
 				return a.keep(a.stack[base:]), nil
 			}
 			o = Operand{} // unknown keyword read as null
+		}
+		if len(a.stack) == cap(a.stack) {
+			// Double: append grows a large slice by a quarter, which
+			// allocates five times its size in all for an array of
+			// thousands of numbers.
+			stack := make([]Operand, len(a.stack), max(2*cap(a.stack), 16))
+			copy(stack, a.stack)
+			a.stack = stack
 		}
 		a.stack = append(a.stack, o)
 	}
