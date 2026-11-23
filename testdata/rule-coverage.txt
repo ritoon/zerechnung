@@ -21,6 +21,20 @@
 BR-CO-05
 BR-CO-06
 
+# France, statuts du cycle de vie (CDAR) : assertions du schematron
+# BR-FR-CDV de France_RFE 1.4.0.04 qui ne peuvent pas échouer (voir le
+# paquet internal/rules/cdv). Les cinq premières testent l'élément de
+# contexte lui-même (test="."), qui existe toujours quand la règle
+# s'applique ; BR-FR-CDV-07_MDT-38_no contient count(...) ge 0, toujours
+# vrai. Les 2090 variantes de TestVariants le confirment avec Saxon.
+# 6 règles.
+BR-FR-CDV-01_MDG-3
+BR-FR-CDV-04_MDG-4
+BR-FR-CDV-05_MDG-9
+BR-FR-CDV-06_MDT-21
+BR-FR-CDV-07_MDT-38_no
+BR-FR-CDV-10_MDT-87
+
 # Factur-X : assertions du schematron Factur-X 1.09.2 sans identifiant de
 # règle métier (FX-SCH-A), pour l'essentiel ses listes de codes (codedb,
 # générées dans codedb_gen.go). Aucun test ne met un code hors liste dans

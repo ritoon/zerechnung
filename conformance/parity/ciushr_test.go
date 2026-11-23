@@ -253,7 +253,7 @@ func TestStageHR(t *testing.T) {
 	z.Close()
 	f.Close()
 	hr := hrInputs{examples: archive, repo: repo, variants: variants}
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hr, fnfeInputs{}, ""); err != nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hr, fnfeInputs{}, cdvInputs{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := readIndex(work)
@@ -283,7 +283,7 @@ func TestStageHR(t *testing.T) {
 		}
 	}
 	os.Remove(archive)
-	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hr, fnfeInputs{}, ""); err == nil {
+	if err := stage(corpus, kosit, work, nlInputs{}, ptInputs{}, roInputs{}, hr, fnfeInputs{}, cdvInputs{}, ""); err == nil {
 		t.Error("missing archive: no error")
 	}
 }

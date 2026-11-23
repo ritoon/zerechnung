@@ -1,12 +1,13 @@
 // Command zerechnung reads, validates and creates Factur-X / ZUGFeRD /
 // XRechnung invoices. validate and json also accept a CII or UBL 2.1 XML
-// invoice, a FatturaPA document (Italy) and a Facturae document (Spain),
-// whose syntax is detected from the root element; validate checks a
-// FatturaPA or Facturae document against its XML schema, and a FatturaPA
-// document against the checks of the SDI on its content too, describes the
-// XAdES signature of a Facturae document, which -face requires and checks
-// as FACe does, and json also opens a FatturaPA file signed in CAdES
-// (.xml.p7m).
+// invoice, a FatturaPA document (Italy), a Facturae document (Spain) and a
+// status of the life cycle of a French invoice (CDAR), whose syntax is
+// detected from the root element; validate checks a FatturaPA, Facturae or
+// CDAR document against its XML schema, a FatturaPA document against the
+// checks of the SDI on its content too, a CDAR status against the rules
+// BR-FR-CDV, describes the XAdES signature of a Facturae document, which
+// -face requires and checks as FACe does, and json also opens a FatturaPA
+// file signed in CAdES (.xml.p7m).
 //
 //	zerechnung extract [-o out.xml] invoice.pdf
 //	zerechnung info invoice.pdf
@@ -38,6 +39,7 @@ import (
 	"time"
 
 	"github.com/ritoon/zerechnung"
+	"github.com/ritoon/zerechnung/cdar"
 	"github.com/ritoon/zerechnung/cii"
 	"github.com/ritoon/zerechnung/facturae"
 	"github.com/ritoon/zerechnung/fatturapa"
@@ -49,11 +51,13 @@ import (
 
 const usage = `zerechnung reads, validates and creates Factur-X / ZUGFeRD / XRechnung invoices.
 validate and json also accept an XML invoice in CII or UBL 2.1 syntax, a
-FatturaPA document and a Facturae document: validate checks them against
-their XML schema, and FatturaPA against the checks of the SDI on its content
-too, and describe the XAdES signature of a Facturae document (-face requires
-it and checks it as FACe does), json gives an array when one holds several
-invoices and also opens a FatturaPA file signed in CAdES (.xml.p7m).
+FatturaPA document, a Facturae document and a status of the life cycle of a
+French invoice (CDAR): validate checks them against their XML schema,
+FatturaPA against the checks of the SDI on its content too and a CDAR status
+against the rules BR-FR-CDV, and describe the XAdES signature of a Facturae
+document (-face requires it and checks it as FACe does), json gives an array
+when one holds several invoices and also opens a FatturaPA file signed in
+CAdES (.xml.p7m).
 
 Usage:
   zerechnung extract [-o out.xml] invoice.pdf
@@ -301,7 +305,7 @@ func report(data []byte, opts *validate.Options, asJSON bool, w io.Writer) (int,
 		r   *validate.Report
 		err error
 	)
-	var format string            // the format of a FatturaPA (FPA12 or FPR12) or Facturae (3.2, 3.2.1 or 3.2.2) document
+	var format string            // the format of a FatturaPA (FPA12 or FPR12), Facturae (3.2, 3.2.1 or 3.2.2) or CDAR document
 	var signature *signatureInfo // the signature of a Facturae document
 	if isPDF(data) {
 		r, _, err = zerechnung.Check(data, opts)
@@ -315,6 +319,8 @@ func report(data []byte, opts *validate.Options, asJSON bool, w io.Writer) (int,
 		} else if perr == nil && facturae.IsFacturae(root) {
 			format = "Facturae " + facturae.Version(root)
 			signature = facturaeSignature(data)
+		} else if perr == nil && cdar.IsCDAR(root) {
+			format = cdarFormat(root)
 		}
 	}
 	if asJSON {
@@ -627,7 +633,8 @@ func jsonCmd(args []string, w io.Writer) error {
 }
 
 // writeJSON writes to w the invoice of data, a PDF or an XML invoice, in
-// JSON: the invoices of a FatturaPA or Facturae batch as an array.
+// JSON: the invoices of a FatturaPA or Facturae batch as an array, or the
+// status of data, a CDAR message.
 func writeJSON(data []byte, w io.Writer) error {
 	switch {
 	case isPDF(data):
@@ -644,6 +651,9 @@ func writeJSON(data []byte, w io.Writer) error {
 			return err
 		}
 		data = doc
+	}
+	if root, perr := xmltree.Parse(data); perr == nil && cdar.IsCDAR(root) {
+		return writeStatusJSON(data, w)
 	}
 	invs, err := parseInvoices(data)
 	if len(invs) == 0 {
@@ -664,6 +674,36 @@ func writeJSON(data []byte, w io.Writer) error {
 func looksXML(data []byte) bool {
 	d := bytes.TrimLeft(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), " \t\r\n")
 	return len(d) > 0 && d[0] == '<'
+}
+
+// cdarFormat describes a CDAR status for the Format line of validate: its
+// syntax and the codes and labels of the statuses it holds.
+func cdarFormat(root *xmltree.Node) string {
+	m, _ := cdar.ParseTree(root)
+	var codes []string
+	for _, a := range m.Acknowledgements {
+		for _, st := range a.Invoices {
+			codes = append(codes, strings.TrimSpace(st.Code+" "+st.Label))
+		}
+	}
+	if len(codes) == 0 {
+		return "CDAR " + cdar.Version
+	}
+	return "CDAR " + cdar.Version + ", status " + strings.Join(codes, ", ")
+}
+
+// writeStatusJSON writes to w the status of data, a CDAR message, in JSON.
+func writeStatusJSON(data []byte, w io.Writer) error {
+	m, err := cdar.Parse(data)
+	if m == nil {
+		return err
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, "zerechnung: warning:", err)
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(m)
 }
 
 // parseInvoices reads a CII, UBL, FatturaPA or Facturae document, detected

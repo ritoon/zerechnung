@@ -52,6 +52,7 @@ func newFuncs() map[string]function {
 		"substring":        {2, 3, fnSubstring},
 		"concat":           {2, -1, fnConcat},
 		"matches":          {2, 3, fnMatches},
+		"tokenize":         {2, 3, fnTokenize},
 		"index-of":         {2, 2, fnIndexOf},
 		"distinct-values":  {1, 1, fnDistinctValues},
 		"round":            {1, 1, fnRound},
@@ -383,6 +384,59 @@ func fnMatches(_ *ctx, c *call, a []seq) (seq, error) {
 		}
 	}
 	return boolSeq(m.MatchString(s)), nil
+}
+
+// fnTokenize implements tokenize(): the parts of its first argument
+// between the matches of the pattern, the empty sequence for an empty
+// string. A separator at the start or at the end gives an empty part, as
+// in XPath 2.0.
+func fnTokenize(_ *ctx, c *call, a []seq) (seq, error) {
+	s, err := strArg(a[0], c.name)
+	if err != nil {
+		return nil, err
+	}
+	m := c.re
+	if m == nil {
+		pat, err := strArg(a[1], c.name)
+		if err != nil {
+			return nil, err
+		}
+		flags := ""
+		if len(a) == 3 {
+			if flags, err = strArg(a[2], c.name); err != nil {
+				return nil, err
+			}
+		}
+		if m, err = compileRegex(pat, flags); err == nil {
+			err = splitter(m, pat)
+		}
+		if err != nil {
+			return nil, dynErr("tokenize: %v", err)
+		}
+	}
+	if s == "" {
+		return seq{}, nil
+	}
+	parts := m.(*regexp.Regexp).Split(s, -1)
+	out := make(seq, len(parts))
+	for i, p := range parts {
+		out[i] = item{k: kString, s: p}
+	}
+	return out, nil
+}
+
+// splitter checks that m, compiled from the pattern pat, can split a
+// string for tokenize(): a regular expression of package regexp that does
+// not match the empty string.
+func splitter(m matcher, pat string) error {
+	re, ok := m.(*regexp.Regexp)
+	if !ok {
+		return fmt.Errorf("regular expression %q: not supported by tokenize", pat)
+	}
+	if re.MatchString("") {
+		return fmt.Errorf("regular expression %q matches the empty string", pat)
+	}
+	return nil
 }
 
 // eqValue compares two atomic values with eq, an untyped value as a string

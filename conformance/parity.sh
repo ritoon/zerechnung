@@ -8,7 +8,8 @@
 # the ROmodel phase of the schematron of ANAF, compiled and run likewise; for
 # the CIUS-HR, the schematron of the Porezna uprava, compiled and run
 # likewise; for EXTENDED-CTC-FR, the XSLT of the FNFE-MPE (France_RFE
-# 1.4.0.04), run by Saxon-HE 12.10. See README.md.
+# 1.4.0.04), and for the French CDAR statuses its XSLT of the schematron
+# BR-FR-CDV, run by Saxon-HE 12.10. See README.md.
 #
 #   conformance/parity.sh [dir]
 #
@@ -122,15 +123,21 @@ rm -rf "$WORK/fr-variants"
 for pkg in en16931 ubl; do
 	(cd "$here/.." && go test -count=1 -run '^TestCTCFRVariants$' "./internal/rules/$pkg" -variants "$WORK/fr-variants/$pkg" >/dev/null)
 done
+# Likewise for the CDAR statuses: the documents of the mutation cases of
+# internal/rules/cdv, compared with the XSLT BR-FR-CDV of the FNFE-MPE along
+# with the CDAR examples of France_RFE.
+rm -rf "$WORK/cdv-variants"
+mkdir -p "$WORK/cdv-variants"
+(cd "$here/.." && go test -count=1 -run '^TestVariants$' ./internal/rules/cdv -variants "$WORK/cdv-variants" >/dev/null)
 (cd "$here/parity" && go run . stage -corpus "$FX_CORPUS" -kosit "$FX_KOSIT" -work "$WORK" -repo "$here/.." \
 	-variants "$WORK/variants" \
 	-nl "$FX_NL" -nl-tests "$FX_NL_TESTS" -nl-variants "$WORK/nl-variants" \
 	-pt "$FX_PT" -pt-variants "$WORK/pt-variants" \
 	-ro "$FX_RO" -ro-variants "$WORK/ro-variants" \
 	-hr "$FX_HR" -hr-variants "$WORK/hr-variants" \
-	-fnfe "$FX_FNFE" -fnfe-variants "$WORK/fr-variants")
-rm -rf "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/hr" "$WORK/fnfe"
-mkdir -p "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/hr" "$WORK/fnfe"
+	-fnfe "$FX_FNFE" -fnfe-variants "$WORK/fr-variants" -cdv-variants "$WORK/cdv-variants")
+rm -rf "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/hr" "$WORK/fnfe" "$WORK/cdv"
+mkdir -p "$WORK/kosit" "$WORK/mustang" "$WORK/npa" "$WORK/pt" "$WORK/ro" "$WORK/hr" "$WORK/fnfe" "$WORK/cdv"
 
 # One JVM per validator. The KoSIT validator returns the number of rejected
 # invoices, or a negative status (255, 254) when it cannot run.
@@ -161,6 +168,11 @@ log "EXTENDED-CTC-FR XSLT of the FNFE-MPE, Saxon-HE 12.10 ($(wc -l <"$WORK/fnfe.
 if ! java -cp "$SAXON_CP" "$here/parity/NPaBatch.java" "$WORK/fnfe" "$WORK/fnfe.list" >"$WORK/fnfe.log" 2>&1; then
 	tail -20 "$WORK/fnfe.log" >&2
 	die "the EXTENDED-CTC-FR XSLT failed, see $WORK/fnfe.log"
+fi
+log "BR-FR-CDV XSLT of the FNFE-MPE, Saxon-HE 12.10 ($(wc -l <"$WORK/cdv.list" | tr -d ' ') CDAR statuses)"
+if ! java -cp "$SAXON_CP" "$here/parity/NPaBatch.java" "$WORK/cdv" "$WORK/cdv.list" >"$WORK/cdv.log" 2>&1; then
+	tail -20 "$WORK/cdv.log" >&2
+	die "the BR-FR-CDV XSLT failed, see $WORK/cdv.log"
 fi
 # The CIUS-PT schematron compiled by SchXslt (its pipeline: inclusion of the
 # abstract and concrete patterns, instantiation, compilation into an XSLT
@@ -214,7 +226,7 @@ status=0
 (cd "$here/parity" && go run . compare -work "$WORK" -kosit-config "$CONFIG" -known "$here/parity/known.txt" -md "$WORK/report.md" -json "$WORK/report.json") || status=$?
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f "$WORK/report.md" ]; then
 	{
-		echo "## Parité avec KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE, et les schematrons CIUS-PT, CIUS-RO et CIUS-HR"
+		echo "## Parité avec KoSIT, Mustang, les XSLT de la NPa et de la FNFE-MPE (EXTENDED-CTC-FR, statuts BR-FR-CDV), et les schematrons CIUS-PT, CIUS-RO et CIUS-HR"
 		echo
 		cat "$WORK/report.md"
 	} >>"$GITHUB_STEP_SUMMARY"

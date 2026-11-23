@@ -56,9 +56,9 @@ mesurent ce que le package fait avec le document, hors ligne.
 
 Frontière entre `n` et `x` : un document que le package peut traiter hors ligne reste
 dans le périmètre, même s'il sert à une plateforme. Les statuts de cycle de vie CDAR
-et le flux d'e-reporting français sont des fichiers à lire, écrire et valider : ils
-sont `n` avec leurs issues (#109, #110), alors que leur envoi aux plateformes agréées
-est `x`. Avant de classer un reporting en `x`, se demander s'il existe un fichier que
+et le flux d'e-reporting français sont des fichiers à lire, écrire et valider : les
+statuts CDAR sont `y` depuis la PR qui a fermé #109, le flux d'e-reporting est `n`
+avec #110, alors que leur envoi aux plateformes agréées est `x`. Avant de classer un reporting en `x`, se demander s'il existe un fichier que
 le package pourrait produire.
 
 ## Ce qui fait changer un statut
@@ -112,6 +112,10 @@ manque pour un `p`, l'API ou la PR pour un `y`, l'échéance pour un `n` (« B2B
   PR #123 (fusion 9b9f489) ; #121 fermée et retirée de la liste.
 - **CDAR et e-reporting (France)** : passés de `x` à `n` quand les issues #109 et
   #110 ont posé qu'il s'agit de documents à traiter hors ligne.
+- **Statuts du cycle de vie CDAR (France)** : `n` avec l'issue #109, puis `y` après la
+  PR qui ajoute le paquet `cdar` (lecture, écriture, statuts 200 et 213) et valide le
+  CDAR D22B (XSD et règles BR-FR-CDV de France_RFE 1.4.0.04, parité Saxon sur 2 149
+  statuts) ; #109 fermée et retirée de la liste. Leur envoi reste `x`.
 - **Mode plateforme agréée (France)** : `n` avec #111, c'est une option de `validate`,
   pas une transmission.
 - **ATCUD + QR code (Portugal)**, **Swiss QR Code (Suisse)** : `p`, l'encodeur

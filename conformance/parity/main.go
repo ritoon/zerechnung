@@ -5,9 +5,10 @@
 // schematron of eSPap compiled by SchXslt; for the CIUS-RO, the ROmodel
 // phase of the schematron of ANAF compiled by SchXslt; for the CIUS-HR, the
 // schematron of the Porezna uprava compiled by SchXslt; for EXTENDED-CTC-FR,
-// the XSLT of the FNFE-MPE. See ../README.md.
+// the XSLT of the FNFE-MPE, and for the French CDAR statuses, its XSLT of
+// the schematron BR-FR-CDV. See ../README.md.
 //
-//	parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-ro DIR -ro-variants DIR] [-hr ZIP -hr-variants DIR] [-fnfe DIR -fnfe-variants DIR]
+//	parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-ro DIR -ro-variants DIR] [-hr ZIP -hr-variants DIR] [-fnfe DIR -fnfe-variants DIR -cdv-variants DIR]
 //	parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]
 //	parity badge -report report.json -o badge.json
 //
@@ -38,14 +39,18 @@
 // mutation tests of the CII and UBL rules (-fnfe-variants, one directory
 // per rule package, with the rules that each case expects), which only the
 // XSLT of the FNFE-MPE receive, each with the XSLT of its syntax
-// (DIR/fnfe.list).
+// (DIR/fnfe.list); it adds the CDAR statuses too: the examples of France_RFE
+// and the variants of the mutation tests of the rules BR-FR-CDV
+// (-cdv-variants), which only the XSLT BR-FR-CDV of the FNFE-MPE receives
+// (DIR/cdv.list).
 //
 // compare reads the reports that the validators wrote in DIR/kosit
-// (0001-report.xml), DIR/mustang (0001.xml.xml), DIR/npa, DIR/fnfe, DIR/pt,
-// DIR/ro and DIR/hr (0001.xml.svrl), and the table at the end of DIR/kosit.log, which
+// (0001-report.xml), DIR/mustang (0001.xml.xml), DIR/npa, DIR/fnfe, DIR/cdv,
+// DIR/pt, DIR/ro and DIR/hr (0001.xml.svrl), and the table at the end of DIR/kosit.log, which
 // alone tells the documents that KoSIT could not assess; it validates each
 // invoice with this package, and compares the rules raised as errors, and
-// also as warnings for the NPa and FNFE-MPE XSLT, the CIUS-PT, CIUS-RO and
+// also as warnings for the NPa and FNFE-MPE XSLT (EXTENDED-CTC-FR and
+// BR-FR-CDV), the CIUS-PT, CIUS-RO and
 // CIUS-HR schematrons and the variants, on the same element for the CIUS-PT,
 // CIUS-RO and CIUS-HR schematrons (whose XSLT, compiled by SchXslt, it reads
 // from DIR/cius-pt.xsl, DIR/cius-ro.xsl and DIR/cius-hr.xsl). Each variant must
@@ -83,11 +88,12 @@ func main() {
 		work := fs.String("work", "", "work directory")
 		repo := fs.String("repo", "", "root of this repository")
 		var (
-			nl nlInputs
-			pt ptInputs
-			ro roInputs
-			hr hrInputs
-			fr fnfeInputs
+			nl  nlInputs
+			pt  ptInputs
+			ro  roInputs
+			hr  hrInputs
+			fr  fnfeInputs
+			cdv cdvInputs
 		)
 		fs.StringVar(&nl.npa, "nl", "", "clone of peppolautoriteit-nl/validation (FX_NL)")
 		fs.StringVar(&nl.tests, "nl-tests", "", "SimplerInvoicing test files of phive-rules (FX_NL_TESTS)")
@@ -101,6 +107,7 @@ func main() {
 		fs.StringVar(&hr.variants, "hr-variants", "", "documents of the mutation cases of internal/rules/hr")
 		fs.StringVar(&fr.rfe, "fnfe", "", "checkout of fnfempe/France_RFE (FX_FNFE)")
 		fs.StringVar(&fr.variants, "fnfe-variants", "", "documents of the EXTENDED-CTC-FR mutation cases of internal/rules/en16931 and internal/rules/ubl, one directory per package")
+		fs.StringVar(&cdv.variants, "cdv-variants", "", "documents of the mutation cases of internal/rules/cdv (statuses)")
 		fs.Parse(os.Args[2:])
 		nl.repo, pt.repo, ro.repo, hr.repo, fr.repo = *repo, *repo, *repo, *repo, *repo
 		if *corpus == "" || *kosit == "" || *work == "" ||
@@ -108,7 +115,8 @@ func main() {
 			pt.examples != "" && (*repo == "" || pt.variants == "") ||
 			ro.examples != "" && (*repo == "" || ro.variants == "") ||
 			hr.examples != "" && (*repo == "" || hr.variants == "") ||
-			fr.rfe != "" && (*repo == "" || fr.variants == "") {
+			fr.rfe != "" && (*repo == "" || fr.variants == "" || cdv.variants == "") ||
+			fr.rfe == "" && cdv.variants != "" {
 			usage()
 		}
 		if nl.npa != "" {
@@ -121,7 +129,8 @@ func main() {
 				break
 			}
 		}
-		err = stage(*corpus, *kosit, *work, nl, pt, ro, hr, fr, *variants)
+		cdv.rfe = fr.rfe
+		err = stage(*corpus, *kosit, *work, nl, pt, ro, hr, fr, cdv, *variants)
 	case "compare":
 		fs := flag.NewFlagSet("compare", flag.ExitOnError)
 		work := fs.String("work", "", "work directory")
@@ -158,7 +167,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
-  parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-ro DIR -ro-variants DIR] [-hr ZIP -hr-variants DIR] [-fnfe DIR -fnfe-variants DIR]
+  parity stage -corpus DIR -kosit DIR -work DIR [-variants DIR] [-repo DIR] [-nl DIR -nl-tests DIR -nl-variants DIR] [-pt ZIP -pt-variants DIR] [-ro DIR -ro-variants DIR] [-hr ZIP -hr-variants DIR] [-fnfe DIR -fnfe-variants DIR -cdv-variants DIR]
   parity compare -work DIR [-kosit-config DIR] [-known known.txt] [-md report.md] [-json report.json]
   parity badge -report report.json -o badge.json`)
 	os.Exit(2)
