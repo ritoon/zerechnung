@@ -32,6 +32,8 @@ func TestLookups(t *testing.T) {
 		{"VATPrefix", VATPrefix, []string{"DE", "FR", "XI", "1A"}, []string{"EL", "de", "D"}},
 		{"RomanianCounty", RomanianCounty, []string{"RO-AB", "RO-B", "RO-BC", "RO-CJ", "RO-IF", "RO-VS"}, []string{"RO-XX", "ro-cj", "CJ", "RO-CJ ", ""}},
 		{"BucharestSector", BucharestSector, []string{"SECTOR1", "SECTOR6"}, []string{"SECTOR7", "Sector1", "SECTOR 1", ""}},
+		{"CroatianProcess", CroatianProcess, []string{"P1", "P9", "P10", "P12", "P99:", "P99:Kupac"}, []string{"P0", "P13", "P01", "p1", "P99", " P1", ""}},
+		{"CroatianVAT", func(s string) bool { _, ok := CroatianVAT(s); return ok }, []string{"HR:AE", "HR:E", "HR:PDV25", "HR:PDV5", "HR:PPMV", "HR:Z"}, []string{"HR:XX", "PDV25", "hr:pdv25", "HR:PDV25 ", ""}},
 	}
 	for _, tt := range tests {
 		for _, s := range tt.ok {
@@ -55,6 +57,7 @@ func TestListsSorted(t *testing.T) {
 		"vatCategories": vatCategories, "allowanceReasons": allowanceReasons, "chargeReasons": chargeReasons,
 		"vatex": vatex, "units": units, "mimeCodes": mimeCodes, "eas": eas, "vatPrefixes": vatPrefixes,
 		"RomanianCounties": RomanianCounties, "BucharestSectors": BucharestSectors,
+		"CroatianProcesses": CroatianProcesses,
 	}
 	for name, l := range all {
 		if len(l) == 0 {
@@ -101,5 +104,27 @@ func TestNoAlloc(t *testing.T) {
 func BenchmarkUnit(b *testing.B) {
 	for b.Loop() {
 		Unit("XPP")
+	}
+}
+
+// TestCroatianVATLabels checks that table HR-TB-2 is sorted by label and
+// binds each label to codes of UNTDID 5305 and to a tax scheme.
+func TestCroatianVATLabels(t *testing.T) {
+	if !slices.IsSortedFunc(CroatianVATLabels, func(a, b CroatianVATLabel) int { return strings.Compare(a.Label, b.Label) }) {
+		t.Error("CroatianVATLabels is not sorted by label")
+	}
+	for i, r := range CroatianVATLabels {
+		if i > 0 && r.Label == CroatianVATLabels[i-1].Label {
+			t.Errorf("duplicate %s", r.Label)
+		}
+		if !VATCategory(r.Category) || !VATCategory(r.HRCategory) {
+			t.Errorf("%s: categories %q and %q", r.Label, r.Category, r.HRCategory)
+		}
+		if !slices.Contains([]string{"VAT", "OTH", "LOC", "CAR"}, r.Scheme) || r.Name == "" {
+			t.Errorf("%s: scheme %q, name %q", r.Label, r.Scheme, r.Name)
+		}
+		if got, ok := CroatianVAT(r.Label); !ok || got != r {
+			t.Errorf("CroatianVAT(%q) = %v, %v", r.Label, got, ok)
+		}
 	}
 }

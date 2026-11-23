@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.hr:cius-2025:1.0#conformant#urn:mfin.gov.hr:ext-2025:1.0</cbc:CustomizationID>
+  <cbc:ProfileID>P3</cbc:ProfileID>
+  <cbc:ID>52-URED-2</cbc:ID>
+  <cbc:IssueDate>2026-05-04</cbc:IssueDate>
+  <cbc:IssueTime>16:45:00</cbc:IssueTime>
+  <cbc:DueDate>2026-05-18</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:Note>Obveznik nije u sustavu PDV-a, čl. 90. st. 1. Zakona o PDV-u</cbc:Note>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>2026-11</cbc:BuyerReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9934">33559012720</cbc:EndpointID>
+      <cac:PostalAddress>
+        <cbc:StreetName>Obala 3</cbc:StreetName>
+        <cbc:CityName>Split</cbc:CityName>
+        <cbc:PostalZone>21000</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>HR</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>33559012720</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>TAX</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Obrt Maestral, vl. Ivo Kovač</cbc:RegistrationName>
+        <cbc:CompanyID>33559012720</cbc:CompanyID>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+    <cac:SellerContact>
+      <cbc:ID>33559012720</cbc:ID>
+      <cbc:Name>Ivo</cbc:Name>
+    </cac:SellerContact>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cbc:EndpointID schemeID="9934">12017830464</cbc:EndpointID>
+      <cac:PostalAddress>
+        <cbc:StreetName>Trg 4</cbc:StreetName>
+        <cbc:CityName>Zadar</cbc:CityName>
+        <cbc:PostalZone>23000</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>HR</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Udruga Sunce</cbc:RegistrationName>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:PaymentMeans>
+    <cbc:PaymentMeansCode>30</cbc:PaymentMeansCode>
+    <cac:PayeeFinancialAccount>
+      <cbc:ID>HR1210010051863000160</cbc:ID>
+    </cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReason>Popust za udrugu</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">10.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>O</cbc:ID>
+      <cbc:Name>HR:O</cbc:Name>
+      <cbc:TaxExemptionReason>Nije u sustavu PDV-a</cbc:TaxExemptionReason>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:AllowanceCharge>
+    <cbc:ChargeIndicator>true</cbc:ChargeIndicator>
+    <cbc:AllowanceChargeReason>Dostava</cbc:AllowanceChargeReason>
+    <cbc:Amount currencyID="EUR">15.00</cbc:Amount>
+    <cac:TaxCategory>
+      <cbc:ID>O</cbc:ID>
+      <cbc:Name>HR:O</cbc:Name>
+      <cbc:TaxExemptionReason>Nije u sustavu PDV-a</cbc:TaxExemptionReason>
+      <cac:TaxScheme>
+        <cbc:ID>VAT</cbc:ID>
+      </cac:TaxScheme>
+    </cac:TaxCategory>
+  </cac:AllowanceCharge>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">245.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:ID>O</cbc:ID>
+        <cbc:TaxExemptionReason>Nije u sustavu PDV-a</cbc:TaxExemptionReason>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">240.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="EUR">245.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">245.00</cbc:TaxInclusiveAmount>
+    <cbc:AllowanceTotalAmount currencyID="EUR">10.00</cbc:AllowanceTotalAmount>
+    <cbc:ChargeTotalAmount currencyID="EUR">15.00</cbc:ChargeTotalAmount>
+    <cbc:PayableAmount currencyID="EUR">245.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="H87">3</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">240.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Popravak računala</cbc:Name>
+      <cac:CommodityClassification>
+        <cbc:ItemClassificationCode listID="CG">95.10.01</cbc:ItemClassificationCode>
+      </cac:CommodityClassification>
+      <cac:ClassifiedTaxCategory>
+        <cbc:ID>O</cbc:ID>
+        <cbc:Name>HR:O</cbc:Name>
+        <cbc:TaxExemptionReason>Nije u sustavu PDV-a</cbc:TaxExemptionReason>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:ClassifiedTaxCategory>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="EUR">80.00</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="H87">1</cbc:BaseQuantity>
+      <cac:AllowanceCharge>
+        <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+        <cbc:Amount currencyID="EUR">5.00</cbc:Amount>
+        <cbc:BaseAmount currencyID="EUR">85.00</cbc:BaseAmount>
+      </cac:AllowanceCharge>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>

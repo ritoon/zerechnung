@@ -421,11 +421,13 @@ func SplitItalianName(name string) (given, family string, ok bool) {
 }
 
 // NationalData lists the data of the national blocks (Italy, Party.Italy,
-// Line.Italy…, Spain, Party.Spain…) as "EXT <value>.<Field>" terms relative
-// to the invoice ("EXT Italy.Withholdings", "EXT Lines[0].Italy.Discounts",
-// "EXT Spain.Withholdings"): EN 16931 cannot carry it, and packages cii and
-// ubl report it as lost in strict mode, but for the part that package ubl
-// writes in a domestic Italian invoice (EXT-IT).
+// Line.Italy…, Spain, Party.Spain…, Croatia, Line.Croatia…) as
+// "EXT <value>.<Field>" terms relative to the invoice ("EXT
+// Italy.Withholdings", "EXT Lines[0].Italy.Discounts", "EXT
+// Spain.Withholdings", "EXT Croatia.IssueTime"): EN 16931 cannot carry it,
+// and packages cii and ubl report it as lost in strict mode, but for the
+// part that package ubl writes in a domestic Italian invoice (EXT-IT) and
+// in a Croatian one (CIUS-HR).
 func (inv *Invoice) NationalData() []string {
 	var out []string
 	add := func(prefix string, v any) {
@@ -465,7 +467,7 @@ func (inv *Invoice) NationalData() []string {
 			add("AllowancesCharges["+strconv.Itoa(i)+"].Italy", it)
 		}
 	}
-	return inv.nationalSpain(out)
+	return inv.nationalCroatia(inv.nationalSpain(out))
 }
 
 // appendSet appends prefix followed by the name of each field of the struct
