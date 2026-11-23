@@ -24,7 +24,7 @@
       <cac:PartyTaxScheme>
         <cbc:CompanyID>33559012720</cbc:CompanyID>
         <cac:TaxScheme>
-          <cbc:ID>TAX</cbc:ID>
+          <cbc:ID>FC</cbc:ID>
         </cac:TaxScheme>
       </cac:PartyTaxScheme>
       <cac:PartyLegalEntity>

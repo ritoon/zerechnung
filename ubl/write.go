@@ -77,6 +77,9 @@ type writer struct {
 	lineOrder map[string]int   // index in it.PurchaseOrders of the order of each invoice line, by line identifier
 	lineDDT   map[string][]int // indexes in it.TransportDocuments of the transport documents of each invoice line
 	carried   map[string]bool  // national data written in full (see carry)
+	// croatia is set when the specification identifier written is the one
+	// of the CIUS-HR: the Croatian data is written (see croatia.go).
+	croatia bool
 
 	losses []string
 }

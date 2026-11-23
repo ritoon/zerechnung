@@ -103,6 +103,22 @@ func IsUBL(root *xmltree.Node) bool { return checkRoot(root) == nil }
 // technical rules give to identifiers FatturaPA lacks are not kept. In
 // other invoices these elements are kept as extensions.
 //
+// When the specification identifier is the one of the Croatian CIUS, with or
+// without its extension (see invoice.URNCIUSHR and invoice.ProfileCIUSHR),
+// the Croatian data goes to the national blocks too: the UBL extension
+// hrextac:HRFISK20Data (indicator of cash accounting HR-BT-15, Croatian VAT
+// breakdown HR-BG-2 and totals HR-BT-23 to HR-BT-25) to invoice.Croatia,
+// with the issue time (cbc:IssueTime, HR-BT-2) and the operator of the
+// seller (cac:SellerContact, HR-BT-4 and HR-BT-5); the description of a
+// preceding invoice (HR-BT-3) to DocumentReference.Croatia; the HR VAT
+// category label and the exemption reason of a document level allowance or
+// charge (HR-BT-6 to HR-BT-8) to AllowanceCharge.Croatia, those of an item
+// (HR-BT-12 to HR-BT-14) and the despatch and receiving advices of a line
+// (HR-BT-10, HR-BT-11) to Line.Croatia. The copy indicator (HR-BT-1) goes to
+// Invoice.CopyIndicator and the purchase order of a line (HR-BT-9) to
+// Line.OrderReference. A line identifier NA in a line reference stands for
+// no line. In other invoices these elements are kept as extensions.
+//
 // Nothing is dropped: the elements and attributes outside the binding are kept
 // as extensions (see invoice.Extension) in the Extensions field of the value
 // that encloses them, with paths made of the conventional cac, cbc and ext
@@ -165,6 +181,8 @@ func prefixOf(space string) string {
 		return "cbc"
 	case NamespaceEXT:
 		return "ext"
+	case NamespaceHR:
+		return "hrextac"
 	}
 	return ""
 }
@@ -196,6 +214,10 @@ type reader struct {
 	// extension (EXT-IT): the elements of the domestic invoice are read into
 	// the national blocks (see italy.go).
 	extIT bool
+	// extHR is set when the specification identifier is the one of the
+	// CIUS-HR: the Croatian data is read into the national blocks (see
+	// croatia.go).
+	extHR bool
 
 	ext  *[]invoice.Extension
 	path []string
@@ -494,13 +516,19 @@ func (r *reader) document(root *xmltree.Node) {
 	inv := r.inv
 	r.cur, r.taxCur = textOf(child(root, "DocumentCurrencyCode")), textOf(child(root, "TaxCurrencyCode"))
 	r.extIT = strings.Contains(textOf(child(root, "CustomizationID")), invoice.ItalianExtension)
+	r.extHR = invoice.ProfileFromURN(textOf(child(root, "CustomizationID"))) == invoice.ProfileCIUSHR
 	h := r.hold(root, &inv.Extensions)
-	var period, delivery bool
+	var period, delivery, extHRDone, copyDone bool
 	var extensions *xmltree.Node // ext:UBLExtensions, read last under EXT-IT
 	extAt := 0
 	for _, c := range root.Children {
 		if r.extIT && extensions == nil && c.Space == NamespaceEXT && c.Name == "UBLExtensions" {
 			extensions, extAt = c, len(inv.Extensions)
+			continue
+		}
+		if r.extHR && !extHRDone && c.Space == NamespaceEXT && c.Name == "UBLExtensions" {
+			extHRDone = true
+			r.croatianExtensions(c)
 			continue
 		}
 		if c.Space != NamespaceCBC && c.Space != NamespaceCAC {
@@ -518,6 +546,19 @@ func (r *reader) document(root *xmltree.Node) {
 			setOnce(r, c, &inv.BusinessProcess)
 		case "ID":
 			setOnce(r, c, &inv.Number)
+		case "CopyIndicator":
+			if !r.extHR || copyDone {
+				r.unread(c)
+				continue
+			}
+			copyDone = true
+			inv.CopyIndicator = r.indicator(c)
+		case "IssueTime":
+			if !r.extHR || inv.Croatia != nil && inv.Croatia.IssueTime != "" {
+				r.unread(c)
+				continue
+			}
+			r.hr().IssueTime = r.text(c)
 		case "IssueDate":
 			if !inv.IssueDate.IsZero() {
 				r.unread(c)
@@ -748,6 +789,8 @@ func (r *reader) billingReference(n *xmltree.Node) {
 				d.ID = r.text(k)
 			case k.Name == "IssueDate" && d.IssueDate.IsZero():
 				d.IssueDate = r.date(k)
+			case k.Name == "DocumentDescription" && r.extHR && d.Croatia == nil:
+				d.Croatia = &invoice.CroatiaReference{Description: r.text(k)}
 			default:
 				r.unread(k)
 			}
@@ -848,14 +891,18 @@ const (
 // invoice.
 func (r *reader) roleParty(n *xmltree.Node, p *invoice.Party, ro role) {
 	r.enter(n)
-	done := false
+	var done, contactDone bool
 	for _, c := range n.Children {
-		if c.Name == "Party" && !done {
+		switch {
+		case c.Name == "Party" && !done:
 			done = true
 			r.party(c, p, ro)
-			continue
+		case c.Name == "SellerContact" && ro == roleSeller && r.extHR && !contactDone:
+			contactDone = true
+			r.sellerContact(c)
+		default:
+			r.unread(c)
 		}
-		r.unread(c)
 	}
 	r.leave()
 }
@@ -1322,7 +1369,14 @@ func (r *reader) allowanceCharge(n *xmltree.Node, vat bool) invoice.AllowanceCha
 			ac.BaseAmount = r.decimal(c)
 		case c.Name == "TaxCategory" && vat && !catDone:
 			catDone = true
-			ac.VATCategoryCode, ac.VATRate = r.taxCategory(c, nil)
+			var hr *invoice.CroatiaTax
+			if r.extHR {
+				hr = new(invoice.CroatiaTax)
+			}
+			ac.VATCategoryCode, ac.VATRate = r.taxCategory(c, nil, hr)
+			if hr != nil && *hr != (invoice.CroatiaTax{}) {
+				ac.Croatia = hr
+			}
 		default:
 			r.unread(c)
 		}
@@ -1333,8 +1387,10 @@ func (r *reader) allowanceCharge(n *xmltree.Node, vat bool) invoice.AllowanceCha
 
 // taxCategory reads a cac:TaxCategory or cac:ClassifiedTaxCategory: the
 // category code and the rate, and, when vb is not nil, the exemption reason
-// and its code.
-func (r *reader) taxCategory(n *xmltree.Node, vb *invoice.VATBreakdown) (code string, rate invoice.Decimal) {
+// and its code. When hr is not nil, the Croatian data of the category goes
+// to it: the HR VAT category label (cbc:Name) and, without vb, the
+// exemption reason and its code.
+func (r *reader) taxCategory(n *xmltree.Node, vb *invoice.VATBreakdown, hr *invoice.CroatiaTax) (code string, rate invoice.Decimal) {
 	r.enter(n)
 	var idDone, rateDone, schemeDone bool
 	for _, c := range n.Children {
@@ -1342,6 +1398,8 @@ func (r *reader) taxCategory(n *xmltree.Node, vb *invoice.VATBreakdown) (code st
 		case c.Name == "ID" && !idDone:
 			idDone = true
 			code = r.text(c)
+		case c.Name == "Name" && hr != nil && hr.Category == "":
+			hr.Category = r.text(c)
 		case c.Name == "Percent" && !rateDone:
 			rateDone = true
 			rate = r.decimal(c)
@@ -1349,6 +1407,10 @@ func (r *reader) taxCategory(n *xmltree.Node, vb *invoice.VATBreakdown) (code st
 			vb.ExemptionReasonCode = r.text(c)
 		case c.Name == "TaxExemptionReason" && vb != nil && vb.ExemptionReason == "":
 			vb.ExemptionReason = r.text(c)
+		case c.Name == "TaxExemptionReasonCode" && vb == nil && hr != nil && hr.ExemptionReasonCode == "":
+			hr.ExemptionReasonCode = r.text(c)
+		case c.Name == "TaxExemptionReason" && vb == nil && hr != nil && hr.ExemptionReason == "":
+			hr.ExemptionReason = r.text(c)
 		case c.Name == "TaxScheme" && !schemeDone:
 			schemeDone = true
 			r.taxScheme(c, isVAT(c))
@@ -1404,7 +1466,7 @@ func (r *reader) taxSubtotal(n *xmltree.Node) invoice.VATBreakdown {
 			vb.TaxAmount = r.decimal(c)
 		case c.Name == "TaxCategory" && !catDone:
 			catDone = true
-			vb.CategoryCode, vb.Rate = r.taxCategory(c, &vb)
+			vb.CategoryCode, vb.Rate = r.taxCategory(c, &vb, nil)
 		default:
 			r.unread(c)
 		}
@@ -1508,9 +1570,19 @@ func (r *reader) line(n *xmltree.Node, l *invoice.Line) {
 			orderDone = true
 			r.orderLine(c, l)
 		case "DespatchLineReference":
+			if r.extHR && (l.Croatia == nil || l.Croatia.DespatchLine == nil) {
+				lineCroatia(l).DespatchLine = r.lineReference(c)
+				continue
+			}
 			if !r.extIT || !r.despatchLine(c, l) {
 				r.unread(c)
 			}
+		case "ReceiptLineReference":
+			if !r.extHR || l.Croatia != nil && l.Croatia.ReceiptLine != nil {
+				r.unread(c)
+				continue
+			}
+			lineCroatia(l).ReceiptLine = r.lineReference(c)
 		case "DocumentReference":
 			// The binding uses the line document reference for the invoice
 			// line object identifier (BT-128) only, with the type code 130
@@ -1596,7 +1668,16 @@ func (r *reader) item(n *xmltree.Node, l *invoice.Line) {
 			r.classification(c, it)
 		case c.Name == "ClassifiedTaxCategory" && !taxDone:
 			taxDone = true
-			l.VATCategoryCode, l.VATRate = r.taxCategory(c, nil)
+			if !r.extHR {
+				l.VATCategoryCode, l.VATRate = r.taxCategory(c, nil, nil)
+				continue
+			}
+			var hr invoice.CroatiaTax
+			l.VATCategoryCode, l.VATRate = r.taxCategory(c, nil, &hr)
+			if hr != (invoice.CroatiaTax{}) {
+				lc := lineCroatia(l)
+				lc.Category, lc.ExemptionReason, lc.ExemptionReasonCode = hr.Category, hr.ExemptionReason, hr.ExemptionReasonCode
+			}
 		case c.Name == "AdditionalItemProperty":
 			var a invoice.ItemAttribute
 			h := r.hold(c, &a.Extensions)

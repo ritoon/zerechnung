@@ -52,7 +52,7 @@ type CroatiaVAT struct {
 	CategoryCode        string  // HR-BT-18 HR VAT category code (UNTDID 5305: S, Z, E, AE, K, G, O)
 	Category            string  // HR-BT-22 HR VAT category label (table HR-TB-2: HR:PDV25, HR:PP…)
 	Rate                Decimal // HR-BT-19 HR VAT category rate
-	ExemptionReasonCode string  // HR-BT-21 HR VAT exemption reason code (table HR-TB-1)
+	ExemptionReasonCode string  // HR-BT-21 HR VAT exemption reason code (code list VATEX of the CEF)
 	ExemptionReason     string  // HR-BT-20 HR VAT exemption reason text
 	// TaxScheme is the identifier of the tax scheme (hrextac:HRTaxScheme):
 	// VAT, or the scheme of a tax out of the scope of VAT (LOC for the
@@ -69,7 +69,7 @@ type CroatiaTax struct {
 	// HR:PP for the consumption tax, HR:POVNAK for a refundable deposit…
 	Category            string
 	ExemptionReason     string // HR-BT-7, HR-BT-13 VAT exemption reason text
-	ExemptionReasonCode string // HR-BT-8, HR-BT-14 VAT exemption reason code (table HR-TB-1)
+	ExemptionReasonCode string // HR-BT-8, HR-BT-14 VAT exemption reason code (code list VATEX of the CEF)
 }
 
 // CroatiaLine is the Croatian data of an invoice line.

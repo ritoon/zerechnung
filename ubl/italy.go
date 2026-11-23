@@ -671,15 +671,20 @@ func (r *reader) orderLine(n *xmltree.Node, l *invoice.Line) {
 		switch {
 		case c.Name == "LineID" && lineID == nil:
 			lineID = c
-		case c.Name == "OrderReference" && order == nil && r.extIT:
+		case c.Name == "OrderReference" && order == nil && (r.extIT || r.extHR):
 			order = c
 		default:
 			r.unread(c)
 		}
 	}
 	id := r.text(lineID)
-	if order == nil {
-		l.OrderLineReference = id
+	if order == nil || r.extHR {
+		if !r.extHR || id != na {
+			l.OrderLineReference = id
+		}
+		if order != nil {
+			r.orderLineHR(order, l)
+		}
 		r.leave()
 		return
 	}
