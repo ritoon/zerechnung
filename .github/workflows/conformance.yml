@@ -13,8 +13,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: conformance-${{ github.ref }}
-  cancel-in-progress: true
+  # As in the CI workflow: runs of a pull request cancel each other, every
+  # commit of main is tested.
+  group: conformance-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   artifacts:
@@ -168,6 +170,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # The runs of two commits of main may overlap: the badge of the
+          # older one must not overwrite that of the newer one.
+          head=$(git ls-remote "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "main is at $head now: the run of that commit writes the badge"
+            exit 0
+          fi
           cd "$RUNNER_TEMP/badges"
           git init -q -b badges
           git add badge-parity.json

@@ -12,9 +12,7 @@ Sinon, supprimez cette section.
 
 ## Vérifications
 
-- [ ] `gofmt -l` ne signale rien ; `go vet ./...` et `go test -race ./...` passent.
-- [ ] `golangci-lint run` ne signale rien.
-- [ ] Les tests sur les artefacts officiels (`eval "$(conformance/fetch.sh)"` puis `go test ./...`) passent, si la pull request touche aux règles, aux schémas ou à la lecture et l'écriture du XML.
+- [ ] `scripts/check.sh` finit par « All checks passed. » (gofmt, `go vet`, golangci-lint, `go test -race`, tests sur les artefacts officiels et règles levées).
 - [ ] Un test couvre le changement.
 - [ ] Le README suit le changement (couverture, limites, nombres de règles), s'il y a lieu.
 - [ ] Aucune dépendance n'est ajoutée à `go.mod`.

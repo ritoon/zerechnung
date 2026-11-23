@@ -9,8 +9,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # On a pull request, a new push cancels the run of the previous one. On
+  # main, each commit has a group of its own, so that every commit is tested
+  # even when the next one follows within minutes: a group keeps one pending
+  # run at most, and cancels it when another one arrives, whatever
+  # cancel-in-progress says.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:

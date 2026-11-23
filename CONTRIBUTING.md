@@ -36,37 +36,29 @@ Les tests de base n'ont besoin que du dépôt.
 
 ## Avant d'ouvrir une pull request
 
-Lancez les mêmes contrôles que la CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) :
+`main` n'accepte que des pull requests, et seulement quand les checks requis des workflows [CI](.github/workflows/ci.yml), [Conformité](.github/workflows/conformance.yml) et Docker (image Linux) passent : aucun push direct, même pour les mainteneurs.
+
+Lancez les contrôles de ces workflows qui n'ont besoin ni de Java ni de Docker :
 
 ```bash
-gofmt -l $(git ls-files '*.go')
-go vet ./...
-go test -race ./...
-golangci-lint run
+scripts/check.sh
 ```
 
-`gofmt -l` ne doit rien afficher. La CI utilise golangci-lint v2.15.0, avec les réglages de [.golangci.yml](.golangci.yml).
+Le script s'arrête au premier échec : gofmt, `go vet` et golangci-lint (à la version de la CI, avec les réglages de [.golangci.yml](.golangci.yml)) sur le package et le serveur, `go test -race`, budgets d'allocations, tests du site et des outils de `conformance/`, puis tous les tests sur les artefacts officiels, qui échouent si l'un d'eux est ignoré, et la vérification des règles levées. `scripts/check.sh -quick` saute les tests sur artefacts, pendant qu'on itère. `go test ./...` seul ne suffit pas : il ignore sans le dire les tests qui ont besoin des artefacts.
 
-Si la pull request touche au serveur (`server/`), lancez aussi ses tests, et le test de bout en bout de l'image Docker :
+Si la pull request touche au serveur (`server/`), lancez aussi le test de bout en bout de l'image Docker :
 
 ```bash
-(cd server && go vet ./... && go test -race ./... && golangci-lint run --config=../.golangci.yml)
 docker build -f server/Dockerfile -t zerechnung:test . && server/scripts/smoke.sh zerechnung:test
 ```
 
-Si la pull request touche aux règles, aux schémas ou à la lecture et l'écriture du XML, lancez aussi les tests sur les artefacts officiels :
-
-```bash
-eval "$(conformance/fetch.sh)"
-go test ./...
-```
-
-`fetch.sh` récupère les artefacts à des versions figées et définit les variables `FX_*` qui activent les tests optionnels (détail dans la section [Tests](README.md#tests) du README et dans [conformance](conformance/README.md)). Le workflow [Conformité](.github/workflows/conformance.yml) les exécute à chaque pull request et échoue si l'un d'eux est ignoré. Il compare aussi le package à KoSIT et à Mustang, facture par facture : tout nouvel écart fait échouer le job. Un écart justifié s'ajoute à [conformance/parity/known.txt](conformance/parity/known.txt), avec sa justification. `conformance/parity.sh` a besoin de Java ; il n'est pas nécessaire de le lancer en local, la CI s'en charge.
+[`conformance/fetch.sh`](conformance/fetch.sh), qu'appelle le script, récupère les artefacts à des versions figées et définit les variables `FX_*` qui activent les tests optionnels (détail dans la page [Testing](https://github.com/ritoon/zerechnung/wiki/Testing) du wiki et dans [conformance](conformance/README.md)). Le workflow [Conformité](.github/workflows/conformance.yml) les exécute à chaque pull request et échoue si l'un d'eux est ignoré. Il compare aussi le package à KoSIT et à Mustang, facture par facture : tout nouvel écart fait échouer le job. Un écart justifié s'ajoute à [conformance/parity/known.txt](conformance/parity/known.txt), avec sa justification. `conformance/parity.sh` a besoin de Java ; il n'est pas nécessaire de le lancer en local, la CI s'en charge.
 
 ## Code et tests
 
 - Les commentaires du code sont en anglais. Chaque symbole exporté a un commentaire de documentation qui commence par son nom et se termine par un point (règles `revive` et `godot` du linter).
 - Une correction vient avec un test qui échouait avant elle.
+- Le workflow [Fuzzing](.github/workflows/fuzz.yml) fuzze chaque nuit toutes les cibles `Fuzz*` du dépôt, que [scripts/fuzz-targets.sh](scripts/fuzz-targets.sh) trouve seul. L'entrée qui fait échouer une cible est jointe au run (artefact `fuzz-failure-*`) : elle s'ajoute dans `testdata/fuzz/<cible>/` du paquet avec la correction, et `go test` la rejoue ensuite à chaque run.
 - Une règle ajoutée ou modifiée vient avec un test qui la déclenche sur une facture modifiée pour l'enfreindre, et la facture valide qui ne la déclenche pas. Le job *Tests sur les artefacts officiels* le vérifie : une règle des catalogues qu'aucun test ne lève le fait échouer, sauf si elle est déjà dans [testdata/rule-coverage.txt](testdata/rule-coverage.txt), la liste des règles qu'aucun test ne lève encore. Un test qui lève une règle de cette liste fait échouer le job tant que la ligne n'est pas retirée (voir [conformance](conformance/README.md#règles-levées-par-la-suite)).
 - Un fichier de test ajouté est fictif, ou provient d'un corpus public dont la licence permet la copie ; sa source et sa licence sont alors indiquées, comme dans [testdata/NOTICE](testdata/NOTICE).
 - Quand le comportement change, le README suit : sections [Couverture](README.md#couverture) et [Limites](README.md#limites), nombres de règles, exemples.
