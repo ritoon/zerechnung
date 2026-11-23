@@ -23,7 +23,14 @@ Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML 
 - PDF/A-3 conversion of the PDFs that need no PDF engine for it, with the reasons for a refusal otherwise, checked by veraPDF in the CI.
 - Fast and light: reading and validating a typical invoice takes about 25 µs and allocates 23 KB.
 
-> **Status: v0.** The API may still change before v1.
+> [!WARNING]
+> **ZeRechnung is still under development and is not ready for production.** It is published as an example only.
+>
+> Its main goal is to cover the European countries. It may not cover every case, neither in the standards it supports nor in its features.
+>
+> The project follows [semantic versioning](https://semver.org). Until v1, the API may change from one release to the next. From v1 on, we will consider the package stable enough for you to use it outside our own projects.
+>
+> Feedback from the community is welcome: open an [issue](https://github.com/ritoon/zerechnung/issues) with your comments on the project.
 
 ## Install
 
