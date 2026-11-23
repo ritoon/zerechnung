@@ -104,7 +104,7 @@ Le seul échec connu porte sur ce que la conversion ne lit pas : un type de vale
 
 ## Parité avec KoSIT et Mustang
 
-Le job *Parité avec KoSIT, Mustang, la NPa, eSPap, l'ANAF et la Porezna uprava* exécute les deux validateurs de référence et le package sur le même jeu de 282 factures :
+Le job *Parité avec KoSIT, Mustang, la NPa, eSPap et l'ANAF*, qui compare aussi avec la Porezna uprava (voir plus bas), exécute les deux validateurs de référence et le package sur le même jeu de 282 factures :
 
 - corpus ZUGFeRD : `XML-Rechnung/CII`, `XML-Rechnung/UBL`, `XML-Rechnung/FX`, `ZUGFeRDv2/correct` et `ZUGFeRDv2/fail` (factures invalides à dessein) ;
 - suite de tests KoSIT : `src/test` (cas métier et cas techniques, toutes valides).
