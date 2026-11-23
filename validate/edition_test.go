@@ -110,3 +110,55 @@ func TestCatalogEdition(t *testing.T) {
 		}
 	}
 }
+
+// xrechnungIDs gives the specification identifiers (BT-24) an XRechnung 4.0
+// invoice may declare. XRechnung 4.0 follows EN 16931-1:2026, so its
+// identifier names that edition; the version suffix is not published yet
+// (the pre-version of 15 September 2026 is a specification document, without
+// schematrons, XSD or KoSIT validator configuration), so both the suffix of
+// XRechnung 3.0 and a 4.0 one are tried.
+var xrechnungIDs = []string{
+	strings.Replace(invoice.URNXRechnung, "en16931:2017", "en16931:2026", 1),
+	"urn:cen.eu:en16931:2026#compliant#urn:xeinkauf.de:kosit:xrechnung_4.0",
+}
+
+// TestXRechnung40 checks that an invoice which declares XRechnung 4.0 is not
+// checked against the rules of XRechnung 3.0.2: it gives
+// EN16931-EDITION-01 alone, whatever the rule sets, although the German
+// rules apply to an XRECHNUNG invoice without any option. The profile is
+// still read as XRECHNUNG, so the report names it. XRechnung 3.0.x stays in
+// force until 31 July 2027 at least, and the validation artefacts of 4.0 are
+// not published: a forced profile applies the rules of 3.0.2 anyway, and
+// BR-DE-21 then reports an identifier its schematron does not know.
+func TestXRechnung40(t *testing.T) {
+	for _, name := range []string{xrechnungInvoice, xrechnungUBLInvoice} {
+		doc := readXML(t, name)
+		if strings.Count(doc, invoice.URNXRechnung) != 1 {
+			t.Fatalf("%s: BT-24 not found once", name)
+		}
+		for _, id := range xrechnungIDs {
+			b := []byte(strings.Replace(doc, invoice.URNXRechnung, id, 1))
+			for _, opts := range []*Options{
+				nil,
+				{Rules: Schema},
+				{Rules: Default | Germany | GermanyProfile},
+				{Auto: true},
+			} {
+				r := XML(b, opts)
+				if got := ruleIDs(r); !slices.Equal(got, []string{ruleEdition}) {
+					t.Errorf("%s %q %+v: findings = %v", name, id, opts, r.Findings)
+					continue
+				}
+				if !strings.Contains(r.Findings[0].Message, "EN 16931-1:2026") || r.Valid() ||
+					r.Profile != invoice.ProfileXRechnung {
+					t.Errorf("%s %q %+v: %+v, valid = %v, profile = %v", name, id, opts, r.Findings[0], r.Valid(), r.Profile)
+				}
+			}
+			r := XML(b, &Options{Profile: invoice.ProfileXRechnung})
+			ids := ruleIDs(r)
+			if len(ids) == 0 || ids[0] != ruleEdition || !slices.Contains(ids, "BR-DE-21") {
+				t.Errorf("%s %q forced: findings = %v", name, id, ids)
+			}
+		}
+	}
+}
