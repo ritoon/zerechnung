@@ -2,8 +2,9 @@
 // a CII invoice against the schema of its profile, a UBL invoice against the
 // OASIS UBL 2.1 schema of its document (Invoice or CreditNote), a FatturaPA
 // document against the FatturaPA 1.2 schema, a Facturae document against
-// the Facturae schema of its version, and a status of the life cycle of a
-// French invoice (CDAR message) against the CDAR D22B schema. It checks the allowed
+// the Facturae schema of its version, a status of the life cycle of a
+// French invoice (CDAR message) against the CDAR D22B schema, and a report
+// of the French e-reporting (flux 10) against its schema. It checks the allowed
 // elements, their order, cardinalities, attributes, namespaces and simple
 // types.
 //
@@ -56,6 +57,9 @@
 //     status of the life cycle of a French invoice (CDV), the first of the
 //     two steps of its control (the schematron BR-FR-CDV follows). The
 //     schema is uncoupled: the code lists are checked by the schematron.
+//   - ereporting_tables_gen.go holds the schemas of the French e-reporting
+//     (flux 10) of the FNFE-MPE France_RFE package 1.4.0.04, against which
+//     CheckEReporting checks a report (root Report, in no namespace).
 //
 // EXTENDED-CTC-FR invoices keep the Factur-X EXTENDED schema although the
 // FNFE-MPE package validates them against the complete CII D22B schema: the
@@ -73,6 +77,7 @@ package schema
 //go:generate go run ./gen -fatturapa -o fatturapa_tables_gen.go
 //go:generate go run ./gen -facturae -o facturae_tables_gen.go
 //go:generate go run ./gen -cdar -o cdar_tables_gen.go
+//go:generate go run ./gen -ereporting -o ereporting_tables_gen.go
 
 import (
 	"regexp"
@@ -104,8 +109,8 @@ const (
 // Catalog lists the rules implemented by this package.
 var Catalog = []rules.RuleInfo{
 	{ID: RuleProfile, Severity: rules.Warning, Description: "The profile (BT-24) is unknown: the structure is checked against the EXTENDED schema, the most permissive."},
-	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), p:FatturaElettronica (FatturaPA), Facturae in the namespace of Facturae 3.2, 3.2.1 or 3.2.2, or rsm:CrossDomainAcknowledgementAndResponse (CDAR)."},
-	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII and CDAR; cac, cbc or ext in UBL, hrextac in the Croatian extension; none below the root in FatturaPA and Facturae)."},
+	{ID: RuleRoot, Severity: rules.Error, Description: "The root element shall be rsm:CrossIndustryInvoice (CII), Invoice or CreditNote (UBL 2.1), p:FatturaElettronica (FatturaPA), Facturae in the namespace of Facturae 3.2, 3.2.1 or 3.2.2, rsm:CrossDomainAcknowledgementAndResponse (CDAR), or Report in no namespace (French e-reporting)."},
+	{ID: RuleNamespace, Severity: rules.Error, Description: "Each element shall be in the namespace defined by the schema (rsm, ram, udt or qdt in CII and CDAR; cac, cbc or ext in UBL, hrextac in the Croatian extension; none below the root in FatturaPA and Facturae, none at all in an e-reporting report)."},
 	{ID: RuleUnexpected, Severity: rules.Error, Description: "Each element shall be allowed in its parent by the schema (for CII, the schema of the profile; the CII D16B schema for XRECHNUNG, and for EN 16931 outside a Factur-X PDF)."},
 	{ID: RuleOrder, Severity: rules.Error, Description: "Child elements shall appear in the order defined by the schema."},
 	{ID: RuleMissing, Severity: rules.Error, Description: "Elements required by the schema (minOccurs > 0) shall be present."},
@@ -278,6 +283,9 @@ var (
 	cdarTables = sync.OnceValue(func() *tables {
 		return newTables(cdarNamespaces[:], cdarTypes[:], cdarParticles[:], cdarAttributes[:], cdarFacetTable[:], false)
 	})
+	ereportingTables = sync.OnceValue(func() *tables {
+		return newTables(ereportingNamespaces[:], ereportingTypes[:], ereportingParticles[:], ereportingAttributes[:], ereportingFacetTable[:], false)
+	})
 )
 
 // profileIndex returns the Factur-X schema used for an invoice profile. The
@@ -412,6 +420,27 @@ func CheckCDAR(c *rules.Checker, root *xmltree.Node) {
 	}
 	v := validator{c: c, t: t}
 	v.element(root, &t.types[r.typ])
+}
+
+// EReportingVersion returns the version of the France_RFE package whose
+// e-reporting schemas the tables were generated from ("1.4.0.04").
+func EReportingVersion() string { return ereportingSchemaVersion }
+
+// CheckEReporting validates the structure of root, a report of the French
+// e-reporting (flux 10), against the schemas of France_RFE, and records the
+// findings in c.Report. c.Doc may be nil.
+func CheckEReporting(c *rules.Checker, root *xmltree.Node) {
+	if root == nil {
+		return
+	}
+	v := validator{c: c, t: ereportingTables()}
+	r := &ereportingRoots[0]
+	if root.Name != r.name || root.Space != ereportingNamespaces[r.ns] {
+		c.Fail(RuleRoot, rules.Error, root, "the root element is %s in namespace %q, expected Report in no namespace",
+			display(root), root.Space)
+		return
+	}
+	v.element(root, &ereportingTypes[r.typ])
 }
 
 // Check validates the structure of c.Doc and records the findings in

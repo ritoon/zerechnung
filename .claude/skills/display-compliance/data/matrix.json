@@ -95,7 +95,7 @@
    "features": [
     {"kind": "net", "label": "Opérateurs, Peppol", "status": "x"}
    ]},
-  {"code": "FR", "name": "France", "region": "ue", "issues": [110, 111],
+  {"code": "FR", "name": "France", "region": "ue", "issues": [111],
    "norms": [
     {"label": "Factur-X 1.09", "status": "y", "note": "tous les profils, MINIMUM à EXTENDED"},
     {"label": "CII EN 16931", "status": "y"},
@@ -109,7 +109,7 @@
     {"kind": "net", "label": "Mode plateforme agréée", "status": "n", "note": "validate.Options.Platform (#111)"},
     {"kind": "net", "label": "Transmission Chorus Pro, PA", "status": "x"},
     {"kind": "rep", "label": "Statuts du cycle de vie (CDAR)", "status": "y", "note": "paquet cdar : CDAR D22B lu, écrit et validé (XSD et règles BR-FR-CDV 1.4.0.04), statuts 200 et 213 construits ; parité Saxon sur 2 149 statuts (#109)"},
-    {"kind": "rep", "label": "E-reporting (flux 10)", "status": "n", "note": "lire, écrire et valider (#110)"}
+    {"kind": "rep", "label": "E-reporting (flux 10)", "status": "p", "note": "PR #163 : lire, écrire, schémas XSD de France_RFE 1.4.0.04 ; les règles du schematron Flux10 ne sont pas appliquées"}
    ]},
   {"code": "GR", "name": "Grèce", "region": "ue", "issues": [130],
    "norms": [

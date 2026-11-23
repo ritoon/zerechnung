@@ -10,7 +10,7 @@
     {"code": "DK", "eu": true, "b2g": "since 2005", "b2b": "voluntary", "cover": [["Peppol BIS 3.0", "yes"], ["OIOUBL 2.1", "no"]]},
     {"code": "EE", "eu": true, "b2g": "since 2019", "b2b": "request 2025", "cover": [["EN 16931", "yes"]]},
     {"code": "FI", "eu": true, "b2g": "since 2019", "b2b": "request 2020", "cover": [["Peppol BIS 3.0", "yes"], ["Finvoice", "no"], ["TEAPPSXML", "no"]]},
-    {"code": "FR", "eu": true, "b2g": "since 2017", "b2b": "since 2026", "cover": [["Factur-X", "yes"], ["UBL", "yes"], ["CII", "yes"]]},
+    {"code": "FR", "eu": true, "b2g": "since 2017", "b2b": "since 2026", "cover": [["Factur-X", "yes"], ["UBL", "yes"], ["CII", "yes"], ["E-reporting", "partial"]]},
     {"code": "DE", "eu": true, "b2g": "since 2020", "b2b": "from 2027", "cover": [["XRechnung 3.0.2", "yes"], ["ZUGFeRD", "yes"], ["XRechnung 4.0", "no"]]},
     {"code": "GR", "eu": true, "b2g": "since 2023", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"], ["myDATA", "no"]]},
     {"code": "HU", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"], ["Online Számla", "no"]]},
@@ -46,6 +46,7 @@
         {"text": "cp_fr_pdf", "status": "yes", "rules": ["Check"]},
         {"text": "cp_fr_sign", "status": "yes", "rules": ["Sign", "VerifySignatures"]},
         {"text": "cp_fr_cdv", "status": "yes", "rules": ["cdar", "France"]},
+        {"text": "cp_fr_ereporting", "status": "partial", "rules": ["Schema"]},
         {"text": "cp_fr_send", "status": "no"}
       ]
     },

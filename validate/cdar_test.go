@@ -75,7 +75,8 @@ func TestCDARFindings(t *testing.T) {
 		})
 	}
 	r := XML([]byte(`<x:Foo xmlns:x="urn:x"/>`), nil)
-	if len(r.Findings) != 1 || !strings.Contains(r.Findings[0].Message, "nor a CDAR status") {
+	if len(r.Findings) != 1 || !strings.Contains(r.Findings[0].Message, "a CDAR status rsm:CrossDomainAcknowledgementAndResponse") ||
+		!strings.Contains(r.Findings[0].Message, "nor a French e-reporting Report") {
 		t.Errorf("another document: %v", r.Findings)
 	}
 }

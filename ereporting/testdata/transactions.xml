@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report>
+  <ReportDocument>
+    <Id>TR-2026-09-0001</Id>
+    <Name>Transactions septembre 2026</Name>
+    <IssueDateTime>
+      <DateTimeString>20261011093000</DateTimeString>
+    </IssueDateTime>
+    <TypeCode>IN</TypeCode>
+    <Sender>
+      <Id schemeId="0238">0042</Id>
+      <Name>Plateforme Exemple</Name>
+      <RoleCode>WK</RoleCode>
+    </Sender>
+    <Issuer>
+      <Id schemeId="0002">123456782</Id>
+      <Name>Vendeur Exemple SAS</Name>
+      <RoleCode>SE</RoleCode>
+      <URIUniversalCommunication>
+        <URIID>ventes@vendeur.example</URIID>
+      </URIUniversalCommunication>
+    </Issuer>
+  </ReportDocument>
+  <TransactionsReport>
+    <ReportPeriod>
+      <StartDate>20260901</StartDate>
+      <EndDate>20260930</EndDate>
+    </ReportPeriod>
+    <Invoice>
+      <ID>F2026-0915</ID>
+      <IssueDate>20260915</IssueDate>
+      <TypeCode>380</TypeCode>
+      <CurrencyCode>EUR</CurrencyCode>
+      <DueDate>20261015</DueDate>
+      <TaxDueDateTypeCode>5</TaxDueDateTypeCode>
+      <IncludedNote>
+        <Subject>AAI</Subject>
+        <Content>Prestations de conseil de septembre</Content>
+      </IncludedNote>
+      <BusinessProcess>
+        <ID>S1</ID>
+        <TypeID>urn.cpro.gouv.fr:1p0:ereporting</TypeID>
+      </BusinessProcess>
+      <Seller>
+        <CompanyId schemeId="0002">123456782</CompanyId>
+        <TaxRegistrationId qualifyingId="VAT">FR32123456782</TaxRegistrationId>
+        <PostalAddress>
+          <CountryId>FR</CountryId>
+        </PostalAddress>
+      </Seller>
+      <Buyer>
+        <CompanyId schemeId="0223">DE123456789</CompanyId>
+        <TaxRegistrationId qualifyingId="VAT">DE123456789</TaxRegistrationId>
+        <PostalAddress>
+          <CountryId>DE</CountryId>
+        </PostalAddress>
+      </Buyer>
+      <Delivery>
+        <Date>20260930</Date>
+        <Location>
+          <LineOne>Beispielstraße 1</LineOne>
+          <CityName>Berlin</CityName>
+          <PostalZone>10115</PostalZone>
+          <CountryId>DE</CountryId>
+        </Location>
+      </Delivery>
+      <InvoicePeriod>
+        <StartDate>20260901</StartDate>
+        <EndDate>20260930</EndDate>
+      </InvoicePeriod>
+      <AllowanceCharge ChargeIndicator="false">
+        <Amount>50.00</Amount>
+        <TaxCategoryCode>AE</TaxCategoryCode>
+        <TaxPercent>0</TaxPercent>
+      </AllowanceCharge>
+      <MonetaryTotal>
+        <TaxExclusiveAmount>950.00</TaxExclusiveAmount>
+        <TaxAmount CurrencyCode="EUR">0.00</TaxAmount>
+      </MonetaryTotal>
+      <TaxSubTotal>
+        <TaxableAmount>950.00</TaxableAmount>
+        <TaxAmount>0.00</TaxAmount>
+        <TaxCategory>
+          <Code>AE</Code>
+          <Percent>0</Percent>
+          <TaxExemptionReason>Autoliquidation</TaxExemptionReason>
+          <TaxExemptionReasonCode>VATEX-EU-AE</TaxExemptionReasonCode>
+        </TaxCategory>
+      </TaxSubTotal>
+      <Line>
+        <Note>
+          <Code>AAI</Code>
+          <Comment>Journées de conseil</Comment>
+        </Note>
+        <BilledQuantity UnitCode="DAY">10</BilledQuantity>
+        <InvoicePeriod>
+          <StartDate>20260901</StartDate>
+          <EndDate>20260930</EndDate>
+        </InvoicePeriod>
+        <Price>
+          <PriceAmount>100.00</PriceAmount>
+          <AllowanceChargeAmount>0</AllowanceChargeAmount>
+          <AllowanceChargeBaseAmount>100.00</AllowanceChargeBaseAmount>
+        </Price>
+        <Product>
+          <Name>Conseil</Name>
+        </Product>
+      </Line>
+    </Invoice>
+    <Invoice>
+      <ID>AV2026-0003</ID>
+      <IssueDate>20260920</IssueDate>
+      <TypeCode>381</TypeCode>
+      <CurrencyCode>EUR</CurrencyCode>
+      <BusinessProcess>
+        <ID>S1</ID>
+        <TypeID>urn.cpro.gouv.fr:1p0:ereporting</TypeID>
+      </BusinessProcess>
+      <ReferencedDocument>
+        <ID>F2026-0915</ID>
+        <IssueDate>20260915</IssueDate>
+      </ReferencedDocument>
+      <Seller>
+        <CompanyId schemeId="0002">123456782</CompanyId>
+        <TaxRegistrationId qualifyingId="VAT">FR32123456782</TaxRegistrationId>
+      </Seller>
+      <Buyer>
+        <CompanyId schemeId="0223">DE123456789</CompanyId>
+        <TaxRegistrationId qualifyingId="VAT">DE123456789</TaxRegistrationId>
+      </Buyer>
+      <MonetaryTotal>
+        <TaxExclusiveAmount>100.00</TaxExclusiveAmount>
+        <TaxAmount CurrencyCode="EUR">0.00</TaxAmount>
+      </MonetaryTotal>
+      <TaxSubTotal>
+        <TaxableAmount>100.00</TaxableAmount>
+        <TaxAmount>0.00</TaxAmount>
+        <TaxCategory>
+          <Code>AE</Code>
+          <Percent>0</Percent>
+          <TaxExemptionReason>Autoliquidation</TaxExemptionReason>
+          <TaxExemptionReasonCode>VATEX-EU-AE</TaxExemptionReasonCode>
+        </TaxCategory>
+      </TaxSubTotal>
+      <Line>
+        <BilledQuantity UnitCode="DAY">1</BilledQuantity>
+        <ReferencedDocument>
+          <ID>F2026-0915</ID>
+          <IssueDate>20260915</IssueDate>
+        </ReferencedDocument>
+        <Delivery>
+          <Name>Siège</Name>
+          <Location>
+            <LineOne>Beispielstraße 1</LineOne>
+            <CityName>Berlin</CityName>
+            <PostalZone>10115</PostalZone>
+            <CountryId>DE</CountryId>
+          </Location>
+        </Delivery>
+        <AllowanceCharge ChargeIndicator="true">
+          <Amount>0.00</Amount>
+        </AllowanceCharge>
+        <Product>
+          <Name>Conseil</Name>
+        </Product>
+      </Line>
+    </Invoice>
+    <Transactions>
+      <Date>20260915</Date>
+      <TransactionsCurrency>EUR</TransactionsCurrency>
+      <TaxDueDateTypeCode>5</TaxDueDateTypeCode>
+      <CategoryCode>TLB1</CategoryCode>
+      <TaxExclusiveAmount>1500.00</TaxExclusiveAmount>
+      <TaxTotal>227.50</TaxTotal>
+      <TransactionsCount>42</TransactionsCount>
+      <TaxSubtotal>
+        <TaxPercent>20</TaxPercent>
+        <TaxableAmount>1000.00</TaxableAmount>
+        <TaxTotal>200.00</TaxTotal>
+      </TaxSubtotal>
+      <TaxSubtotal>
+        <TaxPercent>5.5</TaxPercent>
+        <TaxableAmount>500.00</TaxableAmount>
+        <TaxTotal>27.50</TaxTotal>
+      </TaxSubtotal>
+    </Transactions>
+  </TransactionsReport>
+</Report>
