@@ -46,9 +46,9 @@
     {"label": "Peppol BIS 3.0", "status": "y"}
    ],
    "features": []},
-  {"code": "HR", "name": "Croatie", "region": "ue", "issues": [103],
+  {"code": "HR", "name": "Croatie", "region": "ue", "issues": [],
    "norms": [
-    {"label": "CIUS-HR + extension", "status": "p", "note": "règles EN 16931 appliquées, pas les règles croates"}
+    {"label": "CIUS-HR + extension", "status": "y", "note": "schematron de la Porezna uprava (13/03/2026), UBL seul ; extension HRFISK20Data lue et écrite ; OIB des adresses en avertissement"}
    ],
    "features": [
     {"kind": "net", "label": "Fiskalizacija 2.0, eRačun", "status": "x"},
