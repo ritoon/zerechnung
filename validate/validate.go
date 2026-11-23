@@ -5,13 +5,14 @@
 // Chorus Pro for French B2G invoices, the Peppol BIS Billing 3.0 rules, the
 // Dutch rules of NLCIUS (BR-NL), the Italian rules of the CIUS-IT (BR-IT),
 // the Portuguese rules of the CIUS-PT, the Romanian rules of the CIUS-RO
-// (BR-RO) and the Slovak requirements of the eFaktúra beyond Peppol BIS
-// (SK-*).
+// (BR-RO), the Slovak requirements of the eFaktúra beyond Peppol BIS
+// (SK-*) and the Croatian rules of the CIUS-HR (HR-BR).
 //
 // The syntax is detected from the root element. A UBL 2.1 Invoice or
 // CreditNote is checked against the OASIS UBL 2.1 XML schema of its document
 // (the Schema rule set, with the same XSD-* rules as CII; the content of the
-// UBL extensions is not checked) and against the EN 16931 rules of the UBL
+// UBL extensions is not checked, but for the Croatian extension HRFISK20Data,
+// checked against its schema) and against the EN 16931 rules of the UBL
 // artefacts: the business rules and code lists, and the UBL syntax rules
 // UBL-CR, UBL-SR and UBL-DT. The Factur-X profile rules, which are CII
 // rules, do not apply. The French rules implement the UBL schematron of
@@ -52,6 +53,19 @@
 // parties, the VAT identifiers (IČ DPH), the IČO and the legal information
 // of a Slovak seller, the date of the taxable supply and the reference of
 // a corrective invoice (SK-01 to SK-15). See package internal/rules/sk.
+//
+// An invoice of the CIUS-HR (BT-24 urn:cen.eu:en16931:2017#compliant#
+// urn:mfin.gov.hr:cius-2025:1.0#conformant#urn:mfin.gov.hr:ext-2025:1.0, or
+// the identifier of the CIUS without its extension, which HR-BR-5 reports)
+// is checked against the rules of EN 16931 as any other, and in the Croatia
+// rule set against the schematron of the Croatian tax administration
+// (schematron 1.0.0 of the specification 1.8), on the UBL document, with
+// the check of the OIB of the electronic addresses (HR-OIB-01). The CIUS-HR
+// is defined for UBL only: a CII invoice that declares it gets
+// HR-SYNTAX-01. The UBL syntax rules of the CEN artefacts report, as
+// warnings, the elements outside the binding of EN 16931 that the CIUS-HR
+// uses (UBL-CR-001 for the extension HRFISK20Data, UBL-CR-006 for the issue
+// time…). See package internal/rules/hr.
 //
 // A ZUGFeRD 1.0 invoice (rsm:CrossIndustryDocument, see cii.IsZUGFeRD1)
 // gets a minimal structural check, part of the Schema rule set: a ZUGFeRD
@@ -117,6 +131,7 @@ import (
 	"github.com/ritoon/zerechnung/internal/rules/en16931"
 	"github.com/ritoon/zerechnung/internal/rules/facturx"
 	"github.com/ritoon/zerechnung/internal/rules/fr"
+	"github.com/ritoon/zerechnung/internal/rules/hr"
 	"github.com/ritoon/zerechnung/internal/rules/it"
 	"github.com/ritoon/zerechnung/internal/rules/nl"
 	"github.com/ritoon/zerechnung/internal/rules/peppol"
@@ -164,6 +179,7 @@ const (
 	SourcePT        = rules.SourcePT
 	SourceRO        = rules.SourceRO
 	SourceSK        = rules.SourceSK
+	SourceHR        = rules.SourceHR
 	SourceSDI       = rules.SourceSDI
 	SourceSignature = rules.SourceSignature
 	SourceFacturae  = rules.SourceFacturae
@@ -188,14 +204,15 @@ const (
 	FACe                               // Spanish B2G checks for FACe on a Facturae document: its XAdES-EPES signature is required and checked against the signature policy of Facturae (ES-SIG-*, see facturae.VerifySignature)
 	Romania                            // Romanian rules of the CIUS-RO schematron of ANAF (BR-RO, BR-DEC-RO), transposed to CII for a CII invoice, and the check of the CIF (RO-CIF-*)
 	Slovakia                           // Slovak requirements of the eFaktúra beyond Peppol BIS Billing 3.0 (SK-*): addresses, electronic addresses of scheme 0245 (DIČ), IČ DPH, IČO, legal information, date of the taxable supply, corrective invoice
+	Croatia                            // Croatian rules of the CIUS-HR schematron of the tax administration (HR-BR), the check of the OIB of the electronic addresses (HR-OIB-01) and of the UBL syntax of a CIUS-HR invoice (HR-SYNTAX-01)
 
 	// Default is the set used when Options.Rules is zero: schema, EN 16931
 	// and profile rules. Whatever the rule sets, the German rules apply to
 	// XRECHNUNG invoices, the Peppol rules to invoices whose BT-24 is the
 	// Peppol BIS Billing 3.0 identifier, the Dutch rules to NLCIUS invoices,
 	// the Italian rules to CIUS-IT invoices, the Portuguese rules to
-	// CIUS-PT invoices and the Romanian rules to CIUS-RO invoices (see
-	// RulesFor).
+	// CIUS-PT invoices, the Romanian rules to CIUS-RO invoices and the
+	// Croatian rules to CIUS-HR invoices (see RulesFor).
 	Default = Schema | EN16931 | FacturX
 )
 
@@ -209,9 +226,10 @@ type Options struct {
 	// Rules selects the rule sets; zero means Default. The German rules for
 	// an XRECHNUNG invoice, the Peppol rules for a Peppol invoice, the
 	// Dutch rules for an NLCIUS invoice, the Italian rules for a CIUS-IT
-	// invoice, the Portuguese rules for a CIUS-PT invoice and the Romanian
-	// rules for a CIUS-RO invoice are added whatever Rules: selecting other
-	// sets, such as Default | France, never drops them.
+	// invoice, the Portuguese rules for a CIUS-PT invoice, the Romanian
+	// rules for a CIUS-RO invoice and the Croatian rules for a CIUS-HR
+	// invoice are added whatever Rules: selecting other sets, such as
+	// Default | France, never drops them.
 	Rules RuleSet
 	// Auto adds the national rules of the seller's country (BT-40): the
 	// French rules (France) for a seller in France, the BMF profile check
@@ -219,11 +237,11 @@ type Options struct {
 	// (Slovakia) for a seller in Slovakia, whose invoices declare Peppol
 	// BIS Billing 3.0 in BT-24 like any other Peppol invoice. The German
 	// rules BR-DE, the Peppol rules, the Dutch rules BR-NL, the Italian
-	// rules BR-IT, the
-	// Portuguese rules and the Romanian rules BR-RO need no option: they
-	// apply to XRECHNUNG, Peppol, NLCIUS, CIUS-IT, CIUS-PT and CIUS-RO
-	// invoices, which declare themselves in BT-24. Auto never adds the
-	// Peppol, the Dutch, the Italian, the Portuguese or the Romanian rules
+	// rules BR-IT, the Portuguese rules, the Romanian rules BR-RO and the
+	// Croatian rules HR-BR need no option: they apply to XRECHNUNG, Peppol,
+	// NLCIUS, CIUS-IT, CIUS-PT, CIUS-RO and CIUS-HR invoices, which declare
+	// themselves in BT-24. Auto never adds the Peppol, the Dutch, the
+	// Italian, the Portuguese, the Romanian or the Croatian rules
 	// otherwise: most Factur-X and ZUGFeRD invoices do not meet them (no
 	// electronic address, no buyer reference, no Romanian county code).
 	Auto bool
@@ -450,6 +468,8 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 	run(Romania, SourceRO, ro.Check)
 	// The Slovak requirements run on the CII view of a UBL invoice.
 	run(Slovakia, SourceSK, sk.Check)
+	// The CIUS-HR schematron is a UBL one too.
+	run(Croatia, SourceHR, hr.Check)
 	return r
 }
 
@@ -457,9 +477,10 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 // (Default when zero), plus the German rules for an XRECHNUNG invoice, the
 // Peppol rules for a Peppol invoice, the Dutch rules for an NLCIUS invoice,
 // the Italian rules for a CIUS-IT invoice, the Portuguese rules for a
-// CIUS-PT invoice and the Romanian rules for a CIUS-RO invoice whatever
-// opts.Rules, plus the national rules of the seller's country with
-// opts.Auto (France, GermanyProfile, Slovakia). The profile is the
+// CIUS-PT invoice, the Romanian rules for a CIUS-RO invoice and the
+// Croatian rules for a CIUS-HR invoice whatever opts.Rules, plus the
+// national rules of the seller's country with opts.Auto (France,
+// GermanyProfile, Slovakia). The profile is the
 // one of doc, which Options.Profile overrides.
 func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
 	set := opts.Rules
@@ -479,6 +500,8 @@ func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
 		set |= Portugal
 	case invoice.ProfileCIUSRO:
 		set |= Romania
+	case invoice.ProfileCIUSHR:
+		set |= Croatia
 	}
 	if opts.Auto {
 		switch doc.Agreement.Value("SellerTradeParty/PostalTradeAddress/CountryID") {
@@ -537,6 +560,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(FACe, faceCatalog())
 	add(Romania, ro.Catalog())
 	add(Slovakia, sk.Catalog)
+	add(Croatia, hr.Catalog())
 	return out
 }
 

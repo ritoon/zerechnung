@@ -6,7 +6,7 @@
 // internal/rules/ubl, internal/rules/facturx, internal/rules/fr,
 // internal/rules/de, internal/rules/choruspro, internal/rules/peppol,
 // internal/rules/nl, internal/rules/it, internal/rules/pt,
-// internal/rules/ro, internal/rules/sk) and exports:
+// internal/rules/ro, internal/rules/sk, internal/rules/hr) and exports:
 //
 //	func Check(c *rules.Checker)  // runs every rule of the set
 //	var Catalog []rules.RuleInfo  // the rules the set implements
@@ -80,6 +80,7 @@ const (
 	SourcePT        = "CIUS-PT"    // Portuguese rules (CIUS-PT of eSPap)
 	SourceRO        = "BR-RO"      // Romanian rules (CIUS-RO of ANAF)
 	SourceSK        = "SK"         // Slovak requirements of the eFaktúra beyond Peppol BIS (transposition of the Finančná správa)
+	SourceHR        = "HR-BR"      // Croatian rules (CIUS-HR and EXT-HR of the Porezna uprava)
 	SourceSDI       = "SDI"        // controls of the Italian SDI on a FatturaPA file: its signature, its name, its content
 	SourceSignature = "signature"  // signatures of a PDF (PAdES): integrity, changes after signing, certificate, time-stamps
 	SourceFacturae  = "Facturae"   // signature policy of Facturae (XAdES-EPES) on a Facturae document
