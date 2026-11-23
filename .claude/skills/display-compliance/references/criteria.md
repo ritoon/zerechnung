@@ -112,6 +112,10 @@ manque pour un `p`, l'API ou la PR pour un `y`, l'échéance pour un `n` (« B2B
   PR #123 (fusion 9b9f489) ; #121 fermée et retirée de la liste.
 - **CDAR et e-reporting (France)** : passés de `x` à `n` quand les issues #109 et
   #110 ont posé qu'il s'agit de documents à traiter hors ligne.
+- **E-reporting (France)** : `n` avec l'issue #110, puis `p` après la PR #163 :
+  modèle, lecture, écriture et schémas XSD du flux 10 (paquet `ereporting`, règles
+  XSD-* et ER-01) ; le schematron Flux10 du PPF reste à appliquer. #110 fermée et
+  retirée de la liste.
 - **Mode plateforme agréée (France)** : `n` avec #111, c'est une option de `validate`,
   pas une transmission.
 - **ATCUD + QR code (Portugal)**, **Swiss QR Code (Suisse)** : `p`, l'encodeur
