@@ -85,14 +85,17 @@ func benchEmbed(b *testing.B, host string, opts *EmbedOptions) {
 // the benchmarks of github.com/ritoon/invoice-bench, the first with a
 // cross-reference stream, the second with a classic cross-reference table.
 // FX_BENCH_HOSTS is the directory that holds them: ecosystem/ in a clone of
-// invoice-bench, after ./run.sh setup. Without it, both are skipped.
+// invoice-bench, after ./run.sh setup. Without it, both are skipped, and
+// BenchmarkEmbedSmall, which embeds the XML in testdata/host.pdf (one page,
+// 864 bytes, a classic cross-reference table), measures Embed.
 func BenchmarkEmbed(b *testing.B)        { benchEmbed(b, benchHost(b, "host.pdf"), nil) }
 func BenchmarkEmbedClassic(b *testing.B) { benchEmbed(b, benchHost(b, "host_classic.pdf"), nil) }
+func BenchmarkEmbedSmall(b *testing.B)   { benchEmbed(b, "testdata/host.pdf", nil) }
 
 func benchHost(b *testing.B, name string) string {
 	dir := os.Getenv("FX_BENCH_HOSTS")
 	if dir == "" {
-		b.Skip("FX_BENCH_HOSTS is not set")
+		b.Skip("FX_BENCH_HOSTS is not set: BenchmarkEmbedSmall measures Embed on testdata/host.pdf")
 	}
 	return filepath.Join(dir, name)
 }

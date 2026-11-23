@@ -1,6 +1,9 @@
 package it
 
-import "strings"
+import (
+	"strings"
+	"sync"
+)
 
 // pivaFormat returns "" when s has the format of a Partita IVA, the Italian
 // VAT number, or why it has not: 11 digits (the company number, 7 digits,
@@ -191,7 +194,7 @@ func digits(s string) bool {
 // VS, the codes of four Sardinian provinces abolished in 2016. These are
 // accepted too: the rules only decide whether the SDI maps the value, and
 // an old code is no reason to warn.
-var provinces = func() map[string]bool {
+var provinces = sync.OnceValue(func() map[string]bool {
 	const codes = "AG AL AN AO AP AQ AR AT AV BA BG BI BL BN BO BR BS BT BZ CA CB CE CH CI CL CN CO CR CS CT CZ " +
 		"EN FC FE FG FI FM FR GE GO GR IM IS KR LC LE LI LO LT LU MB MC ME MI MN MO MS MT NA NO NU OG OR OT " +
 		"PA PC PD PE PG PI PN PO PR PT PU PV PZ RA RC RE RG RI RM RN RO SA SI SO SP SR SS SU SV " +
@@ -201,4 +204,4 @@ var provinces = func() map[string]bool {
 		m[c] = true
 	}
 	return m
-}()
+})

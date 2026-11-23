@@ -3,6 +3,7 @@ package peppol
 import (
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
@@ -11,8 +12,8 @@ import (
 // Netherlands. Each applies when the seller is established in the country.
 
 var (
-	reNorwegianVAT = regexp.MustCompile(`^[0-9]{9}MVA$`)
-	reItalianFC    = regexp.MustCompile(`^[A-Z0-9]{11,16}$`)
+	reNorwegianVAT = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[0-9]{9}MVA$`) })
+	reItalianFC    = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[A-Z0-9]{11,16}$`) })
 )
 
 // norway checks the rules of the Norwegian pattern on every seller, when
@@ -45,7 +46,7 @@ func (k *checker) norway() {
 		}
 		if norwegian {
 			v := sv(vatIDs[0])
-			k.check(reNorwegianVAT.MatchString(substringFrom(v, 3)) && mod11(substring(v, 3, 9)), "NO-R-001", vatIDs[0], "value: %q", v)
+			k.check(reNorwegianVAT().MatchString(substringFrom(v, 3)) && mod11(substring(v, 3, 9)), "NO-R-001", vatIDs[0], "value: %q", v)
 		}
 	}
 }
@@ -155,7 +156,7 @@ func (k *checker) italy() {
 					fc = id
 				}
 			}
-			k.check(ok || reItalianFC.MatchString(nsv(fc)), "IT-R-001", r, "value: %q", nsv(fc))
+			k.check(ok || reItalianFC().MatchString(nsv(fc)), "IT-R-001", r, "value: %q", nsv(fc))
 		}
 		k.check(exists(s, "PostalTradeAddress/LineOne"), "IT-R-002", s, "")
 		k.check(exists(s, "PostalTradeAddress/CityName"), "IT-R-003", s, "")

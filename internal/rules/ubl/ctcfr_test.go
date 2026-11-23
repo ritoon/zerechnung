@@ -370,7 +370,7 @@ func TestCTCFRCatalog(t *testing.T) {
 	for _, cr := range ctcfrCRRules {
 		known[cr.id] = true
 	}
-	for id := range ctcfrLists {
+	for id := range ctcfrLists() {
 		known[id] = true
 	}
 	for _, c := range ctcfrBreakdowns {

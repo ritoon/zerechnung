@@ -170,7 +170,7 @@ func applyEdits(t testing.TB, s string, edits []string) string {
 func TestExtended(t *testing.T) {
 	base := extendedBase(t)
 	sev := map[string]rules.Severity{}
-	for _, ri := range Catalog {
+	for _, ri := range Catalog() {
 		sev[ri.ID] = ri.Severity
 	}
 	for _, tc := range extCases {

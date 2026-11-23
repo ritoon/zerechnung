@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/xmlenc"
 	"github.com/ritoon/zerechnung/internal/xmltree"
@@ -688,15 +689,17 @@ func (w *writer) business(name string, p, other *invoice.Party, role string) {
 
 // partyTerms gives the business terms of the party data that Facturae
 // cannot carry, by role and field.
-var partyTerms = map[string]map[string]string{
-	"Seller": {"IDs": "BT-29", "LegalRegistration": "BT-30", "TaxRegistrationID": "BT-32", "Description": "BT-33", "ElectronicAddress": "BT-34", "Department": "BT-41"},
-	"Buyer":  {"IDs": "BT-46", "LegalRegistration": "BT-47", "TaxRegistrationID": "EXT Buyer.TaxRegistrationID", "Description": "EXT Buyer.Description", "ElectronicAddress": "BT-49", "Department": "BT-56"},
-}
+var partyTerms = sync.OnceValue(func() map[string]map[string]string {
+	return map[string]map[string]string{
+		"Seller": {"IDs": "BT-29", "LegalRegistration": "BT-30", "TaxRegistrationID": "BT-32", "Description": "BT-33", "ElectronicAddress": "BT-34", "Department": "BT-41"},
+		"Buyer":  {"IDs": "BT-46", "LegalRegistration": "BT-47", "TaxRegistrationID": "EXT Buyer.TaxRegistrationID", "Description": "EXT Buyer.Description", "ElectronicAddress": "BT-49", "Department": "BT-56"},
+	}
+})
 
 // partyTerm returns the business term of a field of the party data of a
 // role.
 func partyTerm(role, field string) string {
-	if t, ok := partyTerms[role][field]; ok {
+	if t, ok := partyTerms()[role][field]; ok {
 		return t
 	}
 	return "EXT " + role + "." + field

@@ -1,6 +1,9 @@
 package peppol
 
-import "github.com/ritoon/zerechnung/internal/rules"
+import (
+	"github.com/ritoon/zerechnung/internal/rules"
+	"sync"
+)
 
 // Catalog lists the 90 assertions of PEPPOL-EN16931-CII.sch, in the order of
 // the schematron, with the severity of their flag. The descriptions are the
@@ -114,10 +117,10 @@ var Catalog = []rules.RuleInfo{
 }
 
 // byID indexes Catalog.
-var byID = func() map[string]*rules.RuleInfo {
+var byID = sync.OnceValue(func() map[string]*rules.RuleInfo {
 	m := make(map[string]*rules.RuleInfo, len(Catalog))
 	for i := range Catalog {
 		m[Catalog[i].ID] = &Catalog[i]
 	}
 	return m
-}()
+})

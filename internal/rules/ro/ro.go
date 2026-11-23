@@ -84,6 +84,7 @@ package ro
 //go:generate go run ./gen -o rules_gen.go
 
 import (
+	"slices"
 	"strings"
 	"sync"
 
@@ -105,7 +106,7 @@ var compiled = sync.OnceValues(func() ([2]*schematron.Schema, error) {
 	if err != nil {
 		return [2]*schematron.Schema{}, err
 	}
-	cii, err := schematron.Compile(ciiNamespaces, ciiPatterns)
+	cii, err := schematron.Compile(ciiNamespaces, ciiPatterns())
 	return [2]*schematron.Schema{ubl, cii}, err
 })
 
@@ -131,8 +132,13 @@ func Check(c *rules.Checker) {
 
 // Catalog lists the rules of the Romania rule set: those of the CIUS-RO
 // schematron (BR-RO-*, BR-DEC-RO-*), in schematron order with their
-// English messages, then the checks of the package.
-var Catalog = append(schematronCatalog,
-	rules.RuleInfo{ID: RuleCIFFormat, Severity: rules.Warning, Description: "A Romanian VAT identifier (BT-31, BT-48, BT-63) shall be RO followed by the 2 to 10 digits of a CIF, and the tax registration identifier of a seller in Romania (BT-32) such a CIF, with or without RO"},
-	rules.RuleInfo{ID: RuleCIFKey, Severity: rules.Warning, Description: "The last digit of a CIF shall be its check digit (key 753217532, modulo 11)"},
-)
+// English messages, then the checks of the package. The list is built on
+// first use; the caller must not modify it.
+func Catalog() []rules.RuleInfo { return catalog() }
+
+var catalog = sync.OnceValue(func() []rules.RuleInfo {
+	return append(slices.Clip(schematronCatalog),
+		rules.RuleInfo{ID: RuleCIFFormat, Severity: rules.Warning, Description: "A Romanian VAT identifier (BT-31, BT-48, BT-63) shall be RO followed by the 2 to 10 digits of a CIF, and the tax registration identifier of a seller in Romania (BT-32) such a CIF, with or without RO"},
+		rules.RuleInfo{ID: RuleCIFKey, Severity: rules.Warning, Description: "The last digit of a CIF shall be its check digit (key 753217532, modulo 11)"},
+	)
+})

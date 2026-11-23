@@ -461,7 +461,11 @@ func generateCTCFR(dir string) ([]byte, error) {
 
 package ubl
 
-import "github.com/ritoon/zerechnung/internal/rules"
+import (
+	"sync"
+
+	"github.com/ritoon/zerechnung/internal/rules"
+)
 
 // CTCFRCatalog lists the rules of the EXTENDED-CTC-FR schematron for UBL
 // (EXTENDED-CTC-FR-UBL.sch), which apply to EXTENDED-CTC-FR invoices in UBL
@@ -549,9 +553,9 @@ var CTCFRCatalog = []rules.RuleInfo{
 	b.WriteString("// ctcfrCRRules lists the UBL-CR assertions not(path) of the EXTENDED-CTC-FR\n// schematron, with the scopes of crRules.\nvar ctcfrCRRules = []crRule{\n")
 	b.Write(cr.Bytes())
 	b.WriteString("}\n\n")
-	b.WriteString("// ctcfrLists maps the assertions of the EXTENDED-CTC-FR schematron that look a\n// value up in a list to the list: the codes separated by single spaces, with\n// a leading and a trailing space.\nvar ctcfrLists = map[string]string{\n")
+	b.WriteString("// ctcfrLists maps the assertions of the EXTENDED-CTC-FR schematron that look a\n// value up in a list to the list: the codes separated by single spaces, with\n// a leading and a trailing space. The map is built on first use.\nvar ctcfrLists = sync.OnceValue(func() map[string]string {\n\treturn map[string]string{\n")
 	b.Write(lists.Bytes())
-	b.WriteString("}\n")
+	b.WriteString("}\n})\n")
 	log.Printf("%d rules", n)
 	return format.Source(b.Bytes())
 }

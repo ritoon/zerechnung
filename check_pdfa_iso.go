@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/ritoon/zerechnung/internal/font"
@@ -849,7 +850,7 @@ var standard14 = map[string]bool{
 
 // predefinedCMaps are the CMaps of ISO 32000-1, Table 118, which need not
 // be embedded, with the ordering of their character collection.
-var predefinedCMaps = func() map[string]string {
+var predefinedCMaps = sync.OnceValue(func() map[string]string {
 	m := map[string]string{"Identity-H": "", "Identity-V": ""}
 	for ordering, names := range map[string]string{
 		"GB1":    "GB-EUC-H GB-EUC-V GBpc-EUC-H GBpc-EUC-V GBK-EUC-H GBK-EUC-V GBKp-EUC-H GBKp-EUC-V GBK2K-H GBK2K-V UniGB-UCS2-H UniGB-UCS2-V UniGB-UTF16-H UniGB-UTF16-V",
@@ -862,7 +863,7 @@ var predefinedCMaps = func() map[string]string {
 		}
 	}
 	return m
-}()
+})
 
 // fontDict checks a font dictionary (6.2.11.2, 6.2.11.3, 6.2.11.6): its
 // entries (PDF-59), the encoding of a TrueType font and the cmap table of
@@ -931,8 +932,87 @@ func (s *pdfaScan) fontDescriptor(fd pdf.Dict, where string) {
 	}
 }
 
-var wmodeDef = regexp.MustCompile(`/WMode\s+(\d+)\s+def`)
-var useCMapOp = regexp.MustCompile(`/([^\s/\[\]<>(){}%]+)\s+usecmap`)
+// cmapWMode returns the digits of the first "/WMode n def" of a CMap
+// program: the first match of /WMode\s+(\d+)\s+def in the sense of package
+// regexp, whose \s is a space, a tab, a line feed, a form feed or a
+// carriage return. check_pdfa_cmap_test.go checks it against that regular
+// expression.
+func cmapWMode(data []byte) ([]byte, bool) {
+	const key = "/WMode"
+	for i := 0; ; {
+		k := bytes.Index(data[i:], []byte(key))
+		if k < 0 {
+			return nil, false
+		}
+		k += i
+		d := skipReSpace(data, k+len(key))
+		e := d
+		for e < len(data) && '0' <= data[e] && data[e] <= '9' {
+			e++
+		}
+		if d > k+len(key) && e > d {
+			if f := skipReSpace(data, e); f > e && bytes.HasPrefix(data[f:], []byte("def")) {
+				return data[d:e], true
+			}
+		}
+		i = k + 1
+	}
+}
+
+// nextUseCMap returns the name of the first "/name usecmap" of a CMap
+// program from i, and the offset after it: the next match of
+// /([^\s/\[\]<>(){}%]+)\s+usecmap in the sense of package regexp.
+func nextUseCMap(data []byte, i int) (name []byte, end int, ok bool) {
+	for i < len(data) {
+		k := bytes.IndexByte(data[i:], '/')
+		if k < 0 {
+			break
+		}
+		k += i
+		j := k + 1
+		for j < len(data) && cmapNameByte(data[j]) {
+			j++
+		}
+		if j > k+1 {
+			if s := skipReSpace(data, j); s > j && bytes.HasPrefix(data[s:], []byte("usecmap")) {
+				return data[k+1 : j], s + len("usecmap"), true
+			}
+		}
+		i = k + 1
+	}
+	return nil, len(data), false
+}
+
+// hasUseCMap reports whether a CMap program uses another CMap.
+func hasUseCMap(data []byte) bool {
+	_, _, ok := nextUseCMap(data, 0)
+	return ok
+}
+
+// cmapNameByte reports whether c may appear in the name nextUseCMap reads:
+// [^\s/\[\]<>(){}%].
+func cmapNameByte(c byte) bool {
+	switch c {
+	case '/', '[', ']', '<', '>', '(', ')', '{', '}', '%':
+		return false
+	}
+	return !reSpace(c)
+}
+
+// reSpace reports whether c is white space as \s of package regexp
+// matches it.
+func reSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r'
+}
+
+// skipReSpace returns the offset of the first byte from i that is not
+// white space in the sense of reSpace.
+func skipReSpace(data []byte, i int) int {
+	for i < len(data) && reSpace(data[i]) {
+		i++
+	}
+	return i
+}
 
 // compositeFont checks a Type 0 font: its CIDFont, the CIDSystemInfo of
 // the CIDFont and of the CMap, and the CMap (6.2.11.3).
@@ -980,7 +1060,7 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 
 	switch enc := r.Resolve(d.Get("Encoding")).(type) {
 	case pdf.Name:
-		ordering, predefined := predefinedCMaps[string(enc)]
+		ordering, predefined := predefinedCMaps()[string(enc)]
 		switch {
 		case !predefined:
 			s.report("PDF-59", where+" /Encoding", "the CMap %s is neither embedded nor one of the predefined CMaps of ISO 32000-1 (Table 118)", enc)
@@ -994,24 +1074,24 @@ func (s *pdfaScan) compositeFont(d pdf.Dict, where string) {
 		}
 		data, err := r.Decode(enc)
 		if err == nil {
-			if m := wmodeDef.FindSubmatch(data); m != nil {
+			if m, ok := cmapWMode(data); ok {
 				dictWMode, _ := pdf.AsInt(r.Resolve(enc.Dict.Get("WMode")))
-				if string(m[1]) != fmt.Sprint(dictWMode) {
-					s.report("PDF-59", ew+" /WMode", "the CMap dictionary has /WMode %d but the CMap program %s", dictWMode, m[1])
+				if string(m) != strconv.FormatInt(dictWMode, 10) {
+					s.report("PDF-59", ew+" /WMode", "the CMap dictionary has /WMode %d but the CMap program %s", dictWMode, m)
 				}
 			}
 			if cid := parseCMap(data).maxCID(); cid > 65535 {
 				s.report("PDF-49", ew, "the CMap maps a code to the CID %d; PDF/A admits CIDs up to 65535 (6.1.13)", cid)
 			}
-			for _, m := range useCMapOp.FindAllSubmatch(data, -1) {
-				if _, ok := predefinedCMaps[string(m[1])]; !ok {
-					s.report("PDF-59", ew, "the CMap uses the CMap %s, which is not one of the predefined CMaps", m[1])
+			for name, i, ok := nextUseCMap(data, 0); ok; name, i, ok = nextUseCMap(data, i) {
+				if _, ok := predefinedCMaps()[string(name)]; !ok {
+					s.report("PDF-59", ew, "the CMap uses the CMap %s, which is not one of the predefined CMaps", name)
 				}
 			}
 		}
 		switch u := r.Resolve(enc.Dict.Get("UseCMap")).(type) {
 		case pdf.Name:
-			if _, ok := predefinedCMaps[string(u)]; !ok {
+			if _, ok := predefinedCMaps()[string(u)]; !ok {
 				s.report("PDF-59", ew+" /UseCMap", "the CMap uses the CMap %s, which is not one of the predefined CMaps", u)
 			}
 		case *pdf.Stream:

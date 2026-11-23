@@ -35,6 +35,7 @@ package ubl
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/codes"
 	"github.com/ritoon/zerechnung/internal/rules"
@@ -91,32 +92,32 @@ type checker struct {
 }
 
 // severity maps the rule identifiers of Catalog to their severity.
-var severity = func() map[string]rules.Severity {
+var severity = sync.OnceValue(func() map[string]rules.Severity {
 	m := make(map[string]rules.Severity, len(Catalog))
 	for _, r := range Catalog {
 		m[r.ID] = r.Severity
 	}
 	return m
-}()
+})
 
 // description maps the rule identifiers of Catalog to their description.
-var description = func() map[string]string {
+var description = sync.OnceValue(func() map[string]string {
 	m := make(map[string]string, len(Catalog))
 	for _, r := range Catalog {
 		m[r.ID] = r.Description
 	}
 	return m
-}()
+})
 
 // fail records a finding for rule id located at n (the root when nil). For an
 // EXTENDED-CTC-FR invoice, the rules that the schematron removes are not
 // reported, and the others have its identifiers and severities.
 func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 	if k.ctcfr {
-		if r, ok := ctcfrRenamed[id]; ok {
+		if r, ok := ctcfrRenamed()[id]; ok {
 			id = r
 		}
-		sev, ok := ctcfrSeverity[id]
+		sev, ok := ctcfrSeverity()[id]
 		if !ok {
 			return
 		}
@@ -126,7 +127,7 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 		k.c.Fail(id, sev, n, format, args...)
 		return
 	}
-	sev, ok := severity[id]
+	sev, ok := severity()[id]
 	if !ok {
 		sev = rules.Error // BR-CL, BR-CO-03, BR-53: fatal
 	}
@@ -140,9 +141,9 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 // EXTENDED-CTC-FR schematron for an EXTENDED-CTC-FR invoice.
 func (k *checker) desc(id string) string {
 	if k.ctcfr {
-		return ctcfrDescription[id]
+		return ctcfrDescription()[id]
 	}
-	return description[id]
+	return description()[id]
 }
 
 // failDesc records a finding whose message is the official description of
@@ -257,29 +258,31 @@ type codeList struct {
 	list string
 }
 
-var codeListRules = map[string]codeList{
-	"BR-CL-03": {codes.Currency, "currencyID", "ISO 4217 alpha-3"},
-	"BR-CL-04": {codes.Currency, "invoice currency code (BT-5)", "ISO 4217 alpha-3"},
-	"BR-CL-05": {codes.Currency, "VAT accounting currency code (BT-6)", "ISO 4217 alpha-3"},
-	"BR-CL-06": {func(s string) bool { return inList(taxPointDateCodes, s) }, "value added tax point date code (BT-8)", "UNTDID 2005 restricted to 3, 35 and 432"},
-	"BR-CL-07": {codes.ReferenceType, "object identifier scheme (BT-18)", "UNTDID 1153"},
-	"BR-CL-10": {codes.ICD, "identifier scheme", "ISO 6523 ICD"},
-	"BR-CL-11": {codes.ICD, "identifier scheme", "ISO 6523 ICD"},
-	"BR-CL-13": {codes.ItemClassification, "item classification scheme (BT-158)", "UNTDID 7143"},
-	"BR-CL-14": {codes.Country, "country code", "ISO 3166-1 alpha-2"},
-	"BR-CL-15": {codes.Country, "item country of origin (BT-159)", "ISO 3166-1 alpha-2"},
-	"BR-CL-16": {codes.PaymentMeans, "payment means type code (BT-81)", "UNTDID 4461"},
-	"BR-CL-17": {codes.VATCategory, "allowance or charge VAT category code", "UNTDID 5305 (EN 16931 subset)"},
-	"BR-CL-18": {codes.VATCategory, "VAT category code", "UNTDID 5305 (EN 16931 subset)"},
-	"BR-CL-19": {codes.AllowanceReason, "allowance reason code", "UNTDID 5189"},
-	"BR-CL-20": {codes.ChargeReason, "charge reason code", "UNTDID 7161"},
-	"BR-CL-21": {codes.ICD, "item standard identifier scheme (BT-157)", "ISO 6523 ICD"},
-	"BR-CL-22": {codes.VATEX, "VAT exemption reason code (BT-121)", "CEF VATEX"},
-	"BR-CL-23": {codes.Unit, "unit code", "UN/ECE Recommendations 20 and 21"},
-	"BR-CL-24": {codes.MIME, "attached document MIME code (BT-125)", "the accepted MIME codes"},
-	"BR-CL-25": {codes.EAS, "electronic address scheme (BT-34, BT-49)", "CEF EAS"},
-	"BR-CL-26": {codes.ICD, "deliver to location identifier scheme (BT-71)", "ISO 6523 ICD"},
-}
+var codeListRules = sync.OnceValue(func() map[string]codeList {
+	return map[string]codeList{
+		"BR-CL-03": {codes.Currency, "currencyID", "ISO 4217 alpha-3"},
+		"BR-CL-04": {codes.Currency, "invoice currency code (BT-5)", "ISO 4217 alpha-3"},
+		"BR-CL-05": {codes.Currency, "VAT accounting currency code (BT-6)", "ISO 4217 alpha-3"},
+		"BR-CL-06": {func(s string) bool { return inList(taxPointDateCodes, s) }, "value added tax point date code (BT-8)", "UNTDID 2005 restricted to 3, 35 and 432"},
+		"BR-CL-07": {codes.ReferenceType, "object identifier scheme (BT-18)", "UNTDID 1153"},
+		"BR-CL-10": {codes.ICD, "identifier scheme", "ISO 6523 ICD"},
+		"BR-CL-11": {codes.ICD, "identifier scheme", "ISO 6523 ICD"},
+		"BR-CL-13": {codes.ItemClassification, "item classification scheme (BT-158)", "UNTDID 7143"},
+		"BR-CL-14": {codes.Country, "country code", "ISO 3166-1 alpha-2"},
+		"BR-CL-15": {codes.Country, "item country of origin (BT-159)", "ISO 3166-1 alpha-2"},
+		"BR-CL-16": {codes.PaymentMeans, "payment means type code (BT-81)", "UNTDID 4461"},
+		"BR-CL-17": {codes.VATCategory, "allowance or charge VAT category code", "UNTDID 5305 (EN 16931 subset)"},
+		"BR-CL-18": {codes.VATCategory, "VAT category code", "UNTDID 5305 (EN 16931 subset)"},
+		"BR-CL-19": {codes.AllowanceReason, "allowance reason code", "UNTDID 5189"},
+		"BR-CL-20": {codes.ChargeReason, "charge reason code", "UNTDID 7161"},
+		"BR-CL-21": {codes.ICD, "item standard identifier scheme (BT-157)", "ISO 6523 ICD"},
+		"BR-CL-22": {codes.VATEX, "VAT exemption reason code (BT-121)", "CEF VATEX"},
+		"BR-CL-23": {codes.Unit, "unit code", "UN/ECE Recommendations 20 and 21"},
+		"BR-CL-24": {codes.MIME, "attached document MIME code (BT-125)", "the accepted MIME codes"},
+		"BR-CL-25": {codes.EAS, "electronic address scheme (BT-34, BT-49)", "CEF EAS"},
+		"BR-CL-26": {codes.ICD, "deliver to location identifier scheme (BT-71)", "ISO 6523 ICD"},
+	}
+})
 
 // inList reports whether s is one of the codes of list (" a b c ").
 func inList(list, s string) bool { return strings.Contains(list, " "+s+" ") }
@@ -297,7 +300,7 @@ func (k *checker) check(rule string, n *xmltree.Node, value string) {
 		k.ctcfrCheck(rule, n, value)
 		return
 	}
-	r := codeListRules[rule]
+	r := codeListRules()[rule]
 	v, ok := value, true
 	if rule != "BR-CL-24" {
 		v, ok = code(value)
@@ -350,9 +353,9 @@ func (k *checker) codeLists(n *xmltree.Node) {
 			list, what = creditNoteTypeCodes, "a UBL CreditNote"
 		}
 		if k.ctcfr {
-			list = ctcfrLists["BR-CL-01"]
+			list = ctcfrLists()["BR-CL-01"]
 			if n.Name == "CreditNoteTypeCode" {
-				list = ctcfrLists["BR-CL-01/credit"]
+				list = ctcfrLists()["BR-CL-01/credit"]
 			}
 		}
 		if v, ok := code(n.Text); !ok || !inList(list, v) {
@@ -453,7 +456,7 @@ func (k *checker) noteSubject(n *xmltree.Node) {
 	}
 	list := noteSubjectCodes
 	if k.ctcfr {
-		list = ctcfrLists["BR-CL-08"]
+		list = ctcfrLists()["BR-CL-08"]
 	}
 	if len([]rune(subject)) != 3 || strings.Contains(list, subject) {
 		return

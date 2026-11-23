@@ -69,11 +69,31 @@ type nsDecl struct {
 	depth  int
 }
 
-// parser builds the element tree of an XMP packet.
+// parser builds the element tree of an XMP packet. The nodes, their
+// children and their attributes are cut from blocks shared by the packet,
+// instead of slices grown element by element.
 type parser struct {
-	data  []byte
-	ns    []nsDecl
-	block []node
+	data    []byte
+	ns      []nsDecl
+	block   []node
+	pending []*node // children of the open elements, those of the innermost last
+	kids    []*node // block of the children slices
+	attrBuf []attr  // attributes of the start tag being read
+	attrs   []attr  // block of the attribute slices
+}
+
+// cut returns a copy of s, of capacity its length, from *block, which it
+// renews if it is full.
+func cut[T any](block *[]T, s []T) []T {
+	if len(s) == 0 {
+		return nil
+	}
+	if cap(*block)-len(*block) < len(s) {
+		*block = make([]T, 0, max(64, len(s)))
+	}
+	n := len(*block)
+	*block = append(*block, s...)
+	return (*block)[n:len(*block):len(*block)]
 }
 
 func (p *parser) newNode() *node {
@@ -98,8 +118,13 @@ func (p *parser) lookup(prefix []byte) string {
 
 // parse returns the root element of data.
 func parse(data []byte) (*node, error) {
-	p := &parser{data: data}
+	// The blocks are sized for the packet: an element per start tag, an
+	// attribute at most per '='.
+	tags := bytes.Count(data, []byte("<")) - bytes.Count(data, []byte("</"))
+	p := &parser{data: data, block: make([]node, 0, tags), kids: make([]*node, 0, tags),
+		attrs: make([]attr, 0, bytes.Count(data, []byte("=")))}
 	var stack []*node
+	var first []int // index in p.pending of the first child of each element of stack
 	var root *node
 	i := 0
 	for {
@@ -156,8 +181,11 @@ func parse(data []byte) (*node, error) {
 			}
 			top.endStart = i
 			top.end = i + j + 1
+			f := first[len(first)-1]
+			top.children = cut(&p.kids, p.pending[f:])
+			p.pending = p.pending[:f]
 			p.popNS(len(stack))
-			stack = stack[:len(stack)-1]
+			stack, first = stack[:len(stack)-1], first[:len(first)-1]
 			i += j + 1
 		default:
 			n, end, self, err := p.startTag(i, len(stack)+1)
@@ -165,9 +193,8 @@ func parse(data []byte) (*node, error) {
 				return nil, err
 			}
 			if len(stack) > 0 {
-				parent := stack[len(stack)-1]
-				n.parent = parent
-				parent.children = append(parent.children, n)
+				n.parent = stack[len(stack)-1]
+				p.pending = append(p.pending, n)
 			} else if root == nil {
 				root = n
 			} else {
@@ -179,6 +206,7 @@ func parse(data []byte) (*node, error) {
 				p.popNS(len(stack) + 1)
 			} else {
 				stack = append(stack, n)
+				first = append(first, len(p.pending))
 			}
 		}
 	}
@@ -233,6 +261,7 @@ func (p *parser) startTag(i, depth int) (n *node, end int, self bool, err error)
 	n = p.newNode()
 	n.start = i
 	n.prefix, n.local = splitName(data[i+1 : j])
+	p.attrBuf = p.attrBuf[:0]
 	for {
 		for j < len(data) && isSpace(data[j]) {
 			j++
@@ -280,13 +309,14 @@ func (p *parser) startTag(i, depth int) (n *node, end int, self bool, err error)
 		prefix, local := splitName(name)
 		switch {
 		case prefix == nil && string(local) == "xmlns":
-			p.ns = append(p.ns, nsDecl{nil, internURI(unescape(value)), depth})
+			p.ns = append(p.ns, nsDecl{nil, namespaceURI(value), depth})
 		case string(prefix) == "xmlns":
-			p.ns = append(p.ns, nsDecl{local, internURI(unescape(value)), depth})
+			p.ns = append(p.ns, nsDecl{local, namespaceURI(value), depth})
 		default:
-			n.attrs = append(n.attrs, attr{prefix: prefix, local: local, value: value, start: as, end: j})
+			p.attrBuf = append(p.attrBuf, attr{prefix: prefix, local: local, value: value, start: as, end: j})
 		}
 	}
+	n.attrs = cut(&p.attrs, p.attrBuf)
 	n.startEnd = j
 	n.space = p.lookup(n.prefix)
 	for k := range n.attrs {
@@ -297,9 +327,18 @@ func (p *parser) startTag(i, depth int) (n *node, end int, self bool, err error)
 	return n, j, self, nil
 }
 
-// internURI avoids allocating the namespace URIs XMP readers care about.
-func internURI(s string) string {
-	switch s {
+// namespaceURI returns the URI of the value of an xmlns attribute.
+func namespaceURI(value []byte) string {
+	if bytes.IndexByte(value, '&') >= 0 {
+		return internURI([]byte(unescape(value)))
+	}
+	return internURI(value)
+}
+
+// internURI returns the URI b holds, without allocating the namespace URIs
+// XMP readers care about.
+func internURI(b []byte) string {
+	switch string(b) {
 	case nsRDF:
 		return nsRDF
 	case nsX:
@@ -327,7 +366,7 @@ func internURI(s string) string {
 	case NSZUGFeRD1RC:
 		return NSZUGFeRD1RC
 	}
-	return s
+	return string(b)
 }
 
 // unescape decodes the predefined entities and character references.

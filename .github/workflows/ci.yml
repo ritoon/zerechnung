@@ -40,6 +40,10 @@ jobs:
         # -coverpkg counts the code of every package reached by the tests,
         # such as the rule sets exercised through package validate.
         run: go test -race -coverpkg=./... -coverprofile=coverage.out ./...
+      - name: Allocation budgets
+        # The race detector allocates: the tests of testing.AllocsPerRun
+        # skip under -race, and run here without it.
+        run: go test -count=1 -run 'Allocs' ./...
       - name: Build the command
         run: go build ./cmd/zerechnung
       - name: Upload the coverage to Codecov

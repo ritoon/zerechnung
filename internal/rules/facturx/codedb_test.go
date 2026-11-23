@@ -171,7 +171,7 @@ func TestCodeCatalog(t *testing.T) {
 	n := map[uint8]int{}
 	for _, r := range codeCatalog() {
 		n[r.mask]++
-		if byID[r.id] == nil || byID[r.id].sev != rules.Error {
+		if byID(r.id) == nil || byID(r.id).sev != rules.Error {
 			t.Errorf("%s: not in the catalog as an error", r.id)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -383,12 +384,14 @@ func (p *parser) path() expr {
 	return pe
 }
 
-var axes = map[string]axis{
-	"child": axChild, "attribute": axAttribute, "self": axSelf, "parent": axParent,
-	"ancestor": axAncestor, "ancestor-or-self": axAncestorOrSelf,
-	"descendant": axDescendant, "descendant-or-self": axDescendantOrSelf,
-	"following-sibling": axFollowingSibling,
-}
+var axes = sync.OnceValue(func() map[string]axis {
+	return map[string]axis{
+		"child": axChild, "attribute": axAttribute, "self": axSelf, "parent": axParent,
+		"ancestor": axAncestor, "ancestor-or-self": axAncestorOrSelf,
+		"descendant": axDescendant, "descendant-or-self": axDescendantOrSelf,
+		"following-sibling": axFollowingSibling,
+	}
+})
 
 func (p *parser) step() step {
 	var s step
@@ -404,7 +407,7 @@ func (p *parser) step() step {
 		s.test = p.nodeTest(true)
 	case t.kind == tAxis:
 		p.pos++
-		a, ok := axes[t.val]
+		a, ok := axes()[t.val]
 		if !ok {
 			p.fail("unsupported axis %s", t.val)
 		}
@@ -497,7 +500,7 @@ func (p *parser) primary() expr {
 			}
 		}
 		p.expect(")")
-		f, ok := funcs[c.name]
+		f, ok := funcs()[c.name]
 		if !ok {
 			p.fail("unsupported function %s", c.name)
 		}

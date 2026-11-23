@@ -61,7 +61,7 @@ func TestCatalog(t *testing.T) {
 		t.Errorf("%d assertions, want %d", n, assertionCount)
 	}
 	listed := map[string]bool{}
-	for _, r := range Catalog {
+	for _, r := range Catalog() {
 		if listed[r.ID] {
 			t.Errorf("%s listed twice", r.ID)
 		}
@@ -99,7 +99,7 @@ func TestCatalog(t *testing.T) {
 // TestMessages checks that no message of the catalog keeps a placeholder
 // of a value-of element, nor the Romanian half of the message.
 func TestMessages(t *testing.T) {
-	for _, r := range Catalog {
+	for _, r := range Catalog() {
 		if strings.Contains(r.Description, "%") || strings.Contains(r.Description, "#") {
 			t.Errorf("%s: %q", r.ID, r.Description)
 		}
@@ -278,7 +278,7 @@ func TestCIITransposition(t *testing.T) {
 		}
 	}
 	got := map[string]bool{}
-	for _, r := range ciiPatterns[0].Rules {
+	for _, r := range ciiPatterns()[0].Rules {
 		for _, a := range r.Asserts {
 			if got[a.ID] {
 				t.Errorf("%s transposed twice", a.ID)

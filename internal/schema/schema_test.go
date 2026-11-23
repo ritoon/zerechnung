@@ -528,7 +528,7 @@ func TestValues(t *testing.T) {
 		{kDateTime, "20240229T123000", false}, {kDateTime, "2024-02-29T12:30:00+15:00", false}, {kDateTime, "", false},
 		{kString, "anything", true},
 	} {
-		if got := ciiTables.checkValue(tc.s, tc.k, 0) == ""; got != tc.want {
+		if got := ciiTables().checkValue(tc.s, tc.k, 0) == ""; got != tc.want {
 			t.Errorf("checkValue(%q, %d) valid = %t, want %t", tc.s, tc.k, got, tc.want)
 		}
 	}

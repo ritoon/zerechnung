@@ -163,11 +163,11 @@ func (k *checker) fail(id string, n *xmltree.Node, details string, args ...any) 
 	if n == nil {
 		n = k.d.Root
 	}
-	msg := "[" + id + "] " + descriptions[id]
+	msg := "[" + id + "] " + descriptions()[id]
 	if details != "" {
 		msg += " " + fmt.Sprintf(details, args...)
 	}
-	k.c.Fail(id, severities[id], n, "%s", msg)
+	k.c.Fail(id, severities()[id], n, "%s", msg)
 }
 
 // maxLen checks that the trimmed text of each node has at most max
@@ -200,7 +200,7 @@ func (k *checker) required(id string, parent *xmltree.Node, paths ...string) {
 // province code.
 func (k *checker) province(id string, address *xmltree.Node) {
 	if n := address.Elem("CountrySubDivisionName"); n != nil {
-		if v := n.Trim(); v != "" && !provinces[v] {
+		if v := n.Trim(); v != "" && !provinces()[v] {
 			k.fail(id, n, "Value: %q.", v)
 		}
 	}

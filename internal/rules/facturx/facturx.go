@@ -120,7 +120,7 @@ type checker struct {
 
 // fail records a finding for rule id when it applies to the profile.
 func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
-	r := byID[id]
+	r := byID(id)
 	if r == nil {
 		panic("facturx: unknown rule " + id)
 	}
@@ -136,7 +136,7 @@ func (k *checker) fail(id string, n *xmltree.Node, format string, args ...any) {
 // applies reports whether rule id applies to the profile checked. Callers
 // test it before fail when the arguments would otherwise be allocated for a
 // finding that fail drops.
-func (k *checker) applies(id string) bool { return byID[id].mask&k.p != 0 }
+func (k *checker) applies(id string) bool { return byID(id).mask&k.p != 0 }
 
 // profileName returns the name of the profile checked.
 func (k *checker) profileName() string { return k.d.Profile.String() }

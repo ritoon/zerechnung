@@ -138,7 +138,7 @@ func TestExtensions(t *testing.T) {
 				t.Errorf("rules %v, want %v\n%s", got, tc.want, r)
 			}
 			for _, f := range r.Findings {
-				if f.Source != rules.SourceIT || f.Severity != severities[f.Rule] || !strings.HasPrefix(f.Message, "["+f.Rule+"] "+descriptions[f.Rule]) ||
+				if f.Source != rules.SourceIT || f.Severity != severities()[f.Rule] || !strings.HasPrefix(f.Message, "["+f.Rule+"] "+descriptions()[f.Rule]) ||
 					f.Line == 0 || !strings.HasPrefix(f.Path, "/Invoice") {
 					t.Errorf("finding %+v", f)
 				}

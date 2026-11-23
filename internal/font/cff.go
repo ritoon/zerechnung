@@ -8,7 +8,8 @@ import (
 
 // CFF is a Compact Font Format program (Adobe Technical Note 5176), name-
 // keyed (Type1C) or CID-keyed (CIDFontType0C): its glyphs, their names or
-// CIDs and their advance widths.
+// CIDs and their advance widths. It is read-only once parsed: its methods
+// are safe for concurrent use.
 type CFF struct {
 	CID         bool // CID-keyed: the charset maps glyphs to CIDs
 	charset     []uint16

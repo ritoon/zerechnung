@@ -169,6 +169,14 @@ To pick the rules yourself:
 
 XRechnung, Peppol, NLCIUS, CIUS-IT, CIUS-PT and CIUS-RO invoices declare themselves, so their rules apply without any option. All the options and rule sets are described in [Validating invoices](https://github.com/ritoon/zerechnung/wiki/Validating-invoices).
 
+### Read and validate at once
+
+```go
+inv, report, _, err := zerechnung.ReadAndCheck(pdf, &validate.Options{Auto: true})
+```
+
+`ReadAndCheck` reads the PDF and parses the XML once, where `Read` followed by `Check` does both twice: the invoice and the error are those of `Read`, the report that of `Check`. For an XML file, `validate.Parse(xml, opts)` does the same with the `Parse` function of its syntax (`cii`, `ubl`, `fatturapa` or `facturae`) and `validate.XML`. On the 13 KB example invoice, reading and validating the XML takes 30 µs instead of 40 µs; with `PDFA: validate.PDFABasic`, reading and checking the 149 KB PDF takes 87 µs instead of 131 µs.
+
 ### Work with the XML directly
 
 The `cii`, `ubl`, `fatturapa` and `facturae` packages read and write the XML with the same `invoice.Invoice` model, so converting between syntaxes is a parse and a marshal:
@@ -253,6 +261,21 @@ report := validate.XML(xml, &validate.Options{
 	PublicBuyer: validate.PublicBuyer{ServiceCodeRequired: true, EngagementRequired: true},
 })
 ```
+
+### Check many invoices on a server
+
+The invoices of one issuer come from the same software and usually embed the same fonts. A `Checker` keeps the font programs it reads, so that the next PDF that embeds them skips their decompression, about half the time of `Check`. Create one and share it between requests: it is safe for concurrent use.
+
+```go
+var checker = zerechnung.NewChecker(&zerechnung.CheckerOptions{FontCache: 32 << 20}) // 32 MiB of decoded fonts
+
+func handle(pdf []byte) (*validate.Report, error) {
+	report, _, err := checker.Check(pdf, &validate.Options{Auto: true})
+	return report, err
+}
+```
+
+A font is found by the SHA-256 of its stream, so the findings are those of `Check`. From the second PDF with the same fonts, the full check of the 149 KB example takes about 300 µs instead of 530 µs.
 
 ### Declare VAT on debits (France)
 
@@ -423,7 +446,7 @@ Measured on an Apple M4 Pro with Go 1.27.4 (commit `3a3b11a`, November 22, 2026)
 | Embed the XML in a PDF | 99 µs | 529 µs |
 | Check a 149 KB hybrid PDF | 832 µs | 1.11 ms |
 
-`Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included, to catch what veraPDF would reject; v0.1.0 checked the same PDF in 74 µs without them. Most of the time goes to decompressing its three font programs. Since the measurements below, the buffers of the font programs and content streams are reused from one call to the next, the font programs decompress about 1.6 times faster and the XMP packet is parsed once: the full check of the same PDF takes about 590 µs and allocates about 170 KB in 1,400 allocations, instead of 832 µs and 701 KB in 2,376. When the PDF/A conformance is checked elsewhere, or only the invoice and its attachment matter, `validate.Options{PDFA: validate.PDFABasic}` (`-pdfa basic` on the command line) skips the checks that read the pages, the fonts and the file structure (PDF-41 to PDF-69, PDF-71, PDF-72): the same check then takes about 80 µs and allocates 87 KB.
+`Check` applies the PDF/A requirements in depth: it reads every object of the PDF, its content streams and its font programs included, to catch what veraPDF would reject; v0.1.0 checked the same PDF in 74 µs without them. Most of the time goes to decompressing its three font programs. Since the measurements below, the buffers of the font programs and content streams are reused from one call to the next, the font programs decompress about 1.6 times faster, the XMP packet is parsed once and the operands of the content streams are read without boxing them: the full check of the same PDF takes about 560 µs and allocates about 160 KB in 850 allocations, instead of 832 µs and 701 KB in 2,376, and `Extract` takes 23 µs and allocates 37 KB in 187 allocations. From the second PDF with the same fonts, a [`Checker`](#check-many-invoices-on-a-server) brings the full check down to about 330 µs. When the PDF/A conformance is checked elsewhere, or only the invoice and its attachment matter, `validate.Options{PDFA: validate.PDFABasic}` (`-pdfa basic` on the command line) skips the checks that read the pages, the fonts and the file structure (PDF-41 to PDF-69, PDF-71, PDF-72): the same check then takes about 80 µs and allocates 87 KB.
 
 What one call allocates, as `go test -benchmem` counts it, against the other Go package that allocates the least:
 
@@ -435,6 +458,10 @@ What one call allocates, as `go test -benchmem` counts it, against the other Go 
 | Write a 13 KB invoice | 8 KB in 1 allocation | 32 KB in 175 |
 | Embed the XML in a PDF | 245 KB in 456 allocations | 1.3 MB in 9,593 |
 | Check a 149 KB hybrid PDF | 701 KB in 2,376 allocations | 896 KB in 24,617 |
+
+Importing the package allocates about 180 KB at startup, standard library included, instead of 2.9 MB before: the tables of the schemas, the rule sets and their regular expressions are built at their first use, which adds about 0.2 ms to the first invoice of each format. The tests fail when an import goes beyond its budget (`internal/initcost`), or when `Extract`, `Check`, `cii.Parse` or `validate.XML` goes beyond its budget of allocations (`TestAllocs`). The `zerechnung` command is built with a CPU profile ([PGO](CONTRIBUTING.md#profil-pgo-de-la-commande)), which makes it 1 to 3 % faster.
+
+A large PDF need not be copied to the heap: the package never writes to its input, and the streams it reads point into it, so the input can be a file mapped in memory with `syscall.Mmap` on Unix systems ([`Example_mmap`](example_mmap_test.go)).
 
 The benchmarks have their own repository, [ritoon/invoice-bench](https://github.com/ritoon/invoice-bench): the full tables are in [ecosystem/results](https://github.com/ritoon/invoice-bench/blob/main/ecosystem/results/2026-11-22/tables.md), and the comparison with the TypeScript, Python, Rust, Java, C#, C, C++ and PHP libraries is in [polyglot](https://github.com/ritoon/invoice-bench/tree/main/polyglot). The method is on the wiki (in French): [Benchmarks](https://github.com/ritoon/zerechnung/wiki/Benchmarks).
 

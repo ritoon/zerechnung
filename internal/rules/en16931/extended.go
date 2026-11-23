@@ -2,6 +2,7 @@ package en16931
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/rules"
 )
@@ -10,7 +11,7 @@ import (
 // XSLT of Factur-X 1.09.2 for the EXTENDED profile, read from
 // its rule identifiers. Other rules do not apply as such to
 // EXTENDED invoices, which may carry data outside the EN 16931 data set.
-var extendedRules = func() map[string]bool {
+var extendedRules = sync.OnceValue(func() map[string]bool {
 	m := make(map[string]bool, 160)
 	add := func(prefix string, nums ...int) {
 		for _, n := range nums {
@@ -51,7 +52,7 @@ var extendedRules = func() map[string]bool {
 		m["CII-SR-"+strconv.Itoa(n)] = true
 	}
 	return m
-}()
+})
 
 // basicSyntax and en16931Syntax are the CII syntax rules that the Factur-X
 // 1.09.2 schematrons of BASIC and EN 16931 keep, read from their rule
@@ -97,16 +98,18 @@ const notReported rules.Severity = 0
 // flag there and are fatal, where the CEN marks them as warnings; the test
 // of CII-SR-464 there cannot fail (it asserts "A or B or (not A and not
 // B)"), so the rule is not reported.
-var facturXLevels = map[string]rules.Severity{
-	"CII-SR-464": notReported,
-	"CII-SR-465": rules.Error,
-	"CII-SR-466": rules.Error,
-}
+var facturXLevels = sync.OnceValue(func() map[string]rules.Severity {
+	return map[string]rules.Severity{
+		"CII-SR-464": notReported,
+		"CII-SR-465": rules.Error,
+		"CII-SR-466": rules.Error,
+	}
+})
 
 // xrechnungLevels are the severities that the KoSIT validator configuration
 // for XRechnung 3.0.2 (scenarios.xml, customLevel) gives to CEN rules, per
 // scenario: XRechnung, XRechnung extension and XRechnung CVD.
-var xrechnungLevels = func() map[mode]map[string]rules.Severity {
+var xrechnungLevels = sync.OnceValue(func() map[mode]map[string]rules.Severity {
 	base := map[string]rules.Severity{
 		"BR-CL-21":   rules.Warning,
 		"BR-CL-23":   rules.Warning,
@@ -132,33 +135,35 @@ var xrechnungLevels = func() map[mode]map[string]rules.Severity {
 		modeXRechnungExtension: ext,
 		modeXRechnungCVD:       cvd,
 	}
-}()
+})
 
 // xrechnungLevelsUBL are the severities that the same configuration gives to
 // CEN rules for UBL documents, per scenario. In the XRechnung scenario of a
 // CreditNote, UBL-CR-646 keeps its severity (see level).
-var xrechnungLevelsUBL = map[mode]map[string]rules.Severity{
-	modeXRechnung: {
-		"BR-CL-21":   rules.Warning,
-		"BR-CL-23":   rules.Warning,
-		"UBL-CR-646": rules.Error,
-	},
-	modeXRechnungExtension: {
-		"BR-CL-10":   rules.Info,
-		"BR-CL-11":   rules.Info,
-		"BR-CL-21":   rules.Info,
-		"BR-CL-23":   rules.Warning,
-		"BR-CL-24":   rules.Info,
-		"BR-CL-25":   rules.Info,
-		"BR-CL-26":   rules.Info,
-		"BR-CO-16":   rules.Info,
-		"UBL-CR-470": rules.Info,
-		"UBL-CR-646": rules.Info,
-	},
-	modeXRechnungCVD: {
-		"BR-CL-13":   rules.Info,
-		"BR-CL-21":   rules.Warning,
-		"BR-CL-23":   rules.Warning,
-		"UBL-CR-646": rules.Error,
-	},
-}
+var xrechnungLevelsUBL = sync.OnceValue(func() map[mode]map[string]rules.Severity {
+	return map[mode]map[string]rules.Severity{
+		modeXRechnung: {
+			"BR-CL-21":   rules.Warning,
+			"BR-CL-23":   rules.Warning,
+			"UBL-CR-646": rules.Error,
+		},
+		modeXRechnungExtension: {
+			"BR-CL-10":   rules.Info,
+			"BR-CL-11":   rules.Info,
+			"BR-CL-21":   rules.Info,
+			"BR-CL-23":   rules.Warning,
+			"BR-CL-24":   rules.Info,
+			"BR-CL-25":   rules.Info,
+			"BR-CL-26":   rules.Info,
+			"BR-CO-16":   rules.Info,
+			"UBL-CR-470": rules.Info,
+			"UBL-CR-646": rules.Info,
+		},
+		modeXRechnungCVD: {
+			"BR-CL-13":   rules.Info,
+			"BR-CL-21":   rules.Warning,
+			"BR-CL-23":   rules.Warning,
+			"UBL-CR-646": rules.Error,
+		},
+	}
+})

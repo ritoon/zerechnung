@@ -71,6 +71,25 @@ go test ./...
 - Un fichier de test ajouté est fictif, ou provient d'un corpus public dont la licence permet la copie ; sa source et sa licence sont alors indiquées, comme dans [testdata/NOTICE](testdata/NOTICE).
 - Quand le comportement change, le README suit : sections [Couverture](README.md#couverture) et [Limites](README.md#limites), nombres de règles, exemples.
 
+## Profil PGO de la commande
+
+[cmd/zerechnung/default.pgo](cmd/zerechnung/default.pgo) est un profil CPU des commandes `validate`, `embed` et `json` : `go build` et `go install` l'utilisent d'eux-mêmes pour la commande `zerechnung` (optimisation guidée par profil). Il ne change rien pour les utilisateurs de la bibliothèque. Mesuré sur un Apple M4 Pro, il rend la commande 2,9 % plus rapide sur les fichiers de `testdata` et 1,4 % sur le corpus, où la décompression des flux domine.
+
+Régénérez-le quand le code des commandes ou des contrôles change beaucoup. Le banc `BenchmarkCommands` ([cmd/zerechnung/pgo_test.go](cmd/zerechnung/pgo_test.go)) fait en mémoire le travail des commandes sur les fichiers de `testdata`, et sur ceux du corpus quand `FX_CORPUS` est définie (`eval "$(conformance/fetch.sh)"`) :
+
+```bash
+go test ./cmd/zerechnung -run '^$' -bench Commands -benchtime 40s -cpu 1 -pgo=off -cpuprofile cmd/zerechnung/default.pgo
+```
+
+`-pgo=off` évite de profiler un binaire déjà optimisé par l'ancien profil. Comparez ensuite avec `benchstat` un binaire de test compilé sans profil et un autre avec le nouveau :
+
+```bash
+go test -c -o off.test -pgo=off ./cmd/zerechnung
+go test -c -o on.test -pgo=cmd/zerechnung/default.pgo ./cmd/zerechnung
+(cd cmd/zerechnung && for i in $(seq 10); do ../../off.test -test.run '^$' -test.bench Commands -test.cpu 1 >> ../../off.txt; ../../on.test -test.run '^$' -test.bench Commands -test.cpu 1 >> ../../on.txt; done)
+benchstat off.txt on.txt
+```
+
 ## Commits et pull requests
 
 - Les messages de commit sont en français. Le sujet dit ce que fait le commit, au présent : « Applique les règles néerlandaises… », « Corrige la lecture de BT-24… ». Le corps explique pourquoi, et ce qui reste hors du changement.

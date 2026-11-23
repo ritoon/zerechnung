@@ -1,6 +1,9 @@
 package it
 
-import "github.com/ritoon/zerechnung/internal/rules"
+import (
+	"github.com/ritoon/zerechnung/internal/rules"
+	"sync"
+)
 
 // Rules that are not CIUS-IT rules. The technical rules publish no
 // schematron, and none of them checks the format of the Italian
@@ -147,19 +150,19 @@ var Catalog = []rules.RuleInfo{
 }
 
 // descriptions maps a rule identifier to its description.
-var descriptions = func() map[string]string {
+var descriptions = sync.OnceValue(func() map[string]string {
 	m := make(map[string]string, len(Catalog))
 	for _, r := range Catalog {
 		m[r.ID] = r.Description
 	}
 	return m
-}()
+})
 
 // severities maps a rule identifier to its severity.
-var severities = func() map[string]rules.Severity {
+var severities = sync.OnceValue(func() map[string]rules.Severity {
 	m := make(map[string]rules.Severity, len(Catalog))
 	for _, r := range Catalog {
 		m[r.ID] = r.Severity
 	}
 	return m
-}()
+})

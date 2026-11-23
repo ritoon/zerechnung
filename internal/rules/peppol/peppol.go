@@ -159,7 +159,7 @@ func (k *checker) fail(id string, n *xmltree.Node, detail string, args ...any) {
 	if n == nil {
 		n = k.root
 	}
-	report(k.Checker, byID, id, n, detail, args...)
+	report(k.Checker, byID(), id, n, detail, args...)
 }
 
 // report records a finding for the rule id of catalog, located at n. The

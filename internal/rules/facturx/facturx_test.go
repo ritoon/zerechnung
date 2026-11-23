@@ -410,7 +410,7 @@ func TestHelpers(t *testing.T) {
 // with the same severity, and that Catalog has no duplicate.
 func TestCatalog(t *testing.T) {
 	sev := map[string]rules.Severity{}
-	for _, ri := range Catalog {
+	for _, ri := range Catalog() {
 		if _, dup := sev[ri.ID]; dup {
 			t.Errorf("%s twice in Catalog", ri.ID)
 		}

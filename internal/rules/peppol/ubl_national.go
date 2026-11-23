@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
@@ -59,7 +60,7 @@ func (k *ublChecker) norway(n *xmltree.Node) {
 	}
 	if norwegian {
 		v := sv(ufirst(vat[0], "cbc:CompanyID"))
-		k.check(reNorwegianVAT.MatchString(substringFrom(v, 3)) && mod11(substring(firstValue(vatIDs), 3, 9)), "NO-R-001",
+		k.check(reNorwegianVAT().MatchString(substringFrom(v, 3)) && mod11(substring(firstValue(vatIDs), 3, 9)), "NO-R-001",
 			orNode(ufirst(vat[0], "cbc:CompanyID"), n), "value: %q", v)
 	}
 }
@@ -120,7 +121,7 @@ func (k *ublChecker) danishDocument(n *xmltree.Node) {
 	}
 }
 
-var reDanishGiro = regexp.MustCompile(`^[0-9]{7,8}$`)
+var reDanishGiro = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[0-9]{7,8}$`) })
 
 // danishPaymentMeans checks DK-R-005 to DK-R-011 on a payment means of a
 // domestic Danish invoice.
@@ -141,7 +142,7 @@ func (k *ublChecker) danishPaymentMeans(pm *xmltree.Node) {
 			"DK-R-007", pm, "")
 	}
 	if is("50") {
-		k.check(in(prefix, "01#", "04#", "15#") && reDanishGiro.MatchString(sv(account)), "DK-R-008", pm, "payment ID %q, account %q", id, sv(account))
+		k.check(in(prefix, "01#", "04#", "15#") && reDanishGiro().MatchString(sv(account)), "DK-R-008", pm, "payment ID %q, account %q", id, sv(account))
 		if in(prefix, "04#", "15#") {
 			k.check(length(id) == 19, "DK-R-009", pm, "payment ID %q", id)
 		}
@@ -162,7 +163,7 @@ func (k *ublChecker) italy(n *xmltree.Node) {
 	switch {
 	case uis(n, "cac:PartyTaxScheme") && supplierParty(n.Parent) && taxSchemeID(n) != "VAT":
 		v := nsv(ufirst(n, "cbc:CompanyID"))
-		k.check(reItalianFC.MatchString(v), "IT-R-001", n, "value: %q", v)
+		k.check(reItalianFC().MatchString(v), "IT-R-001", n, "value: %q", v)
 	case supplierParty(n):
 		k.check(uexists(n, "cac:PostalAddress/cbc:StreetName"), "IT-R-002", n, "")
 		k.check(uexists(n, "cac:PostalAddress/cbc:CityName"), "IT-R-003", n, "")
@@ -225,8 +226,10 @@ var (
 	// reGreekDate is $dateRegExp: a day, a month and a year, optionally
 	// separated by -, \, / or a space. In the XPath string, \\ is an escaped
 	// backslash of the regular expression, as in Go.
-	reGreekDate = regexp.MustCompile(`^(0?[1-9]|[12][0-9]|3[01])[-\\/ ]?(0?[1-9]|1[0-2])[-\\/ ]?(19|20)[0-9]{2}`)
-	reMARK      = regexp.MustCompile(`^[1-9]([0-9]*)`)
+	reGreekDate = sync.OnceValue(func() *regexp.Regexp {
+		return regexp.MustCompile(`^(0?[1-9]|[12][0-9]|3[01])[-\\/ ]?(0?[1-9]|1[0-2])[-\\/ ]?(19|20)[0-9]{2}`)
+	})
+	reMARK = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[1-9]([0-9]*)`) })
 )
 
 // greekDocumentTypes is $greekDocumentType, tokenized from a list that ends
@@ -252,7 +255,7 @@ func (k *ublChecker) greece(n *xmltree.Node) {
 		k.check(url <= 1, "GR-R-008-2", n, "%d invoice URLs", url)
 	case k.greekSender && uis(n, "cbc:ID") && uis(p, "cac:AdditionalDocumentReference") && k.greekAddress() &&
 		uanyEq(p, "cbc:DocumentDescription", "##M.AR.K##"):
-		k.check(reMARK.MatchString(sv(n)), "GR-R-004-2", n, "value: %q", sv(n))
+		k.check(reMARK().MatchString(sv(n)), "GR-R-004-2", n, "value: %q", sv(n))
 	case k.greekSender && uis(n, "cac:AdditionalDocumentReference") && uanyEq(n, "cbc:DocumentDescription", "##INVOICE|URL##"):
 		k.check(length(nsv(ufirst(n, "cac:Attachment/cac:ExternalReference/cbc:URI"))) > 0, "GR-R-008-3", n, "")
 	case k.greekSender && customerParty(n):
@@ -358,7 +361,7 @@ func (k *ublChecker) greekInvoiceID(n *xmltree.Node) {
 	date := tokenize(s2, "/")
 	issue := tokenize(sv(ufirst(k.root, "cbc:IssueDate")), "-")
 	same := func(i, j int) bool { return i <= len(date) && j <= len(issue) && date[i-1] == issue[j-1] }
-	k.check(ok && length(norm(s2)) > 0 && reGreekDate.MatchString(s2) && same(1, 3) && same(2, 2) && same(3, 1), "GR-R-001-3", n,
+	k.check(ok && length(norm(s2)) > 0 && reGreekDate().MatchString(s2) && same(1, 3) && same(2, 2) && same(3, 1), "GR-R-001-3", n,
 		"value: %q, issue date %q", s2, sv(ufirst(k.root, "cbc:IssueDate")))
 
 	s3, _ := seg(3)
@@ -513,15 +516,17 @@ func (k *ublChecker) hasPaymentMeans() bool {
 // Regular expressions of the German pattern. XPath's \s is the XML white
 // space, without the form feed of Go's \s.
 var (
-	reSkonto     = regexp.MustCompile(`(^|\r?\n)#(SKONTO)#TAGE=([0-9]+#PROZENT=[0-9]+\.[0-9]{2})(#BASISBETRAG=-?[0-9]+\.[0-9]{2})?#$`)
-	reXREmail    = regexp.MustCompile(`^[^@ \t\n\r]+@([^@. \t\n\r]+\.)+[^@. \t\n\r]+$`)
-	reXRPhone    = regexp.MustCompile(`.*([0-9].*){3,}.*`)
-	reXRURL      = regexp.MustCompile(`^([a-zA-Z])([a-zA-Z0-9+.-])+:.*`)
-	reNewline    = regexp.MustCompile(`\r?\n`)
-	reSkontoItem = regexp.MustCompile(`#.+#`)
-	reLeadingNL  = regexp.MustCompile(`^[ \t\n\r]*\n`)
-	reIBAN       = regexp.MustCompile(`^[A-Z]{2}[0-9]{2}[a-zA-Z0-9]{0,30}$`)
-	reSpaces     = regexp.MustCompile(`[ \n\r\t]`)
+	reSkonto = sync.OnceValue(func() *regexp.Regexp {
+		return regexp.MustCompile(`(^|\r?\n)#(SKONTO)#TAGE=([0-9]+#PROZENT=[0-9]+\.[0-9]{2})(#BASISBETRAG=-?[0-9]+\.[0-9]{2})?#$`)
+	})
+	reXREmail    = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[^@ \t\n\r]+@([^@. \t\n\r]+\.)+[^@. \t\n\r]+$`) })
+	reXRPhone    = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`.*([0-9].*){3,}.*`) })
+	reXRURL      = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^([a-zA-Z])([a-zA-Z0-9+.-])+:.*`) })
+	reNewline    = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`\r?\n`) })
+	reSkontoItem = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`#.+#`) })
+	reLeadingNL  = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[ \t\n\r]*\n`) })
+	reIBAN       = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[A-Z]{2}[0-9]{2}[a-zA-Z0-9]{0,30}$`) })
+	reSpaces     = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`[ \n\r\t]`) })
 )
 
 // germany checks the German pattern, when both the seller and the buyer
@@ -536,7 +541,7 @@ func (k *ublChecker) germany(n *xmltree.Node) {
 	case n == k.root:
 		k.germanDocument(n)
 	case uis(n, "cac:ExternalReference") && uis(p, "cac:Attachment") && uis(p.Parent, "cac:AdditionalDocumentReference") && k.atRoot(p.Parent):
-		k.check(reXRURL.MatchString(sv(ufirst(n, "cbc:URI"))), "DE-R-T02", n, "value: %q", sv(ufirst(n, "cbc:URI")))
+		k.check(reXRURL().MatchString(sv(ufirst(n, "cbc:URI"))), "DE-R-T02", n, "value: %q", sv(ufirst(n, "cbc:URI")))
 	case uis(n, "cac:AccountingSupplierParty") && k.atRoot(n):
 		k.check(uexists(n, "cac:Party/cac:Contact"), "DE-R-002", n, "")
 	case uis(n, "cac:PostalAddress") && supplierParty(p) && k.atRoot(p.Parent):
@@ -547,8 +552,8 @@ func (k *ublChecker) germany(n *xmltree.Node) {
 		k.check(nonBlank(n, "cbc:Telephone"), "DE-R-006", n, "")
 		k.check(nonBlank(n, "cbc:ElectronicMail"), "DE-R-007", n, "")
 		phone, mail := nsv(ufirst(n, "cbc:Telephone")), nsv(ufirst(n, "cbc:ElectronicMail"))
-		k.check(reXRPhone.MatchString(phone), "DE-R-027", n, "value: %q", phone)
-		k.check(reXREmail.MatchString(mail), "DE-R-028", n, "value: %q", mail)
+		k.check(reXRPhone().MatchString(phone), "DE-R-027", n, "value: %q", phone)
+		k.check(reXREmail().MatchString(mail), "DE-R-028", n, "value: %q", mail)
 	case uis(n, "cac:PostalAddress") && customerParty(p) && k.atRoot(p.Parent):
 		k.check(nonBlank(n, "cbc:CityName"), "DE-R-008", n, "")
 		k.check(nonBlank(n, "cbc:PostalZone"), "DE-R-009", n, "")
@@ -640,17 +645,17 @@ func skonto(n *xmltree.Node) bool {
 	var lines []string
 	var last []string // tokenize(., '#.+#')[last()] of each note
 	for _, note := range notes {
-		for _, l := range tokenizeRe(sv(note), reNewline) {
+		for _, l := range tokenizeRe(sv(note), reNewline()) {
 			if strings.HasPrefix(norm(l), "#") {
 				lines = append(lines, l)
 			}
 		}
-		if t := tokenizeRe(sv(note), reSkontoItem); len(t) > 0 {
+		if t := tokenizeRe(sv(note), reSkontoItem()); len(t) > 0 {
 			last = append(last, t[len(t)-1])
 		}
 	}
 	for _, l := range lines {
-		if !reSkonto.MatchString(norm(l)) || !reLeadingNL.MatchString(firstOr(last)) {
+		if !reSkonto().MatchString(norm(l)) || !reLeadingNL().MatchString(firstOr(last)) {
 			return false
 		}
 	}
@@ -686,8 +691,8 @@ func (k *ublChecker) germanPaymentMeans(pm *xmltree.Node) {
 // two capital letters, two digits and up to 30 letters or digits, and the
 // ISO 7064 check (letters as numbers from 10, lower-case letters too).
 func validIBAN(s string) bool {
-	s = norm(reSpaces.ReplaceAllString(s, ""))
-	if !reIBAN.MatchString(s) {
+	s = norm(reSpaces().ReplaceAllString(s, ""))
+	if !reIBAN().MatchString(s) {
 		return false
 	}
 	var b strings.Builder

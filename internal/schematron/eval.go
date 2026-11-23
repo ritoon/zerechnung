@@ -584,7 +584,7 @@ func toDouble(i item) (item, error) {
 	case "NaN":
 		return item{k: kDouble, f: math.NaN()}, nil
 	}
-	if !reDouble.MatchString(s) {
+	if !reDouble().MatchString(s) {
 		return item{}, dynErr("cannot cast %q to xs:double", i.s)
 	}
 	r, ok := new(big.Rat).SetString(s)

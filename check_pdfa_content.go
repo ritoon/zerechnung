@@ -40,7 +40,29 @@ type contentKey struct {
 	kind     uint8
 	def      uint8
 	noColour bool
-	page     string // identity of the page resources, for a stream without resources of its own
+	page     objKey // the page resources, for a stream without resources of its own
+}
+
+// objKey identifies an object for the caches of the PDF/A scan, as identity
+// does without allocating: the number of an indirect object, or the address
+// of a direct dictionary. The zero objKey identifies nothing.
+type objKey struct {
+	num uint32
+	kv  *pdf.KV
+}
+
+// keyOf returns the objKey of o, the zero one when o is neither a reference
+// nor a dictionary with entries.
+func keyOf(o pdf.Object) objKey {
+	switch v := o.(type) {
+	case pdf.Ref:
+		return objKey{num: v.Num}
+	case pdf.Dict:
+		if len(v) > 0 {
+			return objKey{kv: &v[0]}
+		}
+	}
+	return objKey{}
 }
 
 // Results of reading a content stream.
@@ -53,9 +75,9 @@ const (
 // contentState is the state of the content scan of a document.
 type contentState struct {
 	done      map[contentKey]uint8      // streams read, with their result
-	encodings map[string]*[256]pdf.Name // glyph names of the Type 3 fonts, by font
-	fonts     map[string]*glyphFont     // the fonts the text shows, by font (check_pdfa_glyphs.go)
-	programs  map[string]*fontProgram   // the font programs read, by stream
+	encodings map[objKey]*[256]pdf.Name // glyph names of the Type 3 fonts, by font
+	fonts     map[objKey]*glyphFont     // the fonts the text shows, by font (check_pdfa_glyphs.go)
+	programs  map[objKey]*fontProgram   // the font programs read, by stream
 	bytes     int                       // decoded content read
 }
 
@@ -81,7 +103,7 @@ type gstate struct {
 // pageContent is the page whose content, or the streams it uses, is read.
 type pageContent struct {
 	res pdf.Dict // resources of the page
-	id  string   // identity of the resources
+	id  objKey   // the resources
 }
 
 // contentCtx is the context in which a content stream is read.
@@ -106,14 +128,15 @@ type streamScan struct {
 	stack       []gstate
 	flags       map[string]bool // findings already made for the stream
 	transparent bool
-	fontRef     pdf.Ref    // the last font of the text, by reference,
-	font        *glyphFont // and its glyph model (check_pdfa_glyphs.go)
+	fontRef     pdf.Ref      // the last font of the text, by reference,
+	font        *glyphFont   // and its glyph model (check_pdfa_glyphs.go)
+	strs        []pdf.String // the strings of the text operator being read
 }
 
 func (s *pdfaScan) contentState() *contentState {
 	if s.content == nil {
-		s.content = &contentState{done: map[contentKey]uint8{}, encodings: map[string]*[256]pdf.Name{},
-			fonts: map[string]*glyphFont{}, programs: map[string]*fontProgram{}}
+		s.content = &contentState{done: map[contentKey]uint8{}, encodings: map[objKey]*[256]pdf.Name{},
+			fonts: map[objKey]*glyphFont{}, programs: map[objKey]*fontProgram{}}
 	}
 	return s.content
 }
@@ -167,7 +190,7 @@ func initialState(def uint8) gstate {
 func (s *pdfaScan) pageContent(page pdf.Dict, res pdf.Object, def uint8, where string) (*pageContent, bool) {
 	r := s.c.r
 	rd, _ := r.Dict(res)
-	pc := &pageContent{res: rd, id: identity(res)}
+	pc := &pageContent{res: rd, id: keyOf(res)}
 	var data []byte
 	switch v := r.Resolve(page.Get("Contents")).(type) {
 	case *pdf.Stream:
@@ -302,7 +325,7 @@ func (s *pdfaScan) readContent(data []byte, x contentCtx) bool {
 			sc.once("PDF-49", "limit", "%s", is.Detail)
 		}
 	})
-	_ = pdf.ScanContent(data, sc.op)
+	_ = pdf.ScanOperands(data, sc.op)
 	return sc.transparent
 }
 
@@ -428,10 +451,10 @@ func number(o pdf.Object) (float64, bool) {
 }
 
 // op reads an operator.
-func (sc *streamScan) op(op string, args []pdf.Object) error {
+func (sc *streamScan) op(op string, args []pdf.Operand) error {
 	name := pdf.Name("")
 	if len(args) > 0 {
-		name, _ = args[0].(pdf.Name)
+		name, _ = args[0].AsName()
 	}
 	if !contentOps[op] {
 		if len(op) > 32 {
@@ -472,14 +495,14 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 		if sc.x.noColour || len(args) == 0 {
 			break
 		}
-		if n, ok := args[len(args)-1].(pdf.Name); ok {
+		if n, ok := args[len(args)-1].AsName(); ok {
 			sc.setColour(sc.pattern(n), op == "SCN")
 		}
 	case "gs":
 		sc.extGState(name)
 	case "ri":
 		if !renderingIntents[name] && len(args) > 0 {
-			sc.once("PDF-55", "ri "+string(name), "the ri operator sets the rendering intent %v, which is not one of RelativeColorimetric, AbsoluteColorimetric, Perceptual and Saturation (6.2.6)", args[0])
+			sc.once("PDF-55", "ri "+string(name), "the ri operator sets the rendering intent %v, which is not one of RelativeColorimetric, AbsoluteColorimetric, Perceptual and Saturation (6.2.6)", args[0].Object())
 		}
 	case "S", "s":
 		sc.paint(false, true, true)
@@ -493,15 +516,13 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 	case "Do":
 		sc.xobject(name)
 	case "BI":
-		if len(args) == 1 {
-			if d, ok := args[0].(pdf.Dict); ok {
-				sc.inlineImage(d)
-			}
+		if len(args) == 1 && args[0].Kind == pdf.OperandDict {
+			sc.inlineImage(args[0].Dict)
 		}
 		sc.paint(true, false, false)
 	case "BDC", "DP":
 		if len(args) == 2 {
-			if n, ok := args[1].(pdf.Name); ok {
+			if n, ok := args[1].AsName(); ok {
 				sc.resource("Properties", n)
 			}
 		}
@@ -510,24 +531,26 @@ func (sc *streamScan) op(op string, args []pdf.Object) error {
 		g.fontName = name
 	case "Tr":
 		if len(args) > 0 {
-			g.tr, _ = pdf.AsInt(args[0])
+			g.tr, _ = args[0].AsInt()
 		}
 	case "Tj", "'", "\"":
 		if len(args) > 0 {
-			s, _ := args[len(args)-1].(pdf.String)
+			s, _ := args[len(args)-1].AsString()
 			// veraPDF reads no glyph from ", whose first operand is a number.
-			sc.text([]pdf.String{s}, op != "\"")
+			sc.strs = append(sc.strs[:0], s)
+			sc.text(sc.strs, op != "\"")
 		}
 	case "TJ":
 		if len(args) > 0 {
-			list, _ := args[0].(pdf.Array)
-			var strs []pdf.String
-			for _, x := range list {
-				if s, ok := x.(pdf.String); ok {
-					strs = append(strs, s)
+			sc.strs = sc.strs[:0]
+			if args[0].Kind == pdf.OperandArray {
+				for i := range args[0].Array {
+					if s, ok := args[0].Array[i].AsString(); ok {
+						sc.strs = append(sc.strs, s)
+					}
 				}
 			}
-			sc.text(strs, true)
+			sc.text(sc.strs, true)
 		}
 	case "d1":
 		if sc.x.glyph {
@@ -697,8 +720,8 @@ func (sc *streamScan) type3(strs []pdf.String) bool {
 // the differences of its encoding.
 func (s *pdfaScan) type3Names(font pdf.Object, d pdf.Dict) *[256]pdf.Name {
 	cs := s.contentState()
-	id := identity(font)
-	if names := cs.encodings[id]; id != "" && names != nil {
+	id := keyOf(font)
+	if names := cs.encodings[id]; id != (objKey{}) && names != nil {
 		return names
 	}
 	r := s.c.r
@@ -721,7 +744,7 @@ func (s *pdfaScan) type3Names(font pdf.Object, d pdf.Dict) *[256]pdf.Name {
 			}
 		}
 	}
-	if id != "" {
+	if id != (objKey{}) {
 		cs.encodings[id] = names
 	}
 	return names

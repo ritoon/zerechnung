@@ -29,7 +29,7 @@ func TestCIITables(t *testing.T) {
 		t     *tables
 		roots []particle
 	}{
-		{"D16B", d16bTables, d16bRoots[:]},
+		{"D16B", d16bTables(), d16bRoots[:]},
 		{"D22B", d22bTables, d22bRoots[:]},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -261,26 +261,26 @@ func TestSchemaInclusion(t *testing.T) {
 		rb      *particle
 		allowed []string // differences
 	}{
-		{"EN 16931 in D16B", pEN16931, d16bTables, &d16bRoots[0], []string{
+		{"EN 16931 in D16B", pEN16931, d16bTables(), &d16bRoots[0], []string{
 			"/CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/InvoiceReferencedDocument: occurs 0..unbounded, 0..1 in b",
 		}},
 		{"EXTENDED in D22B", pExtended, d22bTables, &d22bRoots[0], nil},
 		// The smaller profiles are included in EN 16931, thus in D16B
 		// but for the same difference.
-		{"BASIC in D16B", pBasic, d16bTables, &d16bRoots[0], []string{
+		{"BASIC in D16B", pBasic, d16bTables(), &d16bRoots[0], []string{
 			"/CrossIndustryInvoice/SupplyChainTradeTransaction/ApplicableHeaderTradeSettlement/InvoiceReferencedDocument: occurs 0..unbounded, 0..1 in b",
 		}},
 		{"MINIMUM in D22B", pMinimum, d22bTables, &d22bRoots[0], nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := compareSchemas(ciiTables, &roots[tc.p], tc.b, tc.rb)
+			got := compareSchemas(ciiTables(), &roots[tc.p], tc.b, tc.rb)
 			if !slices.Equal(got, tc.allowed) {
 				t.Errorf("differences:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(tc.allowed, "\n"))
 			}
 		})
 	}
 	// The comparison finds what D16B accepts and EN 16931 does not.
-	if got := compareSchemas(d16bTables, &d16bRoots[0], ciiTables, &roots[pEN16931]); len(got) < 100 {
+	if got := compareSchemas(d16bTables(), &d16bRoots[0], ciiTables(), &roots[pEN16931]); len(got) < 100 {
 		t.Errorf("D16B in EN 16931: %d differences", len(got))
 	}
 }

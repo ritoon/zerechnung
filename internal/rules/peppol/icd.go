@@ -2,6 +2,7 @@ package peppol
 
 import (
 	"regexp"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
@@ -70,10 +71,10 @@ func icdRule(scheme, v, s string) (id string, valid bool) {
 // that nothing is left.
 func onlyDigits(s string) bool { return s == "" || allDigits(s) }
 
-var reDutchVAT = regexp.MustCompile(`^NL[0-9]{9}B[0-9]{2}$`)
+var reDutchVAT = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^NL[0-9]{9}B[0-9]{2}$`) })
 
 // dutchVAT matches a Dutch VAT number, NL123456789B12.
-func dutchVAT(s string) bool { return reDutchVAT.MatchString(s) }
+func dutchVAT(s string) bool { return reDutchVAT().MatchString(s) }
 
 // gln implements u:gln: the GS1 check digit (weights 3 and 1 from the right)
 // of a string of digits.

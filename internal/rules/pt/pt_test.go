@@ -39,7 +39,7 @@ func TestCatalogs(t *testing.T) {
 		t.Errorf("%d assertions, want %d", n, assertionCount)
 	}
 	listed := map[string]bool{}
-	for name, c := range map[string][]rules.RuleInfo{"Catalog": Catalog, "CENCatalog": CENCatalog} {
+	for name, c := range map[string][]rules.RuleInfo{"Catalog": Catalog(), "CENCatalog": CENCatalog} {
 		for _, r := range c {
 			if listed[r.ID] {
 				t.Errorf("%s: %s listed twice", name, r.ID)
@@ -65,7 +65,7 @@ func TestCatalogs(t *testing.T) {
 		}
 	}
 	for _, id := range []string{"PT-SYNTAX-01", "PT-NIF-01", "PT-NIF-02", "BR-CIUS-PT-01", "DT-CIUS-PT-001"} {
-		if !slices.ContainsFunc(Catalog, func(r rules.RuleInfo) bool { return r.ID == id }) {
+		if !slices.ContainsFunc(Catalog(), func(r rules.RuleInfo) bool { return r.ID == id }) {
 			t.Errorf("Catalog lacks %s", id)
 		}
 	}

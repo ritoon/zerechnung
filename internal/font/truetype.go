@@ -14,7 +14,8 @@ import (
 var ErrFormat = errors.New("font: malformed font program")
 
 // TrueType is a TrueType font program (ISO/IEC 14496-22): the tables of its
-// glyphs, metrics and character maps.
+// glyphs, metrics and character maps. Its methods are safe for concurrent
+// use: what they read on first use is guarded.
 type TrueType struct {
 	UnitsPerEm  int
 	NumGlyphs   int
@@ -26,7 +27,8 @@ type TrueType struct {
 	postOnce    sync.Once // the post table is read on first use
 	post        []string  // glyph names of the post table, by glyph index
 	postFormat  uint32
-	byName      map[string]int
+	byNameOnce  sync.Once      // byName is built on first use
+	byName      map[string]int // glyphs of the post table, by name
 	data        []byte
 	n           int // number of tables
 	// The tables read by this package and its users, found once.
@@ -164,12 +166,12 @@ func (t *TrueType) PostGID(name string) (int, bool) {
 	if t.postFormat != 0x00020000 {
 		return 0, false
 	}
-	if t.byName == nil {
+	t.byNameOnce.Do(func() {
 		t.byName = make(map[string]int, len(t.post))
 		for gid := len(t.post) - 1; gid >= 0; gid-- {
 			t.byName[t.post[gid]] = gid
 		}
-	}
+	})
 	gid, ok := t.byName[name]
 	return gid, ok
 }

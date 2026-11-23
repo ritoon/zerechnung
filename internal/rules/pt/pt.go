@@ -59,6 +59,9 @@ package pt
 //go:generate go run ./gen -o rules_gen.go
 
 import (
+	"slices"
+	"sync"
+
 	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/invoice"
 )
@@ -94,8 +97,12 @@ func CheckCEN(c *rules.Checker) {
 // Catalog lists the rules of the Portugal rule set: those of the CIUS-PT
 // schematron (BR-CIUS-PT, DT-CIUS-PT), in schematron order with their
 // official messages, then the checks of the package.
-var Catalog = append(schematronCatalog,
-	rules.RuleInfo{ID: "PT-SYNTAX-01", Severity: rules.Error, Description: "A CIUS-PT invoice shall use the UBL 2.1 syntax: the CIUS-PT has no CII binding"},
-	rules.RuleInfo{ID: "PT-NIF-01", Severity: rules.Warning, Description: "A Portuguese VAT identifier (BT-31, BT-48, BT-63) shall be PT followed by the nine digits of a NIF"},
-	rules.RuleInfo{ID: "PT-NIF-02", Severity: rules.Warning, Description: "The last digit of a NIF shall be its check digit modulo 11"},
-)
+func Catalog() []rules.RuleInfo { return catalog() }
+
+var catalog = sync.OnceValue(func() []rules.RuleInfo {
+	return append(slices.Clip(schematronCatalog),
+		rules.RuleInfo{ID: "PT-SYNTAX-01", Severity: rules.Error, Description: "A CIUS-PT invoice shall use the UBL 2.1 syntax: the CIUS-PT has no CII binding"},
+		rules.RuleInfo{ID: "PT-NIF-01", Severity: rules.Warning, Description: "A Portuguese VAT identifier (BT-31, BT-48, BT-63) shall be PT followed by the nine digits of a NIF"},
+		rules.RuleInfo{ID: "PT-NIF-02", Severity: rules.Warning, Description: "The last digit of a NIF shall be its check digit modulo 11"},
+	)
+})

@@ -2,6 +2,7 @@ package facturx
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
@@ -22,7 +23,7 @@ type unusedItem struct {
 // codes whose list identifier is not 5153. Below a
 // ram:SpecifiedTradeAllowanceCharge, the items only apply when the charge
 // indicator is "true" or "false".
-var unusedItems = func() []unusedItem {
+var unusedItems = sync.OnceValue(func() []unusedItem {
 	const (
 		tx  = "SupplyChainTradeTransaction/"
 		agr = tx + "ApplicableHeaderTradeAgreement/"
@@ -92,12 +93,12 @@ var unusedItems = func() []unusedItem {
 		items[i] = unusedItem{path: strings.Split(s.path, "/"), attr: s.attr, mask: s.mask}
 	}
 	return items
-}()
+})
 
 // unused reports the elements and attributes the profile does not use.
 func (k *checker) unused() {
-	for i := range unusedItems {
-		if u := &unusedItems[i]; u.mask&k.p != 0 {
+	for i := range unusedItems() {
+		if u := &unusedItems()[i]; u.mask&k.p != 0 {
 			k.unusedWalk(k.d.Root, u, 0)
 		}
 	}

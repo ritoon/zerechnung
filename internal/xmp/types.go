@@ -1,8 +1,8 @@
 package xmp
 
 import (
-	"regexp"
 	"strings"
+	"sync"
 )
 
 // The value types of the properties of the schemas predefined by the XMP
@@ -20,7 +20,7 @@ import (
 //	G  GPSCoordinate
 //	L  language alternative (Lang Alt)
 //	S  structure; its fields are not checked
-var valueTypes = func() map[string]map[string]string {
+var valueTypes = sync.OnceValue(func() map[string]map[string]string {
 	m := map[string]map[string]string{}
 	for ns, props := range map[string]string{
 		nsDC: `contributor=bag:T coverage=T creator=seq:T date=seq:D description=L format=T identifier=T
@@ -85,15 +85,7 @@ var valueTypes = func() map[string]map[string]string {
 		m[ns] = set
 	}
 	return m
-}()
-
-var (
-	reInteger  = regexp.MustCompile(`^[+-]?[0-9]+$`)
-	reReal     = regexp.MustCompile(`^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)$`)
-	reRational = regexp.MustCompile(`^[+-]?[0-9]+/[+-]?[0-9]+$`)
-	reDate     = regexp.MustCompile(`^[0-9]{4}(-[0-9]{2}(-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}:[0-9]{2})?)?)?)?$`)
-	reGPS      = regexp.MustCompile(`^[0-9]{1,3},[0-9]{1,2}(,[0-9]{1,2}|\.[0-9]+)[NSEW]$`)
-)
+})
 
 var typeNames = map[byte]string{
 	'T': "Text", 'B': "Boolean", 'I': "Integer", 'R': "Real", 'D': "Date", 'Q': "Rational",
@@ -166,7 +158,7 @@ func lang(n, stop *node) bool {
 // checkSimple returns why text is not a valid simple value of type t, or "".
 func checkSimple(t byte, text string) string {
 	text = strings.TrimSpace(text)
-	var re *regexp.Regexp
+	var ok bool
 	switch t {
 	case 'B':
 		if text == "True" || text == "False" {
@@ -174,22 +166,146 @@ func checkSimple(t byte, text string) string {
 		}
 		return "is not True or False"
 	case 'I':
-		re = reInteger
+		ok = isInteger(text)
 	case 'R':
-		re = reReal
+		ok = isReal(text)
 	case 'D':
-		re = reDate
+		ok = isDate(text)
 	case 'Q':
-		re = reRational
+		ok = isRational(text)
 	case 'G':
-		re = reGPS
+		ok = isGPS(text)
 	default:
 		return ""
 	}
-	if re.MatchString(text) {
+	if ok {
 		return ""
 	}
 	return "is not a valid " + typeNames[t]
+}
+
+// The value types below are written by hand; types_test.go checks them
+// against the regular expressions they replace, given in their comments.
+
+// isInteger reports whether s is an Integer: ^[+-]?[0-9]+$.
+func isInteger(s string) bool {
+	s = trimSign(s)
+	return s != "" && digits(s) == len(s)
+}
+
+// isReal reports whether s is a Real: ^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)$.
+func isReal(s string) bool {
+	s = trimSign(s)
+	if s != "" && s[0] == '.' {
+		return len(s) > 1 && digits(s[1:]) == len(s)-1
+	}
+	n := digits(s)
+	if n == 0 {
+		return false
+	}
+	s = s[n:]
+	if s != "" && s[0] == '.' {
+		s = s[1:]
+	}
+	return digits(s) == len(s)
+}
+
+// isRational reports whether s is a Rational: ^[+-]?[0-9]+/[+-]?[0-9]+$.
+func isRational(s string) bool {
+	s = trimSign(s)
+	n := digits(s)
+	if n == 0 || n == len(s) || s[n] != '/' {
+		return false
+	}
+	return isInteger(s[n+1:])
+}
+
+// isDate reports whether s is a Date:
+// ^[0-9]{4}(-[0-9]{2}(-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}:[0-9]{2})?)?)?)?$.
+func isDate(s string) bool {
+	if !digitsAt(s, 0, 4) {
+		return false
+	}
+	s = s[4:]
+	for range 2 { // -MM, then -DD
+		if s == "" {
+			return true
+		}
+		if len(s) < 3 || s[0] != '-' || !digitsAt(s, 1, 2) {
+			return false
+		}
+		s = s[3:]
+	}
+	if s == "" {
+		return true
+	}
+	if len(s) < 6 || s[0] != 'T' || !digitsAt(s, 1, 2) || s[3] != ':' || !digitsAt(s, 4, 2) {
+		return false
+	}
+	s = s[6:]
+	if len(s) >= 3 && s[0] == ':' && digitsAt(s, 1, 2) {
+		s = s[3:]
+		if len(s) >= 2 && s[0] == '.' && isDigit(s[1]) {
+			s = s[1:]
+			s = s[digits(s):]
+		}
+	}
+	switch {
+	case s == "", s == "Z":
+		return true
+	case len(s) == 6 && (s[0] == '+' || s[0] == '-'):
+		return digitsAt(s, 1, 2) && s[3] == ':' && digitsAt(s, 4, 2)
+	}
+	return false
+}
+
+// isGPS reports whether s is a GPSCoordinate:
+// ^[0-9]{1,3},[0-9]{1,2}(,[0-9]{1,2}|\.[0-9]+)[NSEW]$.
+func isGPS(s string) bool {
+	n := digits(s)
+	if n < 1 || n > 3 || n == len(s) || s[n] != ',' {
+		return false
+	}
+	s = s[n+1:]
+	n = digits(s)
+	if n < 1 || n > 2 || n == len(s) {
+		return false
+	}
+	sep := s[n]
+	s = s[n+1:]
+	n = digits(s)
+	switch {
+	case sep == ',' && n >= 1 && n <= 2:
+	case sep == '.' && n >= 1:
+	default:
+		return false
+	}
+	s = s[n:]
+	return len(s) == 1 && (s[0] == 'N' || s[0] == 'S' || s[0] == 'E' || s[0] == 'W')
+}
+
+func isDigit(c byte) bool { return '0' <= c && c <= '9' }
+
+// digits returns the number of ASCII digits s starts with.
+func digits(s string) int {
+	n := 0
+	for n < len(s) && isDigit(s[n]) {
+		n++
+	}
+	return n
+}
+
+// digitsAt reports whether s holds n ASCII digits from i.
+func digitsAt(s string, i, n int) bool {
+	return len(s) >= i+n && digits(s[i:i+n]) == n
+}
+
+// trimSign removes one leading + or -.
+func trimSign(s string) string {
+	if s != "" && (s[0] == '+' || s[0] == '-') {
+		return s[1:]
+	}
+	return s
 }
 
 // checkValue returns why the value of property n does not have type typ

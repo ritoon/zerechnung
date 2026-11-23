@@ -2,6 +2,7 @@ package en16931
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/rules"
 	"github.com/ritoon/zerechnung/internal/xmltree"
@@ -108,20 +109,22 @@ const (
 	nKinds
 )
 
-var kindContexts = map[string]kind{
-	"//ram:SpecifiedTradeSettlementPaymentMeans":                              kindPaymentMeans,
-	"//ram:SpecifiedTradeAllowanceCharge":                                     kindAllowanceCharge,
-	"//ram:GrossPriceProductTradePrice/ram:AppliedTradeAllowanceCharge":       kindGrossAllowanceCharge,
-	"//*[ends-with(name(), 'DocumentContextParameter')]":                      kindDocContext,
-	"//ram:*[ends-with(name(), 'ID')]":                                        kindID,
-	"//ram:TypeCode":                                                          kindTypeCode,
-	"//ram:*[ends-with(name(), 'ReferencedDocument')]":                        kindRefDoc,
-	"//ram:*[ends-with(name(), 'Amount') and not (self::ram:TaxTotalAmount)]": kindAmount,
-	"//ram:*[ends-with(name(), 'Quantity')]":                                  kindQuantity,
-	"//ram:*[ends-with(name(), 'TradeTax')]":                                  kindTradeTax,
-	"//ram:BillingSpecifiedPeriod":                                            kindPeriod,
-	"//ram:PostalTradeAddress":                                                kindAddress,
-}
+var kindContexts = sync.OnceValue(func() map[string]kind {
+	return map[string]kind{
+		"//ram:SpecifiedTradeSettlementPaymentMeans":                              kindPaymentMeans,
+		"//ram:SpecifiedTradeAllowanceCharge":                                     kindAllowanceCharge,
+		"//ram:GrossPriceProductTradePrice/ram:AppliedTradeAllowanceCharge":       kindGrossAllowanceCharge,
+		"//*[ends-with(name(), 'DocumentContextParameter')]":                      kindDocContext,
+		"//ram:*[ends-with(name(), 'ID')]":                                        kindID,
+		"//ram:TypeCode":                                                          kindTypeCode,
+		"//ram:*[ends-with(name(), 'ReferencedDocument')]":                        kindRefDoc,
+		"//ram:*[ends-with(name(), 'Amount') and not (self::ram:TaxTotalAmount)]": kindAmount,
+		"//ram:*[ends-with(name(), 'Quantity')]":                                  kindQuantity,
+		"//ram:*[ends-with(name(), 'TradeTax')]":                                  kindTradeTax,
+		"//ram:BillingSpecifiedPeriod":                                            kindPeriod,
+		"//ram:PostalTradeAddress":                                                kindAddress,
+	}
+})
 
 // kindNot is a rule violated when path (relative to the node) exists, or
 // when the element at path carries attribute attr.
@@ -168,31 +171,35 @@ const (
 	specialAttachment
 )
 
-var specials = map[string]special{
-	ctxAgreement:      specialAgreement,
-	ctxDelivery:       specialDelivery,
-	ctxSettlement:     specialSettlement,
-	ctxProduct:        specialProduct,
-	ctxLineAgreement:  specialLineAgreement,
-	ctxLineSettlement: specialLineSettlement,
-	ctxAdditionalDoc:  specialAdditionalDoc,
-	ctxAttachment:     specialAttachment,
-	ctxRoot:           specialNone, // rules needing the whole document run in finish
-}
+var specials = sync.OnceValue(func() map[string]special {
+	return map[string]special{
+		ctxAgreement:      specialAgreement,
+		ctxDelivery:       specialDelivery,
+		ctxSettlement:     specialSettlement,
+		ctxProduct:        specialProduct,
+		ctxLineAgreement:  specialLineAgreement,
+		ctxLineSettlement: specialLineSettlement,
+		ctxAdditionalDoc:  specialAdditionalDoc,
+		ctxAttachment:     specialAttachment,
+		ctxRoot:           specialNone, // rules needing the whole document run in finish
+	}
+})
 
 // specialsCTCFR are the contexts of the hand written syntax rules of the
 // EXTENDED-CTC-FR schematron. The rules of the line settlement (CII-SR-474),
 // of the header AdditionalReferencedDocument (CII-SR-475, CII-SR-476 in
 // their CEN form) and of its attachment (CII-DT-105, CII-DT-106) are not in
 // the schematron.
-var specialsCTCFR = map[string]special{
-	ctxAgreement:     specialAgreement,
-	ctxDelivery:      specialDelivery,
-	ctxSettlement:    specialSettlement,
-	ctxProduct:       specialProduct,
-	ctxLineAgreement: specialLineAgreement,
-	ctxRoot:          specialNone,
-}
+var specialsCTCFR = sync.OnceValue(func() map[string]special {
+	return map[string]special{
+		ctxAgreement:     specialAgreement,
+		ctxDelivery:      specialDelivery,
+		ctxSettlement:    specialSettlement,
+		ctxProduct:       specialProduct,
+		ctxLineAgreement: specialLineAgreement,
+		ctxRoot:          specialNone,
+	}
+})
 
 // runSpecial runs the hand written syntax rules of context node n.
 func (k *checker) runSpecial(s special, n *xmltree.Node) {
@@ -225,9 +232,10 @@ type syntaxSet struct {
 	ctcfr bool // the rules of the EXTENDED-CTC-FR schematron
 }
 
+// The syntax sets are compiled on first use, not at initialization.
 var (
-	cenSyntax   = newSyntaxSet(syntaxNots, syntaxCounts, specials, false)
-	ctcfrSyntax = newSyntaxSet(ctcfrNots, ctcfrCounts, specialsCTCFR, true)
+	cenSyntax   = sync.OnceValue(func() *syntaxSet { return newSyntaxSet(syntaxNots, syntaxCounts, specials(), false) })
+	ctcfrSyntax = sync.OnceValue(func() *syntaxSet { return newSyntaxSet(ctcfrNots, ctcfrCounts, specialsCTCFR(), true) })
 )
 
 func newSyntaxSet(nots []syntaxNot, counts []syntaxCount, specials map[string]special, ctcfr bool) *syntaxSet {
@@ -257,7 +265,7 @@ func newSyntaxSet(nots []syntaxNot, counts []syntaxCount, specials map[string]sp
 	}
 	for _, r := range nots {
 		path, attr := splitAttr(r.Path)
-		if kd, ok := kindContexts[r.Context]; ok {
+		if kd, ok := kindContexts()[r.Context]; ok {
 			kinds[kd].nots = append(kinds[kd].nots, kindNot{rule: r.Rule, path: path, attr: attr})
 			continue
 		}
@@ -276,7 +284,7 @@ func newSyntaxSet(nots []syntaxNot, counts []syntaxCount, specials map[string]sp
 	}
 	for _, r := range counts {
 		cr := countRule{rule: r.Rule, path: steps(r.Path), exact: r.Exact, n: r.N}
-		if kd, ok := kindContexts[r.Context]; ok {
+		if kd, ok := kindContexts()[r.Context]; ok {
 			kinds[kd].counts = append(kinds[kd].counts, cr)
 			continue
 		}

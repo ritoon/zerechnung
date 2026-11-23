@@ -3,6 +3,7 @@ package ro
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/codes"
 	"github.com/ritoon/zerechnung/internal/rules"
@@ -45,7 +46,10 @@ import (
 //     referenced documents of the header but those of type 50 (the tender
 //     or lot reference, BT-17, which BR-RO-L0307 checks), as UBL holds
 //     BT-17 in cac:OriginatorDocumentReference.
-var ciiPatterns = buildCIIPatterns()
+//
+// The patterns are built on first use, by the first CII invoice checked
+// against the CIUS-RO.
+var ciiPatterns = sync.OnceValue(buildCIIPatterns)
 
 // ciiNamespaces are the prefixes of ciiPatterns.
 var ciiNamespaces = map[string]string{

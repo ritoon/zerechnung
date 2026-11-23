@@ -3,6 +3,7 @@ package peppol
 import (
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ritoon/zerechnung/internal/xmltree"
@@ -17,8 +18,10 @@ var (
 
 	// ublInvoiceTypes and ublCreditNoteTypes are the type codes of profiles
 	// 01 and 02 (PEPPOL-EN16931-P0100, PEPPOL-EN16931-P0101).
-	ublInvoiceTypes    = set("71 80 82 84 102 218 219 326 331 380 382 383 384 386 388 393 395 553 575 623 780 817 870 875 876 877")
-	ublCreditNoteTypes = set("381 396 81 83 532")
+	ublInvoiceTypes = sync.OnceValue(func() map[string]bool {
+		return set("71 80 82 84 102 218 219 326 331 380 382 383 384 386 388 393 395 553 575 623 780 817 870 875 876 877")
+	})
+	ublCreditNoteTypes = sync.OnceValue(func() map[string]bool { return set("381 396 81 83 532") })
 
 	// exemptionCategories maps a VAT exemption reason code (upper-cased) to
 	// the rule that checks the VAT category, and the category it requires.
@@ -65,37 +68,37 @@ func (k *ublChecker) codeList(n *xmltree.Node) {
 	switch {
 	case uis(n, "cbc:EmbeddedDocumentBinaryObject"):
 		if m, ok := n.LookupAttr("mimeCode"); ok {
-			k.check(mimeCodes[m], "PEPPOL-EN16931-CL001", n, "value: %q", m)
+			k.check(mimeCodes()[m], "PEPPOL-EN16931-CL001", n, "value: %q", m)
 		}
 	case uis(n, "cbc:AllowanceChargeReasonCode") && uparent(n, "cac:AllowanceCharge"):
 		v := norm(n.Text)
 		switch {
 		case uanyEq(n.Parent, "cbc:ChargeIndicator", "false"):
-			k.check(uncl5189[v], "PEPPOL-EN16931-CL002", n, "value: %q", v)
+			k.check(uncl5189()[v], "PEPPOL-EN16931-CL002", n, "value: %q", v)
 		case uanyEq(n.Parent, "cbc:ChargeIndicator", "true"):
-			k.check(uncl7161[v], "PEPPOL-EN16931-CL003", n, "value: %q", v)
+			k.check(uncl7161()[v], "PEPPOL-EN16931-CL003", n, "value: %q", v)
 		}
 	case uis(n, "cbc:DescriptionCode") && uparent(n, "cac:InvoicePeriod"):
 		v := norm(n.Text)
 		k.check(uncl2005[v], "PEPPOL-EN16931-CL006", n, "value: %q", v)
 	case isAmount(n):
 		c, ok := n.LookupAttr("currencyID")
-		k.check(ok && iso4217[c], "PEPPOL-EN16931-CL007", n, "value: %q", c)
+		k.check(ok && iso4217()[c], "PEPPOL-EN16931-CL007", n, "value: %q", c)
 	case uis(n, "cbc:InvoiceTypeCode"):
 		v := norm(n.Text)
-		k.check(k.profile != "01" && k.profile != "02" || ublInvoiceTypes[v], "PEPPOL-EN16931-P0100", n, "value: %q", v)
+		k.check(k.profile != "01" && k.profile != "02" || ublInvoiceTypes()[v], "PEPPOL-EN16931-P0100", n, "value: %q", v)
 		k.check(!in(v, "326", "384", "389") || k.supplierDE && k.customerDE ||
 			v == "384" && k.supplierCountry == "SK" && k.customerCountry == "SK", "PEPPOL-EN16931-P0112", n,
 			"value: %q, seller in %s, buyer in %s", v, k.supplierCountry, k.customerCountry)
 	case uis(n, "cbc:CreditNoteTypeCode"):
 		v := norm(n.Text)
-		k.check(k.profile != "01" && k.profile != "02" || ublCreditNoteTypes[v], "PEPPOL-EN16931-P0101", n, "value: %q", v)
+		k.check(k.profile != "01" && k.profile != "02" || ublCreditNoteTypes()[v], "PEPPOL-EN16931-P0101", n, "value: %q", v)
 	case isDate(n):
 		_, ok := xsDate(sv(n))
 		k.check(length(n.Text) == 10 && ok, "PEPPOL-EN16931-F001", n, "value: %q", n.Text)
 	case uis(n, "cbc:EndpointID"):
 		if s, ok := n.LookupAttr("schemeID"); ok {
-			k.check(eas[s], "PEPPOL-EN16931-CL008", n, "scheme %q", s)
+			k.check(eas()[s], "PEPPOL-EN16931-CL008", n, "scheme %q", s)
 		}
 	case uis(n, "cac:TaxCategory"):
 		if r, ok := exemptionCategories[strings.ToUpper(sv(ufirst(n, "cbc:TaxExemptionReasonCode")))]; ok {

@@ -2,6 +2,7 @@ package ubl
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
@@ -31,11 +32,13 @@ type crRule struct {
 // means reference (NL-GA-02) and the amount (NL-GA-03) of the payment terms.
 // They are not checked on an invoice that declares the extension (see
 // rules.Doc.GAccount).
-var gaccountDropped = map[string]bool{
-	"UBL-CR-411": true, // cac:PaymentMeans/cbc:ID
-	"UBL-CR-453": true, // cac:PaymentTerms/cbc:PaymentMeansID
-	"UBL-CR-459": true, // cac:PaymentTerms/cbc:Amount
-}
+var gaccountDropped = sync.OnceValue(func() map[string]bool {
+	return map[string]bool{
+		"UBL-CR-411": true, // cac:PaymentMeans/cbc:ID
+		"UBL-CR-453": true, // cac:PaymentTerms/cbc:PaymentMeansID
+		"UBL-CR-459": true, // cac:PaymentTerms/cbc:Amount
+	}
+})
 
 // selectPath returns the nodes at path relative to the nodes from: a path of
 // prefixed element names ("cac:PartyName/cbc:Name"), optionally ending with
@@ -118,7 +121,7 @@ func (k *checker) rootRules() {
 		crs = ctcfrCRRules
 	}
 	for _, cr := range crs {
-		if gaccount && gaccountDropped[cr.id] {
+		if gaccount && gaccountDropped()[cr.id] {
 			continue
 		}
 		var found []*xmltree.Node

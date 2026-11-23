@@ -55,6 +55,10 @@ type parser struct {
 	kvs   *[]KV      // scratch space of dict, shared by the parsers of a Reader
 	sel   *selection // when set, dict skips some arrays (see DictSkipArrays)
 
+	// With cacheNames, name allocates each name once (ScanOperands).
+	cacheNames bool
+	names      map[string]Name
+
 	// The unsigned integer read after an integer by number, looking for
 	// "gen R", ends at aheadEnd. When it is not a generation number, it is
 	// the next object: number takes it from there instead of reading it
@@ -183,6 +187,32 @@ var keywords = func() map[string]Object {
 // name reads a name after the slash.
 func (p *parser) name() Name {
 	w := p.word()
+	if p.cacheNames {
+		return p.cachedName(w)
+	}
+	return nameOf(w)
+}
+
+// maxNames bounds the names a parser remembers.
+const maxNames = 256
+
+// cachedName returns nameOf(w), allocated once per parser.
+func (p *parser) cachedName(w []byte) Name {
+	if n, ok := p.names[string(w)]; ok {
+		return n
+	}
+	n := nameOf(w)
+	if len(p.names) < maxNames {
+		if p.names == nil {
+			p.names = map[string]Name{}
+		}
+		p.names[string(w)] = n
+	}
+	return n
+}
+
+// nameOf returns the name whose characters, after the slash, are w.
+func nameOf(w []byte) Name {
 	if bytes.IndexByte(w, '#') < 0 {
 		return internName(w)
 	}
@@ -458,6 +488,14 @@ func unhex(c byte) byte {
 // literal reads a literal string; the result aliases the input when it holds
 // no escape and no carriage return.
 func (p *parser) literal() (Object, error) {
+	s, err := p.literalBytes(nil)
+	return String(s), err
+}
+
+// literalBytes reads a literal string. The result aliases the input when it
+// holds no escape and no carriage return; otherwise it is decoded at the end
+// of *buf, which grows, or in a new slice when buf is nil.
+func (p *parser) literalBytes(buf *[]byte) ([]byte, error) {
 	b := p.b
 	start := p.pos + 1
 	// Fast path: no backslash, no CR, no nested parenthesis.
@@ -465,19 +503,25 @@ func (p *parser) literal() (Object, error) {
 		switch b[i] {
 		case ')':
 			p.pos = i + 1
-			return String(b[start:i:i]), nil
+			return b[start:i:i], nil
 		case '\\', '(', '\r':
-			return p.literalSlow()
+			return p.literalSlow(buf)
 		}
 	}
 	p.pos = len(b)
-	return String(b[start:len(b):len(b)]), nil
+	return b[start:len(b):len(b)], nil
 }
 
-func (p *parser) literalSlow() (Object, error) {
+func (p *parser) literalSlow(buf *[]byte) ([]byte, error) {
+	if buf == nil {
+		out := make([]byte, 0, 32)
+		buf = &out
+	}
 	b := p.b
 	i := p.pos + 1
-	out := make([]byte, 0, 32)
+	start := len(*buf)
+	out := *buf
+	defer func() { *buf = out }()
 	level := 1
 	for i < len(b) {
 		c := b[i]
@@ -489,7 +533,7 @@ func (p *parser) literalSlow() (Object, error) {
 			level--
 			if level == 0 {
 				p.pos = i
-				return String(out), nil
+				return out[start:len(out):len(out)], nil
 			}
 		case '\r':
 			// An unescaped end of line is read as a line feed.
@@ -537,14 +581,27 @@ func (p *parser) literalSlow() (Object, error) {
 		out = append(out, c)
 	}
 	p.pos = len(b)
-	return String(out), nil
+	return out[start:len(out):len(out)], nil
 }
 
 // hex reads a hexadecimal string.
 func (p *parser) hex() (Object, error) {
+	s, err := p.hexBytes(nil)
+	return String(s), err
+}
+
+// hexBytes reads a hexadecimal string, decoded at the end of *buf, which
+// grows, or in a new slice when buf is nil.
+func (p *parser) hexBytes(buf *[]byte) ([]byte, error) {
+	if buf == nil {
+		out := make([]byte, 0, 16)
+		buf = &out
+	}
 	b := p.b
 	i := p.pos + 1
-	out := make([]byte, 0, 16)
+	start := len(*buf)
+	out := *buf
+	defer func() { *buf = out }()
 	var hi byte
 	half := false
 	for i < len(b) {
@@ -555,13 +612,10 @@ func (p *parser) hex() (Object, error) {
 			if half {
 				out = append(out, hi<<4)
 			}
-			return String(out), nil
+			return out[start:len(out):len(out)], nil
 		}
 		if !isHex(c) {
-			if class[c] == white {
-				continue
-			}
-			// Tolerate garbage: skip it.
+			// White space, or garbage: skip it.
 			continue
 		}
 		if half {
@@ -573,12 +627,33 @@ func (p *parser) hex() (Object, error) {
 		}
 	}
 	p.pos = len(b)
-	return String(out), nil
+	return out[start:len(out):len(out)], nil
 }
 
 // number reads a number; an unsigned integer followed by another one and "R"
 // is read as an indirect reference.
 func (p *parser) number() Object {
+	kind, n, f, gen := p.scanNumber()
+	switch kind {
+	case numReal:
+		return Real(f)
+	case numRef:
+		return Ref{Num: uint32(n), Gen: gen}
+	}
+	return intObject(n)
+}
+
+// numKind is what scanNumber read.
+type numKind uint8
+
+const (
+	numInt  numKind = iota // the integer n
+	numReal                // the real f
+	numRef                 // the reference n gen R
+)
+
+// scanNumber reads what number reads, without boxing it in an Object.
+func (p *parser) scanNumber() (kind numKind, n int64, f float64, gen uint16) {
 	b := p.b
 	start := p.pos
 	neg := false
@@ -588,7 +663,6 @@ func (p *parser) number() Object {
 	}
 	signed := p.pos > start
 	intStart := p.pos
-	var n int64
 	var isInt bool
 	if p.pos == p.aheadAt && p.aheadEnd > p.aheadAt {
 		n, isInt, p.pos = p.ahead, true, p.aheadEnd
@@ -612,7 +686,7 @@ func (p *parser) number() Object {
 		if neg {
 			f = -f
 		}
-		return Real(f)
+		return numReal, 0, f, 0
 	}
 	if !isInt {
 		// Overflow or lone sign.
@@ -624,9 +698,9 @@ func (p *parser) number() Object {
 			if neg {
 				f = -f
 			}
-			return Real(f)
+			return numReal, 0, f, 0
 		}
-		return Int(0)
+		return numInt, 0, 0, 0
 	}
 	// Garbage glued to the integer ("12abc"): skip it.
 	if p.pos < len(b) && isRegular(b[p.pos]) {
@@ -636,7 +710,7 @@ func (p *parser) number() Object {
 		if neg {
 			n = -n
 		}
-		return intObject(n)
+		return numInt, n, 0, 0
 	}
 	if !signed && n <= math.MaxUint32 {
 		// Look ahead for "gen R".
@@ -649,7 +723,7 @@ func (p *parser) number() Object {
 				p.skip()
 				if p.pos < len(b) && b[p.pos] == 'R' && (p.pos+1 == len(b) || !isRegular(b[p.pos+1])) {
 					p.pos++
-					return Ref{Num: uint32(n), Gen: uint16(gen)}
+					return numRef, n, 0, uint16(gen)
 				}
 			}
 			p.aheadAt, p.aheadEnd, p.ahead = at, end, gen
@@ -659,7 +733,7 @@ func (p *parser) number() Object {
 	if neg {
 		n = -n
 	}
-	return intObject(n)
+	return numInt, n, 0, 0
 }
 
 // intObject returns n as an Object. Integers below smallIntLimit, such as
@@ -818,6 +892,15 @@ func (p *parser) arrayLen() int {
 // dict reads a dictionary. The entries are collected in the scratch space
 // of the parser, then copied to a dictionary of their number.
 func (p *parser) dict() (Object, error) {
+	d, err := p.dictValue()
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// dictValue reads what dict reads, without boxing it in an Object.
+func (p *parser) dictValue() (Dict, error) {
 	p.pos += 2 // <<
 	if p.depth++; p.depth > maxDepth {
 		return nil, errTooDeep

@@ -321,9 +321,9 @@ func syntaxCases() []syntaxCase {
 func TestSyntaxTables(t *testing.T) {
 	for _, c := range syntaxCases() {
 		t.Run(c.name, func(t *testing.T) {
-			base, sevs := tInvoice, severity
+			base, sevs := tInvoice, severity()
 			if c.ctcfr {
-				base, sevs = tCTCFR, ctcfrSeverity
+				base, sevs = tCTCFR, ctcfrSeverity()
 			}
 			sev, ok := sevs[c.rule]
 			if !ok {

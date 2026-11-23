@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ritoon/zerechnung/internal/xmltree"
 	"github.com/ritoon/zerechnung/invoice"
@@ -51,25 +52,29 @@ import (
 
 // ctcfrRenamed maps the CEN rules that the schematron keeps under another
 // identifier, with the same context and test, to that identifier.
-var ctcfrRenamed = map[string]string{
-	"BR-38":    "BR-FREXT-BR-38",
-	"BR-44":    "BR-FREXT-BR-44",
-	"BR-CL-10": "BR-FREXT-CL-10",
-	"BR-CL-24": "BR-FREXT-CL-24",
-}
+var ctcfrRenamed = sync.OnceValue(func() map[string]string {
+	return map[string]string{
+		"BR-38":    "BR-FREXT-BR-38",
+		"BR-44":    "BR-FREXT-BR-44",
+		"BR-CL-10": "BR-FREXT-CL-10",
+		"BR-CL-24": "BR-FREXT-CL-24",
+	}
+})
 
 // ctcfrCodeListText gives the subject and the list name of the code list
 // rules of the schematron that the CEN artefacts do not have, for messages.
-var ctcfrCodeListText = map[string][2]string{
-	"BR-FREXT-CL-10":        {"identifier scheme", "ISO 6523 ICD, BY and SE"},
-	"BR-FREXT-CL-19-GP":     {"gross price allowance reason code", "UNTDID 5189"},
-	"BR-FREXT-CL-20":        {"charge reason code", "UNTDID 7161"},
-	"BR-FREXT-CL-20-TAX":    {"tax reason code", "UNTDID 5153 without VAT"},
-	"BR-FREXT-CL-20-LISTID": {"charge reason code list identifier", "7161 and 5153"},
-	"BR-FREXT-CL-24":        {"attached document MIME code (BT-125)", "the MIME codes of the EXTENDED-CTC-FR schematron"},
-	"BR-FREXT-CL-27":        {"delivery terms code", "the Incoterms of the EXTENDED-CTC-FR schematron"},
-	"BR-FXEXT-04":           {"item attribute code (BT-X-11)", "UNTDED 6313 and the Factur-X extension"},
-}
+var ctcfrCodeListText = sync.OnceValue(func() map[string][2]string {
+	return map[string][2]string{
+		"BR-FREXT-CL-10":        {"identifier scheme", "ISO 6523 ICD, BY and SE"},
+		"BR-FREXT-CL-19-GP":     {"gross price allowance reason code", "UNTDID 5189"},
+		"BR-FREXT-CL-20":        {"charge reason code", "UNTDID 7161"},
+		"BR-FREXT-CL-20-TAX":    {"tax reason code", "UNTDID 5153 without VAT"},
+		"BR-FREXT-CL-20-LISTID": {"charge reason code list identifier", "7161 and 5153"},
+		"BR-FREXT-CL-24":        {"attached document MIME code (BT-125)", "the MIME codes of the EXTENDED-CTC-FR schematron"},
+		"BR-FREXT-CL-27":        {"delivery terms code", "the Incoterms of the EXTENDED-CTC-FR schematron"},
+		"BR-FXEXT-04":           {"item attribute code (BT-X-11)", "UNTDED 6313 and the Factur-X extension"},
+	}
+})
 
 // vatCategoriesCTCFR are the category rules of the schematron: those of the
 // CEN, with BR-AF for category L and BR-AG for category M.
@@ -327,7 +332,7 @@ func (k *checker) subLines(l *xmltree.Node, id string) {
 			parent = adl.Elem("ParentLineID").Normalized()
 		}
 	}
-	if s := status; s != nil && (strings.Contains(s.Text, " ") || !strings.Contains(ctcfrLists["BR-FREXT-05"], " "+s.Text+" ")) {
+	if s := status; s != nil && (strings.Contains(s.Text, " ") || !strings.Contains(ctcfrLists()["BR-FREXT-05"], " "+s.Text+" ")) {
 		k.fail("BR-FREXT-05", l, "line %q: the subtype (BT-X-8) %q is not DETAIL, GROUP or INFORMATION", id, quote(s.Text))
 	}
 	if parent != "" {
