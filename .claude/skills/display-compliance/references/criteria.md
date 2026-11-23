@@ -57,9 +57,10 @@ mesurent ce que le package fait avec le document, hors ligne.
 Frontière entre `n` et `x` : un document que le package peut traiter hors ligne reste
 dans le périmètre, même s'il sert à une plateforme. Les statuts de cycle de vie CDAR
 et le flux d'e-reporting français sont des fichiers à lire, écrire et valider : les
-statuts CDAR sont `y` depuis la PR qui a fermé #109, le flux d'e-reporting est `n`
-avec #110, alors que leur envoi aux plateformes agréées est `x`. Avant de classer un reporting en `x`, se demander s'il existe un fichier que
-le package pourrait produire.
+statuts CDAR sont `y` depuis la PR qui a fermé #109, le flux d'e-reporting `p` depuis
+la PR #163 (son schematron reste à appliquer, #164), alors que leur envoi aux
+plateformes agréées est `x`. Avant de classer un reporting en `x`, se demander s'il
+existe un fichier que le package pourrait produire.
 
 ## Ce qui fait changer un statut
 
@@ -100,6 +101,55 @@ manque pour un `p`, l'API ou la PR pour un `y`, l'échéance pour un `n` (« B2B
 06/10/2027 »). Les dates en JJ/MM/AAAA. Une information qu'on n'a pas pu confirmer
 (contenu exact d'un QR code, forme d'un cachet) est écrite « à vérifier ».
 
+## Lignes de code
+
+Les camemberts mesurent l'effort déjà fourni par pays, pas la couverture : un pays
+couvert à 100 % par Peppol pèse peu, un pays à format national pèse lourd.
+
+- **Ce qu'on compte** : les lignes non vides hors commentaires des fichiers `.go` hors
+  tests de `origin/main`. Restent dehors les outils et ce qui ne sert pas les normes :
+  `cmd`, `server`, `conformance`, `site`, les aides de test (dossiers `*test`,
+  `internal/variants`, `internal/race`, `internal/initcost`). Le code généré
+  (`*_gen.go`) est compté à part, pour la case qui le retire ; les générateurs
+  (`gen/main.go`) sont écrits à la main et comptent comme tels.
+- **Normes ou fonctionnalités** : un format et ses règles (lecture, écriture, schéma,
+  jeu de règles) vont aux normes ; ce que la norme impose autour du document (PDF
+  hybride, signature, QR code) va aux fonctionnalités. Un même paquet peut se
+  partager : `facturae/sign.go` et `verify.go` sont la signature de l'Espagne, le
+  reste de `facturae` sa norme. Les documents de reporting suivent la matrice, qui
+  les range dans les fonctionnalités (`rep`) : les paquets `cdar` et `ereporting`,
+  leurs règles (`rules/cdv`), leurs schémas et leurs fichiers de `validate` vont aux
+  fonctionnalités de la France.
+- **Un pays ou un groupe** : un code propre à un pays lui revient en entier, même si
+  un voisin s'en sert (les règles XRechnung de `rules/de` vont à l'Allemagne, pas au
+  Luxembourg). Un code commun à plusieurs pays forme un groupe (Factur-X/ZUGFeRD,
+  Peppol, interpréteur schematron, PDF/A-3 hybride, PAdES, socle de signature,
+  encodeur QR) : le widget le répartit à parts égales entre ses pays, ou le montre en
+  tranche grise. Les pays d'un groupe se déduisent de la matrice quand c'est possible
+  (une norme ou une fonctionnalité couverte ou partielle), pour suivre les statuts.
+- **Le socle EN 16931** (CII, UBL, modèle `invoice`, règles et listes de codes CEN,
+  schémas, `validate`, lecture XML) est la base commune européenne, marquée `base`
+  dans `data/loc_map.json`. Il n'est pas réparti entre les pays : le widget le dessine
+  en disque central, et chaque pays en dépasse d'une barre dont la surface est à
+  l'échelle de celle du disque : un pays qui ajoute 20 % du socle a une barre de 20 %
+  de la surface du disque (rayon extérieur R0·√(1 + 2πp/θ) pour une part d'angle θ).
+  La barre empile les dossiers du pays, dans sa couleur, puis sa part des
+  groupes partagés, en gris ; montrés à part, les groupes ont leur propre barre. Les
+  pays autour du cercle sont ceux du socle (motif `norm` du groupe : une norme couverte
+  ou partielle qui repose sur EN 16931 ; la Suisse, dont la seule norme est la
+  QR-facture, n'en est pas). Les pays qui ajoutent au moins 1 % du socle ont une part
+  trois fois plus large, pour que leurs barres restent lisibles ; à surface égale,
+  une part étroite sort plus loin, et les graduations ne valent que pour les parts
+  larges. Les composants du socle (`parts`) s'affichent au survol du cercle.
+- **Un nouveau paquet** : le rattacher au pays dont il implémente la norme, ou à un
+  groupe s'il en sert plusieurs ; à défaut, au socle. Dans les dossiers qui mêlent
+  socle et pays (racine, `cii`, `ubl`, `invoice`, `validate`, `internal/rules`,
+  `internal/codes`, `internal/schema`), le socle et le PDF hybride nomment leurs
+  fichiers un à un, sans joker : c'est ce qui fait échouer `count_loc.py` sur
+  `internal/rules/sk` (PR #155) ou `ubl/croatia.go` (PR #157) au lieu de les ranger
+  dans le socle. Une QR-facture suisse irait ainsi à la Suisse, l'encodeur
+  `internal/qr` restant au groupe QR.
+
 ## Décisions passées
 
 - **EXTENDED-CTC-FR (France)** : `p` tant que seules les règles EN 16931 étaient
@@ -119,7 +169,7 @@ manque pour un `p`, l'API ou la PR pour un `y`, l'échéance pour un `n` (« B2B
 - **E-reporting (France)** : `n` avec l'issue #110, puis `p` après la PR #163 :
   modèle, lecture, écriture et schémas XSD du flux 10 (paquet `ereporting`, règles
   XSD-* et ER-01) ; le schematron Flux10 du PPF reste à appliquer. #110 fermée et
-  retirée de la liste.
+  retirée de la liste, remplacée par #164 qui suit le schematron.
 - **Mode plateforme agréée (France)** : `n` avec #111, c'est une option de `validate`,
   pas une transmission.
 - **ATCUD + QR code (Portugal)**, **Swiss QR Code (Suisse)** : `p`, l'encodeur
