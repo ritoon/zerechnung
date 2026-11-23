@@ -129,6 +129,9 @@ type Invoice struct {
 	// Spain is the national block of the Spanish Facturae format (see
 	// Spain), read and written by package facturae only.
 	Spain *Spain
+	// Croatia is the national block of the Croatian CIUS and its extension
+	// (see Croatia), read and written by package ubl.
+	Croatia *Croatia
 
 	// Extensions are the elements and attributes of the document that the
 	// other fields do not carry, outside the values that have Extensions of
@@ -241,12 +244,14 @@ type DocumentReference struct {
 	TypeCode  string // Type code of the referenced document (EXT)
 	LineID    string // Referenced line (EXT)
 
+	Croatia *CroatiaReference // Croatian data of a preceding invoice (package ubl, see Croatia)
+
 	Extensions []Extension // see Extension
 }
 
 // IsZero reports whether the reference holds no data.
 func (r *DocumentReference) IsZero() bool {
-	return r == nil || (r.ID == "" && r.IssueDate.IsZero() && r.TypeCode == "" && r.LineID == "" && len(r.Extensions) == 0)
+	return r == nil || (r.ID == "" && r.IssueDate.IsZero() && r.TypeCode == "" && r.LineID == "" && r.Croatia == nil && len(r.Extensions) == 0)
 }
 
 // AdditionalDocument is an additional supporting document (BG-24), or in CII
@@ -404,7 +409,8 @@ type AllowanceCharge struct {
 	VATCategoryCode string  // BT-95, BT-102
 	VATRate         Decimal // BT-96, BT-103
 
-	Italy *ItalyCharge // FatturaPA pension fund contribution (package fatturapa, see Italy)
+	Italy   *ItalyCharge // FatturaPA pension fund contribution (package fatturapa, see Italy)
+	Croatia *CroatiaTax  // Croatian data of the VAT category of a document level allowance or charge (package ubl, see Croatia)
 
 	Extensions []Extension // see Extension
 }
@@ -488,8 +494,9 @@ type Line struct {
 	ObjectIdentifier    Identifier         // BT-128 Invoice line object identifier, with its scheme (BT-128-1)
 	AccountingReference string             // BT-133 Invoice line Buyer accounting reference
 
-	Italy *ItalyLine // FatturaPA data of the line (package fatturapa, see Italy)
-	Spain *SpainLine // Facturae data of the line (package facturae, see Spain)
+	Italy   *ItalyLine   // FatturaPA data of the line (package fatturapa, see Italy)
+	Spain   *SpainLine   // Facturae data of the line (package facturae, see Spain)
+	Croatia *CroatiaLine // Croatian data of the line (package ubl, see Croatia)
 
 	// Extensions are the elements and attributes of the line that the
 	// other fields do not carry, such as the brand name of the item or the

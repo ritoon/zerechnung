@@ -109,7 +109,7 @@ func TestProfile(t *testing.T) {
 		if got := ParseProfile(p.String()); got != p {
 			t.Errorf("ParseProfile(%q) = %s", p.String(), got)
 		}
-		if p != ProfileExtendedCTCFR && p != ProfilePeppol && p != ProfileNLCIUS && p != ProfileCIUSIT && p != ProfileCIUSPT && p != ProfileCIUSRO {
+		if p != ProfileExtendedCTCFR && p != ProfilePeppol && p != ProfileNLCIUS && p != ProfileCIUSIT && p != ProfileCIUSPT && p != ProfileCIUSRO && p != ProfileCIUSHR {
 			if got := ProfileFromConformanceLevel(p.ConformanceLevel()); got != p {
 				t.Errorf("ProfileFromConformanceLevel(%q) = %s", p.ConformanceLevel(), got)
 			}
@@ -138,6 +138,9 @@ func TestProfile(t *testing.T) {
 		"urn:cen.eu:en16931:2017#compliant#urn:efactura.mfinante.ro:CIUS-RO:1.0.1":                                          ProfileCIUSRO,
 		" urn:cen.eu:en16931:2017#compliant#urn:efactura.mfinante.ro:CIUS-RO:1.0.0 ":                                        ProfileCIUSRO,
 		"urn:efactura.mfinante.ro:CIUS-RO:1.0.1":                                                                            ProfileUnknown,
+		"urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.hr:cius-2025:1.0#conformant#urn:mfin.gov.hr:ext-2025:1.0":           ProfileCIUSHR,
+		" urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.hr:cius-2025:1.0 ":                                                 ProfileCIUSHR,
+		"urn:mfin.gov.hr:cius-2025:1.0":                                                                                     ProfileUnknown,
 		"urn:example":                                                                                                       ProfileUnknown,
 	} {
 		if got := ProfileFromURN(urn); got != want {
@@ -196,6 +199,15 @@ func TestProfile(t *testing.T) {
 		DetectProfile("urn:cen.eu:en16931:2017#compliant#urn:efactura.mfinante.ro:cius-ro") != ProfileCIUSRO ||
 		ProfileCIUSRO.URN() != URNCIUSRO || ProfileCIUSRO.URNFor("RO") != URNCIUSRO {
 		t.Error("CIUS-RO profile")
+	}
+	if ProfileCIUSHR.ConformanceLevel() != "EN 16931" || ProfileCIUSHR.Filename() != "factur-x.xml" || ProfileCIUSHR.String() != "CIUS-HR" ||
+		!ProfileCIUSHR.AtLeast(ProfileEN16931) || ProfileCIUSHR.AtLeast(ProfileExtendedCTCFR) || !ProfileCIUSHR.EN16931() ||
+		ParseProfile("cius-hr") != ProfileCIUSHR || ParseProfile("CIUSHR") != ProfileCIUSHR || ParseProfile("cius_hr") != ProfileCIUSHR ||
+		ProfileFromConformanceLevel("CIUS-HR") != ProfileUnknown ||
+		DetectProfile("urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.hr:cius") != ProfileCIUSHR ||
+		ProfileCIUSHR.URN() != URNCIUSHR || ProfileCIUSHR.URNFor("HR") != URNCIUSHR ||
+		URNCIUSHR != "urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.hr:cius-2025:1.0#conformant#urn:mfin.gov.hr:ext-2025:1.0" {
+		t.Error("CIUS-HR profile")
 	}
 	if ProfileCIUSIT.URNFor(" it ") != URNCIUSIT+ItalianExtension || ProfileCIUSIT.URNFor("FR") != URNCIUSIT ||
 		ProfileCIUSIT.URNFor("") != URNCIUSIT || ProfilePeppol.URNFor("IT") != URNPeppol {
