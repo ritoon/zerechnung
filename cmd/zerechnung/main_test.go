@@ -221,6 +221,38 @@ func TestValidateROOption(t *testing.T) {
 	}
 }
 
+// TestValidateSKOption checks that -sk applies the Slovak rules, and -auto
+// to a seller in Slovakia only: the Slovak invoice without the legal
+// information of its seller (BT-33) breaks SK-13 under them.
+func TestValidateSKOption(t *testing.T) {
+	const legalForm = "<cbc:CompanyLegalForm>Spoločnosť s ručením obmedzeným zapísaná v Obchodnom registri Mestského súdu Bratislava III, oddiel Sro, vložka č. 12345/B</cbc:CompanyLegalForm>\n"
+	data, err := os.ReadFile("../../internal/rules/sk/testdata/sk.ubl.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(data, []byte(legalForm)) {
+		t.Fatal("no BT-33")
+	}
+	file := filepath.Join(t.TempDir(), "sk.xml")
+	if err := os.WriteFile(file, bytes.Replace(data, []byte(legalForm), nil, 1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		flags []string
+		want  bool
+	}{
+		{nil, false},
+		{[]string{"-peppol"}, false},
+		{[]string{"-auto"}, true},
+		{[]string{"-sk"}, true},
+	} {
+		_, got := runValidate(t, append(c.flags, file)...)
+		if got["SK-13"] != c.want {
+			t.Errorf("validate %v on a Slovak invoice without BT-33: SK-13 reported %v, want %v", c.flags, got["SK-13"], c.want)
+		}
+	}
+}
+
 // TestValidatePeppolOption checks that -peppol applies the Peppol rules to an
 // invoice that does not declare itself Peppol, and that they are not applied
 // otherwise.

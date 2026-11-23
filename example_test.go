@@ -190,6 +190,62 @@ func Example_ciusRO() {
 	// CIUS-RO errors: 0 warnings: 0
 }
 
+// Example_slovakia writes a Slovak invoice of the eFaktúra: Peppol BIS
+// Billing 3.0 in UBL, between two VAT payers established in Slovakia. Beyond
+// Peppol BIS, the Finančná správa requires the electronic addresses of
+// scheme 0245 (the DIČ), complete postal addresses, the IČ DPH of the VAT
+// payers, the IČO of the companies, the legal form and the register entry of
+// the seller (BT-33) and, when the supply is not dated on the issue date,
+// the VAT point date (BT-7). Auto applies the Slovak rules to a seller in
+// Slovakia.
+func Example_slovakia() {
+	d := invoice.MustDecimal
+	inv := &invoice.Invoice{
+		Profile:        invoice.ProfilePeppol,
+		Number:         "FA-2027-0001",
+		TypeCode:       invoice.TypeCommercialInvoice,
+		IssueDate:      invoice.NewDate(2027, time.January, 15),
+		Currency:       "EUR",
+		TaxPointDate:   invoice.NewDate(2027, time.January, 12),
+		BuyerReference: "OBJ-2026-118",
+		Seller: invoice.Party{
+			Name:              "Príklad Softvér s.r.o.",
+			Description:       "Zapísaná v Obchodnom registri Mestského súdu Bratislava III, oddiel Sro, vložka č. 12345/B",
+			LegalRegistration: invoice.Identifier{ID: "12345678"},
+			ElectronicAddress: invoice.Identifier{ID: "2020123456", Scheme: "0245"},
+			VATID:             "SK2020123456",
+			Address:           invoice.Address{Line1: "Hlavná 1", City: "Bratislava", PostCode: "811 01", CountryCode: "SK"},
+		},
+		Buyer: invoice.Party{
+			Name:              "Odberateľ Košice a.s.",
+			LegalRegistration: invoice.Identifier{ID: "87654321"},
+			ElectronicAddress: invoice.Identifier{ID: "2021987654", Scheme: "0245"},
+			VATID:             "SK2021987654",
+			Address:           invoice.Address{Line1: "Hlavná 50", City: "Košice", PostCode: "040 01", CountryCode: "SK"},
+		},
+		PaymentTerms: []invoice.PaymentTerms{{DueDate: invoice.NewDate(2027, time.January, 29)}},
+		Lines: []invoice.Line{{
+			ID:              "1",
+			Item:            invoice.Item{Name: "Údržba siete"},
+			Quantity:        d("10"),
+			UnitCode:        "HUR",
+			NetPrice:        d("80.00"),
+			VATCategoryCode: invoice.VATStandard,
+			VATRate:         d("23"),
+		}},
+	}
+	inv.Calculate()
+
+	xml, err := ubl.Marshal(inv, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	report := validate.XML(xml, &validate.Options{Auto: true})
+	fmt.Println(report.Profile, "errors:", len(report.Errors()), "warnings:", len(report.Findings)-len(report.Errors()))
+	// Output:
+	// PEPPOL errors: 0 warnings: 0
+}
+
 // ConvertPDFA lists why a PDF cannot be converted to PDF/A-3: here, the
 // font of the host of the tests is not embedded.
 func ExampleConvertPDFA() {
