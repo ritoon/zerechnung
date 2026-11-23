@@ -5,7 +5,7 @@ package hr
 // cases are variants of the base documents, each with the rules of the
 // CIUS-HR that the schematron of the tax administration compiled by SchXslt
 // and run by Saxon-HE reports for it: for each of the 62 rules raised by the
-// 5661 candidate mutations (534 of which stop Saxon), the variant that raises
+// 5662 candidate mutations (534 of which stop Saxon), the variant that raises
 // the fewest other rules.
 var cases = []struct {
 	base string
@@ -30,7 +30,7 @@ var cases = []struct {
 	{baseCreditNote, edit{1, "<cbc:TaxAmount currencyID=\"EUR\">0.00</cbc:TaxAmount>", "<cbc:TaxAmount currencyID=\"EUR\">-0.00</cbc:TaxAmount>"}, []string{"HR-BR-29"}},
 	{baseOutOfScope, edit{2, "<cbc:Name>HR:O</cbc:Name>", "<cbc:Name>HR:N</cbc:Name>"}, []string{"HR-BR-30"}},
 	{baseInvoice, edit{1, "<cbc:ID>E</cbc:ID>", "<cbc:ID>O</cbc:ID>"}, []string{"HR-BR-32"}},
-	{baseInvoice, edit{1, "<cbc:ID>VAT</cbc:ID>", ""}, []string{"HR-BR-33"}},
+	{baseOutOfScope, edit{1, "<cbc:ID>FC</cbc:ID>", ""}, []string{"HR-BR-33"}},
 	{baseInvoice, edit{1, "<cbc:ProfileID>P1</cbc:ProfileID>", ""}, []string{"HR-BR-34"}},
 	{baseInvoice, edit{6, "<cbc:ID>S</cbc:ID>", "<cbc:ID>E</cbc:ID>"}, []string{"HR-BR-36"}},
 	{baseOutOfScope, edit{1, "<cbc:Name>Ivo</cbc:Name>", ""}, []string{"HR-BR-37"}},

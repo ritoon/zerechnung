@@ -151,7 +151,8 @@ type Validation struct {
 	Skip bool `json:"skip"`
 	// Auto adds the national rules of the seller's country.
 	Auto bool `json:"auto"`
-	// Rules adds rule sets: fr, de, choruspro, peppol, nl, it.
+	// Rules adds rule sets: fr, de, choruspro, peppol, nl, it, pt, ro, hr,
+	// face.
 	Rules []string `json:"rules"`
 	// Profile validates against this profile instead of BT-24.
 	Profile string `json:"profile"`
@@ -231,10 +232,12 @@ func (v *Validation) options() (*validate.Options, error) {
 				o.Rules |= validate.Romania
 			case "sk", "slovakia":
 				o.Rules |= validate.Slovakia
+			case "hr", "croatia":
+				o.Rules |= validate.Croatia
 			case "face":
 				o.Rules |= validate.FACe
 			default:
-				return nil, fmt.Errorf("unknown rule set %q (fr, de, choruspro, peppol, nl, it, pt, ro, sk, face)", r)
+				return nil, fmt.Errorf("unknown rule set %q (fr, de, choruspro, peppol, nl, it, pt, ro, sk, hr, face)", r)
 			}
 		}
 	}
