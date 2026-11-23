@@ -1,0 +1,106 @@
+name: Fuzzing
+
+# Every fuzz target of the repository (scripts/fuzz-targets.sh), a few minutes
+# each, every night. The CI and Conformité workflows run the targets on their
+# seed corpus only, as go test does: this workflow looks for new inputs. A
+# target that finds one fails, and the input is uploaded as the artefact
+# fuzz-failure-<target>-<n>: add it to testdata/fuzz/<target>/ in the package
+# directory, where go test replays it on every run, with the fix.
+#
+# The inputs that the previous nights found interesting are kept in the cache,
+# per target, so that each night starts where the previous one stopped.
+#
+# A failure of a scheduled run is notified by e-mail to the last person who
+# changed the cron line below.
+
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+    inputs:
+      fuzztime:
+        description: Fuzzing time per target (go test -fuzztime)
+        default: 5m
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz
+  cancel-in-progress: false
+
+jobs:
+  targets:
+    name: Fuzz targets
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          # The package has no dependency: there is no go.sum to key a cache on.
+          cache: false
+      - id: list
+        run: |
+          set -o pipefail
+          matrix=$(scripts/fuzz-targets.sh | jq -R -s -c 'split("\n") | map(select(. != "") | split("\t") | {module: .[0], package: .[1], target: .[2]})')
+          echo "$matrix" | jq -r '.[] | "\(.module) \(.package) \(.target)"'
+          if [ "$(echo "$matrix" | jq length)" -eq 0 ]; then
+            echo "::error::no fuzz target found"
+            exit 1
+          fi
+          echo "matrix=$matrix" >>"$GITHUB_OUTPUT"
+
+  fuzz:
+    name: ${{ matrix.target }} (${{ matrix.package }})
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    env:
+      PKG: ${{ matrix.package }}
+      TARGET: ${{ matrix.target }}
+      FUZZTIME: ${{ inputs.fuzztime || '5m' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: false
+      - name: Locate the corpus in the build cache
+        id: corpus
+        run: echo "dir=$(go env GOCACHE)/fuzz/$(go list "$PKG")/$TARGET" >>"$GITHUB_OUTPUT"
+      - uses: actions/cache@v5
+        with:
+          path: ${{ steps.corpus.outputs.dir }}
+          key: fuzz-${{ matrix.module }}-${{ matrix.package }}-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-${{ matrix.module }}-${{ matrix.package }}-${{ matrix.target }}-
+      - name: go test -fuzz
+        run: go test -run '^$' -fuzz "^$TARGET\$" -fuzztime "$FUZZTIME" "$PKG"
+      - name: Collect the failing input
+        if: failure()
+        working-directory: .
+        run: |
+          out=$RUNNER_TEMP/failing
+          mkdir -p "$out"
+          echo "Input that makes $TARGET fail, to commit with the fix:" >>"$GITHUB_STEP_SUMMARY"
+          git ls-files --others --exclude-standard -- '*testdata/fuzz/*' | while read -r f; do
+            mkdir -p "$out/$(dirname "$f")"
+            cp "$f" "$out/$f"
+            echo "- \`$f\`" >>"$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: fuzz-failure-${{ matrix.target }}-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/failing/
+          if-no-files-found: ignore
+          retention-days: 30
