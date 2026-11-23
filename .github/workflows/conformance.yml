@@ -95,8 +95,11 @@ jobs:
     # run by Saxon-HE 12.10, on the same elements; for the CIUS-RO, by the
     # ROmodel phase of the schematron of ANAF, likewise; for the CIUS-HR, by
     # the schematron of the Porezna uprava, likewise; invoice by invoice.
-    # Java runs in the CI only: the package is pure Go.
-    name: Parité avec KoSIT, Mustang, la NPa, eSPap, l'ANAF et la Porezna uprava
+    # Java runs in the CI only: the package is pure Go. The name is a
+    # required check of the ruleset of main: renaming the job blocks every
+    # pull request until the ruleset follows, so it stays as it is, though
+    # the job compares with the Porezna uprava too.
+    name: Parité avec KoSIT, Mustang, la NPa, eSPap et l'ANAF
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
