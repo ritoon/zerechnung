@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
-"""Collect what changed in ZeRechnung since the compliance matrix was last updated.
+"""Collect the sources the compliance matrix is built from, at each invocation of the skill.
 
 Usage:
-  gather_state.py [--repo PATH] [--data FILE] [--wiki PATH] [--no-fetch]
+  gather_state.py --wiki PATH [--repo PATH] [--no-fetch]
 
---repo   a checkout or worktree of ritoon/zerechnung (default: the git top level of the current directory)
---data   the matrix (default: data/matrix.json of the skill)
---wiki   a clone of the project wiki, to print its date and the section 11 table
+--wiki      a clone of the project wiki (git@github.com:ritoon/zerechnung.wiki.git)
+--repo      a checkout or worktree of ritoon/zerechnung (default: the git top level of the current directory)
 --no-fetch  skip `git fetch origin`
 
-Prints a Markdown report on stdout: commits and merged pull requests since the
-matrix's commit, the state of every issue the matrix links, the open
-compliance issues it does not link yet, and the facts of origin/main the
-statuses rest on (format packages, rule sets, signing APIs, QR code users,
-the README support table, site/data/compliance.json). It reads and fetches,
-it never writes.
+The skill keeps no matrix: it builds one in the scratchpad each time, from what
+this script prints on stdout, in Markdown:
+
+- the header of the matrix (repo, origin/main commit and date, the wiki's date);
+- the countries of the wiki page "Normes européennes par pays", with their
+  region and the rows of their table (norm or system, scope, status, dates) and
+  their notes, and its section 11, which sets each format against the rule sets;
+- the facts of origin/main the statuses rest on: public packages, rule sets,
+  signing APIs, users of the QR encoder, the README support table,
+  site/data/compliance.json, the pull requests merged lately;
+- the open compliance issues, by country.
+
+It reads and fetches, it never writes.
 """
 import argparse
 import json
@@ -23,14 +29,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parent.parent
+REPO = "ritoon/zerechnung"
 REF = "origin/main"
+# Outside the EU, the EEA, Switzerland and the United Kingdom are region "aele"; every other country is "autre".
+AELE = {"IS", "LI", "NO", "CH", "GB"}
+NOTE_MAX = 320
 
 
-def run(cmd, cwd=None, check=False):
+def run(cmd, cwd=None):
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
-    if check and p.returncode != 0:
-        raise RuntimeError(f"{' '.join(cmd)}: {p.stderr.strip()}")
     return p.stdout if p.returncode == 0 else None
 
 
@@ -42,80 +49,78 @@ def section(title):
     print(f"\n## {title}\n")
 
 
+def cells(line):
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def wiki_countries(text):
+    """The countries of the page, in order: (code, name, region, rows, notes)."""
+    eu = set()
+    m = re.search(r"### Union européenne\n(.*?)\n### ", text, re.S)
+    if m:
+        eu = {a.rsplit("-", 1)[1].upper() for a in re.findall(r"\]\(#([^)]+)\)", m.group(1))}
+    out = []
+    for m in re.finditer(r"^### ([^\n]+?) \(([A-Z]{2})\)\n(.*?)(?=^##)", text, re.S | re.M):
+        name, code, body = m.groups()
+        rows, notes = [], []
+        for line in body.splitlines():
+            if line.startswith("|") and not line.startswith("|---"):
+                c = cells(line)
+                if c[0] != "Norme ou système":
+                    rows.append(c[:4])
+            elif line.startswith("- "):
+                notes.append(line[2:] if len(line) <= NOTE_MAX else line[2:NOTE_MAX] + "…")
+        intro = next((l for l in body.splitlines() if l and not l.startswith(("|", "-"))), "")
+        region = "ue" if code in eu else "aele" if code in AELE else "autre"
+        out.append((code, name, region, intro, rows, notes))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--wiki", required=True)
     ap.add_argument("--repo")
-    ap.add_argument("--data", default=str(SKILL / "data" / "matrix.json"))
-    ap.add_argument("--wiki")
     ap.add_argument("--no-fetch", action="store_true")
     args = ap.parse_args()
 
     repo = Path(args.repo or (run(["git", "rev-parse", "--show-toplevel"]) or ".").strip())
-    data = json.loads(Path(args.data).read_text(encoding="utf-8"))
-    slug = data["repo"]
-    remotes = git(repo, "remote", "-v") or ""
-    if slug not in remotes:
-        print(f"error: {repo} is not a checkout of {slug} (git remote -v does not mention it)", file=sys.stderr)
+    if REPO not in (git(repo, "remote", "-v") or ""):
+        print(f"error: {repo} is not a checkout of {REPO} (git remote -v does not mention it)", file=sys.stderr)
+        return 1
+    wiki = Path(args.wiki)
+    page = next(wiki.glob("Normes-europ*-par-pays.md"), None)
+    if page is None:
+        print(f"error: {wiki} has no page Normes-européennes-par-pays.md; clone the wiki there", file=sys.stderr)
         return 1
     if not args.no_fetch:
         git(repo, "fetch", "-q", "origin")
+        git(wiki, "pull", "-q")
+    text = page.read_text(encoding="utf-8")
 
-    head = (git(repo, "log", "-1", "--format=%h %cs %s", REF) or "?").strip()
-    asof = data["asof"]
-    print(f"# État de {slug}\n")
-    print(f"- Dépôt : `{repo}`")
-    print(f"- {REF} : {head}")
-    print(f"- Matrice : commit {asof['commit']} du {asof['date']}")
+    commit, date, subject = (git(repo, "log", "-1", "--format=%h%x09%cs%x09%s", REF) or "?\t?\t?").strip().split("\t")
+    m = re.match(r">\s*(État au [^.]+)\.", text)
+    print(f"# Sources de la matrice de {REPO}\n")
+    print("En-tête de la matrice :\n")
+    print(f'- "repo": "{REPO}"')
+    print(f'- "asof": {{"commit": "{commit}", "date": "{date}", "wiki": "Normes européennes par pays, '
+          + (m.group(1)[0].lower() + m.group(1)[1:] if m else "état inconnu") + '"}')
+    print(f"\n{REF} : {commit} du {date}, {subject}")
 
-    section(f"Commits de {REF} depuis {asof['commit']}")
-    known = git(repo, "cat-file", "-e", asof["commit"] + "^{commit}") is not None
-    if not known:
-        print(f"Le commit {asof['commit']} est inconnu de ce dépôt : comparer avec les PR fusionnées ci-dessous.")
-    else:
-        log = (git(repo, "log", "--oneline", "--no-decorate", f"{asof['commit']}..{REF}") or "").strip()
-        print("\n".join(f"- {l}" for l in log.splitlines()) if log else "Aucun : la matrice est à jour avec le code.")
+    section("Pays du wiki (Normes européennes par pays)")
+    print("Une ligne par pays de la matrice, dans cet ordre de lecture. Colonnes des tableaux : norme ou système | périmètre | statut | dates.")
+    for code, name, region, intro, rows, notes in wiki_countries(text):
+        print(f"\n### {code} {name} (région {region})\n")
+        if intro:
+            print(intro)
+        for r in rows:
+            print("| " + " | ".join(r) + " |")
+        for n in notes:
+            print(f"- {n}")
 
-    # PRs merged after the matrix's commit (its committer time), or since its date when the commit is unknown.
-    since = (git(repo, "log", "-1", "--format=%cI", asof["commit"]) or "").strip() if known else ""
-    section("PR fusionnées depuis " + (f"le commit {asof['commit']}" if since else f"le {asof['date']}"))
-    prs = run(["gh", "pr", "list", "-R", slug, "--state", "merged", "--search", f"merged:>={asof['date']}",
-               "--limit", "200", "--json", "number,title,mergedAt,mergeCommit"])
-    if prs is None:
-        print("gh n'a pas répondu (authentification ?) : liste non disponible.")
-    else:
-        rows = sorted(json.loads(prs), key=lambda p: p["mergedAt"])
-        if since:
-            # GitHub gives mergedAt in UTC (Z); git gives the committer offset: compare as aware datetimes.
-            from datetime import datetime
-            t0 = datetime.fromisoformat(since)
-            rows = [p for p in rows if datetime.fromisoformat(p["mergedAt"].replace("Z", "+00:00")) > t0
-                    and not (p.get("mergeCommit") or {}).get("oid", "").startswith(asof["commit"])]
-        print("\n".join(f"- #{p['number']} {p['title']} ({p['mergedAt'][:10]})" for p in rows) or "Aucune.")
-
-    issues_json = run(["gh", "issue", "list", "-R", slug, "--state", "all", "--limit", "500",
-                       "--json", "number,title,state,closedAt,labels"])
-    linked = {i: c["name"] for c in data["countries"] for i in c.get("issues", [])}
-    section("Issues liées à la matrice")
-    if issues_json is None:
-        print("gh n'a pas répondu : état des issues non disponible.")
-        issues = []
-    else:
-        issues = json.loads(issues_json)
-        by_num = {i["number"]: i for i in issues}
-        closed = []
-        for n in sorted(linked):
-            i = by_num.get(n)
-            if i is None:
-                print(f"- #{n} ({linked[n]}) : introuvable")
-            elif i["state"] != "OPEN":
-                closed.append(f"- #{n} ({linked[n]}) : FERMÉE le {(i['closedAt'] or '')[:10]} — {i['title']}")
-        print("\n".join(closed) if closed else "Toutes ouvertes.")
-        print(f"\n({len(linked)} issues liées ; une issue fermée signale en général un statut à passer à « couvert » et une issue à retirer.)")
-
-        section("Issues ouvertes « conformité » non liées")
-        loose = [i for i in issues if i["state"] == "OPEN" and i["number"] not in linked
-                 and any(l["name"] == "conformité" for l in i["labels"])]
-        print("\n".join(f"- #{i['number']} {i['title']}" for i in sorted(loose, key=lambda i: i["number"])) or "Aucune.")
+    m = re.search(r"## 11\..*?\n(.*?)\n## 12\.", text, re.S)
+    if m:
+        section("Wiki, section 11 : les formats face aux jeux de règles")
+        print("\n".join(l for l in m.group(1).splitlines() if l.startswith("|") and not l.startswith("|---")))
 
     section(f"Faits du code ({REF})")
     tree = git(repo, "ls-tree", "-r", "--name-only", REF) or ""
@@ -152,24 +157,29 @@ def main():
     site = git(repo, "show", f"{REF}:site/data/compliance.json")
     if site:
         sj = json.loads(site)
-        print(f"\n`site/data/compliance.json` (au {sj.get('asof', '?')}), à confronter à la matrice :\n")
+        print(f"\n`site/data/compliance.json` (au {sj.get('asof', '?')}), souvent en retard d'une PR :\n")
         for c in sj.get("countries", []):
             print(f"- {c['code']} : " + ", ".join(f"{n}={s}" for n, s in c.get("cover", [])))
 
-    if args.wiki:
-        w = Path(args.wiki)
-        section("Wiki")
-        print("Derniers commits :")
-        print("\n".join(f"- {l}" for l in (git(w, "log", "-5", "--oneline", "--no-decorate") or "").splitlines()))
-        page = next(w.glob("Normes-europ*-par-pays.md"), None)
-        if page:
-            text = page.read_text(encoding="utf-8")
-            print(f"\n{page.name} : {text.splitlines()[0][:160]}…")
-            m = re.search(r"## 11\..*?\n(.*?)\n## 12\.", text, re.S)
-            if m:
-                rows = [l for l in m.group(1).splitlines() if l.startswith("|") and not l.startswith("|---")]
-                print("\nSection 11 (formats face aux jeux de règles) :\n")
-                print("\n".join(rows))
+    log = git(repo, "log", "--format=%h %cs %s", "-60", REF) or ""
+    merged = [l for l in log.splitlines() if re.search(r"\(#\d+\)$", l)]
+    print("\nPR fusionnées récemment (à citer « PR #NN » dans les notes) :\n")
+    print("\n".join(f"- {l}" for l in merged[:40]) or "- aucune")
+
+    section("Issues ouvertes « conformité », par pays")
+    issues = run(["gh", "issue", "list", "-R", REPO, "--state", "open", "--label", "conformité", "--limit", "300",
+                  "--json", "number,title"])
+    if issues is None:
+        print("gh n'a pas répondu (authentification ?) : issues non disponibles, la matrice ne peut pas les lier.")
+    else:
+        by = {}
+        for i in json.loads(issues):
+            who = i["title"].split(" : ", 1)[0] if " : " in i["title"] else "(sans pays)"
+            who = re.sub(r"^Prendre en charge (la |le |les |l')?", "", who)
+            by.setdefault(who, []).append(i)
+        for who in sorted(by):
+            print(f"- {who} : " + " ; ".join(f"#{i['number']} {i['title'].split(' : ', 1)[-1]}"
+                                             for i in sorted(by[who], key=lambda i: i["number"])))
     return 0
 
 
