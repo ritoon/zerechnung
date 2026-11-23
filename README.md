@@ -32,6 +32,14 @@ Keep generating your invoice PDFs the way you do today. ZeRechnung adds the XML 
 >
 > Feedback from the community is welcome: open an [issue](https://github.com/ritoon/zerechnung/issues) with your comments on the project.
 
+## Why this project
+
+ZeRechnung is not meant to make VAT carousel fraud easier. Its purpose is to make e-invoicing interoperable between the countries of Europe.
+
+The European Union is supposed to be a free-trade area. Yet a company that invoices a customer in a neighbouring country meets a different format, a different national CIUS, a different platform and a different set of rules at each border. Even with a common European standard, EN 16931, lawmakers have turned the single market into a viscous one, constrained by norms and rules whose only justification seems to be the working time and the posts of the people who write them. ZeRechnung tries to absorb that complexity so that businesses can exchange invoices across borders without having to master every national variant.
+
+Europe would gain from one universal invoice format, accepted as is in every country. It would make trade between countries simpler and would need far fewer government employees whose only role is to complicate things.
+
 ## Install
 
 ```bash
