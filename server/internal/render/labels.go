@@ -34,7 +34,10 @@ type labels struct {
 	mandate, creditorID, debitedAccount, card, notes, page   string
 	continued                                                string
 
-	categories map[string]string // VAT categories (UNTDID 5305)
+	// categories are the VAT categories (UNTDID 5305). S is the category of
+	// every positive rate, reduced ones included: its label does not say
+	// "standard rate", the rate column gives the rate.
+	categories map[string]string
 	means      map[string]string // payment means (UNTDID 4461)
 	units      map[string]string // units of measure (UN/ECE Rec 20)
 }
@@ -70,7 +73,7 @@ var translations = map[string]*labels{
 		debitedAccount: "Debited account", card: "Card", notes: "Notes", page: "Page", continued: "continued",
 
 		categories: map[string]string{
-			"S": "Standard rate", "Z": "Zero rated", "E": "Exempt", "AE": "Reverse charge",
+			"S": "Taxable", "Z": "Zero rated", "E": "Exempt", "AE": "Reverse charge",
 			"K": "Intra-community supply", "G": "Export outside the EU", "O": "Not subject to VAT",
 			"L": "Canary Islands (IGIC)", "M": "Ceuta and Melilla (IPSI)", "B": "Split payment",
 		},
@@ -115,7 +118,7 @@ var translations = map[string]*labels{
 		debitedAccount: "Compte débité", card: "Carte", notes: "Mentions", page: "Page", continued: "suite",
 
 		categories: map[string]string{
-			"S": "Taux normal", "Z": "Taux zéro", "E": "Exonéré", "AE": "Autoliquidation",
+			"S": "Soumis à TVA", "Z": "Taux zéro", "E": "Exonéré", "AE": "Autoliquidation",
 			"K": "Livraison intracommunautaire", "G": "Exportation hors UE", "O": "Hors champ de la TVA",
 			"L": "Îles Canaries (IGIC)", "M": "Ceuta et Melilla (IPSI)", "B": "Paiement scindé",
 		},
@@ -160,7 +163,7 @@ var translations = map[string]*labels{
 		debitedAccount: "Belastetes Konto", card: "Karte", notes: "Hinweise", page: "Seite", continued: "Fortsetzung",
 
 		categories: map[string]string{
-			"S": "Regelsteuersatz", "Z": "Nullsatz", "E": "Steuerbefreit", "AE": "Steuerschuldnerschaft des Leistungsempfängers",
+			"S": "Steuerpflichtig", "Z": "Nullsatz", "E": "Steuerbefreit", "AE": "Steuerschuldnerschaft des Leistungsempfängers",
 			"K": "Innergemeinschaftliche Lieferung", "G": "Ausfuhr", "O": "Nicht steuerbar",
 			"L": "Kanarische Inseln (IGIC)", "M": "Ceuta und Melilla (IPSI)", "B": "Split Payment",
 		},
@@ -205,7 +208,7 @@ var translations = map[string]*labels{
 		debitedAccount: "Conto addebitato", card: "Carta", notes: "Note", page: "Pagina", continued: "segue",
 
 		categories: map[string]string{
-			"S": "Aliquota ordinaria", "Z": "Aliquota zero", "E": "Esente", "AE": "Inversione contabile",
+			"S": "Soggetto a IVA", "Z": "Aliquota zero", "E": "Esente", "AE": "Inversione contabile",
 			"K": "Cessione intracomunitaria", "G": "Esportazione", "O": "Fuori campo IVA",
 			"L": "Isole Canarie (IGIC)", "M": "Ceuta e Melilla (IPSI)", "B": "Scissione dei pagamenti",
 		},
@@ -250,7 +253,7 @@ var translations = map[string]*labels{
 		debitedAccount: "Cuenta de cargo", card: "Tarjeta", notes: "Observaciones", page: "Página", continued: "continuación",
 
 		categories: map[string]string{
-			"S": "Tipo general", "Z": "Tipo cero", "E": "Exento", "AE": "Inversión del sujeto pasivo",
+			"S": "Sujeto a IVA", "Z": "Tipo cero", "E": "Exento", "AE": "Inversión del sujeto pasivo",
 			"K": "Entrega intracomunitaria", "G": "Exportación", "O": "No sujeto a IVA",
 			"L": "Canarias (IGIC)", "M": "Ceuta y Melilla (IPSI)", "B": "Escisión de pagos",
 		},
@@ -295,7 +298,7 @@ var translations = map[string]*labels{
 		debitedAccount: "Conta debitada", card: "Cartão", notes: "Observações", page: "Página", continued: "continuação",
 
 		categories: map[string]string{
-			"S": "Taxa normal", "Z": "Taxa zero", "E": "Isento", "AE": "Autoliquidação",
+			"S": "Sujeito a IVA", "Z": "Taxa zero", "E": "Isento", "AE": "Autoliquidação",
 			"K": "Fornecimento intracomunitário", "G": "Exportação", "O": "Não sujeito a IVA",
 			"L": "Canárias (IGIC)", "M": "Ceuta e Melilha (IPSI)", "B": "Pagamento dividido",
 		},
@@ -340,7 +343,7 @@ var translations = map[string]*labels{
 		debitedAccount: "Te debiteren rekening", card: "Kaart", notes: "Opmerkingen", page: "Pagina", continued: "vervolg",
 
 		categories: map[string]string{
-			"S": "Standaardtarief", "Z": "Nultarief", "E": "Vrijgesteld", "AE": "Btw verlegd",
+			"S": "Belast met btw", "Z": "Nultarief", "E": "Vrijgesteld", "AE": "Btw verlegd",
 			"K": "Intracommunautaire levering", "G": "Uitvoer buiten de EU", "O": "Niet onderworpen aan btw",
 			"L": "Canarische Eilanden (IGIC)", "M": "Ceuta en Melilla (IPSI)", "B": "Gesplitste betaling",
 		},

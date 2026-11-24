@@ -196,6 +196,12 @@ func TestMultipage(t *testing.T) {
 // ToUnicode CMaps: the renderer writes one glyph index per character.
 func contentText(t *testing.T, pdf []byte) string {
 	t.Helper()
+	return strings.Join(pageTexts(t, pdf), "")
+}
+
+// pageTexts returns the text of each page, in the order of the pages.
+func pageTexts(t *testing.T, pdf []byte) []string {
+	t.Helper()
 	// Glyph to character maps of the two fonts, from the ToUnicode CMaps.
 	cmaps := map[string]map[string]rune{}
 	streamRe := regexp.MustCompile(`(?s)(\d+) 0 obj\n<< ([^\n]*?)>>\nstream\n(.*?)\nendstream`)
@@ -226,18 +232,93 @@ func contentText(t *testing.T, pdf []byte) string {
 		}
 		cmaps[res[string(m[1])]] = cm
 	}
-	var b strings.Builder
+	// The page objects are written in the order of the pages.
 	showRe := regexp.MustCompile(`BT /(F\d) [^<]*<([0-9A-F]*)> Tj ET`)
-	for _, data := range objs {
-		for _, m := range showRe.FindAllSubmatch(data, -1) {
+	var out []string
+	for _, p := range regexp.MustCompile(`/Type /Page /Parent \d+ 0 R .*? /Contents (\d+) 0 R`).FindAllSubmatch(pdf, -1) {
+		var b strings.Builder
+		for _, m := range showRe.FindAllSubmatch(objs[string(p[1])], -1) {
 			cm := cmaps[string(m[1])]
 			for i := 0; i+4 <= len(m[2]); i += 4 {
 				b.WriteRune(cm[string(m[2][i:i+4])])
 			}
 			b.WriteByte('\n')
 		}
+		out = append(out, b.String())
 	}
-	return b.String()
+	return out
+}
+
+// TestRowsKeptTogether checks that a row of the lines table is not split
+// across pages, unless it is taller than a page.
+func TestRowsKeptTogether(t *testing.T) {
+	inv := sample()
+	d := invoice.MustDecimal
+	inv.Lines = nil
+	for i := 1; i <= 60; i++ {
+		inv.Lines = append(inv.Lines, invoice.Line{
+			ID:       fmt.Sprint(i),
+			Item:     invoice.Item{Name: fmt.Sprintf("Article-%02d", i), Description: fmt.Sprintf("Description-%02d", i), SellerID: fmt.Sprintf("REF-%02d", i)},
+			Note:     fmt.Sprintf("Note-%02d", i),
+			Quantity: d("1"), UnitCode: "C62", NetPrice: d("10.00"),
+			VATCategoryCode: invoice.VATStandard, VATRate: d("20"),
+		})
+	}
+	// A row taller than a page goes on across pages.
+	inv.Lines[40].Item.Description = strings.Repeat("Une description très longue, sur plus d'une page. ", 400)
+	rendered, out := create(t, inv, &Options{Language: "fr", Time: fixed})
+	for _, f := range pdfFindings(t, out) {
+		t.Errorf("%s", f)
+	}
+	pages := pageTexts(t, rendered)
+	if len(pages) < 4 {
+		t.Fatalf("%d pages, want at least 4", len(pages))
+	}
+	pageOf := func(s string) int {
+		for i, p := range pages {
+			if strings.Contains(p, s) {
+				return i + 1
+			}
+		}
+		return 0
+	}
+	for i := 1; i <= 60; i++ {
+		if i == 41 {
+			continue
+		}
+		name := pageOf(fmt.Sprintf("Article-%02d", i))
+		for _, s := range []string{"Description-%02d", "REF-%02d", "Note-%02d"} {
+			s = fmt.Sprintf(s, i)
+			if p := pageOf(s); p != name {
+				t.Errorf("line %d: %s is on page %d, its name on page %d", i, s, p, name)
+			}
+		}
+	}
+	if first, last := pageOf("Article-41"), pageOf("Note-41"); first == 0 || last <= first {
+		t.Errorf("the long line starts on page %d and ends on page %d", first, last)
+	}
+}
+
+// TestStandardCategoryLabel checks that the VAT breakdown does not call a
+// reduced rate of the category S the standard rate: S is the category of
+// every positive rate.
+func TestStandardCategoryLabel(t *testing.T) {
+	for lang, old := range map[string]string{
+		"en": "Standard rate", "fr": "Taux normal", "de": "Regelsteuersatz", "it": "Aliquota ordinaria",
+		"es": "Tipo general", "pt": "Taxa normal", "nl": "Standaardtarief",
+	} {
+		rendered, err := Invoice(sample(), &Options{Language: lang, Time: fixed}) // 20 % and 5.5 %
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := contentText(t, rendered)
+		if strings.Contains(text, old) {
+			t.Errorf("%s: the VAT breakdown calls the 20 %% and 5.5 %% rates %q", lang, old)
+		}
+		if s := translations[lang].category(invoice.VATStandard); !strings.Contains(text, s) {
+			t.Errorf("%s: the VAT breakdown has no %q", lang, s)
+		}
+	}
 }
 
 func TestText(t *testing.T) {
