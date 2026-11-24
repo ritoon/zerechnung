@@ -133,6 +133,13 @@ const (
 	lhSmall   = 9.8
 	sizeHead  = 7.5
 	gap       = 16.0 // between sections
+
+	pageHeaderH  = 26.0 // header of the pages after the first one
+	tableHeaderH = 17.0 // header row of the lines table
+	// rowRoom is the height a row of the lines table has on a page of its
+	// own, below the page header and the table header: a row no taller is
+	// kept on one page.
+	rowRoom = top - pageHeaderH - tableHeaderH - bottom
 )
 
 func (d *drawer) draw() {
@@ -162,7 +169,7 @@ func (d *drawer) pageHeader() {
 	c.text(c.bold, 9, left, top-8, fit(c.bold.face, 9, d.inv.Seller.Name, width/2-10), ink)
 	c.textRight(c.reg, 9, right, top-8, fit(c.reg.face, 9, d.docTitle(), width/2-10), muted)
 	c.hline(left, right, top-15, 0.5, rule)
-	c.y = top - 26
+	c.y = top - pageHeaderH
 }
 
 // schemeLabel names the identifier schemes that are printed with a name.
@@ -456,7 +463,7 @@ func (d *drawer) cell(f *usedFont, size float64, col column, y float64, s string
 // tableHeader draws the header row of the lines table.
 func (d *drawer) tableHeader() {
 	c, l := d.c, d.l
-	const h = 17.0
+	const h = tableHeaderH
 	c.rect(left, c.y-h, width, h, band)
 	y := c.y - 11.5
 	d.cell(c.bold, sizeHead, colNo, y, l.colNo, ink)
@@ -522,93 +529,127 @@ type subline struct {
 	color rgb
 }
 
-// lines draws the table of the invoice lines.
+// tableRow is a row of the lines table, laid out before it is drawn.
+type tableRow struct {
+	ln     *invoice.Line
+	indent float64
+	subs   []subline // the description column, line by line
+	price  string
+}
+
+// keep is the height to make room for before drawing the row: all of it,
+// so that it is not split across pages, or only its first line when it is
+// taller than a page.
+func (r *tableRow) keep() float64 {
+	h := 2 * cellPad
+	for _, s := range r.subs {
+		h += s.lh
+	}
+	if h > rowRoom {
+		h = 2*cellPad + r.subs[0].lh
+	}
+	return h
+}
+
+// row lays out the row of an invoice line: its name, then in small type
+// its description, references, attributes, period, allowances and note.
+func (d *drawer) row(ln *invoice.Line) tableRow {
+	c, l := d.c, d.l
+	r := tableRow{ln: ln}
+	if ln.ParentID != "" {
+		r.indent = 8
+	}
+	descW := colDesc.w - 2*cellPad - r.indent
+	name := ln.Item.Name
+	if name == "" {
+		name = ln.Item.Description
+	}
+	for _, s := range wrap(c.reg.face, sizeBody, name, descW) {
+		r.subs = append(r.subs, subline{s, c.reg, sizeBody, lhBody, ink})
+	}
+	if len(r.subs) == 0 {
+		r.subs = append(r.subs, subline{"", c.reg, sizeBody, lhBody, ink})
+	}
+	small := func(s string) {
+		for _, part := range wrap(c.reg.face, sizeSmall, s, descW) {
+			r.subs = append(r.subs, subline{part, c.reg, sizeSmall, lhSmall, muted})
+		}
+	}
+	if ln.Item.Name != "" && ln.Item.Description != "" {
+		small(ln.Item.Description)
+	}
+	var refs []string
+	if ln.Item.SellerID != "" {
+		refs = append(refs, d.pair(l.itemNo, ln.Item.SellerID))
+	}
+	if ln.Item.GlobalID.ID != "" {
+		label := "ID"
+		if ln.Item.GlobalID.Scheme == "0160" {
+			label = "GTIN"
+		}
+		refs = append(refs, d.pair(label, ln.Item.GlobalID.ID))
+	}
+	if ln.Item.OriginCountry != "" {
+		refs = append(refs, d.pair(l.origin, ln.Item.OriginCountry))
+	}
+	if len(refs) > 0 {
+		small(strings.Join(refs, " · "))
+	}
+	for _, a := range ln.Item.Attributes {
+		if a.Name != "" || a.Value != "" {
+			small(d.pair(a.Name, a.Value))
+		}
+	}
+	if p := l.periodText(ln.Period); p != "" {
+		small(d.pair(l.period, p))
+	}
+	if !ln.DeliveryDate.IsZero() {
+		small(d.pair(l.deliveryDate, l.date(ln.DeliveryDate)))
+	}
+	for _, ac := range ln.AllowancesCharges {
+		small(d.acLabel(ac) + l.colon + l.amount(signed(ac)))
+	}
+	if ln.Note != "" {
+		small(ln.Note)
+	}
+
+	r.price = l.num(ln.NetPrice, 2)
+	if ln.PriceBaseQuantity.IsSet() && !ln.PriceBaseQuantity.Equal(invoice.DecimalFromInt(1)) {
+		r.price += "/" + l.num(ln.PriceBaseQuantity, 0)
+	}
+	return r
+}
+
+// lines draws the table of the invoice lines. A row goes on the next page
+// when it does not fit on the current one, unless it is taller than a page.
 func (d *drawer) lines() {
 	c, l, inv := d.c, d.l, d.inv
 	if len(inv.Lines) == 0 {
 		return
 	}
-	c.need(17 + 2*lhBody)
+	rows := make([]tableRow, len(inv.Lines))
+	for i := range inv.Lines {
+		rows[i] = d.row(&inv.Lines[i])
+	}
+	// The table header stays with the first row.
+	c.need(tableHeaderH + rows[0].keep())
 	d.tableHeader()
 	c.onNewPage = append(c.onNewPage, d.tableHeader)
 	defer func() { c.onNewPage = c.onNewPage[:len(c.onNewPage)-1] }()
 
-	for _, ln := range inv.Lines {
-		indent := 0.0
-		if ln.ParentID != "" {
-			indent = 8
-		}
-		descW := colDesc.w - 2*cellPad - indent
-		var subs []subline
-		name := ln.Item.Name
-		if name == "" {
-			name = ln.Item.Description
-		}
-		for _, s := range wrap(c.reg.face, sizeBody, name, descW) {
-			subs = append(subs, subline{s, c.reg, sizeBody, lhBody, ink})
-		}
-		if len(subs) == 0 {
-			subs = append(subs, subline{"", c.reg, sizeBody, lhBody, ink})
-		}
-		small := func(s string) {
-			for _, part := range wrap(c.reg.face, sizeSmall, s, descW) {
-				subs = append(subs, subline{part, c.reg, sizeSmall, lhSmall, muted})
-			}
-		}
-		if ln.Item.Name != "" && ln.Item.Description != "" {
-			small(ln.Item.Description)
-		}
-		var refs []string
-		if ln.Item.SellerID != "" {
-			refs = append(refs, d.pair(l.itemNo, ln.Item.SellerID))
-		}
-		if ln.Item.GlobalID.ID != "" {
-			label := "ID"
-			if ln.Item.GlobalID.Scheme == "0160" {
-				label = "GTIN"
-			}
-			refs = append(refs, d.pair(label, ln.Item.GlobalID.ID))
-		}
-		if ln.Item.OriginCountry != "" {
-			refs = append(refs, d.pair(l.origin, ln.Item.OriginCountry))
-		}
-		if len(refs) > 0 {
-			small(strings.Join(refs, " · "))
-		}
-		for _, a := range ln.Item.Attributes {
-			if a.Name != "" || a.Value != "" {
-				small(d.pair(a.Name, a.Value))
-			}
-		}
-		if p := l.periodText(ln.Period); p != "" {
-			small(d.pair(l.period, p))
-		}
-		if !ln.DeliveryDate.IsZero() {
-			small(d.pair(l.deliveryDate, l.date(ln.DeliveryDate)))
-		}
-		for _, ac := range ln.AllowancesCharges {
-			small(d.acLabel(ac) + l.colon + l.amount(signed(ac)))
-		}
-		if ln.Note != "" {
-			small(ln.Note)
-		}
-
-		price := l.num(ln.NetPrice, 2)
-		if ln.PriceBaseQuantity.IsSet() && !ln.PriceBaseQuantity.Equal(invoice.DecimalFromInt(1)) {
-			price += "/" + l.num(ln.PriceBaseQuantity, 0)
-		}
-
+	for _, r := range rows {
+		ln := r.ln
+		c.need(r.keep())
 		c.y -= cellPad
-		c.need(subs[0].lh + cellPad)
-		for k, s := range subs {
-			c.need(s.lh)
+		for k, s := range r.subs {
+			c.need(s.lh) // only for a row taller than a page
 			base := c.y - s.lh*0.75
-			c.text(s.f, s.size, colDesc.x+cellPad+indent, base, s.text, s.color)
+			c.text(s.f, s.size, colDesc.x+cellPad+r.indent, base, s.text, s.color)
 			if k == 0 {
 				d.cell(c.reg, sizeBody, colNo, base, ln.ID, muted)
 				d.cell(c.reg, sizeBody, colQty, base, l.num(ln.Quantity, 0), ink)
 				d.cell(c.reg, sizeBody, colUnit, base, l.unit(ln.UnitCode), ink)
-				d.cell(c.reg, sizeBody, colPrice, base, price, ink)
+				d.cell(c.reg, sizeBody, colPrice, base, r.price, ink)
 				d.cell(c.reg, sizeBody, colVAT, base, d.vatCell(ln.VATCategoryCode, ln.VATRate), ink)
 				d.cell(c.reg, sizeBody, colAmount, base, l.amount(ln.NetAmount), ink)
 			}
