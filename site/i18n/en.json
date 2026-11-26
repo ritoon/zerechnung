@@ -244,7 +244,7 @@
     "cp_fr_pdf": "PDF/A-3 container: attached XML, XMP metadata, AFRelationship",
     "cp_fr_sign": "PAdES signature of Factur-X invoices, one of the three means of authenticity and integrity (CGI art. 289 VII), and check of received signatures",
     "cp_fr_cdv": "Life cycle statuses (CDAR D22B): read, written and validated against the schema and the BR-FR-CDV rules of the FNFE-MPE (1.4.0.04), statuses 200 Déposée and 213 Rejetée built from the invoice",
-    "cp_fr_ereporting": "E-reporting (flux 10): transactions and payments reports read, written and checked against their XSD schemas; the rules of the PPF on their content (schematron Flux10) are not applied, and the reports are not sent",
+    "cp_fr_ereporting": "E-reporting (flux 10): transactions and payments reports read, written and checked against their XSD schemas and the 150 rules of the PPF on their content (schematron Flux10 of the FNFE-MPE, 1.4.0.04); the reports are neither computed from the invoices (BR-FR-MAP rules not published) nor sent",
     "cp_fr_send": "Sending invoices through an approved platform",
     "cp_de_intro": "XRechnung for public buyers since 2020. Every company must be able to receive e-invoices since 2025. Sending them becomes mandatory in 2027 above €800,000 of turnover, and for all companies in 2028. XRechnung and ZUGFeRD from version 2.0.1 are accepted.",
     "cp_de_xrechnung": "XRechnung 3.0.2 in CII and UBL, with the rules and severities of KoSIT",

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ritoon/zerechnung/internal/rules/flux10"
 	"github.com/ritoon/zerechnung/invoice"
 )
 
@@ -14,7 +15,7 @@ const (
 )
 
 // TestEReporting checks valid e-reporting reports: whatever the rule sets,
-// only the warning ER-02 is reported.
+// nothing is reported.
 func TestEReporting(t *testing.T) {
 	for _, name := range []string{ereportingTransactions, ereportingPayments} {
 		doc := []byte(readXML(t, name))
@@ -26,52 +27,47 @@ func TestEReporting(t *testing.T) {
 			{Auto: true},
 		} {
 			r := XML(doc, opts)
-			if got := ruleIDs(r); !slices.Equal(got, []string{ruleERScope}) {
-				t.Errorf("%s %+v: findings = %v", name, opts, r.Findings)
-				continue
-			}
-			f := r.Findings[0]
-			if f.Severity != Warning || f.Source != SourceSyntax || f.Path != "/Report" || f.Line != 2 ||
-				!strings.Contains(f.Message, "France_RFE 1.4.0.04") {
-				t.Errorf("%s %+v: ER-02 = %+v", name, opts, f)
-			}
-			if !r.Valid() || r.Profile != invoice.ProfileUnknown {
-				t.Errorf("%s %+v: valid = %v, profile = %v", name, opts, r.Valid(), r.Profile)
+			if len(r.Findings) > 0 || !r.Valid() || r.Profile != invoice.ProfileUnknown {
+				t.Errorf("%s %+v: findings = %v, profile = %v", name, opts, r.Findings, r.Profile)
 			}
 		}
 	}
 }
 
-// TestEReportingFindings checks the schema and ER-01 on altered copies of
-// valid reports. A part that the schema check reports is not reported again
-// by ER-01. Without the Schema rule set, only ER-02 is left.
+// TestEReportingFindings checks the schema, ER-01 and the rules of the
+// schematron Flux10 on altered copies of valid reports. A part that the
+// schema check reports is not reported again by ER-01. Without the Schema
+// rule set, only the rules of the schematron are left.
 func TestEReportingFindings(t *testing.T) {
 	const inv = "/Report/TransactionsReport/Invoice[1]"
 	for _, c := range []struct {
 		name, file, old, new string
-		rules                []string
-		path                 string
+		rules                []string // with the default rule sets
+		flux10               []string // the rules of the schematron Flux10 among them
+		path                 string   // of the first finding
 	}{
 		{"unreadable date", ereportingTransactions, "<DueDate>20261015</DueDate>", "<DueDate>2026-10-15</DueDate>",
-			[]string{ruleERValue, ruleERScope}, inv + "/DueDate"},
+			[]string{ruleERValue, "F10-FACTURE-G1.09b"}, []string{"F10-FACTURE-G1.09b"}, inv + "/DueDate"},
 		{"unreadable time", ereportingPayments, "<DateTimeString>20261011094500</DateTimeString>", "<DateTimeString>11/10/2026</DateTimeString>",
-			[]string{ruleERValue, ruleERScope}, "/Report/ReportDocument/IssueDateTime/DateTimeString"},
+			[]string{ruleERValue, "F10-TRANSMISSION-G7.53"}, []string{"F10-TRANSMISSION-G7.53"}, "/Report/ReportDocument/IssueDateTime/DateTimeString"},
 		{"unreadable decimal", ereportingTransactions, "<TaxTotal>227.50</TaxTotal>", "<TaxTotal>227,50</TaxTotal>",
-			[]string{"XSD-TYPE", ruleERScope}, "/Report/TransactionsReport/Transactions/TaxTotal"},
+			[]string{"XSD-TYPE", "F10-TRANSAC-G1.14b"}, []string{"F10-TRANSAC-G1.14b"}, "/Report/TransactionsReport/Transactions/TaxTotal"},
 		{"unreadable boolean", ereportingTransactions, `ChargeIndicator="false"`, `ChargeIndicator="non"`,
-			[]string{"XSD-TYPE", ruleERScope}, inv + "/AllowanceCharge"},
+			[]string{"XSD-TYPE"}, nil, inv + "/AllowanceCharge"},
 		{"unknown element", ereportingPayments, "<TypeCode>IN</TypeCode>", "<TypeCode>IN</TypeCode><Comment>x</Comment>",
-			[]string{"XSD-UNEXPECTED", ruleERScope}, "/Report/ReportDocument/Comment"},
+			[]string{"XSD-UNEXPECTED"}, nil, "/Report/ReportDocument/Comment"},
 		{"unknown attribute on a date", ereportingTransactions, "<DueDate>20261015</DueDate>", `<DueDate format="102">2026-10-15</DueDate>`,
-			[]string{"XSD-ATTRIBUTE", ruleERValue, ruleERScope}, inv + "/DueDate"},
+			[]string{"XSD-ATTRIBUTE", ruleERValue, "F10-FACTURE-G1.09b"}, []string{"F10-FACTURE-G1.09b"}, inv + "/DueDate"},
 		{"missing element", ereportingTransactions, "<CurrencyCode>EUR</CurrencyCode>", "",
-			[]string{"XSD-MISSING", ruleERScope}, inv},
+			[]string{"XSD-MISSING"}, nil, inv},
 		{"missing attribute", ereportingPayments, `<Id schemeId="0238">0042</Id>`, `<Id>0042</Id>`,
-			[]string{"XSD-ATTRIBUTE-MISSING", ruleERScope}, "/Report/ReportDocument/Sender/Id"},
+			[]string{"XSD-ATTRIBUTE-MISSING", "F10-EMETTEUR-G6.22"}, []string{"F10-EMETTEUR-G6.22"}, "/Report/ReportDocument/Sender/Id"},
 		{"misplaced element", ereportingPayments, "<TypeCode>IN</TypeCode>", "",
-			[]string{"XSD-MISSING", ruleERScope}, "/Report/ReportDocument"},
+			[]string{"XSD-MISSING"}, nil, "/Report/ReportDocument"},
+		{"rule of the PPF", ereportingTransactions, "<CategoryCode>TLB1</CategoryCode>", "<CategoryCode>TLB9</CategoryCode>",
+			[]string{"F10-TRANSAC-G1.68"}, []string{"F10-TRANSAC-G1.68"}, "/Report/TransactionsReport/Transactions/CategoryCode"},
 		{"wrong root namespace", ereportingPayments, "<Report>", `<Report xmlns="urn:x">`,
-			[]string{"CII"}, "/Report"},
+			[]string{"CII"}, nil, "/Report"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			doc := strings.Replace(readXML(t, c.file), c.old, c.new, 1)
@@ -79,33 +75,48 @@ func TestEReportingFindings(t *testing.T) {
 			if got := ruleIDs(r); !slices.Equal(got, c.rules) {
 				t.Fatalf("findings = %v, want rules %v", r.Findings, c.rules)
 			}
-			if r.Findings[0].Path != c.path || (r.Findings[0].Severity == Error) == r.Valid() {
+			if r.Findings[0].Path != c.path || r.Valid() {
 				t.Errorf("first finding = %+v, want path %s", r.Findings[0], c.path)
+			}
+			for _, f := range r.Findings {
+				if strings.HasPrefix(f.Rule, "F10-") != (f.Source == SourceFlux10) || f.Severity != Error {
+					t.Errorf("finding %+v", f)
+				}
 			}
 			if c.rules[0] == "CII" {
 				return
 			}
 			// Without the Schema rule set, the structure and the values
-			// are not checked.
-			r = XML([]byte(doc), &Options{Rules: EN16931 | France})
-			if got := ruleIDs(r); !slices.Equal(got, []string{ruleERScope}) {
-				t.Errorf("without Schema: findings = %v", r.Findings)
+			// are not checked; the rules of the schematron are.
+			r = XML([]byte(doc), &Options{Rules: EN16931})
+			if got := ruleIDs(r); !slices.Equal(got, c.flux10) {
+				t.Errorf("without Schema: findings = %v, want %v", r.Findings, c.flux10)
 			}
 		})
 	}
 }
 
+// TestEReportingCatalog checks that ER-01 is listed in the Schema rule set,
+// and the rules of the schematron Flux10 in the France rule set, alone.
 func TestEReportingCatalog(t *testing.T) {
-	ids := map[string]bool{}
-	for _, r := range Catalog(Schema) {
-		ids[r.ID] = true
-	}
-	if !ids[ruleERValue] || !ids[ruleERScope] {
-		t.Errorf("Catalog(Schema) lacks the e-reporting rules")
-	}
-	for _, r := range Catalog(^Schema) {
-		if r.ID == ruleERValue || r.ID == ruleERScope {
-			t.Errorf("%s listed outside the Schema rule set", r.ID)
+	count := func(set RuleSet) (er, f10 int) {
+		for _, r := range Catalog(set) {
+			switch {
+			case r.ID == ruleERValue:
+				er++
+			case strings.HasPrefix(r.ID, "F10-"):
+				f10++
+			}
 		}
+		return er, f10
+	}
+	if er, f10 := count(Schema); er != 1 || f10 != 0 {
+		t.Errorf("Catalog(Schema): %d ER-01, %d rules of Flux10", er, f10)
+	}
+	if er, f10 := count(France); er != 0 || f10 != len(flux10.Catalog()) || f10 != 150 {
+		t.Errorf("Catalog(France): %d ER-01, %d rules of Flux10", er, f10)
+	}
+	if er, f10 := count(^(Schema | France)); er != 0 || f10 != 0 {
+		t.Errorf("Catalog outside Schema and France: %d ER-01, %d rules of Flux10", er, f10)
 	}
 }

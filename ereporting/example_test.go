@@ -31,9 +31,10 @@ func ExampleMarshal() {
 		panic(err)
 	}
 	fmt.Printf("%s", xml)
-	for _, f := range validate.XML(xml, nil).Findings {
-		fmt.Println(f.Rule, f.Severity)
-	}
+	// The schemas of the flux 10 and the rules of the PPF (schematron
+	// Flux10).
+	r := validate.XML(xml, nil)
+	fmt.Println("valid:", r.Valid(), "findings:", len(r.Findings))
 	// Output:
 	// <?xml version="1.0" encoding="UTF-8"?>
 	// <Report>
@@ -74,5 +75,5 @@ func ExampleMarshal() {
 	//     </Transactions>
 	//   </TransactionsReport>
 	// </Report>
-	// ER-02 warning
+	// valid: true findings: 0
 }

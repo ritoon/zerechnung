@@ -6,7 +6,8 @@
 // element; validate checks a FatturaPA, Facturae or CDAR document or an
 // e-reporting report against its XML schema, a FatturaPA document against
 // the checks of the SDI on its content too, a CDAR status against the rules
-// BR-FR-CDV, describes the XAdES signature of a Facturae document, which
+// BR-FR-CDV, a report against the rules of the PPF (schematron Flux10),
+// describes the XAdES signature of a Facturae document, which
 // -face requires and checks as FACe does, and json also opens a FatturaPA
 // file signed in CAdES (.xml.p7m).
 //
@@ -56,8 +57,8 @@ validate and json also accept an XML invoice in CII or UBL 2.1 syntax, a
 FatturaPA document, a Facturae document, a status of the life cycle of a
 French invoice (CDAR) and a report of the French e-reporting (flux 10):
 validate checks them against their XML schema, FatturaPA against the checks
-of the SDI on its content too and a CDAR status against the rules BR-FR-CDV,
-and describe the XAdES signature of a Facturae document (-face requires it
+of the SDI on its content too, a CDAR status against the rules BR-FR-CDV and
+a report against the rules of the PPF (schematron Flux10), and describe the XAdES signature of a Facturae document (-face requires it
 and checks it as FACe does), json gives an array when one holds several
 invoices and also opens a FatturaPA file signed in CAdES (.xml.p7m).
 
