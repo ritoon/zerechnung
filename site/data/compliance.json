@@ -31,7 +31,7 @@
     {"code": "IS", "eu": false, "b2g": "since 2020", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"]]},
     {"code": "LI", "eu": false, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"]]},
     {"code": "NO", "eu": false, "b2g": "since 2019", "b2b": "from 2027", "cover": [["EHF (Peppol BIS 3.0)", "yes"]]},
-    {"code": "CH", "eu": false, "b2g": "since 2016", "b2b": "none", "cover": [["QR-bill, eBill", "no"]]},
+    {"code": "CH", "eu": false, "b2g": "since 2016", "b2b": "none", "cover": [["QR-bill", "yes"], ["eBill", "no"]]},
     {"code": "GB", "eu": false, "b2g": "reception 2019", "b2b": "from 2029", "cover": [["Peppol BIS 3.0", "yes"]]}
   ],
   "details": [
@@ -150,6 +150,14 @@
         {"text": "cp_ie_b2g", "status": "yes", "rules": ["Peppol", "EN16931"]},
         {"text": "cp_ie_b2b", "status": "partial", "rules": ["EN16931", "Peppol"]},
         {"text": "cp_ie_report", "status": "no"}
+      ]
+    },
+    {
+      "code": "CH",
+      "checks": [
+        {"text": "cp_ch_qrcode", "status": "yes", "rules": ["qrbill.Build", "qrbill.Parse", "qrcode"]},
+        {"text": "cp_ch_layout", "status": "no"},
+        {"text": "cp_ch_ebill", "status": "no"}
       ]
     }
   ]
