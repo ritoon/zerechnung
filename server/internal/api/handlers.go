@@ -885,7 +885,7 @@ func (s *Server) info(w http.ResponseWriter, r *http.Request) {
 		AuthMethods:  s.Auth.Methods(),
 		Languages:    render.Languages(),
 		Formats:      []string{"cii", "ubl", "fatturapa", "facturae"},
-		Profiles:     []string{"minimum", "basicwl", "basic", "en16931", "extended", "xrechnung", "extended-ctc-fr", "peppol", "nlcius", "cius-it", "cius-pt", "cius-ro", "cius-hr"},
+		Profiles:     []string{"minimum", "basicwl", "basic", "en16931", "extended", "xrechnung", "extended-ctc-fr", "peppol", "peppol-self-billing", "nlcius", "cius-it", "cius-pt", "cius-ro", "cius-hr"},
 		RuleSets:     []string{"fr", "de", "choruspro", "peppol", "nl", "it", "pt", "ro", "sk", "hr", "face"},
 		MaxBodyBytes: s.MaxBodyBytes,
 	}

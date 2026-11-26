@@ -493,14 +493,28 @@ func TestCustomizationID(t *testing.T) {
 		{invoice.URNPeppol, invoice.ProfilePeppol, invoice.URNPeppol},
 		{"", invoice.ProfilePeppol, invoice.URNPeppol},
 		{"", invoice.ProfileXRechnung, invoice.URNXRechnung},
+		{"", invoice.ProfilePeppolSelfBilling, invoice.URNPeppolSB},
+		{invoice.URNPeppolSB, invoice.ProfilePeppolSelfBilling, invoice.URNPeppolSB},
 		{invoice.URNBasic, invoice.ProfileBasic, invoice.URNEN16931},
 		{"", invoice.ProfileExtended, invoice.URNEN16931},
 	} {
 		inv := mustParse(t, readFile(t, "../testdata/EN16931_Einfach.ubl.xml"))
-		inv.SpecificationID, inv.Profile = c.spec, c.profile
+		inv.SpecificationID, inv.Profile, inv.BusinessProcess = c.spec, c.profile, ""
 		out := mustMarshal(t, inv, nil)
 		if want := "<cbc:CustomizationID>" + c.want + "</cbc:CustomizationID>"; !bytes.Contains(out, []byte(want)) {
 			t.Errorf("%q %s: want %s", c.spec, c.profile, want)
+		}
+		// The business process (BT-23) defaults to the one of the
+		// specification written: Peppol BIS Billing or Self-Billing.
+		process := ""
+		switch invoice.ProfileFromURN(c.want) {
+		case invoice.ProfilePeppol, invoice.ProfileXRechnung:
+			process = invoice.ProcessPeppolBilling
+		case invoice.ProfilePeppolSelfBilling:
+			process = invoice.ProcessPeppolSelfBilling
+		}
+		if process != "" && !bytes.Contains(out, []byte("<cbc:ProfileID>"+process+"</cbc:ProfileID>")) {
+			t.Errorf("%q %s: want business process %s", c.spec, c.profile, process)
 		}
 	}
 }

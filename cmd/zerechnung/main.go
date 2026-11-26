@@ -72,7 +72,7 @@ Usage:
   zerechnung json invoice.pdf|invoice.xml|invoice.xml.p7m
   zerechnung rules [-fr] [-de] [-choruspro] [-peppol] [-nl] [-it] [-pt] [-ro] [-sk] [-hr] [-face]
 
-Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, nlcius, cius-it, cius-pt, cius-ro, cius-hr.
+Profiles: minimum, basicwl, basic, en16931, extended, xrechnung, extended-ctc-fr, peppol, peppol-self-billing, nlcius, cius-it, cius-pt, cius-ro, cius-hr.
 `
 
 // stderr receives the usage, the errors and the warnings of the commands.
@@ -216,7 +216,7 @@ func validateCmd(args []string, w io.Writer) (int, error) {
 	cpro := fs.Bool("choruspro", false, "apply the Chorus Pro checks of French B2G invoices")
 	serviceRequired := fs.Bool("service-required", false, "with -choruspro: the public buyer requires a service code (BT-10)")
 	engagementRequired := fs.Bool("engagement-required", false, "with -choruspro: the public buyer requires an engagement number (BT-13)")
-	pep := fs.Bool("peppol", false, "apply the Peppol BIS Billing 3.0 rules (applied anyway when BT-24 is the Peppol identifier)")
+	pep := fs.Bool("peppol", false, "apply the Peppol BIS Billing 3.0 rules, or those of Self-Billing 3.0 to a self-billed invoice (applied anyway when BT-24 is a Peppol identifier)")
 	nl := fs.Bool("nl", false, "apply the Dutch rules BR-NL of NLCIUS (applied anyway when BT-24 is the NLCIUS identifier)")
 	ita := fs.Bool("it", false, "apply the Italian rules BR-IT of the CIUS-IT (applied anyway when BT-24 is a CIUS-IT identifier)")
 	por := fs.Bool("pt", false, "apply the Portuguese rules of the CIUS-PT (applied anyway when BT-24 is a CIUS-PT identifier)")
@@ -745,7 +745,7 @@ func rulesCmd(args []string) error {
 	fr := fs.Bool("fr", false, "include the French rules")
 	de := fs.Bool("de", false, "include the German rules")
 	cpro := fs.Bool("choruspro", false, "include the Chorus Pro checks")
-	pep := fs.Bool("peppol", false, "include the Peppol BIS Billing 3.0 rules")
+	pep := fs.Bool("peppol", false, "include the Peppol BIS Billing 3.0 and Self-Billing 3.0 rules")
 	nl := fs.Bool("nl", false, "include the Dutch rules of NLCIUS")
 	ita := fs.Bool("it", false, "include the Italian rules of the CIUS-IT")
 	por := fs.Bool("pt", false, "include the Portuguese rules of the CIUS-PT")

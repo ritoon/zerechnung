@@ -1,7 +1,8 @@
 // Package ubl reads and writes invoices and credit notes in the OASIS UBL 2.1
 // syntax, following the EN 16931 syntax binding of CEN/TS 16931-3-2. UBL is
 // accepted by the French e-invoicing reform (base profile and
-// EXTENDED-CTC-FR in pure UBL), by XRechnung and by Peppol BIS Billing 3.0.
+// EXTENDED-CTC-FR in pure UBL), by XRechnung, by Peppol BIS Billing 3.0 and by
+// Peppol BIS Self-Billing 3.0.
 //
 // Parse turns an Invoice or CreditNote document into an invoice.Invoice, the
 // same model as package cii, so that an invoice read from one syntax can be

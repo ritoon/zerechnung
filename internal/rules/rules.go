@@ -76,7 +76,7 @@ const (
 	SourceDE        = "BR-DE"      // German rules (XRechnung)
 	SourcePDF       = "PDF"        // PDF container (PDF/A-3, attachment, XMP)
 	SourceChorusPro = "Chorus Pro" // French B2G checks for Chorus Pro
-	SourcePeppol    = "Peppol"     // Peppol BIS Billing 3.0 rules
+	SourcePeppol    = "Peppol"     // Peppol BIS Billing 3.0 and Self-Billing 3.0 rules
 	SourceNL        = "BR-NL"      // Dutch rules (NLCIUS, SI-UBL 2.0)
 	SourceIT        = "BR-IT"      // Italian rules (CIUS-IT)
 	SourcePT        = "CIUS-PT"    // Portuguese rules (CIUS-PT of eSPap)

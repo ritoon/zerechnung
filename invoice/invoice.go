@@ -27,7 +27,8 @@ type Invoice struct {
 	// the "cadre de facturation" (B1, S1, M1…); in Peppol it is
 	// ProcessPeppolBilling, which ubl.Marshal and cii.Marshal write for a
 	// Peppol or XRechnung invoice when the field is empty (both require one,
-	// PEPPOL-EN16931-R001).
+	// PEPPOL-EN16931-R001), or ProcessPeppolSelfBilling for a Peppol
+	// Self-Billing invoice.
 	BusinessProcess string
 	// TestIndicator marks a test document (CII TestIndicator, EXT).
 	TestIndicator bool

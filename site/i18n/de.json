@@ -293,6 +293,7 @@
     "cp_sk_peppol": "Peppol BIS Billing 3.0 in UBL, mit dem Typ 384 zwischen zwei slowakischen Parteien",
     "cp_sk_rules": "Was die Transposition 1.13 der Finančná správa über Peppol BIS hinaus verlangt: Postanschriften, Umsatzsteuer-Identifikationsnummer (IČ DPH), IČO, Rechtsform und Registereintrag des Verkäufers, Leistungsdatum, Verweis einer Korrekturrechnung",
     "cp_sk_ids": "Elektronische Adressen mit dem Schema 0245 (DIČ) der slowakischen Parteien und das Format von DIČ, IČ DPH und IČO",
+    "cp_sk_selfbilling": "Gutschriften im Gutschriftverfahren (389) und deren Korrekturen (261) in Peppol BIS Self-Billing 3.0, mit den Anforderungen an die Rechnung 380",
     "cp_sk_tdd": "Steuerdatendokument (TDD SK), das die Access Points an die Finančná správa melden",
     "cp_sk_send": "Versand über das Peppol-Netz",
     "cp_hr_intro": "Öffentliche Auftraggeber empfangen E-Rechnungen seit 2019 über die Plattform der FINA. Seit dem 1. Januar 2026 schreibt Fiskalizacija 2.0 E-Rechnungen zwischen in Kroatien ansässigen umsatzsteuerpflichtigen Unternehmen vor, beim Ausstellen wie beim Empfang; die übrigen Unternehmen stellen sie ab 2027 aus. Die Rechnungen folgen der CIUS-HR und ihrer Erweiterung, in UBL.",
