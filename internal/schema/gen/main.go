@@ -199,7 +199,7 @@ const (
 const (
 	fpaURL     = "https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.5/" + fpaFile
 	fpaFile    = "Schema_VFPA12_v1.2.4.xsd"
-	fpaSum     = "29728f77e2739e150131258279218936287630e95566cab360cf66d53fc8f338"
+	fpaSum     = "0b238434b0ad24c4cfc543afd6d1adcabc5978cdeab0b4235b0bc72f748e7b31"
 	fpaVersion = "1.2.4"
 	nsFPA      = "http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2"
 	nsDS       = "http://www.w3.org/2000/09/xmldsig#"
