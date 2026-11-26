@@ -417,10 +417,11 @@ func TestSignLevels(t *testing.T) {
 	}
 	ts.Response = false
 
-	// A token over other data is refused when signing.
+	// A token over other data is refused when signing. The first byte is
+	// flipped rather than replaced, so the data differs whatever the digest.
 	o2 := *o
 	o2.Timestamp = func(digest []byte, h crypto.Hash) ([]byte, error) {
-		return ts.Timestamp(append([]byte{1}, digest[1:]...), h)
+		return ts.Timestamp(append([]byte{^digest[0]}, digest[1:]...), h)
 	}
 	if _, err := Sign(signHost(t), &o2); err == nil || !strings.Contains(err.Error(), "time-stamp") {
 		t.Errorf("token over other data: %v", err)
