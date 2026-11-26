@@ -2,7 +2,10 @@
 // published by OpenPEPPOL in release 3.0.21 (unchanged in the hotfix
 // 3.0.22): the 90 assertions of PEPPOL-EN16931-CII.sch for a CII invoice
 // (Catalog), the 165 assertions of PEPPOL-EN16931-UBL.sch for a UBL invoice
-// (UBLCatalog), in Go, with their exact identifiers, flags and messages.
+// (UBLCatalog), in Go, with their exact identifiers, flags and messages,
+// and those of Peppol BIS Self-Billing 3.0, release 3.0.2: the 62
+// assertions of PEPPOL-EN16931-UBL-SB.sch (SelfBillingCatalog), for a UBL
+// invoice issued by the buyer on behalf of the seller (see selfbilling.go).
 //
 // The rules of the CII schematron are:
 //
@@ -35,8 +38,11 @@
 // a Peppol validator runs as well, are those of package en16931.
 //
 // Check applies the rules whatever the specification identifier BT-24: the
-// caller decides when they apply (on request, or when BT-24 is the Peppol
-// identifier). The rules check BT-24 themselves (PEPPOL-EN16931-R004).
+// caller decides when they apply (on request, or when BT-24 is a Peppol
+// identifier). The rules check BT-24 themselves (PEPPOL-EN16931-R004). On a
+// UBL invoice whose profile (rules.Doc.Profile, read from BT-24 or set by
+// the caller) is invoice.ProfilePeppolSelfBilling, Check applies the rules
+// of Self-Billing instead of those of Billing.
 //
 // Values are evaluated as XPath 2.0 evaluates them in the reference
 // implementation: general comparisons on the raw string value of the
@@ -95,13 +101,15 @@ const (
 
 // Check runs the Peppol rules on c.Doc and records the findings in c.Report:
 // the rules of the CII schematron on a CII invoice, those of the UBL
-// schematron on the UBL document of a UBL invoice (c.Doc.UBL).
+// schematron on the UBL document of a UBL invoice (c.Doc.UBL), or of the
+// Self-Billing schematron when the profile of c.Doc is
+// invoice.ProfilePeppolSelfBilling.
 func Check(c *rules.Checker) {
 	if c == nil || c.Doc == nil {
 		return
 	}
 	if c.Doc.UBL != nil {
-		checkUBL(c, c.Doc.UBL)
+		checkUBL(c, c.Doc.UBL, selfBilling(c.Doc))
 		return
 	}
 	if c.Doc.Root == nil {

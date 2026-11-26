@@ -74,7 +74,11 @@ func IsCreditNote(typeCode string) bool {
 // (whose specification identifier is the Peppol or an XRechnung one, see
 // invoice.URNPeppol and invoice.URNXRechnung) without business process type (BT-23) gets the one of
 // Peppol billing, invoice.ProcessPeppolBilling, as rule PEPPOL-EN16931-R001
-// requires one.
+// requires one; a Peppol Self-Billing invoice (invoice.URNPeppolSB) gets the
+// one of Peppol self-billing, invoice.ProcessPeppolSelfBilling. A
+// self-billed credit note (type code 261) is written as a CreditNote, a
+// self-billed invoice (389) as an Invoice, with the seller and the buyer in
+// their usual elements.
 //
 // When the specification identifier written declares the Dutch G-account
 // extension (see invoice.GAccountExtension), the elements that the extension
@@ -163,16 +167,30 @@ func Marshal(inv *invoice.Invoice, opts *MarshalOptions) ([]byte, error) {
 	return w.b, nil
 }
 
+// defaultProcess returns the business process type (BT-23) written for an
+// invoice of profile p that has none: the one of Peppol billing for Peppol
+// and XRechnung, which require one (PEPPOL-EN16931-R001), the one of Peppol
+// self-billing for Peppol Self-Billing, "" otherwise.
+func defaultProcess(p invoice.Profile) string {
+	switch p {
+	case invoice.ProfilePeppol, invoice.ProfileXRechnung:
+		return invoice.ProcessPeppolBilling
+	case invoice.ProfilePeppolSelfBilling:
+		return invoice.ProcessPeppolSelfBilling
+	}
+	return ""
+}
+
 // customizationID returns the specification identifier written by default.
 func customizationID(inv *invoice.Invoice) string {
 	if inv.SpecificationID != "" {
 		switch invoice.DetectProfile(inv.SpecificationID) {
-		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileCIUSHR, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
+		case invoice.ProfileEN16931, invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfilePeppolSelfBilling, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileCIUSHR, invoice.ProfileExtendedCTCFR, invoice.ProfileUnknown:
 			return strings.TrimSpace(inv.SpecificationID)
 		}
 	}
 	switch inv.Profile {
-	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileCIUSHR, invoice.ProfileExtendedCTCFR:
+	case invoice.ProfileXRechnung, invoice.ProfilePeppol, invoice.ProfilePeppolSelfBilling, invoice.ProfileNLCIUS, invoice.ProfileCIUSIT, invoice.ProfileCIUSPT, invoice.ProfileCIUSRO, invoice.ProfileCIUSHR, invoice.ProfileExtendedCTCFR:
 		return inv.Profile.URNFor(inv.Seller.Address.CountryCode)
 	}
 	return invoice.URNEN16931
@@ -220,8 +238,8 @@ func (w *writer) document(inv *invoice.Invoice, spec string) {
 
 	w.leafReq("cbc:CustomizationID", spec)
 	process := inv.BusinessProcess
-	if p := invoice.ProfileFromURN(spec); process == "" && (p == invoice.ProfilePeppol || p == invoice.ProfileXRechnung) {
-		process = invoice.ProcessPeppolBilling
+	if process == "" {
+		process = defaultProcess(invoice.ProfileFromURN(spec))
 	}
 	w.leaf("cbc:ProfileID", process)
 	w.leafReq("cbc:ID", inv.Number)

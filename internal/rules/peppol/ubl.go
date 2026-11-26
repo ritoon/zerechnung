@@ -75,6 +75,7 @@ type ublChecker struct {
 	root       *xmltree.Node
 	invoice    bool // the root is ubl-invoice:Invoice (/ubl-invoice:Invoice)
 	creditNote bool // the root is ubl-creditnote:CreditNote
+	sb         bool // the rules are those of Peppol BIS Self-Billing (PEPPOL-EN16931-UBL-SB.sch)
 
 	profile                    string // $profile: "01", "02" or "Unknown"
 	supplierCountry            string // $supplierCountry
@@ -99,9 +100,11 @@ type ublChecker struct {
 	seSupplier, seSupplierVAT, seCustomer bool
 }
 
-// checkUBL runs the rules of the UBL schematron on the UBL document root.
-func checkUBL(c *rules.Checker, root *xmltree.Node) {
-	k := &ublChecker{Checker: c, root: root}
+// checkUBL runs the rules of the UBL schematron on the UBL document root:
+// those of Peppol BIS Billing, or with sb those of Peppol BIS Self-Billing,
+// which has no national rules.
+func checkUBL(c *rules.Checker, root *xmltree.Node, sb bool) {
+	k := &ublChecker{Checker: c, root: root, sb: sb}
 	k.invoice = isElem(root, nsInvoice, "Invoice")
 	k.creditNote = isElem(root, nsCreditNote, "CreditNote")
 	k.variables()
@@ -111,15 +114,17 @@ func checkUBL(c *rules.Checker, root *xmltree.Node) {
 		k.empty(n)
 		k.creditNoteRules(n)
 		k.element(n)
-		k.norway(n)
-		k.denmark(n)
-		k.italy(n)
-		k.sweden(n)
-		k.greece(n)
-		k.greeceDomestic(n)
-		k.iceland(n)
-		k.netherlands(n)
-		k.germany(n)
+		if !k.sb {
+			k.norway(n)
+			k.denmark(n)
+			k.italy(n)
+			k.sweden(n)
+			k.greece(n)
+			k.greeceDomestic(n)
+			k.iceland(n)
+			k.netherlands(n)
+			k.germany(n)
+		}
 		k.codeList(n)
 		return true
 	})
@@ -131,7 +136,11 @@ func (k *ublChecker) fail(id string, n *xmltree.Node, detail string, args ...any
 	if n == nil {
 		n = k.root
 	}
-	report(k.Checker, ublByID(), id, n, detail, args...)
+	catalog := ublByID()
+	if k.sb {
+		catalog = sbByID()
+	}
+	report(k.Checker, catalog, id, n, detail, args...)
 }
 
 // check records a finding for rule id when ok is false.
@@ -144,8 +153,12 @@ func (k *ublChecker) check(ok bool, id string, n *xmltree.Node, detail string, a
 // variables computes the global variables of the schematron.
 func (k *ublChecker) variables() {
 	r := k.root
+	process := ProcessBilling
+	if k.sb {
+		process = ProcessSelfBilling
+	}
 	switch norm(sv(ufirst(r, "cbc:ProfileID"))) {
-	case ProcessBilling, processFranceRegulated, processFranceNonRegulated:
+	case process, processFranceRegulated, processFranceNonRegulated:
 		k.profile = "01"
 	case ProcessBillingWithResponse:
 		k.profile = "02"

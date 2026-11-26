@@ -110,7 +110,11 @@ func (k *ublChecker) document(n *xmltree.Node) {
 	k.check(uexists(n, "cbc:BuyerReference") || uexists(n, "cac:OrderReference/cbc:ID"), "PEPPOL-EN16931-R003", n, "")
 	cid := ufirst(n, "cbc:CustomizationID")
 	spec := norm(text(cid))
-	k.check(strings.HasPrefix(spec, SpecificationID) && !strings.Contains(spec, "::"), "PEPPOL-EN16931-R004", orNode(cid, n), "value: %q", spec)
+	specID := SpecificationID
+	if k.sb {
+		specID = SelfBillingSpecificationID
+	}
+	k.check(strings.HasPrefix(spec, specID) && !strings.Contains(spec, "::"), "PEPPOL-EN16931-R004", orNode(cid, n), "value: %q", spec)
 
 	with, without := 0, 0
 	for _, t := range ulist(n, "cac:TaxTotal") {

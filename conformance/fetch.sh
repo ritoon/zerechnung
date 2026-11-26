@@ -183,6 +183,18 @@ exemple_Invoice_CreditNote.zip       3c1ddcfc8be8ca3ee7f70d9996f24ede401b3ae4e11
 eFactura_CII_exempleXML.zip          b74f662264397f9a9afab68553866a51a7bb9163333e50113e67cf1982381727
 EOF
 
+# Peppol BIS Self-Billing 3.0.2 (FX_PEPPOL_SB): the schematron of 18 August
+# 2026, whose assertions internal/rules/peppol checks against its own, and the
+# official examples, which it validates. docs.peppol.eu publishes them under
+# unversioned names that will change with release 3.1.0: they are the copies
+# kept by phive-rules (phax), at a pinned commit, under the names the tests
+# open.
+PHIVE_SB=https://raw.githubusercontent.com/phax/phive-rules/c1d95102b95c620dca46876f08513069eee7c651/phive-rules-peppol/docs/BIS-Self-Billing
+fetch_file "$DEST/peppol-sb/PEPPOL-EN16931-UBL-SB.sch" "$PHIVE_SB/PEPPOL-EN16931-UBL-SB-2026-08-18.sch" \
+	4fb374958d365cf2567850222d7e4716821c56968737876ba863ecb7657c91a4
+fetch_file "$DEST/peppol-sb/BIS-SelfBilling-Examples.zip" "$PHIVE_SB/BIS-SelfBilling-Examples-2026-03.zip" \
+	2fbbe2152d78b057b0e0851e3593f7ac012492d3f9a21e0c607b433f31760e5e
+
 # CIUS-HR and EXT-HR 2025 of the Porezna uprava (Fiskalizacija 2.0, page
 # eRačun of porezna.gov.hr): the schematron archive of 13.03.2026
 # (FX_HR_SCH, HRUBLSchematron_13032026-2.zip) that internal/rules/hr/gen
@@ -233,6 +245,7 @@ vars=(
 	"FX_KOSIT_CONF=$DEST/xrechnung-3.0.2-validator-configuration-2026-08-31.zip"
 	"FX_FNFE=$DEST/France_RFE"
 	"FX_PEPPOL=$DEST/peppol-bis-invoice-3"
+	"FX_PEPPOL_SB=$DEST/peppol-sb"
 	"FX_UBL_ZIP=$DEST/UBL-2.1.zip"
 	"FX_XSD=$DEST/xsd"
 	"FX_XSD_DIR=$DEST/xsd"

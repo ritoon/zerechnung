@@ -293,6 +293,7 @@
     "cp_sk_peppol": "Peppol BIS Billing 3.0 in UBL, con il tipo 384 tra due parti slovacche",
     "cp_sk_rules": "Ciò che la trasposizione 1.13 della Finančná správa richiede oltre Peppol BIS: indirizzi postali, partita IVA (IČ DPH), IČO, forma giuridica e iscrizione al registro del cedente, data dell'operazione, riferimento di una fattura correttiva",
     "cp_sk_ids": "Indirizzi elettronici con lo schema 0245 (DIČ) delle parti slovacche, e formato di DIČ, IČ DPH e IČO",
+    "cp_sk_selfbilling": "Autofatture (389) e note di credito in autofatturazione (261) in Peppol BIS Self-Billing 3.0, con i requisiti della fattura 380",
     "cp_sk_tdd": "Documento dei dati fiscali (TDD SK) che i punti di accesso comunicano alla Finančná správa",
     "cp_sk_send": "Invio sulla rete Peppol",
     "cp_hr_intro": "Gli acquirenti pubblici ricevono fatture elettroniche tramite la piattaforma di FINA dal 2019. Dal 1° gennaio 2026, Fiskalizacija 2.0 impone la fattura elettronica tra imprese soggette all'IVA stabilite in Croazia, in emissione e in ricezione; le altre imprese le emettono dal 2027. Le fatture seguono la CIUS-HR e la sua estensione, in UBL.",

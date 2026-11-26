@@ -130,6 +130,7 @@
         {"text": "cp_sk_peppol", "status": "yes", "rules": ["Peppol"]},
         {"text": "cp_sk_rules", "status": "yes", "rules": ["Slovakia"]},
         {"text": "cp_sk_ids", "status": "yes", "rules": ["Slovakia"]},
+        {"text": "cp_sk_selfbilling", "status": "yes", "rules": ["Peppol", "Slovakia"]},
         {"text": "cp_sk_tdd", "status": "no"},
         {"text": "cp_sk_send", "status": "no"}
       ]

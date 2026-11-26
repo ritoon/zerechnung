@@ -76,7 +76,10 @@ func (e *LossError) Error() string {
 // otherwise: a ZUGFeRD 1.0 identifier, which only a CrossIndustryDocument
 // carries, is replaced. A PEPPOL or XRECHNUNG invoice without business
 // process type (BT-23) gets the one of Peppol billing,
-// invoice.ProcessPeppolBilling, as rule PEPPOL-EN16931-R001 requires one.
+// invoice.ProcessPeppolBilling, as rule PEPPOL-EN16931-R001 requires one,
+// and a PEPPOL-SELF-BILLING invoice the one of Peppol self-billing,
+// invoice.ProcessPeppolSelfBilling (Peppol BIS Self-Billing defines a UBL
+// syntax only).
 //
 // The Dutch G-account extension (see invoice.GAccountExtension) is defined
 // for UBL only, the Dutch Peppol Authority publishing no such extension of
@@ -221,8 +224,13 @@ func (w *writer) context(inv *invoice.Invoice, target invoice.Profile) {
 		}
 	}
 	process := inv.BusinessProcess
-	if process == "" && (target == invoice.ProfilePeppol || target == invoice.ProfileXRechnung) {
-		process = invoice.ProcessPeppolBilling
+	if process == "" {
+		switch target {
+		case invoice.ProfilePeppol, invoice.ProfileXRechnung:
+			process = invoice.ProcessPeppolBilling
+		case invoice.ProfilePeppolSelfBilling:
+			process = invoice.ProcessPeppolSelfBilling
+		}
 	}
 	if process != "" {
 		w.start("ram:BusinessProcessSpecifiedDocumentContextParameter")

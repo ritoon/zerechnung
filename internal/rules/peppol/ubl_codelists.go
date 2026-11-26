@@ -23,6 +23,13 @@ var (
 	})
 	ublCreditNoteTypes = sync.OnceValue(func() map[string]bool { return set("381 396 81 83 532") })
 
+	// sbInvoiceTypes and sbCreditNoteTypes are the type codes of profile 01
+	// of Peppol BIS Self-Billing (PEPPOL-EN16931-P0100, P0101 of
+	// PEPPOL-EN16931-UBL-SB.sch): self-billed invoice and debit note, and
+	// self-billed credit note.
+	sbInvoiceTypes    = set("389 527")
+	sbCreditNoteTypes = set("261")
+
 	// exemptionCategories maps a VAT exemption reason code (upper-cased) to
 	// the rule that checks the VAT category, and the category it requires.
 	exemptionCategories = map[string]struct{ id, category string }{
@@ -84,6 +91,9 @@ func (k *ublChecker) codeList(n *xmltree.Node) {
 	case isAmount(n):
 		c, ok := n.LookupAttr("currencyID")
 		k.check(ok && iso4217()[c], "PEPPOL-EN16931-CL007", n, "value: %q", c)
+	case uis(n, "cbc:InvoiceTypeCode") && k.sb:
+		v := norm(n.Text)
+		k.check(k.profile != "01" || sbInvoiceTypes[v], "PEPPOL-EN16931-P0100", n, "value: %q", v)
 	case uis(n, "cbc:InvoiceTypeCode"):
 		v := norm(n.Text)
 		k.check(k.profile != "01" && k.profile != "02" || ublInvoiceTypes()[v], "PEPPOL-EN16931-P0100", n, "value: %q", v)
@@ -92,7 +102,11 @@ func (k *ublChecker) codeList(n *xmltree.Node) {
 			"value: %q, seller in %s, buyer in %s", v, k.supplierCountry, k.customerCountry)
 	case uis(n, "cbc:CreditNoteTypeCode"):
 		v := norm(n.Text)
-		k.check(k.profile != "01" && k.profile != "02" || ublCreditNoteTypes()[v], "PEPPOL-EN16931-P0101", n, "value: %q", v)
+		if k.sb {
+			k.check(k.profile != "01" || sbCreditNoteTypes[v], "PEPPOL-EN16931-P0101", n, "value: %q", v)
+		} else {
+			k.check(k.profile != "01" && k.profile != "02" || ublCreditNoteTypes()[v], "PEPPOL-EN16931-P0101", n, "value: %q", v)
+		}
 	case isDate(n):
 		_, ok := xsDate(sv(n))
 		k.check(length(n.Text) == 10 && ok, "PEPPOL-EN16931-F001", n, "value: %q", n.Text)

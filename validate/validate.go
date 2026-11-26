@@ -2,7 +2,8 @@
 // schema of their profile, the EN 16931 business rules, the
 // Factur-X profile rules, and optionally the French (BR-FR) and German
 // (BR-DE) rules, the profiles that France and Germany admit, the checks of
-// Chorus Pro for French B2G invoices, the Peppol BIS Billing 3.0 rules, the
+// Chorus Pro for French B2G invoices, the Peppol BIS Billing 3.0 rules
+// (and those of Peppol BIS Self-Billing 3.0 for a self-billed invoice), the
 // Dutch rules of NLCIUS (BR-NL), the Italian rules of the CIUS-IT (BR-IT),
 // the Portuguese rules of the CIUS-PT, the Romanian rules of the CIUS-RO
 // (BR-RO), the Slovak requirements of the eFaktúra beyond Peppol BIS
@@ -53,6 +54,18 @@
 // parties, the VAT identifiers (IČ DPH), the IČO and the legal information
 // of a Slovak seller, the date of the taxable supply and the reference of
 // a corrective invoice (SK-01 to SK-15). See package internal/rules/sk.
+//
+// A self-billed invoice of Peppol BIS Self-Billing 3.0 (BT-24
+// urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:selfbilling:3.0,
+// type codes 389, 527 or 261), which the buyer issues on behalf of the
+// seller, gets in the Peppol rule set the rules of the Self-Billing
+// schematron (release 3.0.2) instead of those of Billing: the same rules
+// but for its identifiers and type codes, without the national rules nor
+// PEPPOL-EN16931-P0112. As for a Peppol invoice, they apply whatever the
+// rule sets. Peppol BIS Self-Billing has a UBL syntax only. The national
+// rule sets apply to it as to any invoice: the Slovak eFaktúra, for one,
+// carries self-billed invoices and credit notes with the requirements of
+// the Slovakia rule set.
 //
 // An invoice of the CIUS-HR (BT-24 urn:cen.eu:en16931:2017#compliant#
 // urn:mfin.gov.hr:cius-2025:1.0#conformant#urn:mfin.gov.hr:ext-2025:1.0, or
@@ -220,7 +233,7 @@ const (
 	Germany                            // German rules BR-DE (XRechnung) and the format of the Leitweg-ID and of the GEBA (DE-LEITWEG-*, DE-GEBA-*)
 	GermanyProfile                     // profiles the BMF accepts as e-invoices (DE-PROFILE-01: not MINIMUM nor BASIC WL)
 	ChorusPro                          // French B2G checks for Chorus Pro (CPRO-*), see Options.PublicBuyer
-	Peppol                             // Peppol BIS Billing 3.0 rules (PEPPOL-*) and their national rules (NO, DK, IT, SE, NL; for UBL also GR, IS, DE)
+	Peppol                             // Peppol BIS Billing 3.0 rules (PEPPOL-*) and their national rules (NO, DK, IT, SE, NL; for UBL also GR, IS, DE); for a PEPPOL-SELF-BILLING invoice, the rules of Peppol BIS Self-Billing 3.0, without national rules
 	Netherlands                        // Dutch rules of NLCIUS (BR-NL), and for UBL the SI-UBL 2.0 version check (SI-V20-INV-R000) and the rules of the G-account extension (BR-GA)
 	Italy                              // Italian rules of the CIUS-IT (BR-IT) and of its extensions (BR-IT-DE), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
 	Portugal                           // Portuguese rules of the CIUS-PT schematron of eSPap (BR-CIUS-PT, DT-CIUS-PT), the check of the NIF (PT-NIF-*) and of the UBL syntax of a CIUS-PT invoice (PT-SYNTAX-01)
@@ -232,7 +245,8 @@ const (
 	// Default is the set used when Options.Rules is zero: schema, EN 16931
 	// and profile rules. Whatever the rule sets, the German rules apply to
 	// XRECHNUNG invoices, the Peppol rules to invoices whose BT-24 is the
-	// Peppol BIS Billing 3.0 identifier, the Dutch rules to NLCIUS invoices,
+	// Peppol BIS Billing 3.0 or Self-Billing 3.0 identifier, the Dutch rules
+	// to NLCIUS invoices,
 	// the Italian rules to CIUS-IT invoices, the Portuguese rules to
 	// CIUS-PT invoices, the Romanian rules to CIUS-RO invoices and the
 	// Croatian rules to CIUS-HR invoices (see RulesFor).
@@ -247,7 +261,8 @@ type Options struct {
 	// apply if Profile is set; EN16931-EDITION-01 is reported in any case.
 	Profile invoice.Profile
 	// Rules selects the rule sets; zero means Default. The German rules for
-	// an XRECHNUNG invoice, the Peppol rules for a Peppol invoice, the
+	// an XRECHNUNG invoice, the Peppol rules for a Peppol or Peppol
+	// Self-Billing invoice, the
 	// Dutch rules for an NLCIUS invoice, the Italian rules for a CIUS-IT
 	// invoice, the Portuguese rules for a CIUS-PT invoice, the Romanian
 	// rules for a CIUS-RO invoice and the Croatian rules for a CIUS-HR
@@ -506,7 +521,7 @@ func Tree(root *xmltree.Node, opts *Options) *Report {
 
 // RulesFor returns the rule sets that apply to doc with opts: opts.Rules
 // (Default when zero), plus the German rules for an XRECHNUNG invoice, the
-// Peppol rules for a Peppol invoice, the Dutch rules for an NLCIUS invoice,
+// Peppol rules for a Peppol or Peppol Self-Billing invoice, the Dutch rules for an NLCIUS invoice,
 // the Italian rules for a CIUS-IT invoice, the Portuguese rules for a
 // CIUS-PT invoice, the Romanian rules for a CIUS-RO invoice and the
 // Croatian rules for a CIUS-HR invoice whatever opts.Rules, plus the
@@ -521,7 +536,7 @@ func RulesFor(doc *rules.Doc, opts *Options) RuleSet {
 	switch doc.Profile {
 	case invoice.ProfileXRechnung:
 		set |= Germany
-	case invoice.ProfilePeppol:
+	case invoice.ProfilePeppol, invoice.ProfilePeppolSelfBilling:
 		set |= Peppol
 	case invoice.ProfileNLCIUS:
 		set |= Netherlands
@@ -582,6 +597,10 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(ChorusPro, choruspro.Catalog)
 	add(Peppol, peppol.Catalog)
 	add(Peppol, newRules(peppol.UBLCatalog, peppol.Catalog))
+	// The rules of Peppol BIS Self-Billing 3.0.2 are all rules of Billing,
+	// listed once as Billing describes them (Self-Billing has another
+	// message for PEPPOL-EN16931-R004).
+	add(Peppol, newRules(peppol.SelfBillingCatalog, slices.Concat(peppol.Catalog, peppol.UBLCatalog)))
 	add(Netherlands, nl.Catalog)
 	add(Netherlands, newRules(nl.UBLCatalog, nl.Catalog))
 	add(Italy, it.Catalog)

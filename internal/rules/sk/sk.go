@@ -71,8 +71,12 @@
 // The rules run on the CII view of a UBL invoice and locate their findings in
 // the UBL document. The tax data document that the access points report to
 // the Financial Administration (TDD SK, urn:peppol:taxdata:sk-1), its own
-// rules, Peppol transmission and the self-billing processes are outside the
-// package. If Peppol BIS gains national rules for Slovakia, they belong to
+// rules and Peppol transmission are outside the package. The eFaktúra also
+// carries the self-billed invoices (389) and credit notes (261) of Peppol BIS
+// Self-Billing 3.0, with the requirements of the invoice 380 (FAQ of the
+// Financial Administration of 20/11/2026): these rules apply to them as to
+// any invoice, and the Peppol rule set gives them the rules of Self-Billing.
+// If Peppol BIS gains national rules for Slovakia, they belong to
 // the Peppol rule set, and the rules of this package they restate are to be
 // removed.
 package sk
