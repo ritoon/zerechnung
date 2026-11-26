@@ -2,11 +2,11 @@
 
 package schema
 
-// Source: https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.5/Schema_VFPA12_v1.2.4.xsd (SHA-256 29728f77e2739e150131258279218936287630e95566cab360cf66d53fc8f338),
+// Source: https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.5/Schema_VFPA12_v1.2.4.xsd (SHA-256 0b238434b0ad24c4cfc543afd6d1adcabc5978cdeab0b4235b0bc72f748e7b31),
 // the FatturaPA schema of the Agenzia delle Entrate, also published as
 // Schema_VFPR12_v1.2.4.xsd (SHA-256 of the file):
 //
-//	29728f77e2739e15 Schema_VFPA12_v1.2.4.xsd
+//	0b238434b0ad24c4 Schema_VFPA12_v1.2.4.xsd
 
 // fpaSchemaVersion is the version of the FatturaPA schema compiled into the tables.
 const fpaSchemaVersion = "1.2.4"

@@ -228,7 +228,7 @@ func TestUpToDateFatturaPA(t *testing.T) {
 		{`"RF20", "RF21"`, `"RF20"`},
 		{`const fpaSchemaVersion = "1.2.4"`, `const fpaSchemaVersion = "1.2.3"`},
 		{"from the FatturaPA 1.2.4 XML schemas", "from the FatturaPA 1.2.3 XML schemas"},
-		{"//\t29728f77e2739e15 ", "//\t152944f6eef9f5d6 "},
+		{"//\t0b238434b0ad24c4 ", "//\t152944f6eef9f5d6 "},
 	} {
 		if !strings.Contains(want, r[0]) {
 			t.Fatalf("%q not in the tables of 1.2.4", r[0])

@@ -143,7 +143,7 @@ while read -r name sum url; do
 	fetch_file "$DEST/fatturapa-xsd/$name" "$url" "$sum"
 done <<EOF
 Schema_VFPA12_V1.2.3.xsd  152944f6eef9f5d69ef6e955ee173b32142b00a8c1c5222fc97dfab5910e8a8c  https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.4/Schema_VFPA12_V1.2.3.xsd
-Schema_VFPA12_v1.2.4.xsd  29728f77e2739e150131258279218936287630e95566cab360cf66d53fc8f338  https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.5/Schema_VFPA12_v1.2.4.xsd
+Schema_VFPA12_v1.2.4.xsd  0b238434b0ad24c4cfc543afd6d1adcabc5978cdeab0b4235b0bc72f748e7b31  https://www.fatturapa.gov.it/export/documenti/fatturapa/v1.5/Schema_VFPA12_v1.2.4.xsd
 xmldsig-core-schema.xsd   35cf8197da812c85e40d57891b35c94187569ed474a2dac813ce5090dafcd35c  https://www.w3.org/TR/2002/REC-xmldsig-core-20020212/xmldsig-core-schema.xsd
 EOF
 
