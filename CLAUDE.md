@@ -2,6 +2,13 @@
 
 @CONTRIBUTING.md
 
+## Parcourir le code
+
+- Cherchez avec `rg` (ripgrep), pas avec `grep -r` ni `find` : il suit les `.gitignore` et saute les dossiers cachés. Depuis le checkout principal, `grep -r` parcourt aussi `conformance/.artifacts/` (les artefacts officiels de `conformance/fetch.sh`, plus de 400 Mo) et les copies du dépôt sous `.claude/worktrees/` : une recherche y prend une demi-minute et renvoie surtout des doublons, là où `rg` répond en une fraction de seconde.
+- `rg -t go` limite la recherche au Go ; `rg --files -g '<motif>'` remplace `find` pour trouver un fichier.
+- Les `*_gen.go` (tables des schémas, catalogues de règles, jusqu'à 550 Ko par fichier) noient les résultats : `rg -g '!*_gen.go'` les écarte quand on cherche le code écrit à la main. Pour retrouver l'origine d'une règle, gardez-les et cherchez son identifiant tel quel : `rg -F 'BR-CO-15' internal/rules`.
+- Les artefacts officiels se cherchent en nommant leur dossier, que `rg` parcourt alors malgré le `.gitignore` : `rg -F 'BR-CO-15' conformance/.artifacts`.
+
 ## Avant chaque commit
 
 - Lancez `scripts/check.sh` et ne commitez que s'il finit par « All checks passed. ». Il reprend les contrôles des workflows CI et Conformité qui n'ont besoin ni de Java ni de Docker, dont tous les tests sur les artefacts officiels et la vérification des règles levées (`TestRuleCoverage`).
