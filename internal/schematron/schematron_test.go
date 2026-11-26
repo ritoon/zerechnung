@@ -302,6 +302,42 @@ func TestXPathCDV(t *testing.T) {
 	}
 }
 
+// TestXPathFlux10 checks the functions that the schematron Flux10 of the
+// e-reporting uses beyond the others, as Saxon-HE 12 evaluates them: abs()
+// keeps the type of a number and casts an untyped value to xs:double,
+// translate() maps or removes characters.
+func TestXPathFlux10(t *testing.T) {
+	root := parse(t, `<r><n>-7</n><m>12.50</m><a>x</a><a>y</a></r>`)
+	d := newDoc(root)
+	eval := func(src string) (seq, error) {
+		e, err := compile(src, testNS)
+		if err != nil {
+			return nil, err
+		}
+		return e.eval(&ctx{d: d, it: item{k: kNode, n: root}, pos: 1, size: 1})
+	}
+	for _, src := range []string{
+		"abs(-2) = 2", "abs(2) = 2", "abs(-1.5) = 1.5", "abs(n) = 7", "abs(number('-3')) = 3", "empty(abs(()))",
+		"abs(-0.10) = 0.1", "string(abs(-1.50)) = '1.5'",
+		// xs:double arithmetic: 100 - 99.99 is not exactly 0.01, unlike
+		// the same difference of two decimals.
+		"abs(number('100.00') - number('99.99')) > 0.01", "abs(100.00 - 99.99) = 0.01",
+		"translate(m, '.', '') = '1250'", "translate('abc', 'abc', 'AB') = 'AB'", "translate('aaa', 'aa', 'xy') = 'xxx'",
+		"translate((), 'a', 'b') = ''", "string-length(translate('é.é', '.', '')) = 2", "translate('a-b', '-', '') = 'ab'",
+	} {
+		v, err := eval(src)
+		ok, err2 := ebv(v)
+		if err != nil || err2 != nil || !ok {
+			t.Errorf("%s: %v, %v %v", src, v, err, err2)
+		}
+	}
+	for _, src := range []string{"abs('x')", "abs(a)", "translate(a, 'x', 'y')"} {
+		if v, err := eval(src); err == nil {
+			t.Errorf("%s: %v, no error", src, v)
+		}
+	}
+}
+
 // ctrlOIB is the function u:ctrlOIB of the schematron of the Croatian CIUS
 // (HR-CIUS-EXT-EN16931-UBL.sch of 13/03/2026): the check digit of an OIB
 // (ISO 7064, MOD 11,10), with or without the prefix HR.

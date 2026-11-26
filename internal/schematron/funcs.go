@@ -51,11 +51,13 @@ func newFuncs() map[string]function {
 		"substring-after":  {2, 2, fnSubstringAfter},
 		"substring":        {2, 3, fnSubstring},
 		"concat":           {2, -1, fnConcat},
+		"translate":        {3, 3, fnTranslate},
 		"matches":          {2, 3, fnMatches},
 		"tokenize":         {2, 3, fnTokenize},
 		"index-of":         {2, 2, fnIndexOf},
 		"distinct-values":  {1, 1, fnDistinctValues},
 		"round":            {1, 1, fnRound},
+		"abs":              {1, 1, fnAbs},
 		"sum":              {1, 1, fnSum},
 		"xs:decimal":       {1, 1, fnDecimal},
 		"xs:date":          {1, 1, fnDate},
@@ -350,6 +352,43 @@ func fnSubstring(_ *ctx, c *call, a []seq) (seq, error) {
 	return strItem(b.String()), nil
 }
 
+// fnTranslate implements translate(): each character of its first argument
+// that occurs in the second is replaced by the character at the same place
+// in the third, or removed when the third is shorter; the first occurrence
+// in the second argument counts.
+func fnTranslate(_ *ctx, c *call, a []seq) (seq, error) {
+	s, err := strArg(a[0], c.name)
+	if err != nil {
+		return nil, err
+	}
+	from, err := strArg(a[1], c.name)
+	if err != nil {
+		return nil, err
+	}
+	to, err := strArg(a[2], c.name)
+	if err != nil {
+		return nil, err
+	}
+	src, dst := []rune(from), []rune(to)
+	m := make(map[rune]int, len(src))
+	for i, r := range src {
+		if _, ok := m[r]; !ok {
+			m[r] = i
+		}
+	}
+	var b strings.Builder
+	for _, r := range s {
+		i, ok := m[r]
+		switch {
+		case !ok:
+			b.WriteRune(r)
+		case i < len(dst):
+			b.WriteRune(dst[i])
+		}
+	}
+	return strItem(b.String()), nil
+}
+
 func fnConcat(_ *ctx, c *call, a []seq) (seq, error) {
 	var b strings.Builder
 	for _, s := range a {
@@ -482,6 +521,24 @@ next:
 		out = append(out, x)
 	}
 	return out, nil
+}
+
+// fnAbs implements abs(): the empty sequence for an empty argument, the
+// absolute value of a number of the same type, an untyped value cast to
+// xs:double.
+func fnAbs(_ *ctx, c *call, a []seq) (seq, error) {
+	i, ok, err := oneAtomic(a[0], c.name)
+	if err != nil || !ok {
+		return nil, err
+	}
+	n, err := toNumber(i)
+	if err != nil {
+		return nil, err
+	}
+	if n.k == kDouble {
+		return seq{{k: kDouble, f: math.Abs(n.f)}}, nil
+	}
+	return seq{{k: n.k, r: new(big.Rat).Abs(n.r)}}, nil
 }
 
 func fnRound(_ *ctx, c *call, a []seq) (seq, error) {

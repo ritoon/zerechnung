@@ -122,10 +122,12 @@
 //
 // A report of the French e-reporting (flux 10, see package ereporting) is
 // checked against the schemas of the flux 10 of France_RFE (the Schema rule
-// set, with the same XSD-* rules), and for the values that cannot be read
-// (ER-01), such as a date that is not AAAAMMJJ. A report is not an invoice:
-// the other rule sets do not apply, nor are the rules of the PPF on its
-// content checked, which the warning ER-02 says whatever the rule sets.
+// set, with the same XSD-* rules), for the values that cannot be read
+// (ER-01), such as a date that is not AAAAMMJJ, and against the rules of
+// the PPF on its content, those of the schematron Flux10 of France_RFE
+// 1.4.0.04, whatever the rule sets, as a CDAR status: rules listed in the
+// France rule set, source SourceFlux10. A report is not an invoice: the
+// rules of the invoices do not apply. See package internal/rules/flux10.
 //
 // Validation never stops at the first problem: every finding is collected in
 // a Report. A document that is not well-formed XML, or neither a CII, a
@@ -148,6 +150,7 @@ import (
 	"github.com/ritoon/zerechnung/internal/rules/de"
 	"github.com/ritoon/zerechnung/internal/rules/en16931"
 	"github.com/ritoon/zerechnung/internal/rules/facturx"
+	"github.com/ritoon/zerechnung/internal/rules/flux10"
 	"github.com/ritoon/zerechnung/internal/rules/fr"
 	"github.com/ritoon/zerechnung/internal/rules/hr"
 	"github.com/ritoon/zerechnung/internal/rules/it"
@@ -188,6 +191,7 @@ const (
 	SourceFacturX = rules.SourceFacturX
 	SourceFR      = rules.SourceFR
 	SourceCDV     = rules.SourceCDV
+	SourceFlux10  = rules.SourceFlux10
 	SourceDE      = rules.SourceDE
 	SourcePDF     = rules.SourcePDF
 
@@ -212,7 +216,7 @@ const (
 	Schema         RuleSet = 1 << iota // structure against the XML schema: of the profile (CII), UBL 2.1 (UBL), FatturaPA 1.2.4, Facturae of its version, CDAR D22B (status), flux 10 of France_RFE (e-reporting report); minimal structural check of ZUGFeRD 1.0
 	EN16931                            // CEN business rules and code lists, and the UBL syntax rules for UBL
 	FacturX                            // Factur-X / ZUGFeRD profile rules (CII only)
-	France                             // French rules BR-FR (2026 reform) and the profiles the reform admits (FR-PROFILE-*); lists the rules BR-FR-CDV of the statuses, which apply to a CDAR status whatever the rule sets
+	France                             // French rules BR-FR (2026 reform) and the profiles the reform admits (FR-PROFILE-*); lists the rules BR-FR-CDV of the statuses and those of the schematron Flux10 of the e-reporting, which apply to a CDAR status and to an e-reporting report whatever the rule sets
 	Germany                            // German rules BR-DE (XRechnung) and the format of the Leitweg-ID and of the GEBA (DE-LEITWEG-*, DE-GEBA-*)
 	GermanyProfile                     // profiles the BMF accepts as e-invoices (DE-PROFILE-01: not MINIMUM nor BASIC WL)
 	ChorusPro                          // French B2G checks for Chorus Pro (CPRO-*), see Options.PublicBuyer
@@ -570,6 +574,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(France, newRules(fr.UBLCatalog, fr.Catalog))
 	add(France, fr.ProfileCatalog)
 	add(France, cdv.Catalog())
+	add(France, flux10.Catalog())
 	add(Germany, de.Catalog)
 	add(Germany, newRules(de.UBLCatalog, de.Catalog))
 	add(Germany, de.IdentifierCatalog)

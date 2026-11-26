@@ -3,8 +3,9 @@
 // the stylesheet a schematron compiles into. The rule sets whose schematron
 // is reproduced as published (packages internal/rules/pt, internal/rules/ro
 // and internal/rules/hr for national CIUS, internal/rules/cdv for the French
-// statuses of the life cycle of an invoice) generate their patterns and run
-// them with this package.
+// statuses of the life cycle of an invoice, internal/rules/flux10 for the
+// French e-reporting) generate their patterns and run them with this
+// package.
 //
 // # Evaluation
 //

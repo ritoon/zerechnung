@@ -244,7 +244,7 @@
     "cp_fr_pdf": "Contenitore PDF/A-3: XML allegato, metadati XMP, AFRelationship",
     "cp_fr_sign": "Firma PAdES delle fatture Factur-X, uno dei tre mezzi di autenticità e integrità (art. 289 VII del CGI), e verifica delle firme ricevute",
     "cp_fr_cdv": "Stati del ciclo di vita (CDAR D22B): lettura, scrittura e validazione con lo schema e le regole BR-FR-CDV della FNFE-MPE (1.4.0.04), gli stati 200 Déposée e 213 Rejetée costruiti dalla fattura",
-    "cp_fr_ereporting": "E-reporting (flusso 10): report delle operazioni e dei pagamenti letti, scritti e controllati con i loro schemi XSD; le regole del PPF sul loro contenuto (schematron Flux10) non sono applicate, e i report non sono trasmessi",
+    "cp_fr_ereporting": "E-reporting (flusso 10): report delle operazioni e dei pagamenti letti, scritti e controllati con i loro schemi XSD e le 150 regole del PPF sul loro contenuto (schematron Flux10 della FNFE-MPE, 1.4.0.04); i report non sono né calcolati dalle fatture (regole BR-FR-MAP non pubblicate) né trasmessi",
     "cp_fr_send": "Trasmissione delle fatture tramite una piattaforma accreditata",
     "cp_de_intro": "XRechnung per le amministrazioni pubbliche dal 2020. Dal 2025 ogni impresa deve poter ricevere fatture elettroniche. Emetterle diventa obbligatorio nel 2027 oltre 800.000 € di fatturato, e per tutte le imprese nel 2028. Sono ammessi XRechnung e ZUGFeRD dalla versione 2.0.1.",
     "cp_de_xrechnung": "XRechnung 3.0.2 in CII e UBL, con le regole e i livelli di gravità della KoSIT",
