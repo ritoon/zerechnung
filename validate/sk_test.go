@@ -74,12 +74,16 @@ func TestSlovakiaRuleSet(t *testing.T) {
 }
 
 // TestCatalogSlovakia checks that the Slovakia rule set lists the 15 Slovak
-// rules, and that no other rule set lists them.
+// rules, and that no other rule set lists them. The Slovak rules of Peppol
+// BIS (SK-R-001 to SK-R-007) have identifiers of their own, in the Peppol
+// rule set.
 func TestCatalogSlovakia(t *testing.T) {
 	var ids []string
+	slovak := map[string]bool{}
 	for _, r := range Catalog(Slovakia) {
 		ids = append(ids, r.ID)
-		if !strings.HasPrefix(r.ID, "SK-") {
+		slovak[r.ID] = true
+		if !strings.HasPrefix(r.ID, "SK-") || strings.HasPrefix(r.ID, "SK-R-") {
 			t.Errorf("Catalog(Slovakia) lists %s", r.ID)
 		}
 	}
@@ -87,7 +91,7 @@ func TestCatalogSlovakia(t *testing.T) {
 		t.Errorf("Catalog(Slovakia) = %v", ids)
 	}
 	for _, r := range Catalog(^RuleSet(0) &^ Slovakia) {
-		if strings.HasPrefix(r.ID, "SK-") {
+		if slovak[r.ID] {
 			t.Errorf("%s is listed outside the Slovakia rule set", r.ID)
 		}
 	}

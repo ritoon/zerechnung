@@ -10,9 +10,9 @@ import (
 	"github.com/ritoon/zerechnung/internal/xmltree"
 )
 
-// National rules of the UBL schematron: Norway, Denmark, Italy, Sweden,
-// Greece, Iceland, the Netherlands and Germany. Each method checks the
-// rules of one pattern whose context is n.
+// National rules of the UBL schematron: Slovakia, Norway, Denmark, Italy,
+// Sweden, Greece, Iceland, the Netherlands and Germany. Each method checks
+// the rules of one pattern whose context is n.
 
 // supplierParty reports whether p is cac:AccountingSupplierParty/cac:Party.
 func supplierParty(p *xmltree.Node) bool {
@@ -30,6 +30,36 @@ func parentOf(n *xmltree.Node) *xmltree.Node {
 		return nil
 	}
 	return n.Parent
+}
+
+// slovakiaAddress checks the pattern of the Slovak addresses: on a domestic
+// invoice, where both the seller and the buyer have their postal address in
+// Slovakia, the addresses give a street, a city and a postal code.
+func (k *ublChecker) slovakiaAddress(n *xmltree.Node) {
+	if !k.supplierPostalSK || !k.customerPostalSK || !uis(n, "cac:PostalAddress") {
+		return
+	}
+	switch p := n.Parent; {
+	case supplierParty(p):
+		k.check(uexists(n, "cbc:StreetName"), "SK-R-002", n, "")
+		k.check(uexists(n, "cbc:CityName"), "SK-R-003", n, "")
+		k.check(uexists(n, "cbc:PostalZone"), "SK-R-004", n, "")
+	case customerParty(p):
+		k.check(uexists(n, "cbc:StreetName"), "SK-R-005", n, "")
+		k.check(uexists(n, "cbc:CityName"), "SK-R-006", n, "")
+		k.check(uexists(n, "cbc:PostalZone"), "SK-R-007", n, "")
+	}
+}
+
+// slovakia checks the pattern of SK-R-001 on an invoice whose seller and
+// buyer are in Slovakia ($supplierCountry and $customerCountry): a corrected
+// invoice (384) refers to the invoice it corrects.
+func (k *ublChecker) slovakia(n *xmltree.Node) {
+	if k.supplierCountry != "SK" || k.customerCountry != "SK" || !isElem(n, nsInvoice, "Invoice") {
+		return
+	}
+	code := nsv(ufirst(n, "cbc:InvoiceTypeCode"))
+	k.check(code != "384" || uexists(n, "cac:BillingReference"), "SK-R-001", n, "type code %q", code)
 }
 
 // norway checks the Norwegian pattern on a seller, when $supplierCountry
@@ -198,7 +228,7 @@ func (k *ublChecker) sweden(n *xmltree.Node) {
 		uexists(p.Parent, "cac:PartyLegalEntity/cbc:CompanyID") && norm(strings.ToUpper(sv(ufirst(p, "cac:TaxScheme/cbc:ID")))) != "VAT":
 		v := norm(strings.ToUpper(sv(n)))
 		k.check(v == "GODKÄND FÖR F-SKATT", "SE-R-005", n, "value: %q", sv(n))
-	case (uis(n, "cac:TaxCategory") || uis(n, "cac:ClassifiedTaxCategory")) && k.seSupplierVAT && uanyEq(n, "cbc:ID", "S"):
+	case (uis(n, "cac:TaxCategory") || uis(n, "cac:ClassifiedTaxCategory")) && k.seSupplierVAT && k.seCustomer && uanyEq(n, "cbc:ID", "S"):
 		rate := sv(ufirst(n, "cbc:Percent"))
 		f := number(rate)
 		k.check(f == 25 || f == 12 || f == 6, "SE-R-006", n, "rate %q", rate)
@@ -231,10 +261,6 @@ var (
 	})
 	reMARK = sync.OnceValue(func() *regexp.Regexp { return regexp.MustCompile(`^[1-9]([0-9]*)`) })
 )
-
-// greekDocumentTypes is $greekDocumentType, tokenized from a list that ends
-// with a space: the empty string is one of its values.
-var greekDocumentTypes = []string{"1.1", "1.6", "2.1", "2.4", "5.1", "5.2", ""}
 
 // greece checks the pattern of the Greek sender rules.
 func (k *ublChecker) greece(n *xmltree.Node) {
@@ -373,8 +399,6 @@ func (k *ublChecker) greekInvoiceID(n *xmltree.Node) {
 		k.fail("GR-R-001-4", n, "value: %q", s3)
 	}
 
-	s4, _ := seg(4)
-	k.check(length(norm(s4)) > 0 && in(s4, greekDocumentTypes...), "GR-R-001-5", n, "value: %q", s4)
 	s5, _ := seg(5)
 	k.check(length(s5) > 0, "GR-R-001-6", n, "")
 	s6, _ := seg(6)
@@ -541,7 +565,8 @@ func (k *ublChecker) germany(n *xmltree.Node) {
 	case n == k.root:
 		k.germanDocument(n)
 	case uis(n, "cac:ExternalReference") && uis(p, "cac:Attachment") && uis(p.Parent, "cac:AdditionalDocumentReference") && k.atRoot(p.Parent):
-		k.check(reXRURL().MatchString(sv(ufirst(n, "cbc:URI"))), "DE-R-T02", n, "value: %q", sv(ufirst(n, "cbc:URI")))
+		uri := nsv(ufirst(n, "cbc:URI"))
+		k.check(reXRURL().MatchString(uri), "DE-R-T02", n, "value: %q", uri)
 	case uis(n, "cac:AccountingSupplierParty") && k.atRoot(n):
 		k.check(uexists(n, "cac:Party/cac:Contact"), "DE-R-002", n, "")
 	case uis(n, "cac:PostalAddress") && supplierParty(p) && k.atRoot(p.Parent):

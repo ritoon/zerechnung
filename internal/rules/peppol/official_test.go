@@ -14,8 +14,8 @@ import (
 
 // TestOfficial runs the CII unit tests of the Peppol BIS Billing 3.0
 // repository (FX_PEPPOL, the root of a clone of OpenPEPPOL/peppol-bis-invoice-3
-// at release 3.0.21 or later): the folders rules/unit-CII-*, which the
-// official build runs against PEPPOL-EN16931-CII.sch.
+// at release 3.1.0): the folders rules/unit-CII-*, which the official build
+// runs against PEPPOL-EN16931-CII.sch.
 //
 // Each test of a test set gives the expected outcome of some rules:
 // <success>id</success> when the rule must not fire, <error>id</error> or
@@ -104,8 +104,11 @@ func TestOfficial(t *testing.T) {
 // repository (FX_PEPPOL): the folders rules/unit-UBL-*, which the official
 // build runs against PEPPOL-EN16931-UBL.sch. The expectations are read as
 // for TestOfficial, except that the number of a <success> is not a count:
-// the rule must not fire. Every assertion of UBLCatalog must fail in an
-// official test or in a mutation case (TestUBLMutations).
+// the rule must not fire. The rules of inferred cardinality, which have few
+// official tests, are also checked on documents reduced to their context,
+// as the schematron reads (see officialCardinality). Every assertion of
+// UBLCatalog must fail in one of these tests or in a mutation case
+// (TestUBLMutations).
 func TestOfficialUBL(t *testing.T) {
 	dir := os.Getenv("FX_PEPPOL")
 	if dir == "" {
@@ -187,6 +190,10 @@ func TestOfficialUBL(t *testing.T) {
 	t.Logf("%d test sets, %d tests, %d assertions, %d rules covered", sets, tests, asserts, len(covered))
 	if tests == 0 {
 		t.Error("no unit test in FX_PEPPOL")
+	}
+	sch := filepath.Join(dir, "rules", "sch", "PEPPOL-EN16931-UBL.sch")
+	for _, id := range officialCardinality(t, sch, func(b []byte) *rules.Report { return runUBL(t, b) }) {
+		failing[id] = true
 	}
 	for _, c := range ublMutationCases() {
 		for _, id := range c.want {

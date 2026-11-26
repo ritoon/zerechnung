@@ -32,7 +32,7 @@ func (k *checker) norway() {
 		}
 		k.check(ok, "NO-R-002", s, "")
 
-		var vatIDs []*xmltree.Node // SpecifiedTaxRegistration[ram:ID/@schemeID = 'VAT']/ram:ID
+		var vatIDs []*xmltree.Node // SpecifiedTaxRegistration[ram:ID/@schemeID = 'VA']/ram:ID
 		norwegian := false
 		for _, r := range s.Elems("SpecifiedTaxRegistration") {
 			if !isVATRegistration(r) {
@@ -85,6 +85,10 @@ func (k *checker) denmark() {
 	if legal != nil {
 		k.check(firstAttr(r, pSeller+"/SpecifiedLegalOrganization/ID", "schemeID") == "0184", "DK-R-014", legal,
 			"scheme %q", firstAttr(r, pSeller+"/SpecifiedLegalOrganization/ID", "schemeID"))
+	}
+	if buyerLegal := k.absFirst(pBuyer + "/SpecifiedLegalOrganization/ID"); customer && buyerLegal != nil {
+		scheme := firstAttr(r, pBuyer+"/SpecifiedLegalOrganization/ID", "schemeID")
+		k.check(scheme == "0184", "DK-R-017", buyerLegal, "scheme %q", scheme)
 	}
 	if customer && norm(text(k.absFirst(pTypeCode))) == "381" {
 		due := k.absFirst(pSummation + "/DuePayableAmount")
@@ -168,10 +172,10 @@ func (k *checker) italy() {
 func (k *checker) sweden() {
 	swedish := func(party *xmltree.Node) bool { return anyEq(party, "PostalTradeAddress/CountryID", "SE") }
 	// swedishVAT reports whether a registration has a VAT identifier
-	// (schemeID 'VAT') starting with SE.
+	// (schemeID 'VA') starting with SE.
 	swedishVAT := func(r *xmltree.Node) bool {
 		for _, id := range r.Elems("ID") {
-			if attr(id, "schemeID") == "VAT" {
+			if attr(id, "schemeID") == "VA" {
 				return substring(sv(id), 1, 2) == "SE"
 			}
 		}
@@ -182,14 +186,14 @@ func (k *checker) sweden() {
 		if !swedish(s) {
 			continue
 		}
-		var vat []*xmltree.Node // ram:SpecifiedTaxRegistration/ram:ID[@schemeID = 'VAT']
+		var vat []*xmltree.Node // ram:SpecifiedTaxRegistration/ram:ID[@schemeID = 'VA']
 		hasSwedishVAT := false
 		for _, r := range s.Elems("SpecifiedTaxRegistration") {
 			if swedishVAT(r) {
 				hasSwedishVAT = true
 			}
 			for _, id := range r.Elems("ID") {
-				if attr(id, "schemeID") == "VAT" {
+				if attr(id, "schemeID") == "VA" {
 					vat = append(vat, id)
 				}
 			}
@@ -218,7 +222,7 @@ func (k *checker) sweden() {
 			}
 		}
 	}
-	if taxRates {
+	if taxRates && anyEq(k.root, pBuyer+"/PostalTradeAddress/CountryID", "SE") {
 		for _, t := range k.taxes {
 			rate := number(sv(first(t, "RateApplicablePercent")))
 			k.check(rate == 25 || rate == 12 || rate == 6, "SE-R-006", t, "rate %q", sv(first(t, "RateApplicablePercent")))

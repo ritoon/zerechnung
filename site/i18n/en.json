@@ -265,7 +265,7 @@
     "cp_nl_intro": "Public buyers require NLCIUS or Peppol BIS invoices since 2017. Mandatory e-invoices between companies are announced for 1 July 2030.",
     "cp_nl_nlcius": "NLCIUS: SI-UBL 2.0 and NLCIUS-CII",
     "cp_nl_grek": "G-rekening extension",
-    "cp_nl_peppol": "Peppol BIS Billing 3.0 (3.0.21)",
+    "cp_nl_peppol": "Peppol BIS Billing 3.0 (3.1.0)",
     "cp_nl_send": "Sending over the Peppol network",
     "cp_be_intro": "Peppol BIS Billing 3.0 is mandatory between companies since 1 January 2026. Near real-time e-reporting is planned for 2028.",
     "cp_be_peppol": "Peppol BIS Billing 3.0, mandatory in B2B, in UBL and CII",

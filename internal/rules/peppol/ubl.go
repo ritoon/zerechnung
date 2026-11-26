@@ -32,11 +32,11 @@ import (
 //     message.
 //
 // The country of the seller ($supplierCountry, used among others by the
-// Norwegian, Italian and Greek rules) is the prefix of its VAT identifier,
-// or of that of the tax representative, and only then the country of its
-// address; the Danish, Icelandic, Dutch and German rules look at the
-// addresses. DK-R-003 is an error in the UBL schematron, a warning in the
-// CII one.
+// Norwegian, Italian and Greek rules and by SK-R-001) is the prefix of its
+// first VAT identifier, or of that of the tax representative, and only then
+// the country of its address; the Danish, Icelandic, Dutch and German
+// rules, and the Slovak rules on the addresses (SK-R-002 to SK-R-007), look
+// at the addresses.
 //
 // Where the reference would stop on an XPath error, the rules follow the
 // policy of the CII rules: several values given to a single-valued function
@@ -84,6 +84,8 @@ type ublChecker struct {
 	supplierDE, customerDE     bool   // $supplierCountryIsDE, $customerCountryIsDE
 	supplierNL, customerNL     bool   // $supplierCountryIsNL, $customerCountryIsNL
 	taxRepNL                   bool   // $taxRepresentativeCountryIsNL
+	supplierPostalSK           bool   // $supplierPostalCountryIsSK
+	customerPostalSK           bool   // $customerPostalCountryIsSK
 	greekSender, greekReceiver bool   // $isGreekSender, $isGreekReceiver
 
 	// supplierCode and customerCode are the raw country codes of the
@@ -115,6 +117,7 @@ func checkUBL(c *rules.Checker, root *xmltree.Node, sb bool) {
 		k.creditNoteRules(n)
 		k.element(n)
 		if !k.sb {
+			k.slovakiaAddress(n)
 			k.norway(n)
 			k.denmark(n)
 			k.italy(n)
@@ -124,8 +127,10 @@ func checkUBL(c *rules.Checker, root *xmltree.Node, sb bool) {
 			k.iceland(n)
 			k.netherlands(n)
 			k.germany(n)
+			k.slovakia(n)
 		}
 		k.codeList(n)
+		k.cardinality(n)
 		return true
 	})
 }
@@ -174,6 +179,8 @@ func (k *ublChecker) variables() {
 	k.supplierNL = address(uSupplierCountry) == "NL"
 	k.customerNL = address(uCustomerCountry) == "NL"
 	k.taxRepNL = address(uTaxRep+"/"+uCountry) == "NL"
+	k.supplierPostalSK = address(uSupplierCountry) == "SK"
+	k.customerPostalSK = address(uCustomerCountry) == "SK"
 	k.greekSender = k.supplierCountry == "GR" || k.supplierCountry == "EL"
 	k.greekReceiver = k.customerCountry == "GR" || k.customerCountry == "EL"
 	if k.invoice || k.creditNote {

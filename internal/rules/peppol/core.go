@@ -65,11 +65,28 @@ func (k *checker) element(n *xmltree.Node) {
 	case "URIID", "ID", "GlobalID":
 		k.identifier(n)
 	case "SpecifiedTaxRegistration":
-		if anyAttrIn(n, "ID", "schemeID", "VA") {
-			if v := nsv(n); strings.HasPrefix(v, "NL") {
-				k.check(dutchVAT(v), "PEPPOL-COMMON-R056-2", n, "value: %q", v)
-			}
-		}
+		k.vatRegistration(n)
+	}
+}
+
+// vatRegistration checks a ram:SpecifiedTaxRegistration whose ram:ID has
+// the scheme VA against the format of a Belgian, Dutch or Luxembourgish VAT
+// identifier, by the first rule that applies, in the order of the
+// schematron: PEPPOL-COMMON-R062 looks at the upper-cased ram:ID,
+// PEPPOL-COMMON-R056-2 and R058 at the string value of the registration.
+func (k *checker) vatRegistration(n *xmltree.Node) {
+	if !anyAttrIn(n, "ID", "schemeID", "VA") {
+		return
+	}
+	id := nsv(first(n, "ID"))
+	v := nsv(n)
+	switch {
+	case strings.HasPrefix(strings.ToUpper(id), "BE"):
+		k.check(belgianVAT(strings.ToUpper(id)), "PEPPOL-COMMON-R062", n, "value: %q", id)
+	case strings.HasPrefix(v, "NL"):
+		k.check(dutchVAT(v), "PEPPOL-COMMON-R056-2", n, "value: %q", v)
+	case strings.HasPrefix(strings.ToUpper(v), "LU"):
+		k.check(luxembourgVAT(strings.ToUpper(v)), "PEPPOL-COMMON-R058", n, "value: %q", v)
 	}
 }
 

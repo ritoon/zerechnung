@@ -5,9 +5,10 @@ import (
 	"sync"
 )
 
-// Catalog lists the 90 assertions of PEPPOL-EN16931-CII.sch, in the order of
-// the schematron, with the severity of their flag. The descriptions are the
-// messages of the schematron.
+// Catalog lists the 94 rules of PEPPOL-EN16931-CII.sch, release 3.1.0, in
+// the order of the schematron, with the severity of their flag: 95
+// assertions, PEPPOL-EN16931-R043 having two with the same message. The
+// descriptions are the messages of the schematron.
 var Catalog = []rules.RuleInfo{
 	// Peppol rules (PEPPOL-EN16931-R*).
 	{ID: "PEPPOL-EN16931-R001", Severity: rules.Error, Description: "Business process MUST be provided."},
@@ -37,23 +38,26 @@ var Catalog = []rules.RuleInfo{
 	{ID: "PEPPOL-EN16931-R130", Severity: rules.Error, Description: "Unit code of price base quantity MUST be same as invoiced quantity."},
 
 	// Identifiers by ICD scheme (PEPPOL-COMMON-R*).
-	{ID: "PEPPOL-COMMON-R040", Severity: rules.Error, Description: "GLN must have a valid format according to GS1 rules."},
+	{ID: "PEPPOL-COMMON-R040", Severity: rules.Error, Description: "GLN13 MUST have a valid format according to GS1 rules."},
 	{ID: "PEPPOL-COMMON-R041", Severity: rules.Error, Description: "Norwegian organization number MUST be stated in the correct format."},
 	{ID: "PEPPOL-COMMON-R042", Severity: rules.Error, Description: "Danish organization number (CVR) MUST be stated in the correct format."},
 	{ID: "PEPPOL-COMMON-R052", Severity: rules.Error, Description: "Danish chamber of commerce number (P) MUST be stated in the correct format."},
 	{ID: "PEPPOL-COMMON-R053", Severity: rules.Error, Description: "Danish ERSTORG number (SE) MUST be stated in the correct format."},
 	{ID: "PEPPOL-COMMON-R043", Severity: rules.Error, Description: "Belgian enterprise number MUST be stated in the correct format."},
-	{ID: "PEPPOL-COMMON-R044", Severity: rules.Warning, Description: "IPA Code (Codice Univoco Unità Organizzativa) must be stated in the correct format"},
-	{ID: "PEPPOL-COMMON-R045", Severity: rules.Warning, Description: "Tax Code (Codice Fiscale) must be stated in the correct format"},
-	{ID: "PEPPOL-COMMON-R046", Severity: rules.Warning, Description: "Tax Code (Codice Fiscale) must be stated in the correct format"},
-	{ID: "PEPPOL-COMMON-R047", Severity: rules.Warning, Description: "Italian VAT Code (Partita Iva) must be stated in the correct format"},
+	{ID: "PEPPOL-COMMON-R062", Severity: rules.Warning, Description: "Belgian VAT number MUST be stated in the correct format."},
+	{ID: "PEPPOL-COMMON-R044", Severity: rules.Warning, Description: "IPA Code (Codice Univoco Unità Organizzativa) SHOULD be stated in the correct format"},
+	{ID: "PEPPOL-COMMON-R045", Severity: rules.Warning, Description: "Tax Code (Codice Fiscale) SHOULD be stated in the correct format"},
+	{ID: "PEPPOL-COMMON-R046", Severity: rules.Warning, Description: "Tax Code (Codice Fiscale) SHOULD be stated in the correct format"},
+	{ID: "PEPPOL-COMMON-R047", Severity: rules.Warning, Description: "Italian VAT Code (Partita Iva) SHOULD be stated in the correct format"},
 	{ID: "PEPPOL-COMMON-R049", Severity: rules.Error, Description: "Swedish organization number MUST be stated in the correct format."},
 	{ID: "PEPPOL-COMMON-R050", Severity: rules.Error, Description: "Australian Business Number (ABN) MUST be stated in the correct format."},
-	{ID: "PEPPOL-COMMON-R054", Severity: rules.Warning, Description: "Dutch Chamber of Commerce (KVK) numbers (0106) MUST be stated in the correct format (12345678)."},
-	{ID: "PEPPOL-COMMON-R055", Severity: rules.Warning, Description: "Dutch organization identification numbers (0190) MUST be stated in the correct format (12345678901234567890)."},
-	{ID: "PEPPOL-COMMON-R056-1", Severity: rules.Warning, Description: "Dutch VAT numbers (9944) MUST be stated in the correct format (NL123456789B12)."},
-	{ID: "PEPPOL-COMMON-R056-2", Severity: rules.Warning, Description: "Dutch VAT numbers MUST have the format (NL123456789B12)."},
-	{ID: "PEPPOL-COMMON-R057", Severity: rules.Warning, Description: "Dutch Chamber of Commerce Establishment numbers (0217) MUST be stated in the correct format (123456789012)."},
+	{ID: "PEPPOL-COMMON-R054", Severity: rules.Error, Description: "Dutch Chamber of Commerce (KVK) numbers (0106) MUST be stated in the correct format (12345678)."},
+	{ID: "PEPPOL-COMMON-R055", Severity: rules.Error, Description: "Dutch organization identification numbers (0190) MUST be stated in the correct format (12345678901234567890)."},
+	{ID: "PEPPOL-COMMON-R056-1", Severity: rules.Error, Description: "Dutch VAT numbers (9944) MUST be stated in the correct format (NL123456789B12)."},
+	{ID: "PEPPOL-COMMON-R056-2", Severity: rules.Error, Description: "Dutch VAT numbers MUST have the format (NL123456789B12)."},
+	{ID: "PEPPOL-COMMON-R057", Severity: rules.Error, Description: "Dutch Chamber of Commerce Establishment numbers (0217) MUST be stated in the correct format (123456789012)."},
+	{ID: "PEPPOL-COMMON-R058", Severity: rules.Warning, Description: "Luxembourg VAT number MUST be stated in the correct format."},
+	{ID: "PEPPOL-COMMON-R059", Severity: rules.Warning, Description: "Luxembourg Register of Legal Persons number (Matricule) MUST be stated in the correct format."},
 
 	// Norway.
 	{ID: "NO-R-002", Severity: rules.Warning, Description: "Most invoice issuers are required to append \"Foretaksregisteret\" to their invoice. \"Dersom selger er aksjeselskap, allmennaksjeselskap eller filial av utenlandsk selskap skal også ordet «Foretaksregisteret» fremgå av salgsdokumentet, jf. foretaksregisterloven § 10-2.\""},
@@ -64,6 +68,7 @@ var Catalog = []rules.RuleInfo{
 	{ID: "DK-R-004", Severity: rules.Error, Description: "When specifying non-VAT Taxes for Danish customers, Danish suppliers MUST use the AllowanceChargeReasonCode=\"ZZZ\" and MUST be specified in AllowanceChargeReason; Either as the 4-digit Tax category or must include a #, but the # is not allowed as first and last character"},
 	{ID: "DK-R-013", Severity: rules.Error, Description: "For Danish Suppliers it is mandatory to use schemeID when GlobalID is used for SellerTradeParty or BuyerTradeParty"},
 	{ID: "DK-R-014", Severity: rules.Error, Description: "For Danish Suppliers it is mandatory to specify schemeID as \"0184\" when SpecifiedLegalOrganization is used for SellerTradeParty"},
+	{ID: "DK-R-017", Severity: rules.Error, Description: "For Danish Customers it is mandatory to specify schemeID as \"0184\" (DK CVR-number) when SpecifiedLegalOrganization is used for BuyerTradeParty"},
 	{ID: "DK-R-016", Severity: rules.Error, Description: "For Danish Suppliers, a Credit note cannot have a negative total (DuePayableAmount)"},
 	{ID: "DK-R-005", Severity: rules.Error, Description: "For Danish suppliers the following Payment means type codes are allowed: 1, 10, 31, 42, 48, 49, 50, 58, 59, 93 and 97"},
 	{ID: "DK-R-006", Severity: rules.Error, Description: "For Danish suppliers, bank account and registration account are mandatory if payment means is 31 or 42"},
@@ -72,7 +77,7 @@ var Catalog = []rules.RuleInfo{
 	{ID: "DK-R-009", Severity: rules.Error, Description: "For Danish Suppliers if the PaymentReference is prefixed with 04# or 015# the 16 digits instruction Id must be added to the PaymentReference eg. \"04#1234567890123456\" when Payment means equals 50 (Giro)"},
 	{ID: "DK-R-010", Severity: rules.Error, Description: "For Danish Suppliers using PaymentMeansCode 93, PaymentID is mandatory. The first three characters of the PaymentID MUST be 71#, 73# or 75# (kortartskode), and PayeeFinancialAccount/ID MUST be exactly 8 characters long."},
 	{ID: "DK-R-011", Severity: rules.Error, Description: "For Danish Suppliers if the PaymentReference is prefixed with 71# or 75# the 15-16 digits instruction Id must be added to the PaymentReference eg. \"71#1234567890123456\" when payment Method equals 93 (FIK)"},
-	{ID: "DK-R-003", Severity: rules.Warning, Description: "If ItemClassification is provided from Danish suppliers, UNSPSC version 19.05.01 or 26.08.01 should be used"},
+	{ID: "DK-R-003", Severity: rules.Error, Description: "If ItemClassification is provided from Danish suppliers, UNSPSC version 19.05.01 or 26.08.01 MUST be used"},
 
 	// Italy.
 	{ID: "IT-R-001", Severity: rules.Error, Description: "BT-32 (Seller tax registration identifier) - For Italian suppliers BT-32 minimum length 11 and maximum length shall be 16. Per i fornitori italiani il BT-32 deve avere una lunghezza tra 11 e 16 caratteri"},
@@ -83,17 +88,17 @@ var Catalog = []rules.RuleInfo{
 	// Sweden.
 	{ID: "SE-R-001", Severity: rules.Error, Description: "For Swedish suppliers, Swedish VAT-numbers must consist of 14 characters."},
 	{ID: "SE-R-002", Severity: rules.Error, Description: "For Swedish suppliers, the Swedish VAT-numbers must have the trailing 12 characters in numeric form"},
-	{ID: "SE-R-003", Severity: rules.Error, Description: "Swedish organisation numbers should be numeric."},
+	{ID: "SE-R-003", Severity: rules.Error, Description: "Swedish organisation numbers SHOULD be numeric."},
 	{ID: "SE-R-004", Severity: rules.Error, Description: "Swedish organisation numbers consist of 10 characters."},
 	{ID: "SE-R-013", Severity: rules.Error, Description: "The last digit of a Swedish organization number must be valid according to the Luhn algorithm."},
 	{ID: "SE-R-005", Severity: rules.Error, Description: "For Swedish suppliers, when using Seller tax registration identifier, 'Godkänd för F-skatt' must be stated"},
-	{ID: "SE-R-006", Severity: rules.Error, Description: "For Swedish suppliers, only standard VAT rate of 6, 12 or 25 are used"},
-	{ID: "SE-R-007", Severity: rules.Warning, Description: "For Swedish suppliers using Plusgiro, the Account ID must be numeric"},
-	{ID: "SE-R-010", Severity: rules.Warning, Description: "For Swedish suppliers using Plusgiro, the Account ID must have 2-8 characters"},
-	{ID: "SE-R-008", Severity: rules.Warning, Description: "For Swedish suppliers using Bankgiro, the Account ID must be numeric"},
-	{ID: "SE-R-009", Severity: rules.Warning, Description: "For Swedish suppliers using Bankgiro, the Account ID must have 7-8 characters"},
+	{ID: "SE-R-006", Severity: rules.Error, Description: "For Swedish suppliers invoicing Swedish buyers, only standard VAT rate of 6, 12 or 25 are used"},
+	{ID: "SE-R-007", Severity: rules.Warning, Description: "For Swedish suppliers using Plusgiro, the Account ID SHOULD be numeric"},
+	{ID: "SE-R-010", Severity: rules.Warning, Description: "For Swedish suppliers using Plusgiro, the Account ID SHOULD have 2-8 characters"},
+	{ID: "SE-R-008", Severity: rules.Warning, Description: "For Swedish suppliers using Bankgiro, the Account ID SHOULD be numeric"},
+	{ID: "SE-R-009", Severity: rules.Warning, Description: "For Swedish suppliers using Bankgiro, the Account ID SHOULD have 7-8 characters"},
 	{ID: "SE-R-011", Severity: rules.Warning, Description: "For Swedish suppliers using Swedish Bankgiro or Plusgiro, the proper way to indicate this is to use Code 30 for PaymentMeans and FinancialInstitutionBranch ID with code SE:BANKGIRO or SE:PLUSGIRO"},
-	{ID: "SE-R-012", Severity: rules.Warning, Description: "For domestic transactions between Swedish trading partners, credit transfer should be indicated by PaymentMeansCode=”30”"},
+	{ID: "SE-R-012", Severity: rules.Warning, Description: "For domestic transactions between Swedish trading partners, credit transfer SHOULD be indicated by PaymentMeansCode=”30”"},
 
 	// Netherlands.
 	{ID: "NL-R-001", Severity: rules.Error, Description: "For suppliers in the Netherlands, if the document is a creditnote, the document MUST contain an invoice reference (ram:ApplicableHeaderTradeSettlement/ram:InvoiceReferencedDocument/ram:IssuerAssignedID)"},
@@ -107,7 +112,7 @@ var Catalog = []rules.RuleInfo{
 	{ID: "NL-R-009", Severity: rules.Error, Description: "For suppliers in the Netherlands, if an order line reference (ram:BuyerOrderReferencedDocument/ram:LineID) is used, there must be an order reference on the document level (rsm:SupplyChainTradeTransaction/ram:ApplicableHeaderTradeAgreement/ram:BuyerOrderReferencedDocument/ram:IssuerAssignedID)"},
 
 	// Restricted code lists and formatting.
-	{ID: "PEPPOL-EN16931-CL001", Severity: rules.Error, Description: "Mime code must be according to subset of IANA code list."},
+	{ID: "PEPPOL-EN16931-CL001", Severity: rules.Error, Description: "Mime code MUST be according to subset of IANA code list."},
 	{ID: "PEPPOL-EN16931-CL002", Severity: rules.Error, Description: "Reason code MUST be according to subset of UNCL 5189 D.16B."},
 	{ID: "PEPPOL-EN16931-CL003", Severity: rules.Error, Description: "Reason code MUST be according to UNCL 7161 D.16B."},
 	{ID: "PEPPOL-EN16931-CL007", Severity: rules.Error, Description: "Currency code must be according to ISO 4217:2005"},

@@ -212,7 +212,7 @@ func TestCatalogProfiles(t *testing.T) {
 // EN16931_Einfach.ubl.xml: the invoice declares Peppol BIS Billing 3.0, but
 // has no electronic address nor buyer reference, and lacks what the German
 // rules of Peppol require when both parties are in Germany.
-const einfachPeppol = "DE-R-001 DE-R-002 DE-R-015 PEPPOL-EN16931-R003 PEPPOL-EN16931-R010 PEPPOL-EN16931-R020"
+const einfachPeppol = "DE-R-001 DE-R-002 DE-R-015 PEPPOL-EN16931-R003 PEPPOL-EN16931-R010 PEPPOL-EN16931-R020 PEPPOL-EN16931-R219 PEPPOL-EN16931-R229"
 
 func TestUBL(t *testing.T) {
 	for _, c := range []struct {

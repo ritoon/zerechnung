@@ -100,7 +100,7 @@ func TestPeppolSelfBilling(t *testing.T) {
 }
 
 // TestPeppolSelfBillingExamples validates the official examples of Peppol
-// BIS Self-Billing 3.0.2 (BIS-SelfBilling-Examples.zip in the directory
+// BIS Self-Billing 3.1.0 (BIS-SelfBilling-Examples.zip in the directory
 // named by FX_PEPPOL_SB): with the default rule sets, which add the Peppol
 // rules of Self-Billing to these UBL invoices, none has an error.
 func TestPeppolSelfBillingExamples(t *testing.T) {

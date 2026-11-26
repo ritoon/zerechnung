@@ -265,7 +265,7 @@
     "cp_nl_intro": "Öffentliche Auftraggeber verlangen seit 2017 Rechnungen nach NLCIUS oder Peppol BIS. Eine E-Rechnungspflicht zwischen Unternehmen ist für den 1. Juli 2030 angekündigt.",
     "cp_nl_nlcius": "NLCIUS: SI-UBL 2.0 und NLCIUS-CII",
     "cp_nl_grek": "G-rekening-Erweiterung",
-    "cp_nl_peppol": "Peppol BIS Billing 3.0 (3.0.21)",
+    "cp_nl_peppol": "Peppol BIS Billing 3.0 (3.1.0)",
     "cp_nl_send": "Versand über das Peppol-Netzwerk",
     "cp_be_intro": "Peppol BIS Billing 3.0 ist seit dem 1. Januar 2026 zwischen Unternehmen Pflicht. Ein E-Reporting nahezu in Echtzeit ist für 2028 geplant.",
     "cp_be_peppol": "Peppol BIS Billing 3.0, im B2B Pflicht, in UBL und CII",

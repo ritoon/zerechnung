@@ -59,7 +59,7 @@
 // urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:selfbilling:3.0,
 // type codes 389, 527 or 261), which the buyer issues on behalf of the
 // seller, gets in the Peppol rule set the rules of the Self-Billing
-// schematron (release 3.0.2) instead of those of Billing: the same rules
+// schematron (release 3.1.0) instead of those of Billing: the same rules
 // but for its identifiers and type codes, without the national rules nor
 // PEPPOL-EN16931-P0112. As for a Peppol invoice, they apply whatever the
 // rule sets. Peppol BIS Self-Billing has a UBL syntax only. The national
@@ -233,7 +233,7 @@ const (
 	Germany                            // German rules BR-DE (XRechnung) and the format of the Leitweg-ID and of the GEBA (DE-LEITWEG-*, DE-GEBA-*)
 	GermanyProfile                     // profiles the BMF accepts as e-invoices (DE-PROFILE-01: not MINIMUM nor BASIC WL)
 	ChorusPro                          // French B2G checks for Chorus Pro (CPRO-*), see Options.PublicBuyer
-	Peppol                             // Peppol BIS Billing 3.0 rules (PEPPOL-*) and their national rules (NO, DK, IT, SE, NL; for UBL also GR, IS, DE); for a PEPPOL-SELF-BILLING invoice, the rules of Peppol BIS Self-Billing 3.0, without national rules
+	Peppol                             // Peppol BIS Billing 3.0 rules (PEPPOL-*) and their national rules (NO, DK, IT, SE, NL; for UBL also GR, IS, DE, SK); for a PEPPOL-SELF-BILLING invoice, the rules of Peppol BIS Self-Billing 3.0, without national rules
 	Netherlands                        // Dutch rules of NLCIUS (BR-NL), and for UBL the SI-UBL 2.0 version check (SI-V20-INV-R000) and the rules of the G-account extension (BR-GA)
 	Italy                              // Italian rules of the CIUS-IT (BR-IT) and of its extensions (BR-IT-DE), the check of its specification identifier (IT-PROFILE-01) and of the Partita IVA and Codice Fiscale (IT-PIVA-*, IT-CF-*)
 	Portugal                           // Portuguese rules of the CIUS-PT schematron of eSPap (BR-CIUS-PT, DT-CIUS-PT), the check of the NIF (PT-NIF-*) and of the UBL syntax of a CIUS-PT invoice (PT-SYNTAX-01)
@@ -597,7 +597,7 @@ func Catalog(set RuleSet) []RuleInfo {
 	add(ChorusPro, choruspro.Catalog)
 	add(Peppol, peppol.Catalog)
 	add(Peppol, newRules(peppol.UBLCatalog, peppol.Catalog))
-	// The rules of Peppol BIS Self-Billing 3.0.2 are all rules of Billing,
+	// The rules of Peppol BIS Self-Billing 3.1.0 are all rules of Billing,
 	// listed once as Billing describes them (Self-Billing has another
 	// message for PEPPOL-EN16931-R004).
 	add(Peppol, newRules(peppol.SelfBillingCatalog, slices.Concat(peppol.Catalog, peppol.UBLCatalog)))
