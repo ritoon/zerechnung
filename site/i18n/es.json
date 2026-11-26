@@ -281,7 +281,7 @@
     "cp_pt_intro": "Las grandes empresas facturan a los compradores públicos en CIUS-PT desde 2021. No hay obligación B2B estructurada, pero las facturas se comunican cada mes a la administración tributaria y llevan un código ATCUD y un código QR.",
     "cp_pt_cius": "CIUS-PT 2.1.1 (UBL) para los compradores públicos: las reglas del schematron de eSPap, BR-CIUS-PT y DT-CIUS-PT, y sus versiones de las reglas EN 16931",
     "cp_pt_nif": "Dígito de control del número de IVA portugués (NIF), como advertencia",
-    "cp_pt_atcud": "Código ATCUD y código QR en cada factura",
+    "cp_pt_atcud": "Código ATCUD y código QR en cada factura (Portaria 195/2020, especificaciones de la AT): generados a partir de la factura, comprobados campo por campo, símbolo en PNG o SVG",
     "cp_pt_saft": "SAF-T (PT) y comunicación mensual de las facturas",
     "cp_pt_sign": "Firma o sello electrónico cualificado de las facturas en PDF (PAdES, con su certificado cualificado)",
     "cp_ro_intro": "Todas las facturas emitidas en Rumanía pasan por RO e-Factura, la plataforma de la ANAF: a los compradores públicos desde 2022, entre empresas desde 2024 y a los consumidores desde 2025. Las facturas siguen la CIUS-RO, en UBL o CII.",

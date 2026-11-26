@@ -281,7 +281,7 @@
     "cp_pt_intro": "As grandes empresas faturam às entidades públicas em CIUS-PT desde 2021. Não há obrigação B2B estruturada, mas as faturas são comunicadas todos os meses à Autoridade Tributária e têm um código ATCUD e um código QR.",
     "cp_pt_cius": "CIUS-PT 2.1.1 (UBL) para as entidades públicas: as regras do schematron da eSPap, BR-CIUS-PT e DT-CIUS-PT, e as suas versões das regras EN 16931",
     "cp_pt_nif": "Dígito de controlo do número de contribuinte (NIF), como aviso",
-    "cp_pt_atcud": "Código ATCUD e código QR em cada fatura",
+    "cp_pt_atcud": "Código ATCUD e código QR em cada fatura (Portaria n.º 195/2020, especificações técnicas da AT): gerados a partir da fatura, validados campo a campo, símbolo em PNG ou SVG",
     "cp_pt_saft": "SAF-T (PT) e comunicação mensal das faturas",
     "cp_pt_sign": "Assinatura ou selo eletrónico qualificado das faturas em PDF (PAdES, com o seu certificado qualificado)",
     "cp_ro_intro": "Todas as faturas emitidas na Roménia passam pela RO e-Factura, a plataforma da ANAF: às entidades públicas desde 2022, entre empresas desde 2024 e aos consumidores desde 2025. As faturas seguem a CIUS-RO, em UBL ou CII.",

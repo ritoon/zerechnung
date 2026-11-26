@@ -51,9 +51,10 @@
 // software in the XML: the hash and the number of the software certified by
 // the Autoridade Tributária appear only as optional structured notes
 // (#HASHCODE@ATCERTIFIEDPROGRAM#, #NUMBER@ATCERTIFIEDPROGRAM#), whose format
-// the schematron checks. The ATCUD and the QR code of the printed invoice,
-// the SAF-T (PT) file and the communication to the e-fatura portal are
-// outside the CIUS-PT and this package.
+// the schematron checks. The ATCUD and the QR code of the printed invoice
+// are outside the CIUS-PT: package atcud builds and checks them, and reads
+// these notes for the QR code. The SAF-T (PT) file and the communication to
+// the e-fatura portal are outside the CIUS-PT and ZeRechnung.
 package pt
 
 //go:generate go run ./gen -o rules_gen.go

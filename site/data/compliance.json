@@ -1,5 +1,5 @@
 {
-  "asof": "2026-11-23",
+  "asof": "2026-11-26",
   "countries": [
     {"code": "AT", "eu": true, "b2g": "since 2014", "b2b": "none", "cover": [["Peppol BIS 3.0", "yes"], ["ebInterface", "no"]]},
     {"code": "BE", "eu": true, "b2g": "since 2022", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"]]},
@@ -22,7 +22,7 @@
     {"code": "MT", "eu": true, "b2g": "reception 2019", "b2b": "none", "cover": [["EN 16931", "yes"]]},
     {"code": "NL", "eu": true, "b2g": "since 2017", "b2b": "planned 2030", "cover": [["NLCIUS", "yes"], ["Peppol BIS 3.0", "yes"]]},
     {"code": "PL", "eu": true, "b2g": "since 2026", "b2b": "since 2026", "cover": [["Peppol BIS 3.0", "yes"], ["KSeF FA(3)", "no"]]},
-    {"code": "PT", "eu": true, "b2g": "since 2021", "b2b": "none", "cover": [["CIUS-PT", "yes"]]},
+    {"code": "PT", "eu": true, "b2g": "since 2021", "b2b": "none", "cover": [["CIUS-PT", "yes"], ["ATCUD + QR", "yes"]]},
     {"code": "RO", "eu": true, "b2g": "since 2022", "b2b": "since 2024", "cover": [["CIUS-RO", "yes"]]},
     {"code": "SK", "eu": true, "b2g": "from 2027", "b2b": "from 2027", "cover": [["Peppol BIS 3.0", "yes"]]},
     {"code": "SI", "eu": true, "b2g": "since 2015", "b2b": "from 2028", "cover": [["Peppol BIS 3.0", "yes"], ["e-SLOG 2.0", "no"]]},
@@ -110,7 +110,7 @@
       "checks": [
         {"text": "cp_pt_cius", "status": "yes", "rules": ["Portugal"]},
         {"text": "cp_pt_nif", "status": "yes", "rules": ["Portugal"]},
-        {"text": "cp_pt_atcud", "status": "no"},
+        {"text": "cp_pt_atcud", "status": "yes", "rules": ["atcud.Build", "atcud.Parse", "qrcode"]},
         {"text": "cp_pt_saft", "status": "no"},
         {"text": "cp_pt_sign", "status": "yes", "rules": ["Sign", "VerifySignatures"]}
       ]
