@@ -24,12 +24,12 @@
 // Marshal writes a report in the order of the schemas.
 //
 // validate.XML recognizes a report and checks it against the schemas of the
-// flux 10, compiled into the package, and for the values that Parse cannot
-// read. Neither validate nor this package checks the rules of the PPF on
-// the content of a report (the schematron Flux10 of France_RFE, drawn from
-// annex 7 of the external specifications of the DGFiP: formats of the
-// identifiers and dates, code lists, totals), nor computes a report from
-// invoices: the schematrons of correspondence (BR-FR-MAP) that define the
-// data of the flux 10.1 drawn from an invoice are not published yet.
-// Transmitting a report is the job of the approved platform.
+// flux 10, compiled into the package, for the values that Parse cannot
+// read, and against the 150 rules of the PPF on the content of a report,
+// those of the schematron Flux10 of France_RFE, drawn from annex 7 of the
+// external specifications of the DGFiP: formats of the identifiers and
+// dates, code lists, totals. Neither validate nor this package computes a
+// report from invoices: the schematrons of correspondence (BR-FR-MAP) that
+// define the data of the flux 10.1 drawn from an invoice are not published
+// yet. Transmitting a report is the job of the approved platform.
 package ereporting

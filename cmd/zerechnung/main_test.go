@@ -524,8 +524,8 @@ func TestFacturae(t *testing.T) {
 }
 
 // TestEReporting reads an e-reporting report with json, and checks it with
-// validate: the schema of the flux 10 passes, ER-02 says that the rules of
-// the PPF are not checked, and an unreadable date is reported.
+// validate: the schema of the flux 10 and the rules of the PPF pass, and an
+// unreadable date is reported, with the rule of the PPF on its format.
 func TestEReporting(t *testing.T) {
 	const name = "../../ereporting/testdata/transactions.xml"
 	var out bytes.Buffer
@@ -547,7 +547,7 @@ func TestEReporting(t *testing.T) {
 	}
 
 	code, got := runValidate(t, name)
-	if code != 0 || len(got) != 1 || !got["ER-02"] {
+	if code != 0 || len(got) != 0 {
 		t.Errorf("validate %s: code %d, findings %v", name, code, got)
 	}
 	out.Reset()
@@ -555,7 +555,7 @@ func TestEReporting(t *testing.T) {
 		t.Errorf("validate %s: code %d, %v\n%s", name, code, err, out.String())
 	}
 	bad := mutated(t, name, "<DueDate>20261015</DueDate>", "<DueDate>2026-10-15</DueDate>")
-	if code, got := runValidate(t, bad); code != 1 || !got["ER-01"] || !got["ER-02"] {
+	if code, got := runValidate(t, bad); code != 1 || len(got) != 2 || !got["ER-01"] || !got["F10-FACTURE-G1.09b"] {
 		t.Errorf("validate of an unreadable date: code %d, findings %v", code, got)
 	}
 	// json reads the rest of a report whose values cannot all be read, and

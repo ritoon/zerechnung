@@ -72,6 +72,7 @@ const (
 	SourceFacturX   = "Factur-X"   // profile rules of Factur-X / ZUGFeRD
 	SourceFR        = "BR-FR"      // French rules (FNFE-MPE schematrons)
 	SourceCDV       = "BR-FR-CDV"  // French rules on the statuses of the life cycle of an invoice (CDAR, FNFE-MPE schematron BR-FR-CDV)
+	SourceFlux10    = "Flux10"     // French rules of the PPF on an e-reporting report (flux 10, FNFE-MPE schematron Flux10)
 	SourceDE        = "BR-DE"      // German rules (XRechnung)
 	SourcePDF       = "PDF"        // PDF container (PDF/A-3, attachment, XMP)
 	SourceChorusPro = "Chorus Pro" // French B2G checks for Chorus Pro
