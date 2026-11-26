@@ -281,7 +281,7 @@
     "cp_pt_intro": "Große Unternehmen stellen öffentlichen Auftraggebern seit 2021 Rechnungen in CIUS-PT aus. Eine strukturierte B2B-Pflicht gibt es nicht, aber Rechnungen werden monatlich an die Steuerbehörde gemeldet und tragen einen ATCUD-Code und einen QR-Code.",
     "cp_pt_cius": "CIUS-PT 2.1.1 (UBL) für öffentliche Auftraggeber: die Regeln des Schematrons der eSPap, BR-CIUS-PT und DT-CIUS-PT, und seine Fassungen der Regeln der EN 16931",
     "cp_pt_nif": "Prüfziffer der portugiesischen Umsatzsteuernummer (NIF), als Warnung",
-    "cp_pt_atcud": "ATCUD-Code und QR-Code auf jeder Rechnung",
+    "cp_pt_atcud": "ATCUD-Code und QR-Code auf jeder Rechnung (Portaria 195/2020, Spezifikationen der AT): aus der Rechnung erzeugt, Feld für Feld geprüft, Symbol als PNG oder SVG",
     "cp_pt_saft": "SAF-T (PT) und monatliche Meldung der Rechnungen",
     "cp_pt_sign": "Qualifizierte elektronische Signatur oder qualifiziertes Siegel von PDF-Rechnungen (PAdES, mit Ihrem qualifizierten Zertifikat)",
     "cp_ro_intro": "Jede in Rumänien ausgestellte Rechnung läuft über RO e-Factura, die Plattform der ANAF: an öffentliche Auftraggeber seit 2022, zwischen Unternehmen seit 2024 und an Verbraucher seit 2025. Die Rechnungen folgen der CIUS-RO, in UBL oder CII.",

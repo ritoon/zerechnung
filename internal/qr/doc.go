@@ -17,6 +17,6 @@
 //     validation of the arguments makes impossible are gone.
 //
 // The mask is chosen by the penalty rules of ISO/IEC 18004, among the eight
-// patterns. A Code is the bare symbol: whoever draws it adds the quiet zone,
-// 4 modules wide at least.
+// patterns. A Code is the bare symbol: package qrcode, the public face of
+// the encoder, draws it with its quiet zone.
 package qr

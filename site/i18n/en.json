@@ -281,7 +281,7 @@
     "cp_pt_intro": "Large companies invoice public buyers in CIUS-PT since 2021. There is no structured B2B obligation, but invoices are reported to the tax authority every month and carry an ATCUD code and a QR code.",
     "cp_pt_cius": "CIUS-PT 2.1.1 (UBL) for public buyers: the rules of the schematron of eSPap, BR-CIUS-PT and DT-CIUS-PT, and its versions of the EN 16931 rules",
     "cp_pt_nif": "Check digit of the Portuguese VAT number (NIF), as a warning",
-    "cp_pt_atcud": "ATCUD code and QR code on every invoice",
+    "cp_pt_atcud": "ATCUD code and QR code on every invoice (Portaria 195/2020, specifications of the AT): built from the invoice, checked field by field, symbol in PNG or SVG",
     "cp_pt_saft": "SAF-T (PT) and monthly reporting of invoices",
     "cp_pt_sign": "Qualified electronic signature or seal of PDF invoices (PAdES, with your qualified certificate)",
     "cp_ro_intro": "Every invoice issued in Romania goes through RO e-Factura, the platform of ANAF: to public buyers since 2022, between companies since 2024 and to consumers since 2025. The invoices follow the CIUS-RO, in UBL or CII.",

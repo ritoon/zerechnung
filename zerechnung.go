@@ -20,7 +20,9 @@
 //     VerifySignatures checks the signatures of a PDF.
 //
 // Sub-packages give direct access to each layer: invoice (the EN 16931
-// model), cii (CII XML), validate (validation of XML invoices).
+// model), cii (CII XML), validate (validation of XML invoices). Package
+// atcud builds and checks the ATCUD and the QR code of Portuguese invoices,
+// and package qrcode draws QR Code symbols in PNG or SVG.
 //
 // The functions of this package and of packages cii, ubl, facturae,
 // fatturapa and validate can be called from several goroutines at once, on
