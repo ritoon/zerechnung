@@ -1,11 +1,14 @@
 // Package peppol implements the rules of Peppol BIS Billing 3.0, as
-// published by OpenPEPPOL in release 3.0.21 (unchanged in the hotfix
-// 3.0.22): the 90 assertions of PEPPOL-EN16931-CII.sch for a CII invoice
-// (Catalog), the 165 assertions of PEPPOL-EN16931-UBL.sch for a UBL invoice
-// (UBLCatalog), in Go, with their exact identifiers, flags and messages,
-// and those of Peppol BIS Self-Billing 3.0, release 3.0.2: the 62
-// assertions of PEPPOL-EN16931-UBL-SB.sch (SelfBillingCatalog), for a UBL
-// invoice issued by the buyer on behalf of the seller (see selfbilling.go).
+// published by OpenPEPPOL in release 3.1.0 (23 November 2026, mandatory
+// from 22 February 2027): the 94 rules of PEPPOL-EN16931-CII.sch for a CII
+// invoice (Catalog), the 294 assertions of PEPPOL-EN16931-UBL.sch for a UBL
+// invoice (UBLCatalog), in Go, with their exact identifiers, flags and
+// messages, and those of Peppol BIS Self-Billing 3.0, release 3.1.0: the
+// 185 assertions of PEPPOL-EN16931-UBL-SB.sch (SelfBillingCatalog), for a
+// UBL invoice issued by the buyer on behalf of the seller (see
+// selfbilling.go). Release 3.1.0 applies as soon as this version is used,
+// before its mandatory date: the rules of release 3.0.22 (Billing) and
+// 3.0.2 (Self-Billing) are no longer available.
 //
 // The rules of the CII schematron are:
 //
@@ -13,11 +16,11 @@
 //     specification identifiers, buyer reference, electronic addresses,
 //     notes, allowances and charges, VAT totals in the accounting currency,
 //     line periods, line amounts, base quantities;
-//   - 17 checks of identifiers by ICD scheme (PEPPOL-COMMON-R*): GLN,
-//     Norwegian, Danish, Belgian, Italian, Swedish, Australian and Dutch
+//   - 20 checks of identifiers (PEPPOL-COMMON-R*): GLN, Norwegian, Danish,
+//     Belgian, Italian, Swedish, Australian, Dutch and Luxembourgish
 //     identifiers, wherever a ram:ID, ram:GlobalID or ram:URIID carries the
-//     scheme;
-//   - 41 national rules of Norway (NO-R-*), Denmark (DK-R-*), Italy (IT-R-*),
+//     ICD scheme, and the Belgian, Dutch and Luxembourgish VAT identifiers;
+//   - 42 national rules of Norway (NO-R-*), Denmark (DK-R-*), Italy (IT-R-*),
 //     Sweden (SE-R-*) and the Netherlands (NL-R-*), which apply when the
 //     seller (and for some rules the buyer) is established in that country;
 //   - 7 restricted code lists and formats (PEPPOL-EN16931-CL*, P0100,
@@ -25,13 +28,14 @@
 //
 // The rules of the UBL schematron are checked on the UBL document itself
 // (rules.Doc.UBL), not on its CII view: they have other contexts and other
-// tests, and 76 of them have no CII counterpart. They are the empty
-// elements (PEPPOL-EN16931-R008), 27 Peppol rules, 17 checks of identifiers
-// by ICD scheme, the national rules of Norway, Denmark, Italy, Sweden and
-// the Netherlands, and of Greece (GR-*), Iceland (IS-R-*) and Germany
-// (DE-R-*), and 18 code lists and formats, among them the type codes
-// (P0100, P0101, P0112) and the VAT exemption reasons (P0104 to P0111).
-// The faithfulness notes of the UBL rules are in ubl.go.
+// tests, and 201 of them have no CII counterpart. They are the empty
+// elements (PEPPOL-EN16931-R008), 27 Peppol rules, 20 checks of
+// identifiers, the national rules of Norway, Denmark, Italy, Sweden and the
+// Netherlands, and of Greece (GR-*), Iceland (IS-R-*), Germany (DE-R-*) and
+// Slovakia (SK-R-*), 18 code lists and formats, among them the type codes
+// (P0100, P0101, P0112) and the VAT exemption reasons (P0104 to P0111), and
+// 120 rules of inferred cardinality (PEPPOL-EN16931-R141 to R276, see
+// cardinality.go). The faithfulness notes of the UBL rules are in ubl.go.
 //
 // The flags map to the severities of package rules: fatal to Error and
 // warning to Warning. The rules of EN 16931 (BR-*, BR-CL-*, CII-SR-*), which
@@ -57,11 +61,6 @@
 // The CII schematron is implemented as written, including where its XPath
 // does not do what its message says:
 //
-//   - The VAT identifier is looked up with schemeID 'VAT' (the UBL value),
-//     where CII uses 'VA': in a CII invoice, the supplier country
-//     ($supplierCountry, used by the Norwegian and Italian rules) is in
-//     practice the country of the seller address, and NO-R-001, SE-R-001
-//     and SE-R-002 only check identifiers with schemeID 'VAT'.
 //   - PEPPOL-EN16931-P0100 has the context ram:ExchangedDocument/ram:TypeCode,
 //     where CII uses rsm:ExchangedDocument: it only fires for an exchanged
 //     document in the ram namespace.
@@ -252,7 +251,7 @@ func (k *checker) variables() {
 }
 
 // supplierCountryOf computes $supplierCountry: the first two letters of the
-// VAT identifier (schemeID 'VAT') of the first seller, else of the seller
+// VAT identifier (schemeID 'VA') of the first seller, else of the seller
 // tax representative, else the country of the seller address, else 'XX'.
 func (k *checker) supplierCountryOf() string {
 	if !k.cii {
@@ -276,7 +275,7 @@ func (k *checker) supplierCountryOf() string {
 }
 
 // vatPrefix returns the first value of
-// SpecifiedTaxRegistration[ram:ID/@schemeID = 'VAT']/substring(ram:ID, 1, 2)
+// SpecifiedTaxRegistration[ram:ID/@schemeID = 'VA']/substring(ram:ID, 1, 2)
 // over regs, "" when there is none.
 func vatPrefix(regs []*xmltree.Node) string {
 	for _, r := range regs {
@@ -288,5 +287,6 @@ func vatPrefix(regs []*xmltree.Node) string {
 }
 
 // isVATRegistration reports whether a ram:SpecifiedTaxRegistration has an
-// identifier with schemeID 'VAT' (ram:ID/@schemeID = 'VAT').
-func isVATRegistration(r *xmltree.Node) bool { return anyAttrIn(r, "ID", "schemeID", "VAT") }
+// identifier with schemeID 'VA' (ram:ID/@schemeID = 'VA'), the code of a
+// VAT identifier in CII.
+func isVATRegistration(r *xmltree.Node) bool { return anyAttrIn(r, "ID", "schemeID", "VA") }

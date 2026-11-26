@@ -36,8 +36,12 @@ fetch_git "$DEST/corpus" https://github.com/ZUGFeRD/corpus.git "$CORPUS_COMMIT"
 KOSIT_COMMIT=44c3905c69ca236aa3b94c04be1b7e9bd066ba03
 fetch_git "$DEST/xrechnung-testsuite" https://github.com/itplr-kosit/xrechnung-testsuite.git "$KOSIT_COMMIT"
 
-# Peppol BIS Billing 3.0, tag 3.0.22: schematron unit tests (FX_PEPPOL).
-PEPPOL_COMMIT=38d693d71d28d813781323a6ca97324edcc4d239
+# Peppol BIS Billing 3.0, release 3.1.0 of 23/11/2026, mandatory from
+# 22/02/2027: the schematrons, their unit tests and the examples
+# (FX_PEPPOL). The release has no tag yet: the commit is the head of branch
+# 2026-Q4-QA2, whose UBL schematron is the one phive-rules publishes as
+# release 2026.11 (commit c1d9510 below), byte for byte.
+PEPPOL_COMMIT=7f776f34e8f53a0c3d9b1b95a2f1908ca20c2720
 fetch_git "$DEST/peppol-bis-invoice-3" https://github.com/OpenPEPPOL/peppol-bis-invoice-3.git "$PEPPOL_COMMIT"
 
 # FNFE-MPE France_RFE, tag v1.4.0.04: CII and Factur-X examples and the CII
@@ -183,17 +187,19 @@ exemple_Invoice_CreditNote.zip       3c1ddcfc8be8ca3ee7f70d9996f24ede401b3ae4e11
 eFactura_CII_exempleXML.zip          b74f662264397f9a9afab68553866a51a7bb9163333e50113e67cf1982381727
 EOF
 
-# Peppol BIS Self-Billing 3.0.2 (FX_PEPPOL_SB): the schematron of 18 August
-# 2026, whose assertions internal/rules/peppol checks against its own, and the
-# official examples, which it validates. docs.peppol.eu publishes them under
-# unversioned names that will change with release 3.1.0: they are the copies
+# Peppol BIS Self-Billing 3.0, release 3.1.0 of 23/11/2026, mandatory from
+# 22/02/2027 (FX_PEPPOL_SB): the schematron, whose assertions
+# internal/rules/peppol checks against its own, and the official examples,
+# which it validates. docs.peppol.eu publishes them under unversioned names,
+# and the release has no tag yet: they are the copies of release 2026.11
 # kept by phive-rules (phax), at a pinned commit, under the names the tests
-# open.
+# open. They are those of branch selfbilling-2026-Q4-QA2 of
+# OpenPEPPOL/peppol-bis-invoice-3 (commit e93df91), byte for byte.
 PHIVE_SB=https://raw.githubusercontent.com/phax/phive-rules/c1d95102b95c620dca46876f08513069eee7c651/phive-rules-peppol/docs/BIS-Self-Billing
-fetch_file "$DEST/peppol-sb/PEPPOL-EN16931-UBL-SB.sch" "$PHIVE_SB/PEPPOL-EN16931-UBL-SB-2026-08-18.sch" \
-	4fb374958d365cf2567850222d7e4716821c56968737876ba863ecb7657c91a4
-fetch_file "$DEST/peppol-sb/BIS-SelfBilling-Examples.zip" "$PHIVE_SB/BIS-SelfBilling-Examples-2026-03.zip" \
-	2fbbe2152d78b057b0e0851e3593f7ac012492d3f9a21e0c607b433f31760e5e
+fetch_file "$DEST/peppol-sb/PEPPOL-EN16931-UBL-SB.sch" "$PHIVE_SB/PEPPOL-EN16931-UBL-SB-2026-11.sch" \
+	4a6f5df7e6369661505aa93c03bcc252c732aa4f54d0ed89b6d5138098f74eb0
+fetch_file "$DEST/peppol-sb/BIS-SelfBilling-Examples.zip" "$PHIVE_SB/BIS-SelfBilling-Examples-2026-11.zip" \
+	9dde415d532a674e0c56c0e201e91bc21d3cf173acefee25dcafd6f94bafbf4b
 
 # CIUS-HR and EXT-HR 2025 of the Porezna uprava (Fiskalizacija 2.0, page
 # eRačun of porezna.gov.hr): the schematron archive of 13.03.2026

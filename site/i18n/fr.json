@@ -265,7 +265,7 @@
     "cp_nl_intro": "Les acheteurs publics exigent des factures NLCIUS ou Peppol BIS depuis 2017. La facture électronique obligatoire entre entreprises est annoncée pour le 1er juillet 2030.",
     "cp_nl_nlcius": "NLCIUS : SI-UBL 2.0 et NLCIUS-CII",
     "cp_nl_grek": "Extension G-rekening",
-    "cp_nl_peppol": "Peppol BIS Billing 3.0 (3.0.21)",
+    "cp_nl_peppol": "Peppol BIS Billing 3.0 (3.1.0)",
     "cp_nl_send": "Envoi sur le réseau Peppol",
     "cp_be_intro": "Peppol BIS Billing 3.0 est obligatoire entre entreprises depuis le 1er janvier 2026. Un e-reporting quasi en temps réel est prévu pour 2028.",
     "cp_be_peppol": "Peppol BIS Billing 3.0, obligatoire en B2B, en UBL et en CII",

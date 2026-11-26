@@ -115,6 +115,15 @@ func eindagi(id string) edit {
 	return before(uDocRefs, "<cac:AdditionalDocumentReference><cbc:ID>"+id+"</cbc:ID><cbc:DocumentDescription>EINDAGI</cbc:DocumentDescription></cac:AdditionalDocumentReference>")
 }
 
+// Slovak seller and buyer, the seller with its Slovak VAT identifier.
+var slovakia = one(buyerIn("SK"), sellerIn("SK"), rep(uSellerVAT, "<cbc:CompanyID>SK2020273893</cbc:CompanyID>"))
+
+// externalReference returns a document reference to an external file.
+func externalReference(uri string) string {
+	return "<cac:AdditionalDocumentReference><cbc:ID>TERMS</cbc:ID><cac:Attachment><cac:ExternalReference><cbc:URI>" + uri +
+		"</cbc:URI></cac:ExternalReference></cac:Attachment></cac:AdditionalDocumentReference>"
+}
+
 func projectReference(id string) edit {
 	return before(uDocRefs, "<cac:AdditionalDocumentReference><cbc:ID>"+id+"</cbc:ID><cbc:DocumentTypeCode>50</cbc:DocumentTypeCode></cac:AdditionalDocumentReference>")
 }
@@ -125,12 +134,16 @@ func ublMutationCases() []mutationCase {
 
 		// Rules of the document.
 		{"empty element", one(rep(uNote, "<cbc:Note> </cbc:Note>")), ids("PEPPOL-EN16931-R008")},
-		{"no business process", one(remove(uProfileID)), ids("PEPPOL-EN16931-R001", "PEPPOL-EN16931-R007")},
+		{"no business process", one(remove(uProfileID)), ids("PEPPOL-EN16931-R001", "PEPPOL-EN16931-R007", "PEPPOL-EN16931-R276")},
 		{"business process format", one(rep(uProfileID, "<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:1:1.0</cbc:ProfileID>")), ids("PEPPOL-EN16931-R007")},
 		{"specification identifier", one(rep(uCustomization, "<cbc:CustomizationID>urn:cen.eu:en16931:2017</cbc:CustomizationID>")), ids("PEPPOL-EN16931-R004")},
 		{"no buyer reference", one(remove(uBuyerRef)), ids("PEPPOL-EN16931-R003")},
 		{"tax currency", one(after(uCurrency, "<cbc:TaxCurrencyCode>GBP</cbc:TaxCurrencyCode>")), ids("PEPPOL-EN16931-R005", "PEPPOL-EN16931-R054")},
-		{"no electronic addresses", one(remove(uSellerEndpoint), remove(uBuyerEndpoint)), ids("PEPPOL-EN16931-R010", "PEPPOL-EN16931-R020")},
+		{"no electronic addresses", one(remove(uSellerEndpoint), remove(uBuyerEndpoint)),
+			ids("PEPPOL-EN16931-R010", "PEPPOL-EN16931-R020", "PEPPOL-EN16931-R219", "PEPPOL-EN16931-R229")},
+		{"credit note without electronic addresses", edits(creditNote(), one(remove(uSellerEndpoint), remove(uBuyerEndpoint))),
+			ids("PEPPOL-EN16931-R010", "PEPPOL-EN16931-R020", "PEPPOL-EN16931-R150", "PEPPOL-EN16931-R160")},
+		{"two type codes", one(after(uTypeCode, uTypeCode)), ids("PEPPOL-EN16931-R275")},
 		{"allowance amount", one(rep(uLineDiscount, `<cbc:Amount currencyID="GBP">13.00</cbc:Amount>`)), ids("PEPPOL-EN16931-R040", "PEPPOL-EN16931-R120")},
 		{"allowance without base", one(remove(uLineBase)), ids("PEPPOL-EN16931-R041")},
 		{"allowance without percentage", one(remove(uMultiplier)), ids("PEPPOL-EN16931-R042")},
@@ -156,7 +169,8 @@ func ublMutationCases() []mutationCase {
 		{"period description code", one(after(uPeriodEnd, "<cbc:DescriptionCode>1</cbc:DescriptionCode>")), ids("PEPPOL-EN16931-CL006")},
 		{"unknown currency", one(rep(uDocCharge, `<cbc:Amount currencyID="ABC">22.00</cbc:Amount>`)), ids("PEPPOL-EN16931-CL007", "PEPPOL-EN16931-R051")},
 		{"invoice type code", one(rep(uTypeCode, "<cbc:InvoiceTypeCode>999</cbc:InvoiceTypeCode>")), ids("PEPPOL-EN16931-P0100")},
-		{"self-billed invoice outside Germany", one(rep(uTypeCode, "<cbc:InvoiceTypeCode>389</cbc:InvoiceTypeCode>")), ids("PEPPOL-EN16931-P0100", "PEPPOL-EN16931-P0112")},
+		{"self-billed invoice outside Germany", one(rep(uTypeCode, "<cbc:InvoiceTypeCode>389</cbc:InvoiceTypeCode>")), ids("PEPPOL-EN16931-P0112")},
+		{"self-billed invoice in Germany", one(rep(uTypeCode, "<cbc:InvoiceTypeCode>389</cbc:InvoiceTypeCode>"), buyerIn("DE"), sellerIn("DE")), ids("DE-R-002")},
 		{"partial invoice in Germany", one(rep(uTypeCode, "<cbc:InvoiceTypeCode>326</cbc:InvoiceTypeCode>"), buyerIn("DE"), sellerIn("DE")),
 			ids("DE-R-002")},
 		{"credit note type code", edits(creditNote(), one(rep("<cbc:CreditNoteTypeCode>381<", "<cbc:CreditNoteTypeCode>380<"))), ids("PEPPOL-EN16931-P0101")},
@@ -166,6 +180,21 @@ func ublMutationCases() []mutationCase {
 
 		// Identifiers.
 		{"GLN", one(rep(uSellerEndpoint, `<cbc:EndpointID schemeID="0088">5012345000016</cbc:EndpointID>`)), ids("PEPPOL-COMMON-R040")},
+		{"GLN of 12 digits", one(rep(uSellerEndpoint, `<cbc:EndpointID schemeID="0088">501234500019</cbc:EndpointID>`)), ids("PEPPOL-COMMON-R040")},
+		{"Belgian enterprise number", one(after(uBuyerLegal, `<cbc:CompanyID schemeID="0208">2123456791</cbc:CompanyID>`)), ids("PEPPOL-COMMON-R043")},
+		{"valid Belgian enterprise number", one(after(uBuyerLegal, `<cbc:CompanyID schemeID="0208">0123456749</cbc:CompanyID>`)), nil},
+		{"Belgian VAT number", one(rep(uSellerVAT, "<cbc:CompanyID>BE0123456748</cbc:CompanyID>")), ids("PEPPOL-COMMON-R062")},
+		{"valid Belgian VAT number", one(rep(uSellerVAT, "<cbc:CompanyID> be0123456749 </cbc:CompanyID>")), nil},
+		// The rules of the schemes 0088 to 0208 come before that of the
+		// Belgian VAT number.
+		{"Belgian VAT number with scheme 0096", one(rep(uSellerVAT, `<cbc:CompanyID schemeID="0096">BE0123456749</cbc:CompanyID>`)), ids("PEPPOL-COMMON-R052")},
+		{"Luxembourgish VAT number", one(rep(uSellerVAT, "<cbc:CompanyID>LU12345678</cbc:CompanyID>")), ids("PEPPOL-COMMON-R058")},
+		{"valid Luxembourgish VAT number", one(rep(uSellerVAT, "<cbc:CompanyID>lu12345613</cbc:CompanyID>")), nil},
+		// The rule of the scheme 0217 comes before that of the Luxembourgish
+		// VAT number.
+		{"Luxembourgish VAT number with scheme 0217", one(rep(uSellerVAT, `<cbc:CompanyID schemeID="0217">LU12345613</cbc:CompanyID>`)), ids("PEPPOL-COMMON-R057")},
+		{"Luxembourgish national identifier", one(after(uBuyerLegal, `<cbc:CompanyID schemeID="0240">19852012343</cbc:CompanyID>`)), ids("PEPPOL-COMMON-R059")},
+		{"valid Luxembourgish national identifier", one(after(uBuyerLegal, `<cbc:CompanyID schemeID="0240">19852012342</cbc:CompanyID>`)), nil},
 		{"Norwegian organization number", one(after(uBuyerLegal, `<cbc:CompanyID schemeID="0192">123456789</cbc:CompanyID>`)), ids("PEPPOL-COMMON-R041")},
 		{"valid Norwegian organization number", one(after(uBuyerLegal, `<cbc:CompanyID schemeID="0192">123456785</cbc:CompanyID>`)), nil},
 		{"Dutch VAT number", one(rep(uSellerVAT, "<cbc:CompanyID>NL123456789</cbc:CompanyID>")), ids("PEPPOL-COMMON-R056-2")},
@@ -177,7 +206,10 @@ func ublMutationCases() []mutationCase {
 		// otherwise.
 		{"Norway", one(sellerIn("NO"), rep(uSellerVAT, "<cbc:CompanyID>NO123456789</cbc:CompanyID>")), ids("NO-R-001", "NO-R-002")},
 		{"Norway by address", one(sellerIn("NO")), nil},
-		{"Sweden", one(sellerIn("SE"), rep(uSellerVAT, "<cbc:CompanyID>SE123456789X</cbc:CompanyID>")), ids("SE-R-001", "SE-R-002", "SE-R-006")},
+		{"Sweden", one(sellerIn("SE"), rep(uSellerVAT, "<cbc:CompanyID>SE123456789X</cbc:CompanyID>")), ids("SE-R-001", "SE-R-002")},
+		{"Sweden domestic", one(buyerIn("SE"), sellerIn("SE"), rep(uSellerVAT, "<cbc:CompanyID>SE556036079301</cbc:CompanyID>")), ids("SE-R-006")},
+		{"Sweden domestic rates", one(buyerIn("SE"), sellerIn("SE"), rep(uSellerVAT, "<cbc:CompanyID>SE556036079301</cbc:CompanyID>"),
+			repAll(uPercent, "<cbc:Percent>25</cbc:Percent>")), nil},
 		{"Netherlands", one(sellerIn("NL"), after(uSellerLegal, `<cbc:CompanyID schemeID="0088">5012345000015</cbc:CompanyID>`)), ids("NL-R-003")},
 		{"Italy", one(rep(uSellerVAT, "<cbc:CompanyID>IT12345678901</cbc:CompanyID>"), remove(uSellerCity)), ids("IT-R-003")},
 		{"Denmark", one(sellerIn("DK")), ids("DK-R-002")},
@@ -195,10 +227,15 @@ func ublMutationCases() []mutationCase {
 		{"Germany direct debit", edits(germany, one(rep(uMeansCode, "<cbc:PaymentMeansCode>59</cbc:PaymentMeansCode>"))),
 			ids("DE-R-020", "DE-R-025-1", "DE-R-025-2", "PEPPOL-EN16931-R061")},
 		{"Germany cash discount", edits(germany, one(after("</cac:PaymentMeans>", "<cac:PaymentTerms><cbc:Note>#SKONTO#TAGE=7#PROZENT=2.00#\n</cbc:Note></cac:PaymentTerms>"))), nil},
+		{"Germany attachment URL", edits(germany, one(before(uDocRefs, externalReference("example.com/terms")))), ids("DE-R-T02")},
+		{"Germany attachment URL with spaces", edits(germany, one(before(uDocRefs, externalReference(" https://example.com/terms ")))), nil},
 		{"Germany cash discount without line break", edits(germany, one(after("</cac:PaymentMeans>", "<cac:PaymentTerms><cbc:Note>#SKONTO#TAGE=7#PROZENT=2.00#</cbc:Note></cac:PaymentTerms>"))), ids("DE-R-018")},
-		{"Greece", greece, ids("GR-R-001-1", "GR-R-001-2", "GR-R-001-3", "GR-R-001-4", "GR-R-001-5", "GR-R-001-6", "GR-R-001-7",
+		{"Greece", greece, ids("GR-R-001-1", "GR-R-001-2", "GR-R-001-3", "GR-R-001-4", "GR-R-001-6", "GR-R-001-7",
 			"GR-R-002", "GR-R-004-1", "GR-S-008-1", "GR-R-005", "GR-R-009")},
 		{"Greece complete", greekInvoice(), nil},
+		// GR-R-001-5, on the fourth segment of the invoice number, was
+		// removed by release 3.1.0.
+		{"Greece other document type", edits(greekInvoice(), one(rep("|0|1.1|A|", "|0|9.9|A|"))), nil},
 		{"Greece domestic", edits(one(buyerIn("GR")), greekInvoice()), ids("GR-R-006", "GR-R-010")},
 		{"Greece MARK", edits(greekInvoice(), one(rep("<cbc:ID>400001234567890</cbc:ID>", "<cbc:ID>0400001234567890</cbc:ID>"))), ids("GR-R-004-2")},
 		{"Iceland without legal identifier", one(sellerIn("IS")), ids("IS-R-002")},
@@ -210,6 +247,15 @@ func ublMutationCases() []mutationCase {
 		{"Iceland transfer account", edits(iceland, one(rep(uMeansCode, "<cbc:PaymentMeansCode>42</cbc:PaymentMeansCode>"))), ids("IS-R-007")},
 		{"Iceland EINDAGI", edits(iceland, one(eindagi("2026-12-02"))), nil},
 		{"Iceland EINDAGI before due date", edits(iceland, one(eindagi("2026-12-01"))), ids("IS-R-010")},
+		{"Slovakia", slovakia, nil},
+		{"Slovakia seller address", edits(slovakia, one(remove(uSellerStreet), remove(uSellerCity), remove("<cbc:PostalZone>EC1A 1AA</cbc:PostalZone>"))),
+			ids("SK-R-002", "SK-R-003", "SK-R-004")},
+		{"Slovakia buyer address", edits(slovakia, one(remove(uBuyerStreet), remove("<cbc:CityName>Manchester</cbc:CityName>"), remove("<cbc:PostalZone>M1 1AA</cbc:PostalZone>"))),
+			ids("SK-R-005", "SK-R-006", "SK-R-007")},
+		{"Slovakia foreign buyer", one(sellerIn("SK"), remove(uSellerStreet)), nil},
+		{"Slovakia corrected invoice", edits(slovakia, one(rep(uTypeCode, "<cbc:InvoiceTypeCode>384</cbc:InvoiceTypeCode>"))), ids("SK-R-001")},
+		{"Slovakia corrected invoice with its reference", edits(slovakia, one(rep(uTypeCode, "<cbc:InvoiceTypeCode>384</cbc:InvoiceTypeCode>"),
+			before(uDocRefs, "<cac:BillingReference><cac:InvoiceDocumentReference><cbc:ID>INV-2026-0041</cbc:ID></cac:InvoiceDocumentReference></cac:BillingReference>"))), nil},
 		{"Iceland EINDAGI without due date", edits(iceland, one(eindagi("01.12.2026"), remove(uDueDate))), ids("IS-R-008", "IS-R-009", "IS-R-010")},
 	}
 }
@@ -264,14 +310,13 @@ func TestUBLCatalog(t *testing.T) {
 		if ublByID()[r.ID] == nil || ublByID()[r.ID].Severity != r.Severity {
 			t.Errorf("ublByID()[%s] is not the catalog entry", r.ID)
 		}
-		// A rule of both schematrons has the same severity, except
-		// DK-R-003: fatal in the UBL schematron, a warning in the CII one.
-		if c := byID()[r.ID]; c != nil && c.Severity != r.Severity && r.ID != "DK-R-003" {
+		// A rule of both schematrons has the same severity.
+		if c := byID()[r.ID]; c != nil && c.Severity != r.Severity {
 			t.Errorf("%s: severity %v in UBLCatalog, %v in Catalog", r.ID, r.Severity, c.Severity)
 		}
 	}
-	if len(UBLCatalog) != 165 || sev[rules.Error] != 139 || sev[rules.Warning] != 26 {
-		t.Errorf("%d assertions (%d errors, %d warnings), want 165 (139, 26)", len(UBLCatalog), sev[rules.Error], sev[rules.Warning])
+	if len(UBLCatalog) != 294 || sev[rules.Error] != 264 || sev[rules.Warning] != 30 {
+		t.Errorf("%d assertions (%d errors, %d warnings), want 294 (264, 30)", len(UBLCatalog), sev[rules.Error], sev[rules.Warning])
 	}
 }
 
@@ -295,7 +340,7 @@ func TestUBLEmpty(t *testing.T) {
 	}
 	// Each country of the national patterns, on an invoice reduced to its
 	// parties.
-	for _, country := range []string{"NO", "DK", "IT", "SE", "GR", "IS", "NL", "DE"} {
+	for _, country := range []string{"SK", "NO", "DK", "IT", "SE", "GR", "IS", "NL", "DE"} {
 		doc := `<Invoice ` + inv + `><cbc:InvoiceTypeCode/><cac:AccountingSupplierParty><cac:Party><cac:PostalAddress><cac:Country><cbc:IdentificationCode>` + country +
 			`</cbc:IdentificationCode></cac:Country></cac:PostalAddress><cac:PartyTaxScheme><cbc:CompanyID/><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme><cac:PartyLegalEntity><cbc:CompanyID/></cac:PartyLegalEntity></cac:Party></cac:AccountingSupplierParty>` +
 			`<cac:AccountingCustomerParty><cac:Party><cac:PostalAddress><cac:Country><cbc:IdentificationCode>` + country +

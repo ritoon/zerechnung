@@ -380,32 +380,58 @@ func (k *ublChecker) baseQuantityUnit(n *xmltree.Node) {
 		"unit code %q, quantity in %q", u, attr(ufirst(line, qtyPath), "unitCode"))
 }
 
+// The ICD schemes whose rules come before and after the Belgian VAT
+// identifier (PEPPOL-COMMON-R062), up to the Dutch VAT identifier, in
+// Billing and in Self-Billing, which checks 0096 and 0198 after R062.
+var (
+	icdBeforeBE   = []string{"0088", "0192", "0184", "0096", "0198", "0208"}
+	icdAfterBE    = []string{"0201", "0210", "0211", "0007", "0151", "0106", "0190", "9944"}
+	sbICDBeforeBE = []string{"0088", "0192", "0184", "0208"}
+	sbICDAfterBE  = []string{"0201", "0210", "0211", "0007", "0151", "0096", "0198", "0106", "0190", "9944"}
+)
+
 // identifier checks a cbc:EndpointID, cac:PartyIdentification/cbc:ID or
-// cbc:CompanyID against the format of its ICD scheme (PEPPOL-COMMON-R*), and
-// a Dutch VAT identifier (PEPPOL-COMMON-R056-2). The rules are tried in the
-// order of the schematron: the scheme 9907 is only checked on an electronic
-// address, and a Dutch VAT identifier with the scheme 0217 is checked by
-// R056-2 instead of R057.
+// cbc:CompanyID against the format of its ICD scheme (PEPPOL-COMMON-R*),
+// and the CompanyID of a tax scheme 'VAT' starting with BE, NL or LU
+// against the format of a Belgian, Dutch or Luxembourgish VAT identifier
+// (PEPPOL-COMMON-R062, R056-2, R058). The first rule that applies wins, in
+// the order of the schematron: the schemes 0088 to 0208, the Belgian VAT
+// identifier, the schemes 0201 to 9944 (9907 only on an electronic
+// address), the Dutch VAT identifier, the scheme 0217, the Luxembourgish
+// VAT identifier, the scheme 0240. Self-Billing moves 0096 and 0198 after
+// the Belgian VAT identifier.
 func (k *ublChecker) identifier(n *xmltree.Node) {
 	endpoint := uis(n, "cbc:EndpointID")
 	company := uis(n, "cbc:CompanyID")
 	if !endpoint && !company && !(uis(n, "cbc:ID") && uparent(n, "cac:PartyIdentification")) {
 		return
 	}
-	scheme, ok := n.LookupAttr("schemeID")
+	scheme, _ := n.LookupAttr("schemeID")
 	v := nsv(n)
-	if ok && scheme != "0217" && (scheme != "9907" || endpoint) {
-		if id, valid := icdRule(scheme, v, sv(n)); id != "" {
-			k.check(valid, id, n, "scheme %s, value: %q", scheme, v)
-			return
-		}
-	}
-	if company && uparent(n, "cac:PartyTaxScheme") && taxSchemeID(n.Parent) == "VAT" && strings.HasPrefix(v, "NL") {
-		k.check(dutchVAT(v), "PEPPOL-COMMON-R056-2", n, "value: %q", v)
-		return
-	}
-	if ok && scheme == "0217" {
+	upper := strings.ToUpper(v)
+	vat := company && uparent(n, "cac:PartyTaxScheme") && taxSchemeID(n.Parent) == "VAT"
+	icd := func() {
 		id, valid := icdRule(scheme, v, sv(n))
 		k.check(valid, id, n, "scheme %s, value: %q", scheme, v)
+	}
+	before, after := icdBeforeBE, icdAfterBE
+	if k.sb {
+		before, after = sbICDBeforeBE, sbICDAfterBE
+	}
+	switch {
+	case in(scheme, before...):
+		icd()
+	case vat && strings.HasPrefix(upper, "BE"):
+		k.check(belgianVAT(upper), "PEPPOL-COMMON-R062", n, "value: %q", v)
+	case in(scheme, after...) || scheme == "9907" && endpoint:
+		icd()
+	case vat && strings.HasPrefix(v, "NL"):
+		k.check(dutchVAT(v), "PEPPOL-COMMON-R056-2", n, "value: %q", v)
+	case scheme == "0217":
+		icd()
+	case vat && strings.HasPrefix(upper, "LU"):
+		k.check(luxembourgVAT(upper), "PEPPOL-COMMON-R058", n, "value: %q", v)
+	case scheme == "0240":
+		icd()
 	}
 }

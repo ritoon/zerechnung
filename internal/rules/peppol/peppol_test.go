@@ -161,6 +161,11 @@ func buyerID(scheme, id string) []edit {
 	return one(before(aBuyerName, `<ram:GlobalID schemeID="`+scheme+`">`+id+`</ram:GlobalID>`))
 }
 
+// shipTo returns a deliver-to party with an identifier.
+func shipTo(id string) string {
+	return "<ram:ShipToTradeParty>" + id + "<ram:Name>Warehouse</ram:Name></ram:ShipToTradeParty>"
+}
+
 // buyerURI replaces the electronic address of the buyer.
 func buyerURI(scheme, id string) []edit {
 	return one(rep(aBuyerURI, `<ram:URIID schemeID="`+scheme+`">`+id+`</ram:URIID>`))
@@ -181,21 +186,21 @@ const (
 var (
 	// taxCurrency declares a VAT accounting currency, with its total.
 	taxCurrency = one(after(aCurrency, elem("TaxCurrencyCode", "EUR")), after(aTaxTotal, taxTotal("EUR", "230.00")))
-	// norway moves the seller to Norway, with its VAT identifier (schemeID
-	// 'VAT', as the schematron expects) and the Foretaksregisteret mention.
-	norway = one(rep(aSellerVAT, `<ram:ID schemeID="VAT">NO974760673MVA</ram:ID>`), before(aSellerEnd, taxRegistration("FC", "Foretaksregisteret")))
+	// norway moves the seller to Norway, with its VAT identifier and the
+	// Foretaksregisteret mention.
+	norway = one(rep(aSellerVAT, `<ram:ID schemeID="VA">NO974760673MVA</ram:ID>`), before(aSellerEnd, taxRegistration("FC", "Foretaksregisteret")))
 	// dkCustomer moves seller and buyer to Denmark, with the seller CVR
 	// number; its payment means code 30 is not allowed in Denmark.
 	dkCustomer = one(repAll(aCountry, elem("CountryID", "DK")), after(aSellerName, legalOrg("0184", "DK12345678")))
 	// dkDomestic is a valid domestic Danish invoice.
 	dkDomestic = edits(dkCustomer, one(pm("58")))
-	// italy moves the seller to Italy.
-	italy = one(country("IT"))
+	// italy moves the seller to Italy, with its VAT identifier.
+	italy = one(country("IT"), rep(aSellerVAT, `<ram:ID schemeID="VA">IT12345678903</ram:ID>`))
 	// seAddress moves the seller to Sweden.
 	seAddress = one(country("SE"))
-	// seVAT moves the seller to Sweden, with its VAT identifier (schemeID
-	// 'VAT') and Swedish VAT rates.
-	seVAT = edits(seAddress, one(rep(aSellerVAT, `<ram:ID schemeID="VAT">SE556036079301</ram:ID>`), repAll(aRate, elem("RateApplicablePercent", "25"))))
+	// seVAT moves the seller to Sweden, with its VAT identifier and Swedish
+	// VAT rates.
+	seVAT = edits(seAddress, one(rep(aSellerVAT, `<ram:ID schemeID="VA">SE556036079301</ram:ID>`), repAll(aRate, elem("RateApplicablePercent", "25"))))
 	// nlSeller moves the seller to the Netherlands, with its KvK number.
 	nlSeller = one(country("NL"), after(aSellerName, legalOrg("0106", "12345678")))
 	// nlCustomer moves the buyer to the Netherlands too.
@@ -273,6 +278,13 @@ func mutationCases() []mutationCase {
 		// Identifiers of the ICD schemes.
 		{"COMMON-R040 GLN", one(rep(aSellerGLN, `<ram:GlobalID schemeID="0088">5012345000016</ram:GlobalID>`)), ids("PEPPOL-COMMON-R040")},
 		{"COMMON-R040 GLN with spaces", one(rep(aSellerGLN, `<ram:GlobalID schemeID="0088"> 5012345000015 </ram:GlobalID>`)), nil},
+		{"COMMON-R040 GLN of 12 digits", one(rep(aSellerGLN, `<ram:GlobalID schemeID="0088">501234500019</ram:GlobalID>`)), ids("PEPPOL-COMMON-R040")},
+		// The global identifiers of the deliver-to location (BT-71) and of an
+		// item (BT-157) are not checked; other identifiers of the deliver-to
+		// party are.
+		{"COMMON-R040 item identifier", one(before(aProduct1, `<ram:GlobalID schemeID="0088">5012345000016</ram:GlobalID>`)), nil},
+		{"COMMON-R040 deliver-to location", one(after("<ram:ApplicableHeaderTradeDelivery>", shipTo(`<ram:GlobalID schemeID="0088">5012345000016</ram:GlobalID>`))), nil},
+		{"COMMON-R040 deliver-to party identifier", one(after("<ram:ApplicableHeaderTradeDelivery>", shipTo(`<ram:ID schemeID="0088">5012345000016</ram:ID>`))), ids("PEPPOL-COMMON-R040")},
 		{"COMMON-R041 Norwegian organization number", buyerURI("0192", "974760674"), ids("PEPPOL-COMMON-R041")},
 		{"COMMON-R041 valid", buyerURI("0192", "974760673"), nil},
 		{"COMMON-R042 Danish CVR", buyerID("0184", "DK1234567"), ids("PEPPOL-COMMON-R042")},
@@ -283,6 +295,7 @@ func mutationCases() []mutationCase {
 		{"COMMON-R053 valid", buyerID("0198", "DK12345678"), nil},
 		{"COMMON-R043 Belgian enterprise number", buyerID("0208", "0123456748"), ids("PEPPOL-COMMON-R043")},
 		{"COMMON-R043 valid", buyerID("0208", "0123456749"), nil},
+		{"COMMON-R043 first digit", buyerID("0208", "2123456791"), ids("PEPPOL-COMMON-R043")},
 		{"COMMON-R044 codice IPA", buyerID("0201", "AB12C"), ids("PEPPOL-COMMON-R044")},
 		{"COMMON-R044 valid", buyerID("0201", "AB12CD"), nil},
 		{"COMMON-R045 codice fiscale", buyerID("0210", "RSSMRA85T10A562"), ids("PEPPOL-COMMON-R045")},
@@ -304,6 +317,16 @@ func mutationCases() []mutationCase {
 		{"COMMON-R056-2 Dutch VAT identifier", one(rep(aSellerVAT, `<ram:ID schemeID="VA">NL123456789</ram:ID>`)), ids("PEPPOL-COMMON-R056-2")},
 		{"COMMON-R056-2 valid", one(rep(aSellerVAT, `<ram:ID schemeID="VA">NL123456789B01</ram:ID>`)), nil},
 		{"COMMON-R057 Philippine TIN", buyerID("0217", "12345678901"), ids("PEPPOL-COMMON-R057")},
+		{"COMMON-R059 Luxembourgish national identifier", buyerID("0240", "19852012343"), ids("PEPPOL-COMMON-R059")},
+		{"COMMON-R059 valid", buyerID("0240", "19852012342"), nil},
+
+		// VAT identifiers.
+		{"COMMON-R062 Belgian VAT identifier", one(rep(aSellerVAT, `<ram:ID schemeID="VA">BE0123456748</ram:ID>`)), ids("PEPPOL-COMMON-R062")},
+		{"COMMON-R062 valid", one(rep(aSellerVAT, `<ram:ID schemeID="VA"> be0123456749 </ram:ID>`)), nil},
+		{"COMMON-R058 Luxembourgish VAT identifier", one(rep(aSellerVAT, `<ram:ID schemeID="VA">LU12345678</ram:ID>`)), ids("PEPPOL-COMMON-R058")},
+		{"COMMON-R058 valid", one(rep(aSellerVAT, `<ram:ID schemeID="VA">LU12345613</ram:ID>`)), nil},
+		// schemeID 'VAT' is the UBL value: the CII rules do not read it.
+		{"COMMON-R058 UBL scheme", one(rep(aSellerVAT, `<ram:ID schemeID="VAT">LU12345678</ram:ID>`)), nil},
 
 		// Code lists and formats.
 		{"CL001 MIME code", one(rep(aMimeCode, `mimeCode="application/zip"`)), ids("PEPPOL-EN16931-CL001")},
@@ -320,17 +343,24 @@ func mutationCases() []mutationCase {
 		{"CL008 electronic address scheme", one(rep(aSellerURI, `<ram:URIID schemeID="EM">billing@example.com</ram:URIID>`)), ids("PEPPOL-EN16931-CL008")},
 
 		// Norway.
-		{"NO-R-002 no Foretaksregisteret", one(country("NO")), ids("NO-R-002")},
-		{"NO-R-002 Foretaksregisteret", one(country("NO"), before(aSellerEnd, taxRegistration("FC", "Foretaksregisteret"))), nil},
+		{"NO-R-002 no Foretaksregisteret", one(rep(aSellerVAT, `<ram:ID schemeID="VA">NO974760673MVA</ram:ID>`)), ids("NO-R-002")},
+		// Without a VAT identifier, the seller is in the country of its
+		// address.
+		{"NO-R-002 by address", one(country("NO"), remove(aSellerVAT)), ids("NO-R-002")},
+		{"NO-R-002 Foretaksregisteret", one(country("NO"), remove(aSellerVAT), before(aSellerEnd, taxRegistration("FC", "Foretaksregisteret"))), nil},
 		{"NO-R-001 VAT identifier", edits(norway, one(rep("NO974760673MVA", "NO974760674MVA"))), ids("NO-R-001")},
 		{"NO-R-001 no MVA", edits(norway, one(rep("NO974760673MVA", "NO974760673"))), ids("NO-R-001")},
-		// $supplierCountry reads the identifiers whose schemeID is 'VAT', the
-		// UBL value: a CII VAT identifier (schemeID 'VA') is not read.
-		{"NO-R-* VA identifier", one(rep(aSellerVAT, `<ram:ID schemeID="VA">NO974760674MVA</ram:ID>`)), nil},
+		// $supplierCountry reads the identifiers whose schemeID is 'VA':
+		// with the UBL value 'VAT', the seller is in the country of its
+		// address.
+		{"NO-R-* UBL scheme", one(rep(aSellerVAT, `<ram:ID schemeID="VAT">NO974760674MVA</ram:ID>`)), nil},
 
 		// Denmark.
 		{"DK-R-002 no legal registration", one(country("DK")), ids("DK-R-002")},
 		{"DK-R-014 legal registration scheme", one(country("DK"), after(aSellerName, legalOrg("0096", "1234567890"))), ids("DK-R-014")},
+		{"DK-R-017 buyer legal registration scheme", edits(dkDomestic, one(after(aBuyerName, legalOrg("0096", "1234567890")))), ids("DK-R-017")},
+		{"DK-R-017 valid", edits(dkDomestic, one(after(aBuyerName, legalOrg("0184", "87654321")))), nil},
+		{"DK-R-017 foreign buyer", one(country("DK"), after(aSellerName, legalOrg("0184", "DK12345678")), after(aBuyerName, legalOrg("0096", "1234567890"))), nil},
 		{"DK-R-004 reason", edits(dkDomestic, one(rep(aChargeCode, elem("ReasonCode", "ZZZ")))), ids("DK-R-004")},
 		{"DK-R-004 tax category", edits(dkDomestic, one(rep(aChargeCode, elem("ReasonCode", "ZZZ")), rep(aChargeReason, elem("Reason", "1234")))), nil},
 		{"DK-R-004 hashed reason", edits(dkDomestic, one(rep(aChargeCode, elem("ReasonCode", "ZZZ")), rep(aChargeReason, elem("Reason", "VAT#S")))), nil},
@@ -354,8 +384,11 @@ func mutationCases() []mutationCase {
 		{"DK-R-003 valid", edits(dkDomestic, one(after(aProduct1, classCode("TST", "19.05.01")))), nil},
 
 		// Italy.
-		{"IT-R-001 codice fiscale", edits(italy, one(rep(aSellerVAT, `<ram:ID schemeID="FC">rssmra85</ram:ID>`))), ids("IT-R-001")},
-		{"IT-R-001 valid", edits(italy, one(rep(aSellerVAT, `<ram:ID schemeID="FC">RSSMRA85T10A562S</ram:ID>`))), nil},
+		{"IT-R-001 codice fiscale", edits(italy, one(before(aSellerEnd, taxRegistration("FC", "rssmra85")))), ids("IT-R-001")},
+		{"IT-R-001 valid", edits(italy, one(before(aSellerEnd, taxRegistration("FC", "RSSMRA85T10A562S")))), nil},
+		// The country of the seller is that of its VAT identifier, before
+		// that of its address.
+		{"IT-R-002 seller with a foreign VAT identifier", one(country("IT"), remove(aStreet)), nil},
 		{"IT-R-002 no street", edits(italy, one(remove(aStreet))), ids("IT-R-002")},
 		{"IT-R-003 no city", edits(italy, one(remove(aCity))), ids("IT-R-003")},
 		{"IT-R-004 no post code", edits(italy, one(remove(aPostcode))), ids("IT-R-004")},
@@ -363,7 +396,8 @@ func mutationCases() []mutationCase {
 		// Sweden.
 		{"SE-R-001 VAT identifier length", edits(seVAT, one(rep("SE556036079301", "SE5560360793"))), ids("SE-R-001")},
 		{"SE-R-002 VAT identifier digits", edits(seVAT, one(rep("SE556036079301", "SE55603607930A"))), ids("SE-R-002")},
-		{"SE-R-006 VAT rate", edits(seAddress, one(rep(aSellerVAT, `<ram:ID schemeID="VAT">SE556036079301</ram:ID>`))), ids("SE-R-006")},
+		{"SE-R-006 VAT rate", edits(seAddress, one(rep(aSellerVAT, `<ram:ID schemeID="VA">SE556036079301</ram:ID>`), country("SE"))), ids("SE-R-006")},
+		{"SE-R-006 foreign buyer", edits(seAddress, one(rep(aSellerVAT, `<ram:ID schemeID="VA">SE556036079301</ram:ID>`))), nil},
 		{"SE-R-003 organization number digits", edits(seAddress, one(after(aSellerName, legalOrg("", "556036079A")))), ids("SE-R-003", "SE-R-013")},
 		{"SE-R-004 organization number length", edits(seAddress, one(after(aSellerName, legalOrg("", "556036079")))), ids("SE-R-004", "SE-R-013")},
 		{"SE-R-013 organization number check digit", edits(seAddress, one(after(aSellerName, legalOrg("", "5560360794")))), ids("SE-R-013")},
@@ -459,8 +493,8 @@ func TestCatalog(t *testing.T) {
 			t.Errorf("byID()[%s] is not the catalog entry", r.ID)
 		}
 	}
-	if len(Catalog) != 90 || sev[rules.Error] != 73 || sev[rules.Warning] != 17 {
-		t.Errorf("%d assertions (%d errors, %d warnings), want 90 (73, 17)", len(Catalog), sev[rules.Error], sev[rules.Warning])
+	if len(Catalog) != 94 || sev[rules.Error] != 80 || sev[rules.Warning] != 14 {
+		t.Errorf("%d rules (%d errors, %d warnings), want 94 (80, 14)", len(Catalog), sev[rules.Error], sev[rules.Warning])
 	}
 }
 
@@ -493,6 +527,26 @@ func TestCheckDigits(t *testing.T) {
 		{"mod11", mod11, "", false},
 		{"mod97BE", mod97BE, "0123456749", true},
 		{"mod97BE", mod97BE, "0123456748", false},
+		{"belgianCompany", belgianCompany, "0123456749", true},
+		{"belgianCompany", belgianCompany, "1234567894", true},
+		{"belgianCompany", belgianCompany, "2123456791", false},
+		{"belgianCompany", belgianCompany, "012345674", false},
+		{"belgianVAT", belgianVAT, "BE0123456749", true},
+		{"belgianVAT", belgianVAT, "BE0123456748", false},
+		{"belgianVAT", belgianVAT, "0123456749", false},
+		{"luxembourgVAT", luxembourgVAT, "LU12345613", true},
+		{"luxembourgVAT", luxembourgVAT, "LU00000000", true},
+		{"luxembourgVAT", luxembourgVAT, "LU12345678", false},
+		{"luxembourgVAT", luxembourgVAT, "LU1234561", false},
+		{"luxembourgVAT", luxembourgVAT, "BE12345613", false},
+		{"luxembourgMatricule", luxembourgMatricule, "19852012342", true},
+		{"luxembourgMatricule", luxembourgMatricule, "19852012343", false},
+		{"luxembourgMatricule", luxembourgMatricule, "20102412347", true}, // type 24, modulo 11
+		{"luxembourgMatricule", luxembourgMatricule, "20102412348", true}, // type 24, modulo 12
+		{"luxembourgMatricule", luxembourgMatricule, "20102412349", false},
+		{"luxembourgMatricule", luxembourgMatricule, "19851912358", false}, // type 19, check digit modulo 11
+		{"luxembourgMatricule", luxembourgMatricule, "1985201234", false},
+		{"luxembourgMatricule", luxembourgMatricule, "1985201234a", false},
 		{"codiceIPA", codiceIPA, "AB12CD", true},
 		{"codiceIPA", codiceIPA, "ab12cd", true},
 		{"codiceIPA", codiceIPA, "AB12C", false},

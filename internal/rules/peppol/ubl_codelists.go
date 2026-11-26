@@ -19,7 +19,7 @@ var (
 	// ublInvoiceTypes and ublCreditNoteTypes are the type codes of profiles
 	// 01 and 02 (PEPPOL-EN16931-P0100, PEPPOL-EN16931-P0101).
 	ublInvoiceTypes = sync.OnceValue(func() map[string]bool {
-		return set("71 80 82 84 102 218 219 326 331 380 382 383 384 386 388 393 395 553 575 623 780 817 870 875 876 877")
+		return set("71 80 82 84 102 218 219 326 331 380 382 383 384 386 388 389 393 395 553 575 623 780 817 870 875 876 877")
 	})
 	ublCreditNoteTypes = sync.OnceValue(func() map[string]bool { return set("381 396 81 83 532") })
 

@@ -91,7 +91,7 @@ func sbMutationCases() []mutationCase {
 		// The Billing process is not a process of Self-Billing: the profile
 		// is unknown, and the type code is not checked.
 		{"Billing process", one(rep(sbProfileID, uProfileID)), ids("PEPPOL-EN16931-R007")},
-		{"no business process", one(remove(sbProfileID)), ids("PEPPOL-EN16931-R001", "PEPPOL-EN16931-R007")},
+		{"no business process", one(remove(sbProfileID)), ids("PEPPOL-EN16931-R001", "PEPPOL-EN16931-R007", "PEPPOL-EN16931-R276")},
 		{"French regulated process", one(rep(sbProfileID, "<cbc:ProfileID>urn:peppol:france:billing:regulated</cbc:ProfileID>")), nil},
 		{"French process, commercial invoice", one(rep(sbProfileID, "<cbc:ProfileID>urn:peppol:france:billing:non-regulated</cbc:ProfileID>"),
 			rep(sbTypeCode, "<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>")), ids("PEPPOL-EN16931-P0100")},
@@ -120,6 +120,13 @@ func sbMutationCases() []mutationCase {
 		{"empty element", one(rep(uNote, "<cbc:Note> </cbc:Note>")), ids("PEPPOL-EN16931-R008")},
 		{"Dutch VAT identifier", one(rep(uSellerVAT, "<cbc:CompanyID>NL123456789</cbc:CompanyID>")), ids("PEPPOL-COMMON-R056-2")},
 		{"GLN check digit", one(rep(uSellerEndpoint, `<cbc:EndpointID schemeID="0088">5012345000016</cbc:EndpointID>`)), ids("PEPPOL-COMMON-R040")},
+		{"Luxembourgish VAT identifier", one(rep(uSellerVAT, "<cbc:CompanyID>LU12345678</cbc:CompanyID>")), ids("PEPPOL-COMMON-R058")},
+		{"no seller electronic address", one(remove(uSellerEndpoint)), ids("PEPPOL-EN16931-R020", "PEPPOL-EN16931-R229")},
+		{"Slovakia", edits(slovakia, one(remove(uSellerStreet))), nil},
+		// Self-Billing checks the schemes 0096 and 0198 after the Belgian VAT
+		// identifier, where Billing checks them before (PEPPOL-COMMON-R052).
+		{"Belgian VAT identifier with scheme 0096", one(rep(uSellerVAT, `<cbc:CompanyID schemeID="0096">BE0123456749</cbc:CompanyID>`)), nil},
+		{"invalid Belgian VAT identifier with scheme 0198", one(rep(uSellerVAT, `<cbc:CompanyID schemeID="0198">BE0123456748</cbc:CompanyID>`)), ids("PEPPOL-COMMON-R062")},
 	}
 }
 
@@ -194,8 +201,8 @@ func TestSelfBillingCatalog(t *testing.T) {
 			t.Errorf("%s: description %q, %q in UBLCatalog", r.ID, r.Description, u.Description)
 		}
 	}
-	if len(SelfBillingCatalog) != 62 || len(sbByID()) != 62 || sev[rules.Error] != 53 || sev[rules.Warning] != 9 {
-		t.Errorf("%d assertions (%d errors, %d warnings), want 62 (53, 9)", len(SelfBillingCatalog), sev[rules.Error], sev[rules.Warning])
+	if len(SelfBillingCatalog) != 185 || len(sbByID()) != 185 || sev[rules.Error] != 178 || sev[rules.Warning] != 7 {
+		t.Errorf("%d assertions (%d errors, %d warnings), want 185 (178, 7)", len(SelfBillingCatalog), sev[rules.Error], sev[rules.Warning])
 	}
 	// The rules of Billing that Self-Billing does not have: the national
 	// rules and PEPPOL-EN16931-P0112.
@@ -224,10 +231,12 @@ func TestSelfBillingEmpty(t *testing.T) {
 }
 
 // TestOfficialSelfBilling reads the artefacts of Peppol BIS Self-Billing
-// 3.0.2 in the directory named by FX_PEPPOL_SB (conformance/fetch.sh): the
+// 3.1.0 in the directory named by FX_PEPPOL_SB (conformance/fetch.sh): the
 // assertions of PEPPOL-EN16931-UBL-SB.sch are those of SelfBillingCatalog,
-// in the same order, with the same flags and messages, and the official
-// examples (BIS-SelfBilling-Examples.zip) pass the rules of Self-Billing.
+// in the same order, with the same flags and messages, its rules of
+// inferred cardinality fire on documents reduced to their context, and the
+// official examples (BIS-SelfBilling-Examples.zip) pass the rules of
+// Self-Billing.
 func TestOfficialSelfBilling(t *testing.T) {
 	dir := os.Getenv("FX_PEPPOL_SB")
 	if dir == "" {
@@ -268,6 +277,11 @@ func TestOfficialSelfBilling(t *testing.T) {
 				t.Errorf("assertion %d: schematron %+v, catalog %+v", i+1, a, b)
 			}
 		}
+	}
+
+	cardinality := officialCardinality(t, filepath.Join(dir, "PEPPOL-EN16931-UBL-SB.sch"), func(b []byte) *rules.Report { return checkSelfBilling(t, b) })
+	if len(cardinality) != 120 {
+		t.Errorf("%d rules of inferred cardinality, want 120", len(cardinality))
 	}
 
 	z, err := zip.OpenReader(filepath.Join(dir, "BIS-SelfBilling-Examples.zip"))
