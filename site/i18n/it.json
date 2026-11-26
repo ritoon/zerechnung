@@ -305,6 +305,10 @@
     "cp_ie_b2g": "Peppol BIS Billing 3.0 ed EN 16931 per le amministrazioni pubbliche",
     "cp_ie_b2b": "Fatture B2B dal 2028: si applicano EN 16931 e Peppol, le specifiche irlandesi non sono ancora pubblicate",
     "cp_ie_report": "Comunicazione dei dati in tempo reale a Revenue, dal 2028",
+    "cp_ch_intro": "Dal 1° ottobre 2022 la QR-fattura di SIX sostituisce le polizze di versamento: la sezione pagamento della fattura porta uno Swiss QR Code con il conto, l'importo, il riferimento e le parti. Non è una fattura EN 16931: i formati strutturati (swissDIGIN, Factur-X/ZUGFeRD, Peppol BIS) sono facoltativi, e l'amministrazione federale esige la fattura elettronica oltre CHF 5000 dal 2016.",
+    "cp_ch_qrcode": "Swiss QR Code (Implementation Guidelines 2.4 e 2.3 di SIX): costruito dalla fattura, controllato riga per riga (QR-IBAN e riferimento QR, Creditor Reference, cifre di controllo, set di caratteri), simbolo con la croce svizzera in PNG o SVG",
+    "cp_ch_layout": "Sezione pagamento e ricevuta della QR-fattura nel PDF (Style Guide di SIX)",
+    "cp_ch_ebill": "eBill, la fattura elettronica delle banche svizzere",
 
     "country_AT": "Austria",
     "country_BE": "Belgio",

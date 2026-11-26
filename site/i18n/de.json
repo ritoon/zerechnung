@@ -305,6 +305,10 @@
     "cp_ie_b2g": "Peppol BIS Billing 3.0 und EN 16931 für öffentliche Auftraggeber",
     "cp_ie_b2b": "B2B-E-Rechnungen ab 2028: EN 16931 und Peppol gelten, die irischen Spezifikationen sind noch nicht veröffentlicht",
     "cp_ie_report": "Echtzeitmeldung an Revenue, ab 2028",
+    "cp_ch_intro": "Seit dem 1. Oktober 2022 ersetzt die QR-Rechnung von SIX die Einzahlungsscheine: Der Zahlteil der Rechnung trägt einen Swiss QR Code mit Konto, Betrag, Referenz und Parteien. Sie ist keine Rechnung nach EN 16931: Strukturierte Formate (swissDIGIN, Factur-X/ZUGFeRD, Peppol BIS) sind freiwillig, und die Bundesverwaltung verlangt seit 2016 ab CHF 5000 eine E-Rechnung.",
+    "cp_ch_qrcode": "Swiss QR Code (Implementation Guidelines 2.4 und 2.3 von SIX): aus der Rechnung erzeugt, Zeile für Zeile geprüft (QR-IBAN und QR-Referenz, Creditor Reference, Prüfziffern, Zeichensatz), Symbol mit Schweizerkreuz als PNG oder SVG",
+    "cp_ch_layout": "Zahlteil und Empfangsschein der QR-Rechnung im PDF (Style Guide von SIX)",
+    "cp_ch_ebill": "eBill, die elektronische Rechnung der Schweizer Banken",
 
     "country_AT": "Österreich",
     "country_BE": "Belgien",

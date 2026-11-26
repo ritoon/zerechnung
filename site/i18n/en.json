@@ -305,6 +305,10 @@
     "cp_ie_b2g": "Peppol BIS Billing 3.0 and EN 16931 for public buyers",
     "cp_ie_b2b": "B2B e-invoices from 2028: EN 16931 and Peppol apply, the Irish specifications are not published yet",
     "cp_ie_report": "Real-time reporting to Revenue, from 2028",
+    "cp_ch_intro": "Since 1 October 2022, the QR-bill of SIX has replaced the payment slips: the payment part of the invoice carries a Swiss QR Code with the account, the amount, the reference and the parties. It is not an EN 16931 invoice: structured formats (swissDIGIN, Factur-X/ZUGFeRD, Peppol BIS) are voluntary, and the federal administration requires e-invoices above CHF 5,000 since 2016.",
+    "cp_ch_qrcode": "Swiss QR Code (Implementation Guidelines 2.4 and 2.3 of SIX): built from the invoice, checked line by line (QR-IBAN and QR reference, Creditor Reference, check digits, character set), symbol with the Swiss cross in PNG or SVG",
+    "cp_ch_layout": "Payment part and receipt of the QR-bill in the PDF (Style Guide of SIX)",
+    "cp_ch_ebill": "eBill, the electronic bill of the Swiss banks",
 
     "country_AT": "Austria",
     "country_BE": "Belgium",
